@@ -167,7 +167,7 @@ def gate(
     from neti.gateway.upstream import HttpUpstream
     from neti.resolvers.base import ResolveContext, ResolverError
     from neti.resolvers.registry import build_entra_resolvers
-    from neti.store.jsonl import JsonlSink
+    from neti.store.jsonl import JsonlSink, chain_head
 
     try:
         policy = load_policy(config)
@@ -176,7 +176,14 @@ def gate(
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from exc
 
-    engine = Engine(policy=policy, resolvers=resolvers, ctx=ResolveContext(timeout_ms=timeout_ms))
+    engine = Engine(
+        policy=policy,
+        resolvers=resolvers,
+        ctx=ResolveContext(timeout_ms=timeout_ms),
+        # Continue the existing file's chain rather than starting a new one, or every restart
+        # writes a mid-chain break that `neti verify` correctly reports.
+        last_digest=chain_head(records),
+    )
     sink = JsonlSink(records)
     gateway = McpGateway(engine=engine, upstream=HttpUpstream(upstream), sink=sink)
 

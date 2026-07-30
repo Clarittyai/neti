@@ -20,12 +20,12 @@ from neti.core.verdict import Mode
 from neti.engine import Engine
 from neti.eval.incidents import INCIDENTS, Coverage, replay
 from neti.eval.scorecard import NON_COVERAGE, build_scorecard, format_scorecard, scorecard_json
+from neti.eval.synthetic import SyntheticTenant, default_tenant
 from neti.gateway.mcp import McpGateway
 from neti.insight.report import build_report
 from neti.resolvers.graph_client import ClientCredential, GraphClient
 from neti.resolvers.registry import resolvers_for_client
 from neti.store.jsonl import JsonlSink, read_records
-from neti.eval.synthetic import SyntheticTenant, default_tenant
 from tests.integration.test_gateway import FakeUpstream, call
 from tests.integration.test_inventory import EXAMPLE
 

@@ -24,7 +24,7 @@ from typing import Any
 from neti.config.policy import Policy, load_policy
 from neti.core.types import ProposedCall
 from neti.core.verdict import Mode
-from neti.engine import Engine, GateResult
+from neti.engine import Engine
 from neti.eval.synthetic import Group, SyntheticTenant, default_tenant
 from neti.gateway.mcp import McpGateway
 from neti.insight.inventory import build_inventory
@@ -57,7 +57,9 @@ class _Recorder:
 
 def _engine(tenant: SyntheticTenant, policy: Policy) -> tuple[Engine, GraphClient]:
     client = GraphClient(_CRED, transport=tenant.transport())
-    return Engine(policy=policy, resolvers=resolvers_for_client(client), ctx=ResolveContext()), client
+    return Engine(
+        policy=policy, resolvers=resolvers_for_client(client), ctx=ResolveContext()
+    ), client
 
 
 def _bare(policy: Policy) -> Policy:

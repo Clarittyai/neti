@@ -18,11 +18,11 @@ import pytest
 from neti.config.policy import load_policy
 from neti.core.verdict import Mode
 from neti.engine import Engine
+from neti.eval.synthetic import SyntheticTenant, default_tenant
 from neti.gateway.mcp import McpGateway
 from neti.gateway.server import SESSION_HEADER, _handler_class
 from neti.resolvers.graph_client import ClientCredential, GraphClient
 from neti.resolvers.registry import resolvers_for_client
-from neti.eval.synthetic import SyntheticTenant, default_tenant
 from tests.integration.test_gateway import FakeUpstream
 from tests.integration.test_inventory import EXAMPLE
 

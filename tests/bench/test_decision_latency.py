@@ -28,9 +28,9 @@ from neti.core.types import Band, Ceiling, ProposedCall, Resolution
 from neti.core.units import Unit
 from neti.core.verdict import Mode
 from neti.engine import Engine
+from neti.eval.synthetic import SyntheticTenant, default_tenant
 from neti.resolvers.graph_client import ClientCredential, GraphClient
 from neti.resolvers.registry import resolvers_for_client
-from neti.eval.synthetic import SyntheticTenant, default_tenant
 from tests.integration.test_inventory import EXAMPLE
 
 CRED = ClientCredential(tenant_id="t", client_id="c", client_secret="s")

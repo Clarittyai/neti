@@ -14,6 +14,7 @@ from __future__ import annotations
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from typing import Any, Protocol
 
 from neti.config.policy import Policy
 from neti.core.budget import SessionTally, check_budgets
@@ -24,7 +25,41 @@ from neti.core.units import Unit
 from neti.core.verdict import ResolutionState
 from neti.resolvers.base import ResolveContext, Resolver
 
-__all__ = ["Engine", "GateResult"]
+__all__ = [
+    "BOUND",
+    "COMPARED",
+    "INTERCEPTED",
+    "RESOLVED",
+    "RESOLVE_STARTED",
+    "SEALED",
+    "Engine",
+    "GateResult",
+    "Observer",
+]
+
+
+class Observer(Protocol):
+    """Called at each visible stage of `gate`, for a console that needs to show the pipeline.
+
+    Emitted to, never consulted. This is the whole safety argument: an observer cannot influence a
+    verdict, cannot fail one open, and cannot appear in a record. It exists so a UI can show what
+    the engine did, not so anything can change what the engine does.
+    """
+
+    def __call__(self, stage: str, payload: dict[str, Any]) -> None: ...
+
+
+def _ignore(stage: str, payload: dict[str, Any]) -> None:
+    """The no-observer path. A branchless default beats an `if observe is not None` per stage."""
+
+
+# Stage names are public API — a console renders them and they end up in screenshots.
+INTERCEPTED = "intercepted"
+BOUND = "bound"
+RESOLVE_STARTED = "resolve_started"
+RESOLVED = "resolved"
+COMPARED = "compared"
+SEALED = "sealed"
 
 
 @dataclass
@@ -47,12 +82,24 @@ class Engine:
     strict: bool = True
     """Reject a policy whose session budgets can never fire. See `_check_budget_units`."""
 
+    last_digest: str | None = None
+    """Digest of the record this engine's chain continues from.
+
+    Public and settable because a process appending to an existing record file must continue that
+    file's chain. Defaulting to `None` and starting fresh writes a record whose `prev_digest` does
+    not match its predecessor, and `verify_chain` correctly calls that a break — a break caused by a
+    restart rather than by tampering. Seed it with `neti.store.jsonl.chain_head(path)`.
+    """
+
     _tallies: dict[str, SessionTally] = field(default_factory=dict, init=False)
-    _last_digest: str | None = field(default=None, init=False)
+    _policy_digest: str = field(default="", init=False)
 
     def __post_init__(self) -> None:
         if self.strict:
             self._check_budget_units()
+        # Recomputed per decision it costs ~226us, which is most of the pure-CPU budget, and it
+        # cannot change: Policy is frozen and this engine holds one.
+        self._policy_digest = self.policy.digest()
 
     def _check_budget_units(self) -> None:
         """A session budget in a unit no gated parameter produces is silent dead config.
@@ -82,13 +129,36 @@ class Engine:
                 "policy has session budgets that can never fire:\n  " + "\n  ".join(problems)
             )
 
-    def gate(self, call: ProposedCall) -> GateResult:
-        """Resolve, decide, record. The whole hot path."""
+    def gate(self, call: ProposedCall, observe: Observer | None = None) -> GateResult:
+        """Resolve, decide, record. The whole hot path.
+
+        `observe` is emitted to and never consulted. Nothing an observer does can reach a verdict,
+        and with no observer this method executes exactly the code it executed before it existed.
+
+        The stages deliberately carry **no timings**. The observer timestamps its own arrivals, so
+        the engine reads no clock it did not already read, and a console displays a number measured
+        at the boundary it actually observes rather than a second, differently-derived figure.
+        """
+        emit = observe or _ignore
+        emit(
+            INTERCEPTED,
+            {"tool": call.tool, "args": call.args, "gated": self.policy.is_gated(call.tool)},
+        )
+
         gated: list[tuple[str, str | None, Ceiling]] = []
         resolutions: dict[str, Resolution] = {}
 
         for pointer, target, spec in self.policy.targets(call):
             resolver = self.resolvers.get(spec.resolver)
+            emit(
+                BOUND,
+                {
+                    "pointer": pointer,
+                    "target": target,
+                    "resolver": spec.resolver,
+                    "registered": resolver is not None,
+                },
+            )
             if resolver is None:
                 # A policy naming a resolver we do not have is a misconfiguration, and the honest
                 # answer is ignorance rather than silence: `decide` routes it through the declared
@@ -107,7 +177,23 @@ class Engine:
                     unit, reason="gated argument absent from the call"
                 )
                 continue
-            resolutions[pointer] = _relabel(resolver.resolve(target, self.ctx), unit)
+            emit(RESOLVE_STARTED, {"pointer": pointer, "target": target, "unit": unit.value})
+            resolution = _relabel(resolver.resolve(target, self.ctx), unit)
+            resolutions[pointer] = resolution
+            emit(
+                RESOLVED,
+                {
+                    "pointer": pointer,
+                    "state": resolution.state.name.lower(),
+                    "magnitude": resolution.magnitude,
+                    "unit": resolution.unit.value,
+                    "direction": resolution.direction.value,
+                    "breakdown": dict(resolution.breakdown),
+                    # The wire detail IS the credibility: the request that was made, what came
+                    # back, and what it cost. The resolver already recorded all of it.
+                    "evidence": dict(resolution.evidence),
+                },
+            )
 
         session_id = call.session_id or "anonymous"
         tally = self._tallies.get(session_id, SessionTally())
@@ -115,6 +201,39 @@ class Engine:
         prelim = decide(call, tuple(gated), resolutions, mode=self.policy.mode)
         budget = check_budgets(call.tool, prelim.args, tally, self.policy.session_budgets)
         final = decide(call, tuple(gated), resolutions, mode=self.policy.mode, budget=budget)
+        emit(
+            COMPARED,
+            {
+                "args": [
+                    {
+                        "pointer": a.pointer,
+                        "verdict": a.verdict.name.lower(),
+                        "rule": a.rule,
+                        "magnitude": a.resolution.magnitude,
+                        "ceiling": None if a.tripped is None else a.tripped.above,
+                        "breaches": [
+                            {
+                                "source": b.source,
+                                "observed": b.observed,
+                                "above": b.above,
+                                "verdict": b.verdict.name.lower(),
+                            }
+                            for b in a.breaches
+                        ],
+                    }
+                    for a in final.args
+                ],
+                "budget": None
+                if budget is None
+                else {
+                    "verdict": budget.verdict.name.lower(),
+                    "running_total": budget.running_total,
+                    "ceiling": None if budget.tripped is None else budget.tripped.above,
+                },
+                "verdict": final.verdict.name.lower(),
+                "rule": final.rule,
+            },
+        )
 
         if final.proceeds:
             self._tallies[session_id] = tally.add_committed(final.args)
@@ -123,13 +242,22 @@ class Engine:
             final,
             decision_id=str(uuid.uuid4()),
             decided_at=datetime.now(UTC).isoformat(),
-            policy_digest=self.policy.digest(),
+            policy_digest=self._policy_digest,
             code_version=self.code_version,
             args=call.args,
             session_id=call.session_id,
-            prev_digest=self._last_digest,
+            prev_digest=self.last_digest,
         )
-        self._last_digest = record.record_digest
+        self.last_digest = record.record_digest
+        emit(
+            SEALED,
+            {
+                "decision_id": record.decision_id,
+                "prev_digest": record.prev_digest,
+                "record_digest": record.record_digest,
+                "policy_digest": record.policy_digest,
+            },
+        )
         return GateResult(decision=final, record=record)
 
     def denial_payload(self, result: GateResult) -> dict[str, object]:

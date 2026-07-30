@@ -13,11 +13,11 @@ import pytest
 from neti.config.policy import Policy, PolicyError, load_policy
 from neti.core.types import ProposedCall
 from neti.core.verdict import Mode, ResolutionState, Verdict
+from neti.eval.synthetic import SyntheticTenant, default_tenant
 from neti.insight.inventory import build_inventory, format_inventory
 from neti.resolvers.base import ResolveContext
 from neti.resolvers.graph_client import ClientCredential, GraphClient
 from neti.resolvers.registry import resolvers_for_client
-from neti.eval.synthetic import SyntheticTenant, default_tenant
 
 CTX = ResolveContext(timeout_ms=800)
 CRED = ClientCredential(tenant_id="t", client_id="c", client_secret="s")

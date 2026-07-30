@@ -21,7 +21,7 @@ from typing import Any
 
 from neti.core.record import DecisionRecord
 
-__all__ = ["JsonlSink", "read_records"]
+__all__ = ["JsonlSink", "chain_head", "read_records"]
 
 _SENTINEL = object()
 
@@ -77,6 +77,27 @@ class JsonlSink:
 
     def __exit__(self, *exc: object) -> None:
         self.close()
+
+
+def chain_head(path: str | Path) -> str | None:
+    """Digest of the last record in an existing file, or `None` if there is no file yet.
+
+    A process that appends to an existing record file has to continue that file's chain. Without
+    this, every restart writes a record whose `prev_digest` is `None` in the middle of the chain,
+    and `verify_chain` correctly reports a break — a break caused by a restart rather than by
+    tampering, which is the worst possible false alarm an audit surface can raise.
+
+    Reads the whole file. That is fine at POC volumes and honest about what it costs; a deployment
+    with millions of records wants the head cached alongside, not a tail-seek that has to cope with
+    partial final lines.
+    """
+    try:
+        last = None
+        for record in read_records(path):
+            last = record
+        return None if last is None else last.record_digest
+    except FileNotFoundError:
+        return None
 
 
 def read_records(path: str | Path) -> Iterator[DecisionRecord]:

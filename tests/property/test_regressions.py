@@ -6,11 +6,13 @@ returned a milder verdict than the operator declared, or lost the evidence for o
 
 from __future__ import annotations
 
+from typing import Any
+
 from hypothesis import given
 from hypothesis import strategies as st
 
 from neti.core.budget import BudgetRule, SessionTally, check_budgets
-from neti.core.decide import decide_arg, worst_tripped_band
+from neti.core.decide import decide, decide_arg, worst_tripped_band
 from neti.core.types import ArgDecision, Band, Ceiling, Resolution
 from neti.core.units import Unit
 from neti.core.verdict import Verdict
@@ -117,3 +119,59 @@ def test_band_above_is_exclusive() -> None:
         decide_arg("/g", "x", ceiling, Resolution.resolved(Unit.PRINCIPALS, 201)).verdict
         is Verdict.BLOCK
     )
+
+
+def test_the_chain_survives_a_process_restart(tmp_path: Any) -> None:
+    """Regression: a fresh Engine appending to an existing file broke the chain.
+
+    `_last_digest` reset to None on construction, so the first record of every new process carried
+    `prev_digest: null` in the middle of the file and `verify_chain` — correctly — called it a
+    break. A break caused by a restart rather than by tampering is the worst possible false alarm
+    for an audit surface: it teaches an operator to ignore the one signal that is supposed to be
+    trustworthy.
+    """
+    from neti.core.record import build_record, verify_chain
+    from neti.core.types import ProposedCall
+    from neti.core.units import Unit
+    from neti.store.jsonl import JsonlSink, chain_head, read_records
+
+    path = tmp_path / "chain.ndjson"
+    ceiling = Ceiling(unit=Unit.PRINCIPALS, bands=(Band(above=10, verdict=Verdict.BLOCK),))
+
+    def session(magnitudes: list[int]) -> None:
+        """One process lifetime: a new engine-like writer over the same file."""
+        prev = chain_head(path)
+        with JsonlSink(path) as sink:
+            for m in magnitudes:
+                decision = decide(
+                    ProposedCall(tool="t"),
+                    (("/g", "x", ceiling),),
+                    {"/g": Resolution.resolved(Unit.PRINCIPALS, m)},
+                )
+                record = build_record(
+                    decision,
+                    decision_id=f"d-{m}",
+                    decided_at="2026-07-30T00:00:00Z",
+                    policy_digest="pol",
+                    code_version="0.1.0",
+                    prev_digest=prev,
+                )
+                sink.write(record)
+                prev = record.record_digest
+
+    session([1, 2])
+    assert chain_head(path) is not None, "head must be readable between processes"
+    session([3, 4])
+
+    records = list(read_records(path))
+    assert len(records) == 4
+    assert [r.prev_digest for r in records[1:]].count(None) == 0, "a None appeared mid-chain"
+    ok, bad = verify_chain(records)
+    assert ok and bad is None
+
+
+def test_chain_head_of_a_missing_file_is_none(tmp_path: Any) -> None:
+    """A first run has no file, and that is not an error."""
+    from neti.store.jsonl import chain_head
+
+    assert chain_head(tmp_path / "nope.ndjson") is None

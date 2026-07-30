@@ -16,6 +16,7 @@ import pytest
 
 from neti.core.units import Direction, Unit
 from neti.core.verdict import ResolutionState
+from neti.eval.synthetic import Group, SyntheticTenant, default_tenant
 from neti.resolvers.base import ResolveContext
 from neti.resolvers.graph_client import ClientCredential, GraphClient
 from neti.resolvers.graph_entra import (
@@ -24,7 +25,6 @@ from neti.resolvers.graph_entra import (
     EntraPrincipalsResolver,
     resolve_with_guest_breakdown,
 )
-from neti.eval.synthetic import Group, SyntheticTenant, default_tenant
 
 CTX = ResolveContext(timeout_ms=800)
 CRED = ClientCredential(tenant_id="t", client_id="c", client_secret="s")

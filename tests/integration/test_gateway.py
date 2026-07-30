@@ -15,11 +15,11 @@ import pytest
 from neti.config.policy import Policy, load_policy
 from neti.core.verdict import Mode, Verdict
 from neti.engine import Engine
+from neti.eval.synthetic import Group, SyntheticTenant, default_tenant
 from neti.gateway.mcp import McpGateway
 from neti.resolvers.graph_client import ClientCredential, GraphClient
 from neti.resolvers.registry import resolvers_for_client
 from neti.store.jsonl import JsonlSink, read_records
-from neti.eval.synthetic import Group, SyntheticTenant, default_tenant
 from tests.integration.test_inventory import EXAMPLE
 
 CRED = ClientCredential(tenant_id="t", client_id="c", client_secret="s")

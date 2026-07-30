@@ -13,13 +13,13 @@ import pytest
 from neti.config.policy import Policy, load_policy
 from neti.core.verdict import Mode
 from neti.engine import Engine
+from neti.eval.synthetic import Group, SyntheticTenant, default_tenant
 from neti.gateway.mcp import McpGateway
 from neti.insight.propose import MIN_SAMPLES, format_proposals, propose
 from neti.insight.report import build_report, format_report
 from neti.resolvers.graph_client import ClientCredential, GraphClient
 from neti.resolvers.registry import resolvers_for_client
 from neti.store.jsonl import JsonlSink, read_records
-from neti.eval.synthetic import Group, SyntheticTenant, default_tenant
 from tests.integration.test_gateway import FakeUpstream, call
 from tests.integration.test_inventory import EXAMPLE
 
