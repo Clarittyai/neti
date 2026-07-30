@@ -38,6 +38,39 @@ send_email              /to      entra.principals              41,203   ← 38,0
 revoke_app_access       /group   entra.app_assignments             37   ← 37 applications
 ```
 
+## Putting it in front of an agent
+
+No SDK, no code change, no redeploy — a config edit in the client you already use. The agent never
+learns that the gate exists; it learns that a call was too big, which it already knows how to handle.
+
+**An MCP server** (`.mcp.json`, `claude_desktop_config.json`, `~/.cursor/mcp.json`). Whatever command
+launched the server becomes an argument to the gate:
+
+```diff
+   "entra": {
+-    "command": "npx",
+-    "args": ["-y", "@acme/entra-mcp"]
++    "command": "neti",
++    "args": ["gate", "--stdio", "--", "npx", "-y", "@acme/entra-mcp"]
+   }
+```
+
+**The harness's own built-in tools**, which no proxy can see. Claude Code's `PreToolUse` hook is the
+only seam that exists for those, and its contract maps onto the verdict lattice directly —
+BLOCK → `deny`, CONFIRM → `ask`, and a pass says *nothing at all*, so the permission rules you
+already configured keep working exactly as they were. In `.claude/settings.json`:
+
+```json
+{"hooks": {"PreToolUse": [{"matcher": "*",
+  "hooks": [{"type": "command", "command": "neti hook"}]}]}}
+```
+
+**A remote MCP server**: `neti gate --upstream https://mcp.internal/rpc`, then point the client at
+the gate instead.
+
+Add `--demo` to either command to rehearse the whole thing against the synthetic tenant with no
+credentials at all. Same engine, same decision procedure, same records — only the numbers differ.
+
 ## The first week
 
 ```console

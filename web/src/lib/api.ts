@@ -179,6 +179,45 @@ export interface DecisionSummary {
   magnitudes: { pointer: string; magnitude: number | null; unit: string }[];
 }
 
+export type Coverage = "caught" | "needs_resolver" | "needs_budget" | "out_of_scope";
+
+export interface Incident {
+  id: string;
+  date: string;
+  actor: string;
+  what_one_call_did: string;
+  magnitude: number | null;
+  unit: string;
+  authorized: boolean;
+  reversible: string;
+  source: string;
+  coverage: Coverage;
+  note: string;
+  gated_unit: string | null;
+}
+
+export interface Scorecard {
+  incidents: Record<Coverage, Incident[]>;
+  coverage: { caught: number; total: number };
+  friction: {
+    calls: number;
+    stopped: number;
+    confirmed: number;
+    blocked: number;
+    over_block_possible: number;
+    interrupt_rate: number;
+  };
+  policy: {
+    digest: string;
+    gated_tools: number;
+    gated_params: number;
+    params_without_ceiling: number;
+  };
+  unresolved_parameters: number;
+  known_blind_spots: Record<string, string>;
+  not_yet_measured: string[];
+}
+
 // ---------------------------------------------------------------------------- calls
 
 export const api = {
@@ -198,6 +237,7 @@ export const api = {
   decision: (id: string) => get<DecisionRecord>(`/api/decisions/${id}`),
   policy: () => get<Record<string, unknown>>("/api/policy"),
   report: () => get<Record<string, unknown>>("/api/report"),
+  scorecard: () => get<Scorecard>("/api/scorecard"),
   audit: () =>
     get<{ ok: boolean; broken_at: string | null; count: number; head: string | null; links: AuditLink[] }>(
       "/api/audit/verify",

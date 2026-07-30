@@ -33,7 +33,7 @@ from neti.core.verdict import Verdict
 from neti.engine import Engine, GateResult
 from neti.store.jsonl import JsonlSink
 
-__all__ = ["McpGateway", "Upstream"]
+__all__ = ["McpGateway", "Upstream", "explain_denial"]
 
 TOOLS_CALL = "tools/call"
 
@@ -104,7 +104,7 @@ class McpGateway:
             "id": message.get("id"),
             "result": {
                 "isError": True,
-                "content": [{"type": "text", "text": _explain(result, payload)}],
+                "content": [{"type": "text", "text": explain_denial(result, payload)}],
                 # Structured alongside the prose: the text is for the model, this is for any
                 # client-side automation that wants the numbers without parsing English.
                 "_meta": {"neti": payload},
@@ -112,7 +112,7 @@ class McpGateway:
         }
 
 
-def _explain(result: GateResult, payload: dict[str, Any]) -> str:
+def explain_denial(result: GateResult, payload: dict[str, Any]) -> str:
     """The sentence the model reads.
 
     Written to cause the *right* retry. It names the ceiling and what the call actually resolved to,

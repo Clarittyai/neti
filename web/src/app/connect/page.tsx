@@ -17,6 +17,7 @@ import Link from "next/link";
 import { Check, KeyRound, Loader2, Plug, ShieldCheck } from "lucide-react";
 
 import { Failed, Page } from "@/components/Page";
+import { Install } from "@/components/Install";
 import { useConsole } from "@/components/ConsoleProvider";
 import { api } from "@/lib/api";
 import { cn, n } from "@/lib/utils";
@@ -47,11 +48,11 @@ export default function ConnectPage() {
 
   return (
     <Page
-      title="Connect a provider"
-      lede="The gate resolves what a call will touch by asking your directory. Nothing is sized until it can."
-      width="narrow"
+      title="Connect"
+      lede="Two connections, in this order: the directory the gate asks how big something is, and the agent whose calls it sits in front of."
     >
-      <div className="glass-card rounded-2xl p-6">
+      <h2 className="mb-3 text-sm font-semibold">The directory</h2>
+      <div className="glass-card max-w-3xl rounded-2xl p-6">
         <div className="flex items-start gap-4">
           <span
             className={cn(
@@ -117,7 +118,7 @@ export default function ConnectPage() {
         ) : null}
       </div>
 
-      <div className="mt-4 grid gap-4 sm:grid-cols-2">
+      <div className="mt-4 grid max-w-3xl gap-4 sm:grid-cols-2">
         <div className="glass-card rounded-2xl p-5">
           <h3 className="flex items-center gap-1.5 text-sm font-semibold">
             <KeyRound className="h-4 w-4 text-muted-foreground" /> What it asks for
@@ -141,7 +142,7 @@ export default function ConnectPage() {
       </div>
 
       {demo ? (
-        <div className="mt-4 rounded-2xl border border-dashed border-border p-5">
+        <div className="mt-4 max-w-3xl rounded-2xl border border-dashed border-border p-5">
           <h3 className="text-sm font-semibold">You are on the demo tenant</h3>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
             There are no credentials in the environment, so the gate is talking to a fixture with
@@ -181,6 +182,10 @@ export default function ConnectPage() {
           ) : null}
         </div>
       ) : null}
+
+      <div className="mt-10">
+        <Install />
+      </div>
     </Page>
   );
 }

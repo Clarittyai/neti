@@ -8,10 +8,11 @@ ceilings from that, and verify the record chain.
 from __future__ import annotations
 
 import contextlib
+import json
 import os
 import sys
 from pathlib import Path
-from typing import Annotated
+from typing import Annotated, Any
 
 import typer
 
@@ -144,18 +145,53 @@ def inventory(
     typer.echo(format_inventory(rows))
 
 
-@app.command()
+def _build_resolvers(*, demo: bool, timeout_ms: int) -> tuple[Any, Any]:
+    """The demo/live seam, shared by every command that gates.
+
+    `Engine`, `decide` and the records are the same objects either way; only the transport under the
+    Graph client differs. That is what lets `--demo` be an honest rehearsal of the install rather
+    than a separate code path that drifts from it.
+    """
+    from neti.eval.synthetic import default_tenant
+    from neti.resolvers.graph_client import ClientCredential, GraphClient
+    from neti.resolvers.registry import build_entra_resolvers, resolvers_for_client
+
+    if not demo:
+        return build_entra_resolvers(timeout_ms=timeout_ms)
+
+    credential = ClientCredential(tenant_id="demo", client_id="demo", client_secret="demo")
+    client = GraphClient(credential, transport=default_tenant().transport(), timeout_ms=timeout_ms)
+    return resolvers_for_client(client), client
+
+
+@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
 def gate(
+    ctx: typer.Context,
     upstream: Annotated[
-        str, typer.Option("--upstream", "-u", help="MCP server URL to sit in front of.")
-    ],
+        str | None, typer.Option("--upstream", "-u", help="MCP server URL to sit in front of.")
+    ] = None,
+    stdio: Annotated[
+        bool,
+        typer.Option(
+            "--stdio",
+            help="Wrap a local MCP server launched over stdio. Put its command after `--`.",
+        ),
+    ] = False,
     config: Annotated[str, typer.Option("--config", "-c")] = "neti.yaml",
     records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
+    demo: Annotated[
+        bool, typer.Option("--demo", help="Resolve against the synthetic tenant. No credentials.")
+    ] = False,
     host: Annotated[str, typer.Option()] = "127.0.0.1",
     port: Annotated[int, typer.Option()] = 8722,
     timeout_ms: Annotated[int, typer.Option()] = 800,
 ) -> None:
-    """Run the gate. Point your MCP client here instead of at the server.
+    """Run the gate in front of an MCP server.
+
+    Two transports, because MCP has two and everyone uses the local one:
+
+        neti gate --stdio -- npx -y @acme/entra-mcp     # in your client's config, as the command
+        neti gate --upstream https://mcp.internal/rpc   # point the client here instead
 
     The policy's `mode:` decides whether anything can be blocked; the shipped example is `observe`,
     which records verdicts and forwards every call.
@@ -163,15 +199,29 @@ def gate(
     from neti.config.policy import PolicyError, load_policy
     from neti.engine import Engine
     from neti.gateway.mcp import McpGateway
-    from neti.gateway.server import serve
-    from neti.gateway.upstream import HttpUpstream
     from neti.resolvers.base import ResolveContext, ResolverError
-    from neti.resolvers.registry import build_entra_resolvers
     from neti.store.jsonl import JsonlSink, chain_head
+
+    argv = list(ctx.args)
+    if stdio == bool(upstream):
+        typer.secho(
+            "error: choose one transport — `--stdio -- <command>` or `--upstream <url>`",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(2)
+    if stdio and not argv:
+        typer.secho(
+            "error: --stdio needs the server command, after `--`\n"
+            "       e.g. neti gate --stdio -- npx -y @acme/entra-mcp",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(2)
 
     try:
         policy = load_policy(config)
-        resolvers, client = build_entra_resolvers(timeout_ms=timeout_ms)
+        resolvers, client = _build_resolvers(demo=demo, timeout_ms=timeout_ms)
     except (PolicyError, OSError, ResolverError) as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from exc
@@ -185,9 +235,16 @@ def gate(
         last_digest=chain_head(records),
     )
     sink = JsonlSink(records)
-    gateway = McpGateway(engine=engine, upstream=HttpUpstream(upstream), sink=sink)
-
     mode = policy.mode.name.lower()
+
+    if stdio:
+        _gate_stdio(engine, sink, client, argv, mode, config, policy.digest(), records)
+        return
+
+    from neti.gateway.server import serve
+    from neti.gateway.upstream import HttpUpstream
+
+    gateway = McpGateway(engine=engine, upstream=HttpUpstream(str(upstream)), sink=sink)
     typer.secho(f"neti gate on http://{host}:{port}  ->  {upstream}", fg=typer.colors.GREEN)
     blurb = "  (nothing will be blocked)" if mode == "observe" else ""
     typer.echo(f"  mode:    {mode}{blurb}")
@@ -200,6 +257,110 @@ def gate(
     finally:
         sink.close()
         client.close()
+
+
+def _gate_stdio(
+    engine: Any,
+    sink: Any,
+    client: Any,
+    argv: list[str],
+    mode: str,
+    config: str,
+    digest: str,
+    records: str,
+) -> None:
+    """The stdio path, kept apart for one reason: stdout is the protocol here.
+
+    Not a single byte of the banner above may reach stdout in this mode — the client is parsing it
+    as JSON-RPC, and one friendly line desynchronises the session. Everything goes to stderr, where
+    the client shows it as server logs.
+    """
+    import sys
+
+    from neti.gateway.mcp import McpGateway
+    from neti.gateway.stdio import StdioUpstream, serve_stdio
+
+    print(f"neti gate (stdio)  ->  {' '.join(argv)}", file=sys.stderr)
+    blurb = "  (nothing will be blocked)" if mode == "observe" else ""
+    print(f"  mode:    {mode}{blurb}", file=sys.stderr)
+    print(f"  policy:  {config}  digest {digest[:12]}", file=sys.stderr)
+    print(f"  records: {records}", file=sys.stderr)
+
+    gateway: McpGateway | None = None
+    upstream: StdioUpstream | None = None
+    try:
+        upstream = StdioUpstream(argv)
+        gateway = McpGateway(engine=engine, upstream=upstream, sink=sink)
+        # `upstream=` hands the child's server→client traffic to the same locked writer.
+        serve_stdio(gateway, upstream=upstream)
+    except KeyboardInterrupt:
+        pass
+    except (OSError, ValueError) as exc:
+        print(f"neti: {exc}", file=sys.stderr)
+        raise typer.Exit(2) from exc
+    finally:
+        if upstream is not None:
+            upstream.close()
+        sink.close()
+        client.close()
+        if gateway is not None:
+            stopped = gateway.stats.get("stopped", 0)
+            total = gateway.stats.get("decisions", 0)
+            print(f"neti: {total} gated, {stopped} stopped", file=sys.stderr)
+
+
+@app.command()
+def hook(
+    config: Annotated[str, typer.Option("--config", "-c")] = "neti.yaml",
+    records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
+    demo: Annotated[
+        bool, typer.Option("--demo", help="Resolve against the synthetic tenant. No credentials.")
+    ] = False,
+    timeout_ms: Annotated[int, typer.Option()] = 800,
+) -> None:
+    """Gate a Claude Code `PreToolUse` event read from stdin.
+
+    For the calls no proxy can see — the harness's own built-in tools. Wire it in `settings.json`:
+
+        {"hooks": {"PreToolUse": [{"matcher": "*",
+          "hooks": [{"type": "command", "command": "neti hook"}]}]}}
+
+    A pass says nothing at all, which leaves your existing permission rules exactly as they were.
+    """
+    import sys
+
+    from neti.adapters.claude_code import read_event, run_hook
+    from neti.config.policy import PolicyError, load_policy
+    from neti.engine import Engine
+    from neti.resolvers.base import ResolveContext, ResolverError
+    from neti.store.jsonl import JsonlSink, chain_head
+
+    try:
+        event = read_event(sys.stdin.read())
+        policy = load_policy(config)
+        resolvers, client = _build_resolvers(demo=demo, timeout_ms=timeout_ms)
+    except (PolicyError, OSError, ResolverError, ValueError, json.JSONDecodeError) as exc:
+        # A hook that cannot run must not take the session down with it. Say why on stderr, exit 0,
+        # and let the call proceed under whatever rules were already in place — failing closed here
+        # would block every tool in the session the moment a credential expired.
+        print(f"neti hook: {exc}", file=sys.stderr)
+        raise typer.Exit(0) from exc
+
+    engine = Engine(
+        policy=policy,
+        resolvers=resolvers,
+        ctx=ResolveContext(timeout_ms=timeout_ms),
+        last_digest=chain_head(records),
+    )
+    sink = JsonlSink(records)
+    try:
+        response = run_hook(engine, event, sink)
+    finally:
+        sink.close()
+        client.close()
+
+    if response:
+        typer.echo(json.dumps(response))
 
 
 @app.command()

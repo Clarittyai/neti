@@ -33,7 +33,9 @@ export function Page({
   return (
     <div
       className={cn(
-        "mx-auto w-full px-4 py-8 sm:px-6 lg:px-8",
+        // The bottom padding clears the pinned mode chip, which floats over everything and would
+        // otherwise sit on the last line of any page scrolled to its end.
+        "mx-auto w-full px-4 pb-24 pt-8 sm:px-6 lg:px-8",
         width === "wide" ? "max-w-7xl" : "max-w-3xl",
       )}
     >

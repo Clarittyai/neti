@@ -19,7 +19,16 @@ import { useCallback, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, type Variants } from "framer-motion";
-import { Activity, FileCheck, Gauge, Plug, ScrollText, ShieldCheck, SlidersHorizontal } from "lucide-react";
+import {
+  Activity,
+  FileCheck,
+  Gauge,
+  Plug,
+  ScrollText,
+  ShieldCheck,
+  SlidersHorizontal,
+  Target,
+} from "lucide-react";
 
 import { cn } from "@/lib/utils";
 import { useConsole } from "@/components/ConsoleProvider";
@@ -30,6 +39,7 @@ const NAV = [
   { href: "/decisions", label: "Decisions", icon: ScrollText },
   { href: "/policy", label: "Policy", icon: SlidersHorizontal },
   { href: "/audit", label: "Audit", icon: FileCheck },
+  { href: "/scorecard", label: "Scorecard", icon: Target },
   { href: "/connect", label: "Connect", icon: Plug },
 ];
 
