@@ -10,6 +10,9 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 from enum import IntEnum
+from typing import Annotated, Any
+
+from pydantic import BeforeValidator
 
 
 class Verdict(IntEnum):
@@ -65,3 +68,26 @@ class Mode(IntEnum):
     """Compute and record the verdict; always forward the call. Cannot block anything."""
 
     ENFORCE = 1
+
+
+def _by_name[E: IntEnum](enum: type[E], value: Any) -> Any:
+    """Accept a member name as well as its integer value.
+
+    These enums are ordered, so they are `IntEnum` rather than `StrEnum` — but a policy file says
+    `verdict: block`, not `verdict: 3`. Without this, every operator-facing YAML would have to
+    spell verdicts as integers, which is unreadable and unreviewable, and reviewing the numbers is
+    the entire point of the config.
+    """
+    if isinstance(value, str):
+        try:
+            return enum[value.strip().upper()]
+        except KeyError:
+            names = ", ".join(m.name.lower() for m in enum)
+            raise ValueError(
+                f"unknown {enum.__name__.lower()} {value!r}; expected one of {names}"
+            ) from None
+    return value
+
+
+VerdictValue = Annotated[Verdict, BeforeValidator(lambda v: _by_name(Verdict, v))]
+ModeValue = Annotated[Mode, BeforeValidator(lambda v: _by_name(Mode, v))]

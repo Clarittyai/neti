@@ -6,13 +6,14 @@ That split is what makes a decision replayable: store the resolutions, replay th
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 from neti.core.units import Direction, Unit
-from neti.core.verdict import ResolutionState, Verdict
+from neti.core.verdict import ResolutionState, Verdict, VerdictValue
 
 Magnitude = Annotated[int, Field(ge=0)]
 
@@ -95,7 +96,23 @@ class Band(Frozen):
     """`above` is exclusive: a magnitude of exactly `above` does not trip the band."""
 
     above: Magnitude
-    verdict: Verdict
+    verdict: VerdictValue
+
+
+def sorted_bands(bands: Iterable[Band]) -> tuple[Band, ...]:
+    """Descending by threshold, with duplicates rejected.
+
+    Every model that holds bands calls this. It exists as a shared function rather than three
+    copies of a validator because it has already gone wrong once: `BudgetRule` did not sort, and a
+    budget declared `confirm above 200, block above 1000` silently returned CONFIRM at 1001. The
+    decision path no longer depends on the order — `worst_tripped_band` selects by severity — but
+    display, `has_ceiling` and `block_at` all read the first entry, so the invariant has to hold
+    everywhere or it holds nowhere.
+    """
+    ordered = tuple(sorted(bands, key=lambda b: b.above, reverse=True))
+    if len({b.above for b in ordered}) != len(ordered):
+        raise ValueError("duplicate band thresholds make the applicable band ambiguous")
+    return ordered
 
 
 class Breach(Frozen):
@@ -108,7 +125,7 @@ class Breach(Frozen):
     source: str
     observed: Magnitude
     above: Magnitude
-    verdict: Verdict
+    verdict: VerdictValue
 
 
 class Ceiling(Frozen):
@@ -119,10 +136,10 @@ class Ceiling(Frozen):
 
     unit: Unit
     bands: tuple[Band, ...] = ()
-    on_unresolved: Verdict = Verdict.BLOCK
+    on_unresolved: VerdictValue = Verdict.BLOCK
     """Verdict when the resolver could not learn the magnitude (UNRESOLVED or PARTIAL)."""
 
-    on_unbounded: Verdict = Verdict.CONFIRM
+    on_unbounded: VerdictValue = Verdict.CONFIRM
     """Verdict when the magnitude is under every band but the direction cannot justify an allow."""
 
     breakdown_bands: dict[str, tuple[Band, ...]] = Field(default_factory=dict)
@@ -130,19 +147,12 @@ class Ceiling(Frozen):
 
     @model_validator(mode="after")
     def _sort_and_check(self) -> Ceiling:
-        object.__setattr__(
-            self, "bands", tuple(sorted(self.bands, key=lambda b: b.above, reverse=True))
-        )
+        object.__setattr__(self, "bands", sorted_bands(self.bands))
         object.__setattr__(
             self,
             "breakdown_bands",
-            {
-                k: tuple(sorted(v, key=lambda b: b.above, reverse=True))
-                for k, v in self.breakdown_bands.items()
-            },
+            {k: sorted_bands(v) for k, v in self.breakdown_bands.items()},
         )
-        if len({b.above for b in self.bands}) != len(self.bands):
-            raise ValueError("duplicate band thresholds make the applicable band ambiguous")
         return self
 
 

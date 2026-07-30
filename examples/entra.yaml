@@ -1,0 +1,88 @@
+# A realistic starting policy for Microsoft 365 / Entra ID.
+#
+# Read this top to bottom before copying it. The numbers below are ILLUSTRATIVE. Do not adopt them.
+# Run a week in observe mode, then `neti report` and `neti propose`, and declare numbers that come
+# from your own traffic. A ceiling nobody chose is a ceiling nobody will defend when it fires.
+
+version: 1
+mode: observe # observe | enforce. Observe cannot block anything; start here.
+
+providers:
+  entra:
+    tenant_id: ${NETI_TENANT_ID}
+    auth: client_credentials # GroupMember.Read.All, admin-consented. Read-only.
+    timeout_ms: 800 # hard. No last-known-good fallback: a stale allow is the failure we mind.
+    consistency: eventual # stamped on every decision; we sell an auditable bound, not freshness.
+
+tools:
+  # ---------------------------------------------------------------- the identity wedge
+  # "Remove group G" is the call nothing else in the market sizes before it runs. Two units from
+  # one target: the people who lose access, and the applications they lose it to.
+  remove_group_members:
+    gate:
+      /group:
+        resolver: entra.principals # transitiveMembers/$count — one request, nested groups included
+        bands:
+          - { above: 25, verdict: confirm }
+          - { above: 200, verdict: block }
+        on_unresolved: block # cannot size it, will not run it
+      /group#apps:
+        resolver: entra.apps # appRoleAssignments/$count, same credential
+        bands:
+          - { above: 1, verdict: confirm }
+          - { above: 5, verdict: block }
+        on_unresolved: block
+
+  delete_group:
+    gate:
+      /group:
+        resolver: entra.principals
+        bands:
+          - { above: 0, verdict: confirm } # deleting any non-empty group is worth a human
+          - { above: 50, verdict: block }
+        on_unresolved: block
+
+  # ---------------------------------------------------------------- the demo
+  # Recipient ceilings are NOT a novel claim — Google Workspace ships a documented reject rule and
+  # Purview announced an equivalent DLP predicate. This is here because it is the case everyone
+  # recognises, not because it is the defensible one.
+  send_email:
+    gate:
+      /to:
+        resolver: entra.principals
+        # The resolver counts directory principals; in this role they are recipients. Units are a
+        # property of the parameter's role, not the resolver — and session_budgets aggregate by
+        # unit, so this line is what makes the recipients budget below apply at all.
+        unit: recipients
+        bands:
+          - { above: 50, verdict: confirm }
+          - { above: 500, verdict: block }
+        breakdown_bands:
+          # The external share, which no single DLP predicate expresses. ⚠️ Depends on the guest
+          # filter being O(1) — plan risk R2, unverified until `neti measure` says otherwise.
+          guest:
+            - { above: 100, verdict: block }
+        on_unresolved: confirm
+
+# ---------------------------------------------------------------- cumulative budgets
+# SCOPE.md NC-01: a per-call gate is structurally blind to 4,000 individual sends, because each call
+# resolves to a magnitude of 1 and passes every per-call ceiling. Only a declared cumulative budget
+# sees it. These numbers are declared, never learned — that is what keeps the gate deterministic.
+session_budgets:
+  - tools: [send_email]
+    unit: recipients
+    window: session
+    bands:
+      - { above: 200, verdict: confirm }
+      - { above: 1000, verdict: block }
+
+  - tools: [remove_group_members, delete_group]
+    unit: principals
+    window: session
+    bands:
+      - { above: 50, verdict: block }
+
+defaults:
+  # An ungated tool is out of scope, not denied (NC-09). Failing closed on everything undeclared
+  # would make the gate unusable on its first day, and it would simply be switched off.
+  unknown_tool: allow

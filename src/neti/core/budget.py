@@ -15,7 +15,7 @@ from __future__ import annotations
 from pydantic import Field, model_validator
 
 from neti.core.decide import worst_tripped_band
-from neti.core.types import ArgDecision, Band, BudgetDecision, Frozen
+from neti.core.types import ArgDecision, Band, BudgetDecision, Frozen, sorted_bands
 from neti.core.units import Unit
 from neti.core.verdict import ResolutionState, Verdict
 
@@ -36,11 +36,7 @@ class BudgetRule(Frozen):
         # applicable ceiling first. Correctness no longer depends on it — `worst_tripped_band`
         # selects by severity — but an unsorted list here was a real under-enforcement bug once, so
         # the invariant is asserted rather than assumed.
-        object.__setattr__(
-            self, "bands", tuple(sorted(self.bands, key=lambda b: b.above, reverse=True))
-        )
-        if len({b.above for b in self.bands}) != len(self.bands):
-            raise ValueError("duplicate budget thresholds make the applicable band ambiguous")
+        object.__setattr__(self, "bands", sorted_bands(self.bands))
         return self
 
     def applies_to(self, tool: str) -> bool:
