@@ -1,0 +1,208 @@
+"""The data model. Pure: these types hold values, they never fetch them.
+
+`Resolution` is produced by a resolver (which does I/O) and consumed by `decide` (which does not).
+That split is what makes a decision replayable: store the resolutions, replay the decision.
+"""
+
+from __future__ import annotations
+
+from datetime import datetime
+from typing import Annotated, Any, Literal
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+from neti.core.units import Direction, Unit
+from neti.core.verdict import ResolutionState, Verdict
+
+Magnitude = Annotated[int, Field(ge=0)]
+
+
+class Frozen(BaseModel):
+    """Immutable, strict base. Extra fields are an error: a typo in a policy file must not be
+    silently ignored, because a silently-ignored ceiling is an ungated tool."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+
+# --------------------------------------------------------------------------- resolution
+
+
+class Resolution(Frozen):
+    """What a resolver learned about one target.
+
+    `magnitude` is `None` unless `state is RESOLVED`, enforced below, so that a missing count can
+    never be read as zero. That single validator is the difference between "we could not reach the
+    directory" and "the group is empty".
+    """
+
+    state: ResolutionState
+    unit: Unit
+    magnitude: Magnitude | None = None
+    direction: Direction = Direction.EXACT
+    resolved_at: datetime | None = None
+    consistency: Literal["strong", "eventual"] = "eventual"
+    provider_snapshot: str | None = None
+    breakdown: dict[str, Magnitude] = Field(default_factory=dict)
+    evidence: dict[str, Any] = Field(default_factory=dict)
+
+    @model_validator(mode="after")
+    def _magnitude_iff_resolved(self) -> Resolution:
+        if self.state is ResolutionState.RESOLVED:
+            if self.magnitude is None:
+                raise ValueError("RESOLVED resolution must carry a magnitude")
+        elif self.magnitude is not None:
+            raise ValueError(
+                f"{self.state.name} resolution must not carry a magnitude "
+                "(a partial or failed count must never be readable as a number)"
+            )
+        return self
+
+    @classmethod
+    def resolved(
+        cls,
+        unit: Unit,
+        magnitude: int,
+        *,
+        direction: Direction = Direction.EXACT,
+        **kw: Any,
+    ) -> Resolution:
+        return cls(
+            state=ResolutionState.RESOLVED,
+            unit=unit,
+            magnitude=magnitude,
+            direction=direction,
+            **kw,
+        )
+
+    @classmethod
+    def unresolved(cls, unit: Unit, reason: str, **kw: Any) -> Resolution:
+        ev: dict[str, Any] = {"reason": reason}
+        ev.update(kw.pop("evidence", {}))
+        return cls(state=ResolutionState.UNRESOLVED, unit=unit, evidence=ev, **kw)
+
+    @classmethod
+    def partial(cls, unit: Unit, reason: str, **kw: Any) -> Resolution:
+        """Enumeration was truncated. Deliberately carries no magnitude — see the validator."""
+        ev: dict[str, Any] = {"reason": reason}
+        ev.update(kw.pop("evidence", {}))
+        return cls(state=ResolutionState.PARTIAL, unit=unit, evidence=ev, **kw)
+
+
+# --------------------------------------------------------------------------- policy
+
+
+class Band(Frozen):
+    """`above` is exclusive: a magnitude of exactly `above` does not trip the band."""
+
+    above: Magnitude
+    verdict: Verdict
+
+
+class Breach(Frozen):
+    """One ceiling a resolution exceeded.
+
+    A decision records all of them, not just the deciding one — see `_all_breaches`. `source` is
+    `"magnitude"` or `"breakdown:<key>"`.
+    """
+
+    source: str
+    observed: Magnitude
+    above: Magnitude
+    verdict: Verdict
+
+
+class Ceiling(Frozen):
+    """The operator's declaration for one gated argument.
+
+    `bands` are stored descending by `above`, so the first match is the most severe applicable.
+    """
+
+    unit: Unit
+    bands: tuple[Band, ...] = ()
+    on_unresolved: Verdict = Verdict.BLOCK
+    """Verdict when the resolver could not learn the magnitude (UNRESOLVED or PARTIAL)."""
+
+    on_unbounded: Verdict = Verdict.CONFIRM
+    """Verdict when the magnitude is under every band but the direction cannot justify an allow."""
+
+    breakdown_bands: dict[str, tuple[Band, ...]] = Field(default_factory=dict)
+    """Bands applied to named sub-counts, e.g. `{"guest": (Band(above=100, ...),)}`."""
+
+    @model_validator(mode="after")
+    def _sort_and_check(self) -> Ceiling:
+        object.__setattr__(
+            self, "bands", tuple(sorted(self.bands, key=lambda b: b.above, reverse=True))
+        )
+        object.__setattr__(
+            self,
+            "breakdown_bands",
+            {
+                k: tuple(sorted(v, key=lambda b: b.above, reverse=True))
+                for k, v in self.breakdown_bands.items()
+            },
+        )
+        if len({b.above for b in self.bands}) != len(self.bands):
+            raise ValueError("duplicate band thresholds make the applicable band ambiguous")
+        return self
+
+
+# --------------------------------------------------------------------------- calls
+
+
+class ProposedCall(Frozen):
+    """A tool call the agent wants to make, before it is made."""
+
+    tool: str
+    args: dict[str, Any] = Field(default_factory=dict)
+    call_id: str | None = None
+    session_id: str | None = None
+
+
+# --------------------------------------------------------------------------- decisions
+
+
+class ArgDecision(Frozen):
+    """The verdict for one gated argument, keyed by its JSON pointer."""
+
+    pointer: str
+    target: str | None
+    verdict: Verdict
+    resolution: Resolution
+    rule: str
+    """Which branch of the procedure fired. Goes in the record so a verdict is explainable
+    without re-running it."""
+
+    over_block_possible: bool = False
+    """Set when a block rests on an upper bound, so the true magnitude may be under the ceiling.
+    Not an error — the friction metric (M5) needs to count these."""
+
+    tripped: Band | None = None
+    """The deciding band. Redundant with the worst entry in `breaches`, kept because it is what
+    the denial message quotes back to the agent."""
+
+    breaches: tuple[Breach, ...] = ()
+    """Every ceiling exceeded, so the record does not hide a second breach behind the first."""
+
+
+class BudgetDecision(Frozen):
+    """The verdict from declared cumulative session budgets. See SCOPE.md NC-01."""
+
+    verdict: Verdict = Verdict.ALLOW
+    unit: Unit | None = None
+    running_total: Magnitude = 0
+    tripped: Band | None = None
+    rule: str = "no_budget_declared"
+
+
+class Decision(Frozen):
+    verdict: Verdict
+    args: tuple[ArgDecision, ...] = ()
+    budget: BudgetDecision | None = None
+    tool: str = ""
+    mode_applied: Literal["observe", "enforce"] = "observe"
+    rule: str = ""
+
+    @property
+    def proceeds(self) -> bool:
+        """Whether the upstream call is made. In observe mode it always is."""
+        return self.mode_applied == "observe" or self.verdict.proceeds
