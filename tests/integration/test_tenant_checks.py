@@ -13,7 +13,7 @@ import pytest
 
 from neti.eval.tenant_checks import Status, format_checks, run_checks
 from neti.resolvers.graph_client import ClientCredential, GraphClient
-from tests.integration.synthetic_tenant import Group, SyntheticTenant, default_tenant
+from neti.eval.synthetic import Group, SyntheticTenant, default_tenant
 
 CRED = ClientCredential(tenant_id="t", client_id="c", client_secret="s")
 

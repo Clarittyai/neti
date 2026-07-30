@@ -18,7 +18,7 @@ from neti.engine import Engine
 from neti.resolvers.base import ResolveContext
 from neti.resolvers.graph_client import ClientCredential, GraphClient
 from neti.resolvers.registry import resolvers_for_client
-from tests.integration.synthetic_tenant import Group, SyntheticTenant, default_tenant
+from neti.eval.synthetic import Group, SyntheticTenant, default_tenant
 from tests.integration.test_inventory import EXAMPLE
 
 CRED = ClientCredential(tenant_id="t", client_id="c", client_secret="s")

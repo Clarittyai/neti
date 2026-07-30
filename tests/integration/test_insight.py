@@ -19,7 +19,7 @@ from neti.insight.report import build_report, format_report
 from neti.resolvers.graph_client import ClientCredential, GraphClient
 from neti.resolvers.registry import resolvers_for_client
 from neti.store.jsonl import JsonlSink, read_records
-from tests.integration.synthetic_tenant import Group, SyntheticTenant, default_tenant
+from neti.eval.synthetic import Group, SyntheticTenant, default_tenant
 from tests.integration.test_gateway import FakeUpstream, call
 from tests.integration.test_inventory import EXAMPLE
 

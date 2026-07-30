@@ -10,6 +10,7 @@ from __future__ import annotations
 import contextlib
 import os
 import sys
+from pathlib import Path
 from typing import Annotated
 
 import typer
@@ -284,6 +285,28 @@ def verify(
         return
     typer.secho(f"CHAIN BROKEN at decision {bad}", fg=typer.colors.RED, err=True)
     raise typer.Exit(1)
+
+
+@app.command()
+def demo(
+    config: Annotated[str, typer.Option("--config", "-c")] = "examples/entra.yaml",
+    out: Annotated[str, typer.Option("--out", "-o", help="Write JSON here.")] = "-",
+) -> None:
+    """Run the whole narrative against the synthetic tenant and emit it as JSON.
+
+    Every number is produced by the real decision path, so the demo cannot drift from the product.
+    The data is synthetic and the output says so — it demonstrates behaviour, not a finding.
+    """
+    from neti.eval.demo import demo_json
+
+    payload = demo_json(config)
+    if out == "-":
+        typer.echo(payload)
+        return
+    path = Path(out)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(payload, encoding="utf-8")
+    typer.secho(f"wrote {path} ({len(payload):,} bytes)", fg=typer.colors.GREEN)
 
 
 @app.command()

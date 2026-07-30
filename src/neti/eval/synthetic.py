@@ -1,5 +1,9 @@
 """A synthetic Entra tenant as an `httpx.MockTransport`.
 
+Product surface rather than a test fixture, despite where it started. `neti demo` runs the full
+narrative against it, so the numbers in the demo are produced by the real decision path rather than
+written into a slide — which is the only way a demo stays true as the code changes.
+
 Ground truth is exact *by construction*: the fixture declares that `eng-all` has 41,203 transitive
 members, so the assertion "the resolver returned 41,203" tests the resolver rather than a guess
 about a real directory. That is the property M1 depends on, and it is why the correctness suite does

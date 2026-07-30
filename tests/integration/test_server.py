@@ -22,7 +22,7 @@ from neti.gateway.mcp import McpGateway
 from neti.gateway.server import SESSION_HEADER, _handler_class
 from neti.resolvers.graph_client import ClientCredential, GraphClient
 from neti.resolvers.registry import resolvers_for_client
-from tests.integration.synthetic_tenant import SyntheticTenant, default_tenant
+from neti.eval.synthetic import SyntheticTenant, default_tenant
 from tests.integration.test_gateway import FakeUpstream
 from tests.integration.test_inventory import EXAMPLE
 

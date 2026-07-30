@@ -10,3 +10,8 @@ dist/
 build/
 out/
 .env
+
+# web
+web/node_modules/
+web/.next/
+web/out/
