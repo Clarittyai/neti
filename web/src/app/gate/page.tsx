@@ -31,7 +31,8 @@ interface Fired {
 
 export default function GatePage() {
   const { state, connect, setMode } = useConsole();
-  const [scenario, setScenario] = useState<Scenario | null>(null);
+  const [scenarios, setScenarios] = useState<Scenario[]>([]);
+  const [scenarioId, setScenarioId] = useState("offboard");
   const [fired, setFired] = useState<Fired[]>([]);
   const [current, setCurrent] = useState<GateResult | null>(null);
   const [running, setRunning] = useState(false);
@@ -40,8 +41,13 @@ export default function GatePage() {
   const [tool, setTool] = useState("remove_group_members");
 
   useEffect(() => {
-    api.scenario("offboard").then(setScenario).catch(() => undefined);
+    api.scenarios().then((r) => setScenarios(r.scenarios)).catch(() => undefined);
   }, []);
+
+  // The second scenario is not a nice-to-have. "The gate could not size this" is a harder claim to
+  // make than "the gate blocked this", and a demo that only ever shows the confident answer invites
+  // the obvious question about what happens when the directory cannot answer.
+  const scenario = scenarios.find((s) => s.id === scenarioId) ?? null;
 
   const fire = useCallback(
     async (t: string, args: Record<string, string>, narration?: string, session?: string) => {
@@ -117,9 +123,15 @@ export default function GatePage() {
           {scenario ? (
             <ScenarioCard
               scenario={scenario}
+              scenarios={scenarios}
               running={running}
               done={fired.length >= scenario.steps.length}
               onRun={() => void runScenario()}
+              onPick={(id) => {
+                setScenarioId(id);
+                setFired([]);
+                setCurrent(null);
+              }}
             />
           ) : null}
 
@@ -180,17 +192,41 @@ function ModeToggle({
 
 function ScenarioCard({
   scenario,
+  scenarios,
   running,
   done,
   onRun,
+  onPick,
 }: {
   scenario: Scenario;
+  scenarios: Scenario[];
   running: boolean;
   done: boolean;
   onRun: () => void;
+  onPick: (id: string) => void;
 }) {
   return (
     <div className="glass-card mt-6 rounded-2xl p-5">
+      {scenarios.length > 1 ? (
+        <div className="mb-4 flex flex-wrap gap-1.5 border-b border-border/50 pb-4">
+          {scenarios.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => onPick(s.id)}
+              disabled={running}
+              className={cn(
+                "rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors disabled:opacity-50",
+                s.id === scenario.id
+                  ? "bg-accent/10 text-accent"
+                  : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+              )}
+            >
+              {s.title}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <h2 className="text-base font-semibold">{scenario.title}</h2>

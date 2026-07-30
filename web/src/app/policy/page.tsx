@@ -1,0 +1,170 @@
+"use client";
+
+/**
+ * The declared ceilings.
+ *
+ * Read-only on purpose. Editing a ceiling from a console would make the number something the
+ * console owns, and the whole determinism argument rests on it being something a person committed
+ * to a file. `neti propose` suggests; a human decides; the gate compares against what was decided.
+ *
+ * The session-budget section is not decoration either. A per-call gate is structurally blind to
+ * 4,000 individual sends — each resolves to 1 and passes every per-call ceiling — and only a
+ * declared cumulative budget sees the pattern. That is SCOPE.md NC-01, and showing it here is how
+ * the console admits the hole rather than hiding it.
+ */
+
+import { Failed, Loading, Page, useAsync } from "@/components/Page";
+import { api } from "@/lib/api";
+import { cn, n } from "@/lib/utils";
+
+interface Band {
+  above: number;
+  verdict: "allow" | "flag" | "confirm" | "block";
+}
+interface Gate {
+  resolver: string;
+  unit: string | null;
+  bands: Band[];
+  on_unresolved: string;
+  has_ceiling: boolean;
+}
+interface PolicyShape {
+  digest: string;
+  mode: string;
+  unknown_tool: string;
+  tools: Record<string, Record<string, Gate>>;
+  session_budgets: { tools: string[]; unit: string; bands: Band[] }[];
+}
+
+export default function PolicyPage() {
+  const { data, error, loading, reload } = useAsync(
+    () => api.policy() as Promise<unknown> as Promise<PolicyShape>,
+  );
+
+  return (
+    <Page
+      title="Policy"
+      lede="The ceilings you declared. Every verdict is a comparison against a number on this page — nothing here is learned or inferred."
+      actions={
+        data ? (
+          <code className="glass-button rounded-lg px-3 py-2 font-mono text-xs">
+            {data.digest.slice(0, 16)}
+          </code>
+        ) : null
+      }
+    >
+      {loading && !data ? <Loading /> : null}
+      {error ? <Failed error={error} onRetry={reload} /> : null}
+
+      {data ? (
+        <div className="space-y-6">
+          <div className="space-y-4">
+            {Object.entries(data.tools).map(([tool, gates]) => (
+              <div key={tool} className="glass-card overflow-hidden rounded-2xl">
+                <div className="flex flex-wrap items-center gap-3 border-b border-border/50 px-5 py-3">
+                  <span className="font-mono text-sm font-medium">{tool}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {Object.keys(gates).length} gated parameter
+                    {Object.keys(gates).length === 1 ? "" : "s"}
+                  </span>
+                </div>
+                <div className="divide-y divide-border/40">
+                  {Object.entries(gates).map(([pointer, gate]) => (
+                    <GateRow key={pointer} pointer={pointer} gate={gate} />
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <section>
+            <h2 className="text-sm font-semibold">Session budgets</h2>
+            <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
+              A per-call ceiling cannot see four thousand individual sends — each one resolves to 1
+              and passes. These are cumulative totals per session, and they are declared rather than
+              learned, which is what keeps the gate a static comparison.
+            </p>
+            <div className="mt-3 space-y-2">
+              {data.session_budgets.map((b) => (
+                <div
+                  key={`${b.unit}-${b.tools.join()}`}
+                  className="glass-card flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl px-4 py-3"
+                >
+                  <span className="font-mono text-[13px]">{b.tools.join(", ")}</span>
+                  <span className="text-xs text-muted-foreground">cumulative {b.unit}</span>
+                  <span className="ml-auto flex flex-wrap gap-2">
+                    {b.bands.map((band) => (
+                      <BandChip key={band.above} band={band} />
+                    ))}
+                  </span>
+                </div>
+              ))}
+              {data.session_budgets.length === 0 ? (
+                <p className="text-[13px] text-muted-foreground">None declared.</p>
+              ) : null}
+            </div>
+          </section>
+
+          <section className="glass-card rounded-2xl p-5">
+            <h2 className="text-sm font-semibold">Defaults</h2>
+            <dl className="mt-3 space-y-2 text-[13px]">
+              <div className="flex flex-wrap gap-2">
+                <dt className="text-muted-foreground">An undeclared tool</dt>
+                <dd className="font-medium">{data.unknown_tool}s</dd>
+                <dd className="w-full text-[11px] leading-relaxed text-muted-foreground">
+                  Out of scope, not denied. Failing closed on everything undeclared would make the
+                  gate unusable on its first day, and it would simply be switched off.
+                </dd>
+              </div>
+            </dl>
+          </section>
+        </div>
+      ) : null}
+    </Page>
+  );
+}
+
+function GateRow({ pointer, gate }: { pointer: string; gate: Gate }) {
+  return (
+    <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
+      <code className="font-mono text-[13px] text-muted-foreground">{pointer}</code>
+      <span className="text-xs text-muted-foreground">{gate.resolver}</span>
+      {gate.unit ? (
+        <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+          {gate.unit}
+        </span>
+      ) : null}
+
+      <span className="ml-auto flex flex-wrap items-center gap-2">
+        {gate.bands.length === 0 ? (
+          <span className="text-xs text-[hsl(var(--verdict-confirm))]">
+            no ceiling — resolves and records, cannot block
+          </span>
+        ) : (
+          gate.bands.map((band) => <BandChip key={band.above} band={band} />)
+        )}
+        <span className="hatched rounded px-2 py-0.5 text-[10px] text-muted-foreground">
+          unsizeable → {gate.on_unresolved}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+function BandChip({ band }: { band: Band }) {
+  return (
+    <span
+      className={cn(
+        "tnum rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
+        band.verdict === "block" &&
+          "bg-[hsl(var(--verdict-block))]/10 text-[hsl(var(--verdict-block))] ring-[hsl(var(--verdict-block))]/30",
+        band.verdict === "confirm" &&
+          "bg-[hsl(var(--verdict-confirm))]/10 text-[hsl(var(--verdict-confirm))] ring-[hsl(var(--verdict-confirm))]/30",
+        (band.verdict === "allow" || band.verdict === "flag") &&
+          "bg-muted text-muted-foreground ring-border",
+      )}
+    >
+      {band.verdict} above {n(band.above)}
+    </span>
+  );
+}

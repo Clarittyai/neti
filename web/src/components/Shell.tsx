@@ -120,12 +120,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
           })}
         </nav>
 
-        <div className="border-t border-border/50 px-2 py-4">
-          <ModeChip collapsed={!expanded} />
-        </div>
       </motion.aside>
 
       <main className="min-h-[100dvh] flex-1 md:ml-16">{children}</main>
+      <ModeChip />
     </div>
   );
 }
@@ -133,11 +131,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
 /**
  * Which tenant, and whether the gate can actually stop anything.
  *
- * Both facts are load-bearing and both are easy to lose track of mid-demo. "Demo tenant" is stated
- * plainly rather than softened — presenting fixture numbers as a finding about a real directory is
- * exactly the overclaim the rest of this codebase is built to avoid.
+ * It lives outside the rail, pinned to the viewport, because the rail is collapsed by default and a
+ * chip that only appears on hover is a chip nobody sees. Both facts are load-bearing and both are
+ * easy to lose track of mid-demo, and "Demo tenant" is stated plainly rather than softened —
+ * presenting fixture numbers as a finding about a real directory is exactly the overclaim the rest
+ * of this codebase is built to avoid.
  */
-function ModeChip({ collapsed }: { collapsed: boolean }) {
+function ModeChip() {
   const { state } = useConsole();
   if (!state) return null;
 
@@ -145,21 +145,22 @@ function ModeChip({ collapsed }: { collapsed: boolean }) {
   const enforcing = state.policy_mode === "enforce";
 
   return (
-    <div className="flex items-center gap-3 rounded-lg px-3 py-2">
-      <span
-        className={cn(
-          "h-2 w-2 flex-shrink-0 rounded-full",
-          enforcing ? "bg-[hsl(var(--verdict-allow))]" : "bg-muted-foreground/60",
-        )}
-        aria-hidden
-      />
-      <motion.div variants={item} className="min-w-0 flex-1 overflow-hidden">
-        <p className="truncate text-xs font-medium">{demo ? "Demo tenant" : "Live tenant"}</p>
-        <p className="truncate text-[11px] text-muted-foreground">
+    <div className="pointer-events-none fixed bottom-4 left-4 z-50 md:left-[76px]">
+      <div className="glass-card flex items-center gap-2.5 rounded-full py-1.5 pl-3 pr-4 shadow-lg">
+        <span
+          className={cn(
+            "h-2 w-2 flex-shrink-0 rounded-full",
+            enforcing ? "bg-[hsl(var(--verdict-allow))]" : "bg-muted-foreground/60",
+          )}
+          aria-hidden
+        />
+        <span className="whitespace-nowrap text-xs font-medium">
+          {demo ? "Demo tenant" : `Live · ${state.tenant}`}
+        </span>
+        <span className="whitespace-nowrap text-[11px] text-muted-foreground">
           {enforcing ? "enforcing" : "observing — nothing is blocked"}
-        </p>
-      </motion.div>
-      {collapsed ? <span className="sr-only">{demo ? "Demo tenant" : "Live tenant"}</span> : null}
+        </span>
+      </div>
     </div>
   );
 }
