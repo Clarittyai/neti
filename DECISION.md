@@ -38,22 +38,24 @@ becomes either a mystery block or, far worse, an unjustified allow.
 ```python
 def decide_arg(ptr, ceiling, res) -> ArgDecision:
     if res.state is not RESOLVED:
-        return ArgDecision(ptr, ceiling.on_unresolved, res)     # declared per param
-    for band in ceiling.bands:                                  # descending by `above`
+        return ArgDecision(ptr, ceiling.on_unresolved, res)  # declared per param
+    for band in ceiling.bands:  # descending by `above`
         if res.magnitude > band.above:
             # over a threshold: sound iff true >= measured
-            return ArgDecision(ptr, band.verdict, res,
-                               over_block_possible=not may_block(res.direction))
+            return ArgDecision(
+                ptr, band.verdict, res, over_block_possible=not may_block(res.direction)
+            )
     # under every threshold: sound iff true <= measured
     if not may_allow(res.direction):
-        return ArgDecision(ptr, ceiling.on_unbounded, res)      # declared, default CONFIRM
+        return ArgDecision(ptr, ceiling.on_unbounded, res)  # declared, default CONFIRM
     return ArgDecision(ptr, ALLOW, res)
+
 
 def decide(call, policy, session) -> Decision:
     if not policy.is_gated(call.tool):
-        return Decision(ALLOW, [], None)                        # NC-09: out of scope, not denied
+        return Decision(ALLOW, [], None)  # NC-09: out of scope, not denied
     per_arg = [decide_arg(p, c, resolutions[p]) for p, c in policy.gated_args(call)]
-    budget  = check_session_budgets(call, per_arg, session, policy)   # NC-01
+    budget = check_session_budgets(call, per_arg, session, policy)  # NC-01
     verdict = join(*[d.verdict for d in per_arg], budget.verdict)
     return Decision(verdict, per_arg, budget)
 ```

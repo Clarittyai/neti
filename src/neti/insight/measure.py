@@ -128,15 +128,30 @@ def count_transitive_members(
 
     ctype = resp.headers.get("content-type", "")
     if resp.status_code != 200:
-        return Sample(group_id, "count", None, elapsed, resp.status_code, False,
-                      note=resp.text[:160])
+        return Sample(
+            group_id, "count", None, elapsed, resp.status_code, False, note=resp.text[:160]
+        )
     if "text/plain" not in ctype:
-        return Sample(group_id, "count", None, elapsed, resp.status_code, False,
-                      note=f"unexpected content-type {ctype!r}")
+        return Sample(
+            group_id,
+            "count",
+            None,
+            elapsed,
+            resp.status_code,
+            False,
+            note=f"unexpected content-type {ctype!r}",
+        )
     body = resp.text.strip()
     if not body.isdigit():
-        return Sample(group_id, "count", None, elapsed, resp.status_code, False,
-                      note=f"body is not an integer: {body[:80]!r}")
+        return Sample(
+            group_id,
+            "count",
+            None,
+            elapsed,
+            resp.status_code,
+            False,
+            note=f"body is not an integer: {body[:80]!r}",
+        )
     return Sample(group_id, "count", int(body), elapsed, resp.status_code, True)
 
 
@@ -254,9 +269,7 @@ def format_report(out: dict[str, Any]) -> str:
         largest = max(measured, key=lambda g: g.magnitude or 0)
         ratio_size = (largest.magnitude or 1) / max(smallest.magnitude or 1, 1)
         ratio_time = largest.p50 / max(smallest.p50, 0.001)
-        lines.append(
-            f"magnitude ratio {ratio_size:,.0f}x  ->  latency ratio {ratio_time:.2f}x"
-        )
+        lines.append(f"magnitude ratio {ratio_size:,.0f}x  ->  latency ratio {ratio_time:.2f}x")
         # The claim under test. 1.5x tolerates ordinary variance; anything approaching the magnitude
         # ratio means the endpoint is enumerating, not reading an index.
         if ratio_time <= 1.5:

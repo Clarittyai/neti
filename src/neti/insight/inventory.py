@@ -120,9 +120,7 @@ def format_inventory(rows: list[InventoryRow]) -> str:
         "-" * (widths[0] + widths[1] + widths[2] + 40),
     ]
     for row in sorted(rows, key=lambda r: -(r.reachable.magnitude or 0)):
-        magnitude = (
-            f"{row.reachable.magnitude:,}" if row.reachable.magnitude is not None else "?"
-        )
+        magnitude = f"{row.reachable.magnitude:,}" if row.reachable.magnitude is not None else "?"
         out.append(
             f"{row.tool:<{widths[0]}}  {row.pointer:<{widths[1]}}  {row.resolver:<{widths[2]}}  "
             f"{magnitude:>13}  {row.risk}"

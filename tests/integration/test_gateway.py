@@ -45,9 +45,7 @@ class FakeUpstream:
 
     @property
     def tools_called(self) -> list[str]:
-        return [
-            m["params"]["name"] for m in self.sent if m.get("method") == "tools/call"
-        ]
+        return [m["params"]["name"] for m in self.sent if m.get("method") == "tools/call"]
 
 
 @pytest.fixture

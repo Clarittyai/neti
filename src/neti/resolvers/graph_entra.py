@@ -27,6 +27,7 @@ from neti.resolvers.graph_client import CountOutcome, GraphClient, utc_now
 
 __all__ = ["EntraAppsResolver", "EntraGuestsResolver", "EntraPrincipalsResolver"]
 
+
 class _EntraCountResolver:
     """Shared plumbing: one count read, mapped to a three-state `Resolution`.
 
@@ -44,9 +45,7 @@ class _EntraCountResolver:
         self._client = client
 
     def resolve(self, target: str, ctx: ResolveContext) -> Resolution:
-        outcome = self._client.count(
-            self._path_template.format(target=target), params=self._params
-        )
+        outcome = self._client.count(self._path_template.format(target=target), params=self._params)
         return self._to_resolution(outcome, target)
 
     def _to_resolution(self, outcome: CountOutcome, target: str) -> Resolution:

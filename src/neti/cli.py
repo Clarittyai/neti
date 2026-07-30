@@ -7,6 +7,7 @@ ceilings from that, and verify the record chain.
 
 from __future__ import annotations
 
+import contextlib
 import sys
 from typing import Annotated
 
@@ -167,6 +168,36 @@ def propose(
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from exc
     typer.echo(format_proposals(build(summary)))
+
+
+@app.command()
+def score(
+    records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
+    config: Annotated[str, typer.Option("--config", "-c")] = "neti.yaml",
+    as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable output.")] = False,
+) -> None:
+    """The scorecard: incident replay, friction, blind spots, and what is not yet measured.
+
+    Runs entirely offline. Records and policy are optional — without them you still get the
+    incident replay and the non-coverage list, which is most of what an audience asks about.
+    """
+    from neti.config.policy import PolicyError, load_policy
+    from neti.eval.scorecard import build_scorecard, format_scorecard, scorecard_json
+    from neti.insight.report import build_report
+    from neti.store.jsonl import read_records
+
+    # No traffic and no policy are normal states here, not errors: the incident replay and the
+    # blind-spot list are useful before anything is configured, which is most of the point.
+    summary = None
+    with contextlib.suppress(OSError, ValueError):
+        summary = build_report(read_records(records))
+
+    policy = None
+    with contextlib.suppress(PolicyError, OSError):
+        policy = load_policy(config)
+
+    card = build_scorecard(summary, policy)
+    typer.echo(scorecard_json(card) if as_json else format_scorecard(card))
 
 
 @app.command()

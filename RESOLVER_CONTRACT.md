@@ -11,6 +11,7 @@ obvious default.
 ```python
 class Resolver(Protocol):
     unit: Unit
+
     def resolve(self, target: str, ctx: ResolveContext) -> Resolution: ...
     def reachable_max(self, ctx: ResolveContext) -> Resolution: ...
 ```

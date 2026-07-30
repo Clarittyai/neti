@@ -80,16 +80,12 @@ class SyntheticTenant:
         if TOKEN_URL_PART in url:
             if self.token_status != 200:
                 return httpx.Response(self.token_status, json={"error": "invalid_client"})
-            return httpx.Response(
-                200, json={"access_token": "synthetic-token", "expires_in": 3600}
-            )
+            return httpx.Response(200, json={"access_token": "synthetic-token", "expires_in": 3600})
 
         if self.fail_next and (self.fail_when is None or self.fail_when in url):
             status = self.fail_next.pop(0)
             headers = {"Retry-After": "0"} if status == 429 else {}
-            return httpx.Response(
-                status, json={"error": {"code": str(status)}}, headers=headers
-            )
+            return httpx.Response(status, json={"error": {"code": str(status)}}, headers=headers)
 
         # Graph errors on /$count as a path segment when the header is absent. Reproduced because a
         # client that forgets the header must fail loudly here rather than silently anywhere else.

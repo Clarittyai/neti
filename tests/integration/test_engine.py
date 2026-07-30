@@ -117,9 +117,10 @@ def test_absent_gated_argument_is_not_a_free_pass(tenant: SyntheticTenant) -> No
     finally:
         client.close()
     assert result.decision.verdict is Verdict.BLOCK
-    assert "absent" in result.record.causes[0]["state"] or result.record.causes[0][
-        "state"
-    ] == "unresolved"
+    assert (
+        "absent" in result.record.causes[0]["state"]
+        or result.record.causes[0]["state"] == "unresolved"
+    )
 
 
 # --------------------------------------------------------------- session budgets (NC-01)
@@ -231,9 +232,7 @@ def test_declaring_the_unit_on_the_gate_resolves_the_mismatch(tenant: SyntheticT
     client = GraphClient(CRED, transport=tenant.transport())
     try:
         engine = Engine(policy=policy, resolvers=resolvers_for_client(client))
-        result = engine.gate(
-            ProposedCall(tool="send_email", args={"to": "g-team"}, session_id="s")
-        )
+        result = engine.gate(ProposedCall(tool="send_email", args={"to": "g-team"}, session_id="s"))
     finally:
         client.close()
     assert engine.session_total("s", Unit.RECIPIENTS) == 25
@@ -256,9 +255,7 @@ def test_records_form_a_verifiable_chain(tenant: SyntheticTenant) -> None:
     engine, client = engine_for(tenant, enforcing())
     try:
         records = [
-            engine.gate(
-                ProposedCall(tool="send_email", args={"to": g}, session_id="s")
-            ).record
+            engine.gate(ProposedCall(tool="send_email", args={"to": g}, session_id="s")).record
             for g in ("g-solo", "g-team", "g-dept")
         ]
     finally:

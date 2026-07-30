@@ -1,0 +1,52 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  # The determinism matrix is the point of this job, not a nicety. `run(x) == run(x)` in one
+  # process is trivially true; what actually catches set/dict iteration order leaking into a
+  # record digest is running on different hash seeds and different architectures. macOS is here
+  # for the arm64/x86_64 split.
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+        hashseed: ["0", "1", "random"]
+    runs-on: ${{ matrix.os }}
+    env:
+      PYTHONHASHSEED: ${{ matrix.hashseed }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv venv --python 3.12
+      - run: uv pip install -e '.[dev,cli,graph,mcp]'
+      - run: uv run pytest -q
+
+  gates:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv venv --python 3.12
+      - run: uv pip install -e '.[dev,cli,graph,mcp]'
+      - name: types
+        run: uv run mypy
+      - name: lint
+        run: uv run ruff check
+      - name: format
+        run: uv run ruff format --check
+
+  # Separated so a latency regression is legible as one, rather than as "the test suite is red".
+  # These budgets measure neti's own overhead with the network mocked; the real budget belongs to
+  # Microsoft Graph and only `neti measure` against a live tenant can settle it.
+  bench:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv venv --python 3.12
+      - run: uv pip install -e '.[dev,cli,graph,mcp]'
+      - run: uv run pytest -q tests/bench

@@ -38,7 +38,6 @@ BLOCK_MULTIPLE = 10
 "this is unusual" line."""
 
 
-
 @dataclass
 class Proposal:
     tool: str

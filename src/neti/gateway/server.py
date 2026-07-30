@@ -40,8 +40,12 @@ def _handler_class(gateway: McpGateway) -> type[BaseHTTPRequestHandler]:
             except json.JSONDecodeError as exc:
                 # A parse error genuinely IS a protocol error, unlike a gate denial.
                 self._json(
-                    400, {"jsonrpc": "2.0", "id": None,
-                          "error": {"code": -32700, "message": f"parse error: {exc}"}}
+                    400,
+                    {
+                        "jsonrpc": "2.0",
+                        "id": None,
+                        "error": {"code": -32700, "message": f"parse error: {exc}"},
+                    },
                 )
                 return
 

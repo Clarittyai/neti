@@ -114,9 +114,7 @@ class Engine:
 
         prelim = decide(call, tuple(gated), resolutions, mode=self.policy.mode)
         budget = check_budgets(call.tool, prelim.args, tally, self.policy.session_budgets)
-        final = decide(
-            call, tuple(gated), resolutions, mode=self.policy.mode, budget=budget
-        )
+        final = decide(call, tuple(gated), resolutions, mode=self.policy.mode, budget=budget)
 
         if final.proceeds:
             self._tallies[session_id] = tally.add_committed(final.args)

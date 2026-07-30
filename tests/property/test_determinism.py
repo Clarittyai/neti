@@ -127,9 +127,11 @@ def test_strings_are_nfc_normalised() -> None:
 
 @given(
     st.recursive(
-        st.none() | st.booleans() | st.integers(-10**9, 10**9) | st.text(max_size=20),
-        lambda children: st.lists(children, max_size=4)
-        | st.dictionaries(st.text(max_size=8), children, max_size=4),
+        st.none() | st.booleans() | st.integers(-(10**9), 10**9) | st.text(max_size=20),
+        lambda children: (
+            st.lists(children, max_size=4)
+            | st.dictionaries(st.text(max_size=8), children, max_size=4)
+        ),
         max_leaves=12,
     )
 )

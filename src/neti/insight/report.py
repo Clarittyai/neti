@@ -76,9 +76,7 @@ class ReportSummary:
 
     @property
     def ordered(self) -> list[Distribution]:
-        return sorted(
-            self.distributions.values(), key=lambda d: (-len(d.over_ceiling), -d.maximum)
-        )
+        return sorted(self.distributions.values(), key=lambda d: (-len(d.over_ceiling), -d.maximum))
 
 
 def build_report(records: Iterable[DecisionRecord]) -> ReportSummary:
@@ -151,9 +149,7 @@ def format_report(summary: ReportSummary, *, window: str = "all recorded") -> st
             out.append(f"    {dist.unresolved:,} could not be resolved")
         if dist.over_ceiling:
             worst = sorted(dist.over_ceiling, key=lambda b: -b[1])[:3]
-            out.append(
-                f"    ▸ {len(dist.over_ceiling)} call(s) exceeded a declared ceiling"
-            )
+            out.append(f"    ▸ {len(dist.over_ceiling)} call(s) exceeded a declared ceiling")
             for decision_id, observed, ceiling in worst:
                 out.append(
                     f"        {observed:,} {dist.unit} against a ceiling of {ceiling:,}"

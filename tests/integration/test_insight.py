@@ -114,9 +114,7 @@ def test_report_warns_when_policies_differ_across_the_window(
     for above in (500, 501):
         policy = load_policy(EXAMPLE).model_copy(update={"mode": Mode.OBSERVE})
         # perturb the policy so its digest changes
-        policy = Policy.model_validate(
-            policy.model_dump(mode="json") | {"version": above}
-        )
+        policy = Policy.model_validate(policy.model_dump(mode="json") | {"version": above})
         with JsonlSink(path) as sink:
             client = GraphClient(CRED, transport=tenant.transport())
             try:
@@ -175,9 +173,7 @@ def test_propose_produces_pasteable_yaml_above_the_floor(
     assert "read at decision time" in text, "the determinism caveat must be in the output"
 
 
-def test_a_proposal_merges_into_the_existing_policy(
-    tenant: SyntheticTenant, tmp_path: Any
-) -> None:
+def test_a_proposal_merges_into_the_existing_policy(tenant: SyntheticTenant, tmp_path: Any) -> None:
     """The output has to actually paste in. A suggestion that does not parse is not a suggestion.
 
     It is a *merge fragment*: traffic can only have been observed for an already-gated parameter,

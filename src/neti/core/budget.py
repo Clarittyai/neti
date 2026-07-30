@@ -93,8 +93,7 @@ def check_budgets(
         contribution = sum(
             arg.resolution.magnitude or 0
             for arg in args
-            if arg.resolution.unit is rule.unit
-            and arg.resolution.state is ResolutionState.RESOLVED
+            if arg.resolution.unit is rule.unit and arg.resolution.state is ResolutionState.RESOLVED
         )
         candidate_total = tally.total(rule.unit) + contribution
         band = worst_tripped_band(candidate_total, rule.bands)
