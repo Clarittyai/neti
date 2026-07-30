@@ -1,7 +1,8 @@
 """The `neti` command line.
 
-Phase 0 ships only `measure`, deliberately: it is the command that replaces modelled numbers with
-measured ones, and the plan puts it before any resolver code.
+The order these appear in `--help` is the order an operator meets them: measure the provider,
+inventory what the credential can reach, run the gate in observe mode, report what happened, propose
+ceilings from that, and verify the record chain.
 """
 
 from __future__ import annotations
@@ -61,18 +62,13 @@ def inventory(
     """
     from neti.config.policy import PolicyError, load_policy
     from neti.insight.inventory import build_inventory, format_inventory
-    from neti.resolvers.base import ResolveContext
+    from neti.resolvers.base import ResolveContext, ResolverError
     from neti.resolvers.registry import build_entra_resolvers
 
     try:
         policy = load_policy(config)
-    except (PolicyError, OSError) as exc:
-        typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(2) from exc
-
-    try:
         resolvers, client = build_entra_resolvers(timeout_ms=timeout_ms)
-    except Exception as exc:
+    except (PolicyError, OSError, ResolverError) as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from exc
 
@@ -82,6 +78,119 @@ def inventory(
         client.close()
 
     typer.echo(format_inventory(rows))
+
+
+@app.command()
+def gate(
+    upstream: Annotated[
+        str, typer.Option("--upstream", "-u", help="MCP server URL to sit in front of.")
+    ],
+    config: Annotated[str, typer.Option("--config", "-c")] = "neti.yaml",
+    records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
+    host: Annotated[str, typer.Option()] = "127.0.0.1",
+    port: Annotated[int, typer.Option()] = 8722,
+    timeout_ms: Annotated[int, typer.Option()] = 800,
+) -> None:
+    """Run the gate. Point your MCP client here instead of at the server.
+
+    The policy's `mode:` decides whether anything can be blocked; the shipped example is `observe`,
+    which records verdicts and forwards every call.
+    """
+    from neti.config.policy import PolicyError, load_policy
+    from neti.engine import Engine
+    from neti.gateway.mcp import McpGateway
+    from neti.gateway.server import serve
+    from neti.gateway.upstream import HttpUpstream
+    from neti.resolvers.base import ResolveContext, ResolverError
+    from neti.resolvers.registry import build_entra_resolvers
+    from neti.store.jsonl import JsonlSink
+
+    try:
+        policy = load_policy(config)
+        resolvers, client = build_entra_resolvers(timeout_ms=timeout_ms)
+    except (PolicyError, OSError, ResolverError) as exc:
+        typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2) from exc
+
+    engine = Engine(policy=policy, resolvers=resolvers, ctx=ResolveContext(timeout_ms=timeout_ms))
+    sink = JsonlSink(records)
+    gateway = McpGateway(engine=engine, upstream=HttpUpstream(upstream), sink=sink)
+
+    mode = policy.mode.name.lower()
+    typer.secho(f"neti gate on http://{host}:{port}  ->  {upstream}", fg=typer.colors.GREEN)
+    blurb = "  (nothing will be blocked)" if mode == "observe" else ""
+    typer.echo(f"  mode:    {mode}{blurb}")
+    typer.echo(f"  policy:  {config}  digest {policy.digest()[:12]}")
+    typer.echo(f"  records: {records}")
+    try:
+        serve(gateway, host, port)
+    except KeyboardInterrupt:
+        typer.echo("\nstopping")
+    finally:
+        sink.close()
+        client.close()
+
+
+@app.command()
+def report(
+    records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
+) -> None:
+    """What your agents already did: observed magnitudes, and the calls that exceeded a ceiling."""
+    from neti.insight.report import build_report, format_report
+    from neti.store.jsonl import read_records
+
+    try:
+        summary = build_report(read_records(records))
+    except (OSError, ValueError) as exc:
+        typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2) from exc
+    typer.echo(format_report(summary))
+
+
+@app.command()
+def propose(
+    records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
+) -> None:
+    """Suggest ceilings from your own observed traffic, for a human to review and commit.
+
+    Output is text to edit into a policy file. Nothing here is applied automatically, and nothing
+    computed here is ever read at decision time.
+    """
+    from neti.insight.propose import format_proposals
+    from neti.insight.propose import propose as build
+    from neti.insight.report import build_report
+    from neti.store.jsonl import read_records
+
+    try:
+        summary = build_report(read_records(records))
+    except (OSError, ValueError) as exc:
+        typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2) from exc
+    typer.echo(format_proposals(build(summary)))
+
+
+@app.command()
+def verify(
+    records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
+) -> None:
+    """Replay every decision and verify the hash chain."""
+    from neti.core.record import verify_chain
+    from neti.store.jsonl import read_records
+
+    try:
+        chain = list(read_records(records))
+    except (OSError, ValueError) as exc:
+        typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2) from exc
+
+    ok, bad = verify_chain(chain)
+    if ok:
+        typer.secho(f"{len(chain):,} records, chain intact", fg=typer.colors.GREEN)
+        if chain:
+            typer.echo(f"head: {chain[-1].record_digest}")
+        return
+    typer.secho(f"CHAIN BROKEN at decision {bad}", fg=typer.colors.RED, err=True)
+    raise typer.Exit(1)
 
 
 @app.command()

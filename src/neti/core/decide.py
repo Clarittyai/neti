@@ -201,11 +201,19 @@ def _lookup(resolutions: Mapping[str, Resolution], pointer: str, ceiling: Ceilin
 def _dominant_rule(
     args: tuple[ArgDecision, ...], budget: BudgetDecision | None, worst: Verdict
 ) -> str:
-    if budget is not None and budget.verdict == worst and worst > Verdict.ALLOW:
-        return f"session_budget:{budget.rule}"
+    """Which component to credit for the verdict.
+
+    Per-argument causes win ties over the session budget, deliberately. Both can breach at the same
+    severity on one call, and the remedies differ: a per-argument breach means "narrow this call",
+    a budget breach means "this call was fine, the session total is not". Crediting the budget on a
+    tie produced a denial that told the agent its scope was acceptable when the scope was in fact
+    ten times the ceiling. The more specific cause is the more actionable one.
+    """
     for arg in args:
         if arg.verdict == worst:
             return f"{arg.pointer}:{arg.rule}"
+    if budget is not None and budget.verdict == worst and worst > Verdict.ALLOW:
+        return f"session_budget:{budget.rule}"
     return "under_all_bands"
 
 

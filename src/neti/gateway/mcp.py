@@ -1,0 +1,166 @@
+"""The MCP gateway: the enforcement point, and the reason installing `neti` is a URL change.
+
+Transport-agnostic on purpose. Everything here operates on decoded JSON-RPC messages and delegates
+the actual send to an `Upstream`, so the whole gateway is testable against a fake server with no
+sockets involved — and so a stdio transport can be added later without touching this logic.
+
+Three protocol decisions that matter, in descending order of how badly getting them wrong would
+hurt:
+
+**A denial is a tool result, not a JSON-RPC error.** MCP distinguishes protocol failures
+(`{"error": ...}`, which the client surfaces as something broke) from tool failures
+(`{"result": {"isError": true, "content": [...]}}`, which the *model* sees and can act on). A gate
+that returns a protocol error converts a security decision into an outage: the agent's run dies
+instead of the agent learning that its scope was too wide and retrying with a smaller one. Returning
+`isError: true` is what makes a block recoverable, and it is the single most important line in this
+file.
+
+**Only `tools/call` is intercepted.** `initialize`, `tools/list`, `resources/*`, `prompts/*` and
+every notification pass straight through. A gate that fails closed on unrecognised methods breaks
+protocol negotiation and the whole session with it.
+
+**Observe mode forwards unconditionally.** It computes and records a verdict and then gets out of
+the way, which is what makes the install reversible and approvable in one conversation.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from typing import Any, Protocol
+
+from neti.core.types import ProposedCall
+from neti.core.verdict import Verdict
+from neti.engine import Engine, GateResult
+from neti.store.jsonl import JsonlSink
+
+__all__ = ["McpGateway", "Upstream"]
+
+TOOLS_CALL = "tools/call"
+
+
+class Upstream(Protocol):
+    """The MCP server behind the gate."""
+
+    def send(self, message: dict[str, Any], session_id: str | None) -> dict[str, Any] | None:
+        """Forward a message. Returns `None` for notifications, which have no response."""
+        ...
+
+
+@dataclass
+class McpGateway:
+    engine: Engine
+    upstream: Upstream
+    sink: JsonlSink | None = None
+
+    stats: dict[str, int] = field(default_factory=dict)
+    """Counters for `neti report`'s header and for the observe→enforce conversion metric."""
+
+    def handle(
+        self, message: dict[str, Any], session_id: str | None = None
+    ) -> dict[str, Any] | None:
+        """Gate one JSON-RPC message."""
+        if message.get("method") != TOOLS_CALL:
+            return self.upstream.send(message, session_id)
+
+        params = message.get("params") or {}
+        tool = params.get("name")
+        if not isinstance(tool, str):
+            # Malformed per the MCP schema. Not our business to police the envelope — the upstream
+            # server will reject it with a proper error, and inventing our own would mask theirs.
+            return self.upstream.send(message, session_id)
+
+        call = ProposedCall(
+            tool=tool,
+            args=params.get("arguments") or {},
+            call_id=str(message.get("id")) if message.get("id") is not None else None,
+            session_id=session_id,
+        )
+
+        result = self.engine.gate(call)
+        self._record(result)
+
+        if result.proceeds:
+            return self.upstream.send(message, session_id)
+        return self._denial(message, result)
+
+    # ------------------------------------------------------------------ internals
+
+    def _record(self, result: GateResult) -> None:
+        self._bump("decisions")
+        self._bump(f"verdict.{result.decision.verdict.name.lower()}")
+        if not result.proceeds:
+            self._bump("stopped")
+        if self.sink is not None:
+            self.sink.write(result.record)
+
+    def _bump(self, key: str) -> None:
+        self.stats[key] = self.stats.get(key, 0) + 1
+
+    def _denial(self, message: dict[str, Any], result: GateResult) -> dict[str, Any]:
+        """A tool result the model can read and re-plan around."""
+        payload = self.engine.denial_payload(result)
+        return {
+            "jsonrpc": "2.0",
+            "id": message.get("id"),
+            "result": {
+                "isError": True,
+                "content": [{"type": "text", "text": _explain(result, payload)}],
+                # Structured alongside the prose: the text is for the model, this is for any
+                # client-side automation that wants the numbers without parsing English.
+                "_meta": {"neti": payload},
+            },
+        }
+
+
+def _explain(result: GateResult, payload: dict[str, Any]) -> str:
+    """The sentence the model reads.
+
+    Written to cause the *right* retry. It names the ceiling and what the call actually resolved to,
+    because an agent told only "denied" will either give up or retry the identical call, and neither
+    is what we want. Naming the number teaches it to narrow the scope.
+
+    It must also attribute the decision to whatever *actually* decided. A per-call ceiling and a
+    cumulative session budget produce very different remedies — narrow this call, versus start a new
+    session or get approval — and an early version quoted the per-argument ceiling even when the
+    session budget was the thing that fired, telling the agent to shrink a call that was already
+    small enough. `Decision.rule` already records which component dominated; use it.
+    """
+    verdict = result.decision.verdict
+    unit = payload.get("unit", "items")
+    resolved = payload.get("resolved")
+    param = payload.get("parameter", "a parameter")
+    decided_by_budget = result.decision.rule.startswith("session_budget:")
+
+    if decided_by_budget and "session_ceiling" in payload:
+        lead = (
+            f"Preflight {'blocked this call' if verdict is Verdict.BLOCK else 'needs confirmation'}"
+            f": this session has reached {payload['session_total']:,} {unit}, above the cumulative "
+            f"ceiling of {payload['session_ceiling']:,}"
+        )
+        tail = (
+            " The per-call scope is not the problem — the session total is. Start a new session or "
+            "ask an operator to raise the budget."
+        )
+        return lead + "." + tail
+
+    if resolved is None:
+        reason = payload.get("reason", "the target could not be resolved")
+        return (
+            f"Preflight {verdict.name.lower()}: {param} could not be sized ({reason}), "
+            "so the call was not made. Supply a target this gate can resolve, or ask an operator "
+            "to run it."
+        )
+
+    lead = (
+        f"Preflight blocked this call: {param} resolves to {resolved:,} {unit}"
+        if verdict is Verdict.BLOCK
+        else f"Preflight needs confirmation: {param} resolves to {resolved:,} {unit}"
+    )
+    ceiling = payload.get("ceiling")
+    limit = f", above the declared ceiling of {ceiling:,}" if ceiling is not None else ""
+    tail = (
+        " Narrow the target and try again."
+        if verdict is Verdict.BLOCK
+        else " An operator must approve it before it can run."
+    )
+    return lead + limit + "." + tail
