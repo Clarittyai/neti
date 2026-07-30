@@ -1,6 +1,15 @@
-/* Design tokens lifted from clarity-platform so neti reads as the same product family.
-   Copied rather than imported on purpose: neti is a standalone repo, and a build-time dependency
-   on the monorepo would undo that. If the platform palette moves, re-copy this block. */
+/* Design tokens lifted from clarity-platform so neti reads as a sibling product, re-skinned to
+   violet. Copied rather than imported on purpose: neti is a standalone repo and a build-time
+   dependency on the monorepo would undo that.
+
+   The accent was CHOSEN BY RUNNING THE PALETTE VALIDATOR, not by taste. Cyan (#06B6D4) was the
+   obvious "security product" pick and it FAILS: cyan against the reserved emerald sits at ΔE 12.5
+   for normal vision, under the 15 floor, so a viewer could not reliably tell an accent mark from an
+   allow mark. Violet #8B5CF6 passes all six checks and is 31° of hue from claritty's #5B7FFF.
+
+   The verdict scale is RESERVED and identical in both modes. Brightening it for dark mode — the
+   obvious move — drops red against emerald to ΔE 6.5, into the warn band. Every verdict ships with
+   an icon and a label, so identity is never carried by colour alone. */
 
 @tailwind base;
 @tailwind components;
@@ -26,7 +35,7 @@
     --muted: 210 40% 96%;              /* #F1F5F9 */
     --muted-foreground: 215 16% 47%;
 
-    --accent: 227 100% 68%;            /* #5B7FFF - brand indigo (matches Tailwind) */
+    --accent: 258 90% 66%;             /* #8B5CF6 violet-500 — validated, see header */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;          /* #EF4444 */
@@ -50,11 +59,18 @@
 
     --status-success: 152 81% 39%;     /* emerald-500 */
     --status-error: 0 84% 60%;         /* red-500 (matches --destructive in light) */
-    --status-running: 227 100% 68%;    /* matches --accent */
+    --status-running: 258 90% 66%;     /* matches --accent */
     --status-idle: 215 16% 47%;        /* matches --muted-foreground */
     --canvas-grid: 214 32% 91%;        /* matches --border */
     --canvas-bg: 220 20% 98%;          /* page bg + 1% accent tint */
     --swimlane-bg: 222 47% 11%;        /* foreground; used at low alpha */
+
+
+    /* Reserved. Never reused for a series, a chart or a brand surface. */
+    --verdict-block: 0 84% 60%;        /* #EF4444 */
+    --verdict-confirm: 38 92% 50%;     /* #F59E0B */
+    --verdict-allow: 160 84% 39%;      /* #10B981 */
+    --verdict-unknown: 215 16% 47%;    /* hatched texture on screen, never a hue */
 
     --radius: 0.5rem;
   }
@@ -78,7 +94,7 @@
     --muted: 240 4% 16%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 227 100% 68%;            /* #5B7FFF - brand indigo (matches Tailwind) */
+    --accent: 258 90% 66%;             /* #8B5CF6 violet-500 — validated, see header */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 63% 31%;          /* #DC2626 darker for dark mode */
@@ -94,6 +110,13 @@
     --info-foreground: 0 0% 100%;
 
     --border: 240 4% 16%;
+
+    /* Reserved. Never reused for a series, a chart or a brand surface. */
+    --verdict-block: 0 84% 60%;        /* #EF4444 */
+    --verdict-confirm: 38 92% 50%;     /* #F59E0B */
+    --verdict-allow: 160 84% 39%;      /* #10B981 */
+    --verdict-unknown: 215 16% 47%;    /* hatched texture on screen, never a hue */
+
     --input: 240 4% 16%;
     --ring: 217 91% 60%;
 
@@ -102,7 +125,7 @@
 
     --status-success: 158 64% 52%;     /* emerald-400 */
     --status-error: 0 91% 71%;         /* red-400 */
-    --status-running: 227 100% 68%;    /* matches --accent */
+    --status-running: 258 90% 66%;     /* matches --accent */
     --status-idle: 215 20% 65%;        /* matches --muted-foreground */
     --canvas-grid: 240 4% 20%;         /* dim grid on dark canvas */
     --canvas-bg: 240 6% 5%;            /* slightly darker than page bg */
@@ -117,5 +140,72 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+
+@layer components {
+  /* The house signature, lifted from clarity-platform. Four layers, always together: translucent
+     fill + backdrop blur + hairline border + inset ring. `backdrop-saturate-150` is the part that
+     matters — blur alone reads grey, saturate makes it read as frosted glass. */
+  .glass-card {
+    @apply bg-white/60 dark:bg-white/[0.05] backdrop-blur-2xl backdrop-saturate-150;
+    @apply border border-slate-900/[0.08] dark:border-white/10;
+    @apply ring-1 ring-inset ring-slate-900/[0.06] dark:ring-white/[0.08];
+  }
+  .glass-card-elevated {
+    @apply glass-card;
+    box-shadow:
+      0 1px 2px rgba(15, 23, 42, 0.04),
+      0 4px 12px -2px rgba(15, 23, 42, 0.08);
+  }
+  .dark .glass-card-elevated {
+    box-shadow: 0 10px 40px -12px rgba(0, 0, 0, 0.5);
+  }
+  .glass-button {
+    @apply bg-white/60 dark:bg-white/[0.05] hover:bg-white/80 dark:hover:bg-white/[0.08];
+    @apply backdrop-blur-xl backdrop-saturate-150;
+    @apply ring-1 ring-inset ring-slate-900/[0.06] dark:ring-white/[0.08];
+    @apply transition-colors;
+  }
+}
+
+@layer utilities {
+  /* Ignorance is a texture, never a hue. UNRESOLVED and PARTIAL must not borrow a verdict colour —
+     "we could not size this" is a different kind of statement from "this is too big". */
+  .hatched {
+    background-image: repeating-linear-gradient(
+      135deg,
+      hsl(var(--verdict-unknown) / 0.22) 0 2px,
+      transparent 2px 7px
+    );
+  }
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+/* The digits land at once rather than counting up. RESOLVER_CONTRACT.md rule 2: "you cannot
+   half-read an integer" — an odometer rolling 0 -> 41,203 depicts a progressive enumeration, which
+   is precisely the thing this product refuses to do. Blur-in is the honest motion. */
+@keyframes magnitude-land {
+  from {
+    opacity: 0;
+    filter: blur(14px);
+    transform: scale(0.97);
+  }
+  to {
+    opacity: 1;
+    filter: blur(0);
+    transform: scale(1);
+  }
+}
+.magnitude-land {
+  animation: magnitude-land 320ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .magnitude-land {
+    animation: none;
   }
 }
