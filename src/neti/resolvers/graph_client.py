@@ -166,6 +166,15 @@ class GraphClient:
         )
         self._tokens = _TokenCache(credential, self._client)
 
+    def token_for_checks(self) -> str:
+        """Expose the cached token to `neti check`.
+
+        Only for the probes that must deliberately violate this client's own invariants — sending
+        a request *without* `ConsistencyLevel` to confirm the documented fail-open. Nothing in the
+        gate path should reach for this.
+        """
+        return self._tokens.token()
+
     def close(self) -> None:
         self._client.close()
 

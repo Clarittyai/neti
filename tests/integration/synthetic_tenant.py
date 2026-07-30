@@ -87,9 +87,13 @@ class SyntheticTenant:
             headers = {"Retry-After": "0"} if status == 429 else {}
             return httpx.Response(status, json={"error": {"code": str(status)}}, headers=headers)
 
-        # Graph errors on /$count as a path segment when the header is absent. Reproduced because a
-        # client that forgets the header must fail loudly here rather than silently anywhere else.
-        if "$count" in url and request.headers.get("ConsistencyLevel") != "eventual":
+        # The two `$count` forms fail *differently* without `ConsistencyLevel`, and the difference
+        # is the whole point of the HEADER probe:
+        #   - `/$count` as a path segment errors, loudly.
+        #   - `?$count=true` as a query parameter is silently ignored — a 200 with no count, which
+        #     is the shape a careless client reads as zero.
+        has_header = request.headers.get("ConsistencyLevel") == "eventual"
+        if request.url.path.endswith("/$count") and not has_header:
             return httpx.Response(
                 400,
                 json={
@@ -99,6 +103,8 @@ class SyntheticTenant:
                     }
                 },
             )
+        if request.url.params.get("$count") and not has_header:
+            return httpx.Response(200, json={"value": [{"id": "x"}]})
 
         path = request.url.path
 

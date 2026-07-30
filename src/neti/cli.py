@@ -8,6 +8,7 @@ ceilings from that, and verify the record chain.
 from __future__ import annotations
 
 import contextlib
+import os
 import sys
 from typing import Annotated
 
@@ -47,6 +48,67 @@ def measure(
         raise typer.Exit(2) from exc
 
     typer.echo(format_report(out))
+
+
+@app.command()
+def check(
+    group: Annotated[
+        list[str],
+        typer.Option(
+            "--group",
+            "-g",
+            help="Group object id or mail address. Pass at least two of very different sizes.",
+        ),
+    ],
+    repeat: Annotated[int, typer.Option(help="Latency samples per group.")] = 20,
+    timeout_ms: Annotated[int, typer.Option()] = 800,
+) -> None:
+    """Answer the four tenant-side questions the project is blocked on, in one command.
+
+    Needs NETI_TENANT_ID, NETI_CLIENT_ID and NETI_CLIENT_SECRET, and an Entra app with
+    GroupMember.Read.All (application permission, admin-consented). Read-only throughout.
+
+    Pass at least one small and one large group: the claim under test is that a 40,000-member
+    group costs the same to size as a 3-member one.
+    """
+    import httpx
+
+    from neti.eval.tenant_checks import format_checks, run_checks
+    from neti.resolvers.graph_client import ClientCredential, GraphClient, GraphError
+
+    missing = [
+        name
+        for name in ("NETI_TENANT_ID", "NETI_CLIENT_ID", "NETI_CLIENT_SECRET")
+        if not os.environ.get(name)
+    ]
+    if missing:
+        typer.secho(f"error: not set: {', '.join(missing)}", fg=typer.colors.RED, err=True)
+        typer.echo(
+            "\nRegister an Entra app, grant Microsoft Graph > Application > GroupMember.Read.All,\n"
+            "grant admin consent, add a client secret, then export the three variables.",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    credential = ClientCredential(
+        tenant_id=os.environ["NETI_TENANT_ID"],
+        client_id=os.environ["NETI_CLIENT_ID"],
+        client_secret=os.environ["NETI_CLIENT_SECRET"],
+    )
+    client = GraphClient(credential, timeout_ms=timeout_ms)
+    raw = httpx.Client(timeout=timeout_ms / 1000)
+    try:
+        try:
+            token = client.token_for_checks()
+        except GraphError as exc:
+            typer.secho(f"error: could not authenticate: {exc}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(2) from exc
+        results = run_checks(client, raw, token, list(group), repeat=repeat)
+    finally:
+        raw.close()
+        client.close()
+
+    typer.echo(format_checks(results))
 
 
 @app.command()
