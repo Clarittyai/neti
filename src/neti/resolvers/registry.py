@@ -16,6 +16,7 @@ from neti.resolvers.graph_entra import (
     EntraGuestsResolver,
     EntraPrincipalsResolver,
 )
+from neti.resolvers.terraform import TerraformPlanResolver
 
 __all__ = ["build_entra_resolvers", "resolvers_for_client"]
 
@@ -25,6 +26,8 @@ def resolvers_for_client(client: GraphClient) -> dict[str, Resolver]:
         "entra.principals": EntraPrincipalsResolver(client),
         "entra.apps": EntraAppsResolver(client),
         "entra.guests": EntraGuestsResolver(client),
+        # Needs no credential at all — it reads a local plan artifact — so it is always available.
+        "terraform.destroy": TerraformPlanResolver(),
     }
 
 

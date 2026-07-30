@@ -35,6 +35,13 @@ class Unit(StrEnum):
     """Database rows. Separate from OBJECTS because its resolvers are estimate-based and
     biased low; see SCOPE.md NC-10."""
 
+    RESOURCES = "resources"
+    """Infrastructure resources in a plan — the Terraform/IaC unit.
+
+    Separate from OBJECTS rather than folded into it, because a ceiling has to mean something
+    specific to the person declaring it. "Block above 50 objects" is unreadable when the same
+    number would be reasonable for files and catastrophic for load balancers."""
+
 
 class Direction(StrEnum):
     """How a resolved magnitude relates to the true value.

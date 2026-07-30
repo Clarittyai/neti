@@ -3,7 +3,8 @@
 **Publishing the misses is the point.** A magnitude gate that claims the PocketOS database deletion
 without shipping a bytes resolver is the kind of overclaim that loses a security audience in one
 question, and this corpus exists so that the answer is already written down before the question is
-asked. Four of the five entries below are misses or partial catches.
+asked. Most entries below are misses or out of scope, and they stay in the table as resolvers ship
+rather than being quietly deleted.
 
 Every entry was verified during research, and two of the three anecdotes the project started with
 turned out to be wrong:
@@ -15,8 +16,8 @@ turned out to be wrong:
   been borrowed from Replit's ~4,000 *fabricated* records, which is a different failure entirely. It
   has been replaced with incidents that have citable numbers.
 
-`caught_by` names the resolver family an entry needs, which is what makes the coverage arithmetic
-honest: an incident is only "covered" if a resolver for that family actually ships.
+`coverage` is a claim about *this build*, not about the idea: `replay()` re-derives it from the
+resolver units that actually ship, so deleting a resolver reclassifies everything it covered.
 """
 
 from __future__ import annotations
@@ -51,12 +52,28 @@ class Incident:
     what_one_call_did: str
     magnitude: int | None
     unit: Unit | None
+    """What was *lost*. Not necessarily what a gate can measure — see `gated_unit`."""
+
     authorized: bool
     reversible: str
     source: str
     coverage: Coverage
     note: str
     """Why it lands where it lands. This is the sentence that gets read aloud."""
+
+    gated_unit: Unit | None = None
+    """The unit a gate actually sizes, when it differs from the unit of the harm.
+
+    The Claude Code incident destroyed 1,943,200 database rows, but nothing sizes rows before a
+    `terraform apply`; what a gate sees is five resources in a plan. Five resources is a sufficient
+    signal to have stopped it and it is *not the same quantity*, so the table keeps both rather than
+    printing the frightening number next to a tick.
+    """
+
+    @property
+    def sizing_unit(self) -> Unit | None:
+        """The unit coverage is actually decided by."""
+        return self.gated_unit or self.unit
 
 
 INCIDENTS: tuple[Incident, ...] = (
@@ -72,8 +89,8 @@ INCIDENTS: tuple[Incident, ...] = (
         source="synthetic; the shape of the identity-blast-radius case",
         coverage=Coverage.CAUGHT,
         note=(
-            "One O(1) Graph call sizes it before execution. This is the case the product is built "
-            "for and the only one in this table it fully covers."
+            "One O(1) Graph call sizes it before execution, in the same unit as the harm. This is "
+            "the case the product is built for and the cleanest catch in the table."
         ),
     ),
     Incident(
@@ -86,12 +103,14 @@ INCIDENTS: tuple[Incident, ...] = (
         authorized=True,
         reversible="partially — a surviving snapshot was found after 24h",
         source="https://alexeyondata.substack.com/p/how-i-dropped-our-production-database",
-        coverage=Coverage.NEEDS_RESOLVER,
+        coverage=Coverage.CAUGHT,
+        gated_unit=Unit.RESOURCES,
         note=(
-            "A Terraform plan resolver (plan JSON -> count of destroy actions) would size this. "
-            "It is the highest-value resolver not yet built. Note it is a coverage win rather "
-            "than a novelty one: `conftest` with `max_auto_apply_changes` already does exactly "
-            "this in the IaC world."
+            "Sized by the Terraform plan resolver, which counts destroys and replaces before "
+            "apply. Read the units carefully: the harm was 1,943,200 rows, and what the gate sees "
+            "is roughly five resources in a plan. That is a sufficient signal to have stopped it "
+            "and it is not the same quantity. Also a coverage win rather than a novelty one — "
+            "`conftest` with `max_auto_apply_changes` already does exactly this in the IaC world."
         ),
     ),
     Incident(
@@ -194,10 +213,10 @@ def replay(shipped_units: frozenset[Unit]) -> dict[str, list[Incident]]:
     out: dict[str, list[Incident]] = {c.value: [] for c in Coverage}
     for incident in INCIDENTS:
         coverage = incident.coverage
-        # An entry marked CAUGHT is only caught if its unit is actually resolvable today.
-        if coverage is Coverage.CAUGHT and (
-            incident.unit is None or incident.unit not in shipped_units
-        ):
+        # An entry marked CAUGHT is only caught if the unit that *sizes* it ships — which is not
+        # always the unit of the harm.
+        unit = incident.sizing_unit
+        if coverage is Coverage.CAUGHT and (unit is None or unit not in shipped_units):
             coverage = Coverage.NEEDS_RESOLVER
         out[coverage.value].append(incident)
     return out

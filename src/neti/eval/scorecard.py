@@ -26,7 +26,7 @@ from neti.insight.report import ReportSummary
 __all__ = ["Scorecard", "build_scorecard", "format_scorecard", "scorecard_json"]
 
 # Units a shipped resolver can size today. Everything else is an honest gap.
-SHIPPED_UNITS = frozenset({Unit.PRINCIPALS, Unit.APPS, Unit.RECIPIENTS})
+SHIPPED_UNITS = frozenset({Unit.PRINCIPALS, Unit.APPS, Unit.RECIPIENTS, Unit.RESOURCES})
 
 NON_COVERAGE = {
     "NC-01": "cumulative effect across calls (only declared session budgets see it)",
@@ -144,6 +144,10 @@ def format_scorecard(card: Scorecard) -> str:
         for incident in entries:
             magnitude = f"{incident.magnitude:,}" if incident.magnitude is not None else "—"
             unit = incident.unit.value if incident.unit else ""
+            # Where the gate sizes a different quantity than the one that was lost, say so on the
+            # row rather than only in the note.
+            if incident.gated_unit and incident.gated_unit is not incident.unit:
+                unit = f"{unit} (gated: {incident.gated_unit.value})"
             out.append(f"    {incident.id:<24} {magnitude:>11} {unit:<11} {incident.date}")
             out.append(f"      {incident.note}")
         out.append("")
@@ -191,7 +195,14 @@ def format_scorecard(card: Scorecard) -> str:
 def scorecard_json(card: Scorecard) -> str:
     payload: dict[str, Any] = {
         "incidents": {
-            key: [asdict(i) | {"unit": i.unit.value if i.unit else None} for i in entries]
+            key: [
+                asdict(i)
+                | {
+                    "unit": i.unit.value if i.unit else None,
+                    "gated_unit": i.gated_unit.value if i.gated_unit else None,
+                }
+                for i in entries
+            ]
             for key, entries in card.incidents.items()
         },
         "coverage": {"caught": card.covered, "total": card.total_incidents},

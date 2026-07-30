@@ -115,6 +115,31 @@ def test_blind_spots_are_in_the_body_not_an_appendix() -> None:
     assert "MISS" in text.split("M5")[0], "the incident table must lead with its misses visible"
 
 
+def test_a_gate_that_sizes_a_different_quantity_says_so() -> None:
+    """The Terraform catch is real but the units differ, and the table must not blur them.
+
+    1,943,200 rows were lost; what the gate sees is a handful of resources in a plan. Printing the
+    frightening number next to a tick, with no note that it is not the quantity measured, is the
+    kind of slide that gets taken apart in the room.
+    """
+    tf = next(i for i in INCIDENTS if i.id == "claude-code-terraform")
+    assert tf.coverage is Coverage.CAUGHT
+    assert tf.unit is Unit.ROWS, "the harm was rows"
+    assert tf.gated_unit is Unit.RESOURCES, "the gate sizes resources"
+    assert tf.sizing_unit is Unit.RESOURCES, "coverage is decided by what is measurable"
+    assert "not the same quantity" in tf.note
+
+    text = format_scorecard(build_scorecard())
+    assert "rows (gated: resources)" in text, "the divergence must be on the row, not just in prose"
+
+
+def test_dropping_the_terraform_resolver_reclassifies_its_incident() -> None:
+    """Coverage tracks what ships. Removing a resolver must move its entry back to a miss."""
+    without = replay(frozenset({Unit.PRINCIPALS, Unit.RECIPIENTS}))
+    assert "claude-code-terraform" not in {i.id for i in without[Coverage.CAUGHT.value]}
+    assert "claude-code-terraform" in {i.id for i in without[Coverage.NEEDS_RESOLVER.value]}
+
+
 # --------------------------------------------------------------- friction (M5)
 
 
