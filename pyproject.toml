@@ -17,6 +17,7 @@ dependencies = [
 graph = ["httpx[http2]>=0.27", "msal>=1.31"]
 mcp = ["httpx[http2]>=0.27"]
 cli = ["typer>=0.12", "rich>=13.9"]
+console = ["fastapi>=0.115", "uvicorn>=0.32"]
 dev = [
     "pytest>=8.3",
     "types-pyyaml>=6.0",

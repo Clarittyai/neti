@@ -241,6 +241,55 @@ def propose(
 
 
 @app.command()
+def serve(
+    config: Annotated[str, typer.Option("--config", "-c")] = "examples/entra.yaml",
+    records: Annotated[str, typer.Option("--records", "-r")] = "out/console.ndjson",
+    host: Annotated[str, typer.Option()] = "127.0.0.1",
+    port: Annotated[int, typer.Option()] = 8722,
+    demo: Annotated[
+        bool | None,
+        typer.Option("--demo/--live", help="Force the fixture or a real tenant."),
+    ] = None,
+) -> None:
+    """Run the console API.
+
+    With no credentials this comes up on the synthetic fixture, because a demo that needs a tenant
+    before it will start is not a demo. Export NETI_TENANT_ID / NETI_CLIENT_ID /
+    NETI_CLIENT_SECRET and it talks to Microsoft instead — same engine, same decision procedure,
+    same records.
+    """
+    try:
+        import uvicorn
+
+        from neti.api.app import create_app
+    except ImportError as exc:
+        typer.secho(
+            "error: the console extra is not installed — run: uv pip install -e '.[console]'",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(2) from exc
+
+    from neti.api.state import build_state
+
+    try:
+        state = build_state(config=config, records=records, demo=demo)
+    except (OSError, RuntimeError, ValueError) as exc:
+        typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2) from exc
+
+    typer.secho(f"neti console API on http://{host}:{port}", fg=typer.colors.GREEN)
+    typer.echo(f"  mode:    {state.mode}  ({state.tenant_label})")
+    typer.echo(f"  policy:  {config}  digest {state.policy.digest()[:12]}")
+    typer.echo(f"  records: {records}")
+    typer.echo("  web ui:  cd web && npm run dev   ->  http://localhost:3100")
+    try:
+        uvicorn.run(create_app(state), host=host, port=port, log_level="warning")
+    finally:
+        state.close()
+
+
+@app.command()
 def score(
     records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
     config: Annotated[str, typer.Option("--config", "-c")] = "neti.yaml",

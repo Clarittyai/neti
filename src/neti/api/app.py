@@ -1,0 +1,318 @@
+"""The console's HTTP API.
+
+Deliberately boring. Every endpoint is a thin wrapper over something that already exists and is
+already tested — `Engine.gate`, `build_inventory`, `build_report`, `propose`, `verify_chain`,
+`build_scorecard`. The API adds no judgement of its own, which is what lets the console claim that
+what it shows is what the gate does.
+
+Bound to localhost, no auth, single process. It is a demo console, not a control plane.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel
+
+from neti.api.state import ConsoleState, build_state
+from neti.api.trace import TraceCollector
+from neti.core.record import verify_chain
+from neti.core.types import ProposedCall
+from neti.core.verdict import Mode
+from neti.eval.scenarios import SCENARIOS
+from neti.eval.scorecard import build_scorecard, scorecard_json
+from neti.insight.inventory import build_inventory
+from neti.insight.propose import propose
+from neti.insight.report import build_report
+from neti.resolvers.base import ResolveContext
+from neti.store.jsonl import read_records
+
+__all__ = ["create_app"]
+
+
+class GateRequest(BaseModel):
+    tool: str
+    args: dict[str, Any] = {}
+    session_id: str | None = None
+
+
+class ModeRequest(BaseModel):
+    mode: str
+
+
+def create_app(state: ConsoleState | None = None, **kw: Any) -> FastAPI:
+    st = state or build_state(**kw)
+    app = FastAPI(title="neti console", docs_url="/api/docs")
+
+    # The Next dev server is on another port. Localhost-only, so this is not a real boundary.
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=["http://localhost:3100", "http://127.0.0.1:3100"],
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+    app.state.console = st
+
+    # ---------------------------------------------------------------- state
+
+    @app.get("/api/state")
+    def get_state() -> dict[str, Any]:
+        return st.as_json()
+
+    @app.post("/api/connect")
+    def connect() -> dict[str, Any]:
+        """Verify the credential by actually using it.
+
+        A connect button that only stores a secret has proved nothing. This resolves the tenant's
+        reachable maximum, which is the same call the inventory makes, so "connected" means "we
+        successfully counted something" rather than "the form submitted".
+        """
+        resolver = st.engine.resolvers.get("entra.principals")
+        if resolver is None:
+            raise HTTPException(500, "entra.principals resolver is not registered")
+        probe = resolver.reachable_max(st.engine.ctx)
+        st.connected = probe.state.name == "RESOLVED"
+        return {
+            "connected": st.connected,
+            "mode": st.mode,
+            "tenant": st.tenant_label,
+            "directory_size": probe.magnitude,
+            "reason": None if st.connected else probe.evidence.get("reason"),
+        }
+
+    @app.post("/api/mode")
+    def set_mode(req: ModeRequest) -> dict[str, Any]:
+        """Flip between observe and enforce at runtime.
+
+        Not a convenience — it is the most honest thing the console can show. In observe mode the
+        gate computes and records the same verdict and forwards the call anyway, which is what makes
+        installing it reversible. Flipping to enforce and re-running the identical call demonstrates
+        that the decision was already being made correctly the whole time, and that enforcement
+        changes only whether it is acted on.
+        """
+        wanted = req.mode.strip().lower()
+        if wanted not in ("observe", "enforce"):
+            raise HTTPException(400, "mode must be 'observe' or 'enforce'")
+        st.set_mode(Mode.ENFORCE if wanted == "enforce" else Mode.OBSERVE)
+        return {"mode": st.policy.mode.name.lower()}
+
+    @app.post("/api/disconnect")
+    def disconnect() -> dict[str, Any]:
+        st.connected = False
+        return {"connected": False}
+
+    # ---------------------------------------------------------------- the gate
+
+    @app.post("/api/gate")
+    def gate(req: GateRequest) -> dict[str, Any]:
+        """Fire one tool call through the real engine and return the verdict, the trace and the
+        record. This is the endpoint the whole console is built around."""
+        if not st.connected:
+            raise HTTPException(409, "not connected — connect a provider first")
+
+        collector = TraceCollector()
+        result = st.engine.gate(
+            ProposedCall(tool=req.tool, args=req.args, session_id=req.session_id),
+            observe=collector,
+        )
+        st.sink.write(result.record)
+
+        return {
+            "verdict": result.decision.verdict.name.lower(),
+            "rule": result.decision.rule,
+            "proceeds": result.proceeds,
+            "mode": st.policy.mode.name.lower(),
+            "denial": None if result.proceeds else st.engine.denial_payload(result),
+            "trace": collector.as_json(),
+            "decision_id": result.record.decision_id,
+            "record": result.record.model_dump(mode="json", by_alias=True),
+        }
+
+    # ---------------------------------------------------------------- reads
+
+    @app.get("/api/inventory")
+    def inventory() -> dict[str, Any]:
+        rows = build_inventory(st.policy, st.engine.resolvers, ResolveContext())
+        return {
+            "rows": [
+                {
+                    "tool": r.tool,
+                    "param": r.pointer,
+                    "resolver": r.resolver,
+                    "reachable": r.reachable.magnitude,
+                    "unit": r.reachable.unit.value,
+                    "direction": r.reachable.direction.value,
+                    "has_ceiling": r.has_ceiling,
+                    "block_at": r.block_at,
+                    "risk": r.risk,
+                }
+                for r in sorted(rows, key=lambda r: -(r.reachable.magnitude or 0))
+            ]
+        }
+
+    @app.get("/api/decisions")
+    def decisions(limit: int = 50) -> dict[str, Any]:
+        records = _records(st)
+        return {
+            "total": len(records),
+            "decisions": [
+                {
+                    "decision_id": r.decision_id,
+                    "decided_at": r.decided_at,
+                    "tool": r.tool,
+                    "verdict": r.verdict,
+                    "rule": r.rule,
+                    "mode": r.mode,
+                    "session_id": r.session_id,
+                    "magnitudes": [
+                        {"pointer": c["pointer"], "magnitude": c["magnitude"], "unit": c["unit"]}
+                        for c in r.causes
+                    ],
+                }
+                for r in reversed(records[-limit:])
+            ],
+        }
+
+    @app.get("/api/decisions/{decision_id}")
+    def decision(decision_id: str) -> dict[str, Any]:
+        for r in _records(st):
+            if r.decision_id == decision_id:
+                dumped: dict[str, Any] = r.model_dump(mode="json", by_alias=True)
+                return dumped
+        raise HTTPException(404, f"no decision {decision_id}")
+
+    @app.get("/api/policy")
+    def policy() -> dict[str, Any]:
+        return {
+            "digest": st.policy.digest(),
+            "mode": st.policy.mode.name.lower(),
+            "unknown_tool": st.policy.unknown_tool.name.lower(),
+            "tools": {
+                tool: {
+                    pointer: {
+                        "resolver": spec.resolver,
+                        "unit": spec.unit.value if spec.unit else None,
+                        "bands": [
+                            {"above": b.above, "verdict": b.verdict.name.lower()}
+                            for b in spec.bands
+                        ],
+                        "on_unresolved": spec.on_unresolved.name.lower(),
+                        "has_ceiling": spec.has_ceiling,
+                    }
+                    for pointer, spec in st.policy.gate_specs(tool).items()
+                }
+                for tool in sorted(st.policy.tools)
+                if st.policy.gate_specs(tool)
+            },
+            "session_budgets": [
+                {
+                    "tools": sorted(r.tools),
+                    "unit": r.unit.value,
+                    "bands": [
+                        {"above": b.above, "verdict": b.verdict.name.lower()} for b in r.bands
+                    ],
+                }
+                for r in st.policy.session_budgets
+            ],
+        }
+
+    @app.get("/api/report")
+    def report() -> dict[str, Any]:
+        summary = build_report(_records(st))
+        return {
+            "decisions": summary.decisions,
+            "verdicts": summary.verdicts,
+            "distributions": [
+                {
+                    "tool": d.tool,
+                    "pointer": d.pointer,
+                    "unit": d.unit,
+                    "n": d.n,
+                    "p50": d.p50,
+                    "p95": d.p95,
+                    "p99": d.p99,
+                    "max": d.maximum,
+                    "unresolved": d.unresolved,
+                    "magnitudes": d.magnitudes,
+                    "over_ceiling": [
+                        {"decision_id": i, "observed": o, "ceiling": c}
+                        for i, o, c in d.over_ceiling
+                    ],
+                }
+                for d in summary.ordered
+            ],
+            "proposals": [
+                {
+                    "tool": p.tool,
+                    "pointer": p.pointer,
+                    "unit": p.unit,
+                    "n": p.n,
+                    "normal": p.normal,
+                    "observed_max": p.observed_max,
+                    "confirm_above": p.confirm_above,
+                    "block_above": p.block_above,
+                    "rationale": p.rationale,
+                    "would_block": p.would_block,
+                    "would_confirm": p.would_confirm,
+                    "examples": p.examples,
+                    "actionable": p.actionable,
+                }
+                for p in propose(summary)
+            ],
+        }
+
+    @app.get("/api/audit/verify")
+    def audit() -> dict[str, Any]:
+        records = _records(st)
+        ok, bad = verify_chain(records)
+        return {
+            "ok": ok,
+            "broken_at": bad,
+            "count": len(records),
+            "head": records[-1].record_digest if records else None,
+            "links": [
+                {
+                    "decision_id": r.decision_id,
+                    "decided_at": r.decided_at,
+                    "tool": r.tool,
+                    "verdict": r.verdict,
+                    "prev_digest": r.prev_digest,
+                    "record_digest": r.record_digest,
+                }
+                for r in records
+            ],
+        }
+
+    @app.get("/api/scorecard")
+    def scorecard() -> Any:
+        import json
+
+        summary = build_report(_records(st)) if _records(st) else None
+        return json.loads(scorecard_json(build_scorecard(summary, st.policy)))
+
+    # ---------------------------------------------------------------- scenarios
+
+    @app.get("/api/scenarios")
+    def scenarios() -> dict[str, Any]:
+        return {"scenarios": [s.as_json() for s in SCENARIOS.values()]}
+
+    @app.get("/api/scenarios/{scenario_id}")
+    def scenario(scenario_id: str) -> dict[str, Any]:
+        found = SCENARIOS.get(scenario_id)
+        if found is None:
+            raise HTTPException(404, f"no scenario {scenario_id}")
+        return found.as_json()
+
+    return app
+
+
+def _records(st: ConsoleState) -> list[Any]:
+    """Flush pending writes before reading, so the console never shows a decision it just made as
+    missing. The sink is deliberately off the hot path; that is invisible at demo volumes and
+    surprising if a read races it."""
+    try:
+        return list(read_records(st.records_path))
+    except FileNotFoundError:
+        return []
