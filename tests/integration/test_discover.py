@@ -238,3 +238,42 @@ def test_an_empty_discovery_still_writes_a_loadable_file(tmp_path: Path) -> None
     config = tmp_path / "neti.yaml"
     config.write_text(render_policy(discover([], probe=False)))
     assert load_policy(str(config)).tools == {}
+
+
+def test_an_all_gated_machine_is_a_finished_state_not_an_empty_one(tmp_path: Path) -> None:
+    """Found by running `neti init` in a project whose only server was already wrapped.
+
+    It skipped the entry — correctly, since re-wrapping a gate in a gate doubles every decision —
+    and then announced "No MCP servers found in any client config on this machine." An operator who
+    had just finished gating everything was being told discovery was broken.
+    """
+    cwd, home = tmp_path / "proj", tmp_path / "home"
+    cwd.mkdir(parents=True)
+    home.mkdir()
+    (cwd / ".mcp.json").write_text(
+        json.dumps(
+            {"mcpServers": {"fs": {"command": "neti", "args": ["gate", "--stdio", "--", "npx"]}}}
+        )
+    )
+
+    gated: list[str] = []
+    assert find_clients(cwd=cwd, home=home, already_gated=gated) == []
+    assert gated == ["fs"], "a skipped server must be reported, not silently dropped"
+
+
+def test_discovery_stays_quiet_about_a_server_s_startup_banner(server: ServerSpec) -> None:
+    """`neti init` launches every server in turn purely to ask `tools/list`.
+
+    Real servers print banners and npm warnings on startup. Relaying them while gating is right —
+    an operator debugging their own server needs those — but during a scan they interleave with the
+    progress output and make a working discovery look like it is malfunctioning. The tail is kept
+    either way, so a failure can be explained in the server's own words.
+    """
+    from neti.gateway.stdio import StdioUpstream
+
+    quiet = StdioUpstream(server.argv, echo_stderr=False)
+    try:
+        assert quiet.send({"jsonrpc": "2.0", "id": 1, "method": "tools/list"}, None) is not None
+    finally:
+        quiet.close()
+    assert hasattr(quiet, "stderr_tail")

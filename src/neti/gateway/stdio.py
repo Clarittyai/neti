@@ -74,11 +74,17 @@ class StdioUpstream:
         *,
         on_unsolicited: Callable[[dict[str, Any]], None] | None = None,
         timeout_s: float = 120.0,
+        echo_stderr: bool = True,
     ) -> None:
         if not argv:
             raise ValueError("no command given to launch")
 
         self._timeout_s = timeout_s
+        self._echo_stderr = echo_stderr
+        self.stderr_tail: list[str] = []
+        """The child's last few stderr lines, kept so a failure can be explained with the server's
+        own words rather than with a timeout and nothing else."""
+
         self.on_unsolicited = on_unsolicited or _drop
         self._pending: dict[str, Future[dict[str, Any]]] = {}
         self._pending_lock = threading.Lock()
@@ -190,11 +196,20 @@ class StdioUpstream:
         self._fail_pending(RuntimeError("the MCP server behind the gate closed its output"))
 
     def _pump_stderr(self) -> None:
+        """Forward the child's stderr, and always keep a tail of it.
+
+        Gating a server relays its logs, because an operator debugging their own MCP server needs
+        them. *Discovering* one does not: `neti init` launches a dozen servers in a row purely to
+        ask `tools/list`, and their startup banners interleaved with its progress output made a
+        working scan look like it was malfunctioning. So the echo is optional and the tail is not.
+        """
         stderr = self._proc.stderr
         assert stderr is not None
         for line in stderr:
-            sys.stderr.write(line)
-            sys.stderr.flush()
+            self.stderr_tail = [*self.stderr_tail[-9:], line.rstrip()]
+            if self._echo_stderr:
+                sys.stderr.write(line)
+                sys.stderr.flush()
 
     def _fail_pending(self, exc: BaseException) -> None:
         with self._pending_lock:

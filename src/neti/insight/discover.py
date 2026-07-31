@@ -129,11 +129,16 @@ def _candidates(cwd: Path, home: Path) -> list[tuple[str, Path]]:
     return found
 
 
-def find_clients(cwd: Path | None = None, home: Path | None = None) -> list[ServerSpec]:
+def find_clients(
+    cwd: Path | None = None, home: Path | None = None, *, already_gated: list[str] | None = None
+) -> list[ServerSpec]:
     """Every stdio MCP server the machine's agent clients are configured to launch.
 
-    Servers already wrapped by `neti gate` are skipped: re-wrapping a gate in a gate would double
-    every decision and write each one to the chain twice.
+    Servers already wrapped by `neti gate` are skipped — re-wrapping a gate in a gate would double
+    every decision and write each one to the chain twice — but their names are appended to
+    `already_gated` rather than vanishing. Silently dropping them made `neti init` announce "No MCP
+    servers found" to an operator who had just gated all of theirs, which reads as discovery being
+    broken rather than as work already done.
     """
     cwd = cwd or Path.cwd()
     home = home or Path.home()
@@ -154,6 +159,8 @@ def find_clients(cwd: Path | None = None, home: Path | None = None) -> list[Serv
                 continue  # an HTTP/SSE server, or malformed — neither is ours to launch
             args = [str(a) for a in spec.get("args", []) if isinstance(a, (str, int))]
             if command == "neti" or "neti" in Path(command).name:
+                if already_gated is not None:
+                    already_gated.append(name)
                 continue
             key = (command, tuple(args))
             if key in seen:
@@ -207,7 +214,7 @@ def list_tools(server: ServerSpec, *, timeout_s: float = 20.0) -> list[dict[str,
 
     from neti.gateway.stdio import StdioUpstream
 
-    upstream = StdioUpstream(server.argv, timeout_s=timeout_s)
+    upstream = StdioUpstream(server.argv, timeout_s=timeout_s, echo_stderr=False)
     try:
         try:
             upstream.send(_INIT, None)
@@ -217,9 +224,11 @@ def list_tools(server: ServerSpec, *, timeout_s: float = 20.0) -> list[dict[str,
             # `TimeoutError()` stringifies to the empty string, so reporting it verbatim gives the
             # operator "could not introspect entra ()" — a message that names no cause and suggests
             # no fix. Say which step stalled and how long we waited.
+            said = " | ".join(upstream.stderr_tail[-3:])
             raise DiscoveryError(
                 f"no answer within {timeout_s:.0f}s. The command may not be an MCP server, "
                 "or it may be waiting on something — try running it by hand."
+                + (f" It last said: {said}" if said else "")
             ) from exc
     finally:
         upstream.close()

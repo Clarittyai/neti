@@ -49,7 +49,23 @@ def init(
         typer.secho(f"error: {out} already exists. Pass --force to overwrite.", fg="red", err=True)
         raise typer.Exit(2)
 
-    servers = find_clients()
+    gated: list[str] = []
+    servers = find_clients(already_gated=gated)
+
+    if not servers and gated:
+        # Everything on this machine is already behind the gate. That is a finished state, not an
+        # empty one, and saying "none found" would send an operator hunting for a config problem
+        # they do not have.
+        typer.secho(
+            f"All {len(gated)} MCP server(s) here are already behind the gate: {', '.join(gated)}",
+            fg=typer.colors.GREEN,
+        )
+        typer.echo(
+            "\nNothing to do. To regenerate the policy, point --out at a new file and unwrap one\n"
+            "server first, or edit the policy you already have."
+        )
+        raise typer.Exit(0)
+
     if not servers:
         typer.secho("No MCP servers found in any client config on this machine.", fg="yellow")
         typer.echo(
@@ -61,6 +77,8 @@ def init(
         raise typer.Exit(1)
 
     typer.secho(f"Found {len(servers)} MCP server(s):", bold=True)
+    if gated:
+        typer.echo(f"  ({len(gated)} already behind the gate, skipped: {', '.join(gated)})")
     for server in servers:
         typer.echo(f"  {server.name:22} {' '.join(server.argv)[:60]}   ({server.client})")
 
