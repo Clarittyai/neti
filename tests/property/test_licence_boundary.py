@@ -66,12 +66,34 @@ def test_the_free_package_holds_no_licence_check() -> None:
     assert not offenders, "the free tier is not gated by a key:\n  " + "\n  ".join(offenders)
 
 
-def test_the_paid_package_may_import_the_free_one() -> None:
-    """Stated as a test so nobody 'fixes' the boundary by making it symmetric."""
+# The decision procedure. Every ceiling comparison, every verdict join, every budget tally.
+DECISION_MACHINERY = ("neti.core.decide", "neti.core.budget", "neti.engine", "neti.gatekeeper")
+
+
+def test_the_control_plane_never_decides() -> None:
+    """The server records who said yes. It does not work out whether the call was too big.
+
+    This is the invariant that keeps "the decision is made locally, deterministically, from a policy
+    you can read" true once a network is involved. The control plane sees a request digest and the
+    evidence a human needs; it never sees the arguments, and it must never acquire the ability to
+    reach its own verdict — a server-side ceiling comparison would mean two places decide, and the
+    audit record would only describe one of them.
+
+    An earlier version of this file asserted the opposite of something useful: that `neti_cloud`
+    *must* import `neti`, on the theory that a server for the gate should be built on it. It turned
+    out the control plane needs nothing from the gate — it deals in digests and evidence — and the
+    looser coupling is better, not worse. This is the assertion that was actually worth making.
+    """
     if not PAID.exists():
         return
-    assert any(
-        name == "neti" or name.startswith("neti.")
-        for source in PAID.rglob("*.py")
+
+    offenders = [
+        f"{source.relative_to(ROOT)} imports {name}"
+        for source in sorted(PAID.rglob("*.py"))
         for name in _imported_modules(source)
-    ), "the control plane is a server for the gate; it should be built on it, not duplicate it"
+        if name in DECISION_MACHINERY
+    ]
+    assert not offenders, (
+        "the control plane must not be able to reach a verdict of its own:\n  "
+        + "\n  ".join(offenders)
+    )

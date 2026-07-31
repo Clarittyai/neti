@@ -224,6 +224,58 @@ def inventory(
     typer.echo(format_inventory(rows))
 
 
+@app.command()
+def login(
+    url: Annotated[str, typer.Option("--url", help="Your control plane's base URL.")],
+    key: Annotated[str, typer.Option("--key", help="The organisation key.")],
+    org: Annotated[str, typer.Option()] = "default",
+) -> None:
+    """Point this machine at a control plane, for approvals and org policy.
+
+    Everything the free tier does keeps working without this. What it adds is the one thing a single
+    machine cannot do: ask somebody else to approve a call.
+    """
+    import httpx
+
+    from neti.cloud import Credentials, save_credentials
+
+    base = url.rstrip("/")
+    try:
+        health = httpx.get(f"{base}/v1/health", timeout=5)
+        reachable = health.status_code == 200 and health.json().get("ok") is True
+    except httpx.HTTPError as exc:
+        typer.secho(f"error: cannot reach {base} — {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2) from exc
+    if not reachable:
+        typer.secho(f"error: {base} does not look like a neti control plane", fg="red", err=True)
+        raise typer.Exit(2)
+
+    # Health is unauthenticated, so prove the key separately — otherwise "logged in" would mean
+    # "the URL resolved", and the first thing to fail would be a real approval at a bad moment.
+    probe = httpx.get(f"{base}/v1/approvals", headers={"Authorization": f"Bearer {key}"}, timeout=5)
+    if probe.status_code == 401:
+        typer.secho("error: the control plane rejected that key", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2)
+
+    path = save_credentials(Credentials(url=base, key=key, org=org))
+    typer.secho(f"Logged in to {base} as {org}", fg=typer.colors.GREEN, bold=True)
+    typer.echo(f"  credentials: {path}  (mode 600 — this key can approve calls)")
+    typer.echo("\n  now run the gate with --org:  neti gate --stdio --org -- <your server command>")
+
+
+@app.command()
+def logout() -> None:
+    """Forget the control plane. The gate falls back to the free tier's behaviour."""
+    from neti.cloud import credentials_path
+
+    path = credentials_path()
+    if path.exists():
+        path.unlink()
+        typer.echo(f"removed {path}")
+    else:
+        typer.echo("not logged in")
+
+
 def _apply_mode(policy: Any, override: str | None) -> Any:
     """Let the command line override the policy's `mode:`.
 
@@ -284,6 +336,10 @@ def gate(
     demo: Annotated[
         bool, typer.Option("--demo", help="Resolve against the synthetic tenant. No credentials.")
     ] = False,
+    org: Annotated[
+        bool,
+        typer.Option("--org", help="Escalate a CONFIRM to your control plane. Needs `neti login`."),
+    ] = False,
     mode_override: Annotated[
         str | None,
         typer.Option("--mode", help="Override the policy's mode: observe or enforce."),
@@ -342,15 +398,18 @@ def gate(
     )
     sink = JsonlSink(records)
     mode = policy.mode.name.lower()
+    approver = _approver(org)
 
     if stdio:
-        _gate_stdio(engine, sink, client, argv, mode, config, policy.digest(), records)
+        _gate_stdio(engine, sink, client, argv, mode, config, policy.digest(), records, approver)
         return
 
     from neti.gateway.server import serve
     from neti.gateway.upstream import HttpUpstream
 
-    gateway = McpGateway(engine=engine, upstream=HttpUpstream(str(upstream)), sink=sink)
+    gateway = McpGateway(
+        engine=engine, upstream=HttpUpstream(str(upstream)), sink=sink, approver=approver
+    )
     typer.secho(f"neti gate on http://{host}:{port}  ->  {upstream}", fg=typer.colors.GREEN)
     blurb = "  (nothing will be blocked)" if mode == "observe" else ""
     typer.echo(f"  mode:    {mode}{blurb}")
@@ -365,6 +424,29 @@ def gate(
         client.close()
 
 
+def _approver(org: bool) -> Any:
+    """A control plane, if the operator asked for one and is logged in.
+
+    Refuses rather than falling back silently: someone who passed `--org` believes their `CONFIRM`s
+    reach a human, and quietly running without one would leave them thinking approvals are wired up
+    when every such call is simply being stopped.
+    """
+    if not org:
+        return None
+
+    from neti.cloud import HttpApprover, load_credentials
+
+    creds = load_credentials()
+    if creds is None or not creds.configured:
+        typer.secho(
+            "error: --org needs a control plane. Run `neti login --url ... --key ...` first.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(2)
+    return HttpApprover(url=creds.url, key=creds.key)
+
+
 def _gate_stdio(
     engine: Any,
     sink: Any,
@@ -374,6 +456,7 @@ def _gate_stdio(
     config: str,
     digest: str,
     records: str,
+    approver: Any = None,
 ) -> None:
     """The stdio path, kept apart for one reason: stdout is the protocol here.
 
@@ -391,12 +474,14 @@ def _gate_stdio(
     print(f"  mode:    {mode}{blurb}", file=sys.stderr)
     print(f"  policy:  {config}  digest {digest[:12]}", file=sys.stderr)
     print(f"  records: {records}", file=sys.stderr)
+    if approver is not None:
+        print("  approvals: on — a CONFIRM asks a human", file=sys.stderr)
 
     gateway: McpGateway | None = None
     upstream: StdioUpstream | None = None
     try:
         upstream = StdioUpstream(argv)
-        gateway = McpGateway(engine=engine, upstream=upstream, sink=sink)
+        gateway = McpGateway(engine=engine, upstream=upstream, sink=sink, approver=approver)
         # `upstream=` hands the child's server→client traffic to the same locked writer.
         serve_stdio(gateway, upstream=upstream)
     except KeyboardInterrupt:
