@@ -45,12 +45,17 @@ class Proposal:
     unit: str
     n: int
     normal: int
-    """The robust centre of the observed distribution — p95, not p99. See `_propose_one`."""
+    """The value the ceilings are multiples of. See `_propose_one` and `anchor`."""
 
     observed_max: int
     confirm_above: int | None
     block_above: int | None
     rationale: str
+
+    anchor: str = "p95"
+    """Which percentile `normal` came from. Displayed, because printing `p95=25` when the real p95
+    is 41,203 is a lie in the one output an operator is meant to check the arithmetic of."""
+
     would_confirm: int = 0
     would_block: int = 0
     examples: list[int] = field(default_factory=list)
@@ -60,6 +65,35 @@ class Proposal:
     @property
     def actionable(self) -> bool:
         return self.confirm_above is not None
+
+
+SPREAD = 10
+"""How far the maximum must sit above the median before a distribution counts as having outliers.
+
+Below this the traffic is one population and a ceiling above the maximum is the right answer — it
+binds only on the unseen. Above it there are two populations, and a proposal that catches neither
+is not a conservative proposal, it is a broken one."""
+
+
+def _anchor(dist: Distribution) -> tuple[str, int, int, int]:
+    """Pick the percentile to multiply, and reject one the traffic has already contaminated.
+
+    Returns `(name, normal, confirm, block)`. p95 first, because it is right whenever the tail is
+    genuinely a tail. The median as a fallback, because it survives any minority of outliers, at the
+    cost of an interrupt rate the operator is shown before they commit anything.
+    """
+    fallback = ("p50", 1, 1, 1)
+    for name, value in (("p95", dist.p95), ("p50", dist.p50)):
+        normal = max(value, 1)
+        confirm = _round_up_human(max(normal * CONFIRM_MULTIPLE, normal + 1))
+        block = _round_up_human(max(normal * BLOCK_MULTIPLE, confirm * 2))
+        fallback = (name, normal, confirm, block)
+
+        bimodal = dist.maximum > max(dist.p50, 1) * SPREAD
+        catches_something = any(m > confirm for m in dist.magnitudes)
+        if not bimodal or catches_something:
+            return name, normal, confirm, block
+    return fallback
 
 
 def _round_up_human(value: int) -> int:
@@ -105,19 +139,36 @@ def _propose_one(dist: Distribution) -> Proposal:
     # of 50,000 and would not have stopped the 41,203-recipient send it exists to stop. Anchoring
     # on p95 keeps the tail outside the definition of normal, which is the only way a proposal
     # derived from traffic can ever catch that traffic's own outliers.
-    normal = max(dist.p95, 1)
-    confirm = _round_up_human(max(normal * CONFIRM_MULTIPLE, normal + 1))
-    block = _round_up_human(max(normal * BLOCK_MULTIPLE, confirm * 2))
+    #
+    # But p95 only holds while the outliers are rarer than 5% of traffic. Past that they *are* the
+    # p95, and multiplying it produces a ceiling above everything ever observed — dead config that
+    # reads as configured. Measured: 40 sends, 32 of 25 recipients and 4 of 41,203, proposed
+    # `block above 500,000`. Twelve times the worst call ever made, and it could never fire.
+    #
+    # So the anchor is checked against the data rather than trusted — but "block is above the
+    # observed max" is *not* the test, and getting that wrong the first time is instructive. With a
+    # hundred identical 3-recipient sends, a ceiling above the max is exactly right: it binds only
+    # on behaviour you have not seen yet. The failure is narrower than that. It is a distribution
+    # that plainly *has* outliers — a maximum orders of magnitude above the median — paired with a
+    # proposal that would have caught none of them.
+    anchor, normal, confirm, block = _anchor(dist)
 
     would_confirm = sum(1 for m in dist.magnitudes if confirm < m <= block)
     would_block = sum(1 for m in dist.magnitudes if m > block)
     examples = sorted((m for m in dist.magnitudes if m > confirm), reverse=True)[:3]
 
-    rationale = (
-        f"{CONFIRM_MULTIPLE}x and {BLOCK_MULTIPLE}x the observed p95 ({normal:,}). "
-        f"p95 rather than p99 because at n={dist.n:,} the outliers sit inside the top percentile "
-        "and would otherwise define normal as themselves"
-    )
+    rationale = f"{CONFIRM_MULTIPLE}x and {BLOCK_MULTIPLE}x the observed {anchor} ({normal:,})"
+    if anchor == "p95":
+        rationale += (
+            f". p95 rather than p99 because at n={dist.n:,} the outliers sit inside the top "
+            "percentile and would otherwise define normal as themselves"
+        )
+    else:
+        rationale += (
+            f". p95 was {dist.p95:,} here — your large calls are more than 5% of the traffic, so "
+            "they *are* the p95, and multiplying it proposes a ceiling above everything you have "
+            "ever done. Anchored on the median instead; expect a higher interrupt rate"
+        )
     if dist.maximum > block * 5:
         rationale += (
             f". The observed maximum ({dist.maximum:,}) is far beyond this ceiling — check that "
@@ -130,6 +181,7 @@ def _propose_one(dist: Distribution) -> Proposal:
         unit=dist.unit,
         n=dist.n,
         normal=normal,
+        anchor=anchor,
         observed_max=dist.maximum,
         confirm_above=confirm,
         block_above=block,
@@ -159,7 +211,9 @@ def format_proposals(proposals: list[Proposal]) -> str:
 
     for p in actionable:
         out.append(f"{p.tool} {p.pointer}:")
-        out.append(f"  observed  n={p.n:,}  p95={p.normal:,}  max={p.observed_max:,}  [{p.unit}]")
+        out.append(
+            f"  observed  n={p.n:,}  {p.anchor}={p.normal:,}  max={p.observed_max:,}  [{p.unit}]"
+        )
         out.append(f"  proposed  confirm above {p.confirm_above:,}   block above {p.block_above:,}")
         out.append(f"  rationale {p.rationale}")
         # The line that actually gets reviewed. Arithmetic is not reviewable; consequences are.

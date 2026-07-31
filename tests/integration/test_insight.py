@@ -236,3 +236,56 @@ def test_a_uniform_workload_gets_ceilings_that_stop_nothing_it_has_seen(
     assert p.would_block == 0
     assert p.would_confirm == 0
     assert "only bind on behaviour you have not seen yet" in format_proposals([p])
+
+
+def test_frequent_outliers_do_not_become_the_definition_of_normal(
+    tenant: SyntheticTenant, tmp_path: Any
+) -> None:
+    """The p95 anchor breaks once the outliers are commoner than 5% of traffic.
+
+    Measured, not hypothetical: 40 real sends — 32 of 25 recipients, 4 of 500, 4 of 41,203 — put
+    the p95 *at* 41,203, and multiplying it proposed `block above 500,000`. Twelve times the worst
+    call ever made, catching nothing, and no warning fired because the guard only triggers when the
+    maximum is above the ceiling.
+
+    A proposal derived from traffic whose whole purpose is to catch that traffic's outliers must
+    catch at least one of them.
+    """
+    observe_traffic(tenant, tmp_path / "d.ndjson", [1] * 32 + [500] * 4 + [41_203] * 4)
+    p = propose(build_report(read_records(tmp_path / "d.ndjson")))[0]
+
+    assert p.block_above is not None
+    assert p.block_above < p.observed_max, "a ceiling above everything ever seen can never fire"
+    assert p.would_block + p.would_confirm > 0, "it must catch something it has actually seen"
+    assert p.anchor == "p50"
+    # And it says why, in the output, rather than quietly using a different percentile.
+    assert "more than 5% of the traffic" in p.rationale
+
+
+def test_a_uniform_workload_still_gets_a_ceiling_above_its_maximum(
+    tenant: SyntheticTenant, tmp_path: Any
+) -> None:
+    """The behaviour the first version of that fix broke, so it is pinned here.
+
+    With a hundred identical small sends there are no outliers, and a ceiling *above* the observed
+    maximum is exactly right — it binds only on behaviour that has not happened yet. "Block is above
+    the max" is therefore not the test for a broken proposal; "the traffic plainly has outliers and
+    this catches none of them" is.
+    """
+    observe_traffic(tenant, tmp_path / "d.ndjson", [3] * 100)
+    p = propose(build_report(read_records(tmp_path / "d.ndjson")))[0]
+
+    assert p.anchor == "p95"
+    assert p.block_above is not None and p.block_above > p.observed_max
+    assert p.would_block == 0 and p.would_confirm == 0
+
+
+def test_the_displayed_percentile_is_the_one_that_was_used(
+    tenant: SyntheticTenant, tmp_path: Any
+) -> None:
+    """Printing `p95=25` when the real p95 is 41,203 is a lie in the one output whose arithmetic an
+    operator is supposed to check."""
+    observe_traffic(tenant, tmp_path / "d.ndjson", [1] * 32 + [500] * 4 + [41_203] * 4)
+    text = format_proposals(propose(build_report(read_records(tmp_path / "d.ndjson"))))
+    assert "p50=" in text
+    assert "p95=" not in text.split("rationale")[0]
