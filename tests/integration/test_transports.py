@@ -15,6 +15,7 @@ import io
 import json
 import sys
 import textwrap
+from pathlib import Path
 from typing import Any
 
 import pytest
@@ -251,3 +252,52 @@ def test_hook_denial_reads_the_same_as_the_mcp_denial(tenant: SyntheticTenant) -
 class _Silent:
     def send(self, message: dict[str, Any], session_id: str | None) -> dict[str, Any] | None:
         raise AssertionError("a blocked call must never reach the server")
+
+
+def test_a_broken_policy_never_takes_down_a_claude_code_session(tmp_path: Path) -> None:
+    """The regression the resolver-exists guard nearly introduced.
+
+    `neti hook` runs on *every* tool call. If any exception escapes it, the hook crashes, and a
+    crashed PreToolUse hook does not fail one call — it fails all of them. So the guard that refuses
+    a policy naming a resolver nobody registered, which is correct at `neti gate` startup, would
+    have been catastrophic here: one typo and the agent stops working entirely.
+
+    The contract is: say why on stderr, exit 0, decide nothing, and let the operator's existing
+    permission rules carry the call. This runs the real CLI because that is where the try/except
+    lives, and an in-process call would prove nothing about it.
+    """
+    import subprocess
+    import sys
+
+    broken = tmp_path / "typo.yaml"
+    broken.write_text(
+        "version: 1\n"
+        "mode: enforce\n"
+        "tools:\n"
+        "  remove_group_members:\n"
+        "    gate:\n"
+        "      /group:\n"
+        "        resolver: entra.principal\n"  # one letter short of `principals`
+        "        bands: [{ above: 10, verdict: block }]\n"
+        "        on_unresolved: block\n"
+    )
+    event = json.dumps(
+        {
+            "hook_event_name": "PreToolUse",
+            "tool_name": "remove_group_members",
+            "tool_input": {"group": "g-eng-all"},
+        }
+    )
+
+    proc = subprocess.run(
+        [sys.executable, "-m", "neti.cli", "hook", "--demo", "-c", str(broken),
+         "-r", str(tmp_path / "d.ndjson")],
+        input=event,
+        capture_output=True,
+        text=True,
+        cwd=Path(__file__).resolve().parents[2],
+    )
+
+    assert proc.returncode == 0, "a broken policy must not stop the session"
+    assert proc.stdout.strip() == "", "and it must not claim a permission decision either"
+    assert "no resolver named 'entra.principal'" in proc.stderr

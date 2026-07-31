@@ -428,18 +428,20 @@ def gate(
     try:
         policy = _apply_mode(load_policy(config), mode_override)
         resolvers, client = _build_resolvers(demo=demo, timeout_ms=timeout_ms)
-    except (PolicyError, OSError, ResolverError) as exc:
+        # Inside the try: the Engine refuses a policy that can never work — a resolver that is not
+        # registered, a session budget in a unit nothing produces. Those are config mistakes and
+        # deserve the same one-line error as a malformed YAML file, not a traceback.
+        engine = Engine(
+            policy=policy,
+            resolvers=resolvers,
+            ctx=ResolveContext(timeout_ms=timeout_ms),
+            # Continue the existing file's chain rather than starting a new one, or every restart
+            # writes a mid-chain break that `neti verify` correctly reports.
+            last_digest=chain_head(records),
+        )
+    except (PolicyError, OSError, ResolverError, ValueError) as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from exc
-
-    engine = Engine(
-        policy=policy,
-        resolvers=resolvers,
-        ctx=ResolveContext(timeout_ms=timeout_ms),
-        # Continue the existing file's chain rather than starting a new one, or every restart
-        # writes a mid-chain break that `neti verify` correctly reports.
-        last_digest=chain_head(records),
-    )
     sink = JsonlSink(records)
     mode = policy.mode.name.lower()
     approver = _approver(org)
@@ -569,28 +571,31 @@ def hook(
     import sys
 
     from neti.adapters.claude_code import read_event, run_hook
-    from neti.config.policy import PolicyError, load_policy
+    from neti.config.policy import load_policy
     from neti.engine import Engine
-    from neti.resolvers.base import ResolveContext, ResolverError
+    from neti.resolvers.base import ResolveContext
     from neti.store.jsonl import JsonlSink, chain_head
 
     try:
         event = read_event(sys.stdin.read())
         policy = _apply_mode(load_policy(config), mode_override)
         resolvers, client = _build_resolvers(demo=demo, timeout_ms=timeout_ms)
-    except (PolicyError, OSError, ResolverError, ValueError, json.JSONDecodeError) as exc:
-        # A hook that cannot run must not take the session down with it. Say why on stderr, exit 0,
-        # and let the call proceed under whatever rules were already in place — failing closed here
-        # would block every tool in the session the moment a credential expired.
+        # Engine construction belongs inside this try, and it is the whole reason the net is this
+        # wide. The Engine refuses a policy that can never work; if that exception escaped here it
+        # would crash the hook, and a crashed PreToolUse hook takes out *every tool call in the
+        # session*. A typo in a resolver name must not be able to do that.
+        engine = Engine(
+            policy=policy,
+            resolvers=resolvers,
+            ctx=ResolveContext(timeout_ms=timeout_ms),
+            last_digest=chain_head(records),
+        )
+    except Exception as exc:
+        # Deliberately every exception. A hook that cannot run must not take the session down with
+        # it: say why on stderr, exit 0, and let the call proceed under whatever rules were already
+        # in place. Failing closed here would block every tool the moment a credential expired.
         print(f"neti hook: {exc}", file=sys.stderr)
         raise typer.Exit(0) from exc
-
-    engine = Engine(
-        policy=policy,
-        resolvers=resolvers,
-        ctx=ResolveContext(timeout_ms=timeout_ms),
-        last_digest=chain_head(records),
-    )
     sink = JsonlSink(records)
     try:
         response = run_hook(engine, event, sink)
@@ -605,13 +610,21 @@ def hook(
 @app.command()
 def report(
     records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
+    since: Annotated[
+        str | None,
+        typer.Option("--since", help="Only calls in this window: 90s, 30m, 12h, 7d, 2w."),
+    ] = None,
 ) -> None:
     """What your agents already did: observed magnitudes, and the calls that exceeded a ceiling."""
     from neti.insight.report import build_report, format_report
+    from neti.insight.window import parse_since, within
     from neti.store.jsonl import read_records
 
     try:
-        summary = build_report(read_records(records))
+        rows = read_records(records)
+        if since is not None:
+            rows = within(rows, parse_since(since))
+        summary = build_report(rows)
     except (OSError, ValueError) as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from exc
@@ -621,6 +634,10 @@ def report(
 @app.command()
 def propose(
     records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
+    since: Annotated[
+        str | None,
+        typer.Option("--since", help="Only calls in this window: 90s, 30m, 12h, 7d, 2w."),
+    ] = None,
 ) -> None:
     """Suggest ceilings from your own observed traffic, for a human to review and commit.
 
@@ -630,10 +647,14 @@ def propose(
     from neti.insight.propose import format_proposals
     from neti.insight.propose import propose as build
     from neti.insight.report import build_report
+    from neti.insight.window import parse_since, within
     from neti.store.jsonl import read_records
 
     try:
-        summary = build_report(read_records(records))
+        rows = read_records(records)
+        if since is not None:
+            rows = within(rows, parse_since(since))
+        summary = build_report(rows)
     except (OSError, ValueError) as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from exc

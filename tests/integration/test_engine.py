@@ -286,3 +286,47 @@ def test_record_carries_the_evidence_for_the_verdict(tenant: SyntheticTenant) ->
     assert cause["ceiling"] == 200
     assert cause["resolved_at"] is not None
     assert {b["source"] for b in cause["breaches"]} == {"magnitude"}
+
+
+def test_a_misspelled_resolver_is_refused_at_construction(tenant: SyntheticTenant) -> None:
+    """Silent dead config, the sibling of the session-budget-unit check.
+
+    `resolver: entra.principal` — one letter short of `principals` — is caught today only when a
+    call arrives, and then only because `on_unresolved` happens to be `block`. Set it to `allow`
+    and the parameter is simply never gated, with nothing anywhere saying so: the operator believes
+    they declared a ceiling and no call is ever measured against it.
+
+    Refused at construction, because the person who made the typo is at the keyboard now.
+    """
+    policy = load_policy(EXAMPLE)
+    broken = policy.model_copy(
+        update={
+            "tools": {
+                **policy.tools,
+                "remove_group_members": policy.tools["remove_group_members"].model_copy(
+                    update={
+                        "gate": {
+                            "/group": policy.tools["remove_group_members"]
+                            .gate["/group"]
+                            .model_copy(update={"resolver": "entra.principal"})
+                        }
+                    }
+                ),
+            }
+        }
+    )
+    client = GraphClient(CRED, transport=tenant.transport())
+
+    with pytest.raises(ValueError) as caught:
+        Engine(policy=broken, resolvers=resolvers_for_client(client))
+
+    message = str(caught.value)
+    assert "entra.principal'" in message
+    # The mistake is nearly always a near-miss, so the message has to show the real names.
+    assert "entra.principals" in message
+
+
+def test_a_correct_policy_still_constructs(tenant: SyntheticTenant) -> None:
+    """The guard must not reject the policy we ship as an example."""
+    client = GraphClient(CRED, transport=tenant.transport())
+    assert Engine(policy=load_policy(EXAMPLE), resolvers=resolvers_for_client(client))

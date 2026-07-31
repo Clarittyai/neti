@@ -96,10 +96,37 @@ class Engine:
 
     def __post_init__(self) -> None:
         if self.strict:
+            self._check_resolvers_exist()
             self._check_budget_units()
         # Recomputed per decision it costs ~226us, which is most of the pure-CPU budget, and it
         # cannot change: Policy is frozen and this engine holds one.
         self._policy_digest = self.policy.digest()
+
+    def _check_resolvers_exist(self) -> None:
+        """A gate naming a resolver nobody registered is a gate that can never resolve.
+
+        The sibling of `_check_budget_units`, and the same failure: silent dead config. `resolver:
+        entra.principal` — one letter short — is caught today only when a call arrives, and then
+        only if `on_unresolved` happens to be `block`. Declare `on_unresolved: allow` and the typo
+        means the parameter is never gated at all, with nothing anywhere saying so.
+
+        Refused at construction, because the operator who made the typo is at the keyboard now and
+        will not be at 3am when the first call lands. The message names what *is* registered, since
+        the mistake is nearly always a near-miss on a real name.
+        """
+        known = sorted(self.resolvers)
+        problems = [
+            f"{tool}{pointer}: no resolver named {spec.resolver!r}"
+            for tool, toolspec in self.policy.tools.items()
+            for pointer, spec in toolspec.gate.items()
+            if spec.resolver not in self.resolvers
+        ]
+        if problems:
+            raise ValueError(
+                "policy names resolvers that do not exist:\n  "
+                + "\n  ".join(problems)
+                + f"\n\nRegistered: {', '.join(known) or 'none'}"
+            )
 
     def _check_budget_units(self) -> None:
         """A session budget in a unit no gated parameter produces is silent dead config.
