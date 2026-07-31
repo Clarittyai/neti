@@ -33,9 +33,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, TypeVar
 
+from neti.approvals import Approver
 from neti.core.types import ProposedCall
 from neti.core.verdict import Mode
-from neti.engine import Engine, GateResult
+from neti.engine import Engine
+from neti.gatekeeper import Decision, Gatekeeper
 from neti.gateway.mcp import explain_denial
 from neti.store.jsonl import JsonlSink, chain_head
 
@@ -73,6 +75,12 @@ class Verdict:
     payload: dict[str, Any]
     decision_id: str
 
+    approval_id: str | None = None
+    """Set when a human was asked. `check` never blocks waiting for one — `dispatch` and `guard` do,
+    because they are the shapes that own the call's execution."""
+
+    approval_state: str | None = None
+
 
 @dataclass
 class Preflight:
@@ -80,6 +88,9 @@ class Preflight:
 
     engine: Engine
     sink: JsonlSink | None = None
+    approver: Approver | None = None
+    """A control plane, when there is one. Without it a `CONFIRM` stops the call, which is the free
+    tier's behaviour and the one this degrades to whenever the server cannot be reached."""
 
     # ------------------------------------------------------------------ construction
 
@@ -153,10 +164,10 @@ class Preflight:
 
     def check(self, tool: str, args: dict[str, Any], *, session_id: str | None = None) -> Verdict:
         """Resolve and decide. Nothing is executed and nothing is raised."""
-        result = self.engine.gate(ProposedCall(tool=tool, args=args, session_id=session_id))
-        if self.sink is not None:
-            self.sink.write(result.record)
-        return self._verdict(result)
+        decision = self._gatekeeper().decide(
+            ProposedCall(tool=tool, args=args, session_id=session_id)
+        )
+        return self._verdict(decision)
 
     def dispatch(
         self,
@@ -200,13 +211,23 @@ class Preflight:
 
     # ------------------------------------------------------------------ internals
 
-    def _verdict(self, result: GateResult) -> Verdict:
+    def _gatekeeper(self) -> Gatekeeper:
+        return Gatekeeper(engine=self.engine, sink=self.sink, approver=self.approver)
+
+    def _verdict(self, decision: Decision) -> Verdict:
+        result = decision.result
         payload = self.engine.denial_payload(result)
+        approval = decision.escalation.approval
         return Verdict(
-            proceeds=result.proceeds,
+            proceeds=decision.proceeds,
             verdict=result.decision.verdict.name.lower(),
-            message="" if result.proceeds else explain_denial(result, payload),
+            # A call a human approved is not a denial, so it carries no denial sentence — the
+            # verdict stays `confirm` because that is what the policy said, and `proceeds` is what
+            # changed. Conflating the two would erase the fact that a person was asked.
+            message="" if decision.proceeds else explain_denial(result, payload),
             rule=result.decision.rule,
             payload=payload,
             decision_id=result.record.decision_id,
+            approval_id=approval.id if approval else None,
+            approval_state=str(approval.state) if approval else None,
         )

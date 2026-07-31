@@ -28,9 +28,11 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Protocol
 
+from neti.approvals import ApprovalState, Approver
 from neti.core.types import ProposedCall
 from neti.core.verdict import Verdict
 from neti.engine import Engine, GateResult
+from neti.gatekeeper import Decision, Gatekeeper
 from neti.store.jsonl import JsonlSink
 
 __all__ = ["McpGateway", "Upstream", "explain_denial"]
@@ -51,6 +53,8 @@ class McpGateway:
     engine: Engine
     upstream: Upstream
     sink: JsonlSink | None = None
+    approver: Approver | None = None
+    """A control plane, when there is one. Without it a `CONFIRM` stops the call — the free tier."""
 
     stats: dict[str, int] = field(default_factory=dict)
     """Counters for `neti report`'s header and for the observe→enforce conversion metric."""
@@ -76,35 +80,63 @@ class McpGateway:
             session_id=session_id,
         )
 
-        result = self.engine.gate(call)
-        self._record(result)
+        decision = Gatekeeper(
+            engine=self.engine, sink=self.sink, approver=self.approver
+        ).decide(call)
+        self._count(decision)
 
-        if result.proceeds:
+        if decision.proceeds:
             return self.upstream.send(message, session_id)
-        return self._denial(message, result)
+        return self._denial(message, decision)
 
     # ------------------------------------------------------------------ internals
 
-    def _record(self, result: GateResult) -> None:
+    def _count(self, decision: Decision) -> None:
+        """Counters only — the Gatekeeper already wrote the record."""
         self._bump("decisions")
-        self._bump(f"verdict.{result.decision.verdict.name.lower()}")
-        if not result.proceeds:
+        self._bump(f"verdict.{decision.verdict.name.lower()}")
+        if not decision.proceeds:
             self._bump("stopped")
-        if self.sink is not None:
-            self.sink.write(result.record)
+        if decision.escalation.approval is not None:
+            self._bump(f"approval.{decision.escalation.state}")
 
     def _bump(self, key: str) -> None:
         self.stats[key] = self.stats.get(key, 0) + 1
 
-    def _denial(self, message: dict[str, Any], result: GateResult) -> dict[str, Any]:
+    def _denial(self, message: dict[str, Any], decision: Decision) -> dict[str, Any]:
         """A tool result the model can read and re-plan around."""
+        result = decision.result
         payload = self.engine.denial_payload(result)
+        text = explain_denial(result, payload)
+
+        approval = decision.escalation.approval
+        if approval is not None and approval.state is ApprovalState.PENDING:
+            # The half of wait-then-retry the *model* has to understand. Naming the id and asking
+            # for the identical call is what makes a two-minute human decision fit inside a
+            # thirty-second tool call: the retry finds the grant instead of raising a new request.
+            text = (
+                f"Preflight is waiting on a human: approval {approval.id} is pending for this "
+                "call. Retry this exact call once it is granted, or continue without this step."
+            )
+            payload = {**payload, "approval_id": approval.id, "approval_state": str(approval.state)}
+        elif approval is not None and approval.state is ApprovalState.DENIED:
+            who = f" by {approval.decided_by}" if approval.decided_by else ""
+            text = f"Preflight denied{who}: a human reviewed this call and declined it."
+            payload = {**payload, "approval_id": approval.id, "approval_state": str(approval.state)}
+        elif decision.escalation.error:
+            # Never dressed up as a denial. An operator debugging this has to be able to tell
+            # "a person said no" from "no person was reachable".
+            text = (
+                f"{text} (An approver was configured but could not be reached: "
+                f"{decision.escalation.error}.)"
+            )
+
         return {
             "jsonrpc": "2.0",
             "id": message.get("id"),
             "result": {
                 "isError": True,
-                "content": [{"type": "text", "text": explain_denial(result, payload)}],
+                "content": [{"type": "text", "text": text}],
                 # Structured alongside the prose: the text is for the model, this is for any
                 # client-side automation that wants the numbers without parsing English.
                 "_meta": {"neti": payload},

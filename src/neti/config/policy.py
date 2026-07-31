@@ -87,6 +87,22 @@ class Policy(Frozen):
     """An ungated tool is out of scope, not denied (SCOPE.md NC-09). Failing closed on everything
     undeclared would make the gate unusable on day one, and operators would turn it off."""
 
+    on_approval_unavailable: VerdictValue = Verdict.BLOCK
+    """What a `CONFIRM` does when no human can be asked.
+
+    Declared rather than inferred, for the same reason `on_unresolved` is: the gate does not get to
+    invent a decision when the world does not answer.
+
+    The default is not a safety flourish. A `CONFIRM` already means "this does not proceed without a
+    human", so `block` here is *exactly* what an install with no control plane does — which makes
+    the whole tier boundary honest: a control plane can only ever make a decision more permissive,
+    and only via a named human. Unreachable, absent and unpaid are all the same behaviour, so nobody
+    takes on availability risk by paying for approvals.
+
+    It is inside the digest because it changes decisions. Where the approver *lives* does not, and
+    lives in `~/.neti/credentials.toml` instead — otherwise the digest would differ per environment
+    and stop being a statement about the ceilings."""
+
     @model_validator(mode="after")
     def _check_pointers(self) -> Policy:
         for tool, spec in self.tools.items():
@@ -178,6 +194,8 @@ def _normalise(data: dict[str, Any]) -> dict[str, Any]:
     defaults = out.pop("defaults", {}) or {}
     if "unknown_tool" in defaults:
         out["unknown_tool"] = defaults["unknown_tool"]
+    if "on_approval_unavailable" in defaults:
+        out["on_approval_unavailable"] = defaults["on_approval_unavailable"]
     if "on_unresolved" in defaults:
         for spec in (out.get("tools") or {}).values():
             for gate in (spec.get("gate") or {}).values():

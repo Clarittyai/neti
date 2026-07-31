@@ -25,10 +25,12 @@ import json
 import re
 from typing import Any, Protocol
 
+from neti.approvals import ApprovalState, Approver
 from neti.core.record import DecisionRecord
 from neti.core.types import ProposedCall
 from neti.core.verdict import Verdict
-from neti.engine import Engine, GateResult
+from neti.engine import Engine
+from neti.gatekeeper import Decision, Gatekeeper
 from neti.gateway.mcp import explain_denial
 
 
@@ -50,20 +52,40 @@ def normalise_tool(name: str) -> str:
     return _MCP_PREFIX.sub("", name)
 
 
-def hook_response(engine: Engine, result: GateResult) -> dict[str, Any]:
+def hook_response(engine: Engine, decision: Decision) -> dict[str, Any]:
     """The hook's stdout payload. `{}` means "no opinion", which is a pass."""
+    result = decision.result
     verdict = result.decision.verdict
     if verdict is Verdict.ALLOW or verdict is Verdict.FLAG:
         return {}
 
+    # A human already said yes, so this is a pass — and a pass says nothing, which leaves the
+    # operator's own permission rules to decide as they always would.
+    if decision.proceeds:
+        return {}
+
     payload = engine.denial_payload(result)
+    approval = decision.escalation.approval
+    if approval is not None:
+        payload = {**payload, "approval_id": approval.id, "approval_state": str(approval.state)}
+
+    if approval is not None and approval.state is ApprovalState.DENIED:
+        who = f" by {approval.decided_by}" if approval.decided_by else ""
+        reason = f"Preflight denied{who}: a human reviewed this call and declined it."
+    elif approval is not None and approval.state is ApprovalState.PENDING:
+        reason = (
+            f"Preflight is waiting on a human: approval {approval.id} is pending for this call."
+        )
+    else:
+        # The same sentence the MCP path returns. One denial, one owner — an agent should not be
+        # able to tell which transport it was stopped on.
+        reason = explain_denial(result, payload)
+
     return {
         "hookSpecificOutput": {
             "hookEventName": PRE_TOOL_USE,
             "permissionDecision": "deny" if verdict is Verdict.BLOCK else "ask",
-            # The same sentence the MCP path returns. One denial, one owner — an agent should not be
-            # able to tell which transport it was stopped on.
-            "permissionDecisionReason": explain_denial(result, payload),
+            "permissionDecisionReason": reason,
             # The numbers alongside the prose, for anything that would rather not parse English.
             "neti": payload,
         }
@@ -71,7 +93,10 @@ def hook_response(engine: Engine, result: GateResult) -> dict[str, Any]:
 
 
 def run_hook(
-    engine: Engine, event: dict[str, Any], sink: RecordSink | None = None
+    engine: Engine,
+    event: dict[str, Any],
+    sink: RecordSink | None = None,
+    approver: Approver | None = None,
 ) -> dict[str, Any]:
     """Gate one `PreToolUse` event.
 
@@ -96,10 +121,8 @@ def run_hook(
         args=args if isinstance(args, dict) else {},
         session_id=event.get("session_id"),
     )
-    result = engine.gate(call)
-    if sink is not None:
-        sink.write(result.record)
-    return hook_response(engine, result)
+    decision = Gatekeeper(engine=engine, sink=sink, approver=approver).decide(call)
+    return hook_response(engine, decision)
 
 
 def read_event(raw: str) -> dict[str, Any]:
