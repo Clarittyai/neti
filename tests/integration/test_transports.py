@@ -290,8 +290,17 @@ def test_a_broken_policy_never_takes_down_a_claude_code_session(tmp_path: Path) 
     )
 
     proc = subprocess.run(
-        [sys.executable, "-m", "neti.cli", "hook", "--demo", "-c", str(broken),
-         "-r", str(tmp_path / "d.ndjson")],
+        [
+            sys.executable,
+            "-m",
+            "neti.cli",
+            "hook",
+            "--demo",
+            "-c",
+            str(broken),
+            "-r",
+            str(tmp_path / "d.ndjson"),
+        ],
         input=event,
         capture_output=True,
         text=True,
