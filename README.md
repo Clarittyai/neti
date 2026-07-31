@@ -65,6 +65,25 @@ already configured keep working exactly as they were. In `.claude/settings.json`
   "hooks": [{"type": "command", "command": "neti hook"}]}]}}
 ```
 
+**A tool loop you wrote yourself** — an Anthropic or OpenAI function-calling loop, a LangChain tool,
+anything that speaks neither MCP nor a hook protocol:
+
+```python
+from neti import Preflight
+pf = Preflight.from_config("neti.yaml")
+
+for block in message.content:
+    if block.type == "tool_use":
+        out = pf.dispatch(block.name, block.input, lambda: TOOLS[block.name](**block.input))
+```
+
+`dispatch` returns the tool's own return value when the call fits and the denial *sentence* when it
+does not, because your next line hands that string back to the model — and reading a specific number
+is what makes it retry with a narrower scope instead of giving up. `pf.check(...)` and `@pf.guard`
+are the same decision in the other two shapes. This is the one seam you can forget to use, and
+nothing detects the omission; the other two cannot be bypassed that way, which is why they come
+first.
+
 **A remote MCP server**: `neti gate --upstream https://mcp.internal/rpc`, then point the client at
 the gate instead.
 

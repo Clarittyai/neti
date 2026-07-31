@@ -76,6 +76,23 @@ const TARGETS: Target[] = [
 }`,
   },
   {
+    id: "sdk",
+    label: "Your own tool loop",
+    where: "wherever you dispatch a tool call",
+    blurb:
+      "For agents that speak neither MCP nor a hook — an Anthropic or OpenAI function-calling loop, a LangChain tool. The denial comes back as a value because your next line hands it to the model, and a specific number is what makes it retry with a narrower scope instead of giving up. This is the seam you can forget to use, which is why the other two come first.",
+    after: `from neti import Preflight
+
+pf = Preflight.from_config("neti.yaml")
+
+for block in message.content:
+    if block.type == "tool_use":
+        out = pf.dispatch(
+            block.name, block.input,
+            lambda: TOOLS[block.name](**block.input),
+        )`,
+  },
+  {
     id: "http",
     label: "A remote server",
     where: "wherever the client's server URL lives",

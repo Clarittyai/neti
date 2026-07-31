@@ -47,7 +47,9 @@ export function ResolutionTheatre({
   playbackMs?: number;
   onDone?: () => void;
 }) {
-  const stages = result?.trace.stages ?? [];
+  // Memoised because the `?? []` fallback is a fresh array on every render, which would make every
+  // downstream useMemo recompute and defeat the point of having them.
+  const stages = useMemo(() => result?.trace.stages ?? [], [result]);
   const [shown, setShown] = useState(0);
 
   // Step the stages in. Restarting whenever the decision id changes is what lets the same component

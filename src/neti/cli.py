@@ -145,6 +145,29 @@ def inventory(
     typer.echo(format_inventory(rows))
 
 
+def _apply_mode(policy: Any, override: str | None) -> Any:
+    """Let the command line override the policy's `mode:`.
+
+    The override goes through the policy object rather than around it, so the digest sealed into
+    every record changes with it. That is the honest behaviour: the same ceilings in observe and in
+    enforce are not the same policy, and a record that claimed otherwise would let a decision be
+    replayed under a mode that never produced it.
+    """
+    from neti.core.verdict import Mode
+
+    if override is None:
+        return policy
+    try:
+        return policy.model_copy(update={"mode": Mode[override.upper()]})
+    except KeyError as exc:
+        typer.secho(
+            f"error: --mode must be observe or enforce, not {override!r}",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(2) from exc
+
+
 def _build_resolvers(*, demo: bool, timeout_ms: int) -> tuple[Any, Any]:
     """The demo/live seam, shared by every command that gates.
 
@@ -182,6 +205,10 @@ def gate(
     demo: Annotated[
         bool, typer.Option("--demo", help="Resolve against the synthetic tenant. No credentials.")
     ] = False,
+    mode_override: Annotated[
+        str | None,
+        typer.Option("--mode", help="Override the policy's mode: observe or enforce."),
+    ] = None,
     host: Annotated[str, typer.Option()] = "127.0.0.1",
     port: Annotated[int, typer.Option()] = 8722,
     timeout_ms: Annotated[int, typer.Option()] = 800,
@@ -220,7 +247,7 @@ def gate(
         raise typer.Exit(2)
 
     try:
-        policy = load_policy(config)
+        policy = _apply_mode(load_policy(config), mode_override)
         resolvers, client = _build_resolvers(demo=demo, timeout_ms=timeout_ms)
     except (PolicyError, OSError, ResolverError) as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
@@ -316,6 +343,10 @@ def hook(
     demo: Annotated[
         bool, typer.Option("--demo", help="Resolve against the synthetic tenant. No credentials.")
     ] = False,
+    mode_override: Annotated[
+        str | None,
+        typer.Option("--mode", help="Override the policy's mode: observe or enforce."),
+    ] = None,
     timeout_ms: Annotated[int, typer.Option()] = 800,
 ) -> None:
     """Gate a Claude Code `PreToolUse` event read from stdin.
@@ -337,7 +368,7 @@ def hook(
 
     try:
         event = read_event(sys.stdin.read())
-        policy = load_policy(config)
+        policy = _apply_mode(load_policy(config), mode_override)
         resolvers, client = _build_resolvers(demo=demo, timeout_ms=timeout_ms)
     except (PolicyError, OSError, ResolverError, ValueError, json.JSONDecodeError) as exc:
         # A hook that cannot run must not take the session down with it. Say why on stderr, exit 0,
