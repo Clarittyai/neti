@@ -8,25 +8,61 @@
  * question: what was measured, by which request, against which declared ceiling, under which
  * policy, and does the digest still check out. That is why the raw record is here too, collapsed —
  * available without being the first thing anyone sees.
+ *
+ * The decision id arrives as `?id=` rather than as a path segment. A dynamic route cannot be
+ * statically exported without knowing every id in advance, and these ids are decisions that have not
+ * happened yet — so the route stays static, and `neti console` can serve the whole console as files
+ * out of the Python package on one port, with no Node runtime anywhere near a customer.
  */
 
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, ChevronDown, ChevronRight, Copy, Eye, ShieldCheck } from "lucide-react";
 
-import { Failed, Loading, Page, useAsync } from "@/components/Page";
+import { Empty, Failed, Loading, Page, useAsync } from "@/components/Page";
 import { VerdictPill } from "@/components/Verdict";
 import { api, type Cause } from "@/lib/api";
 import { cn, n } from "@/lib/utils";
 
 export default function DecisionPage() {
-  // `useParams` rather than the `params` prop: on this Next version `params` is a plain object, so
-  // `use(params)` throws at render — and it is a promise on the next one. Reading it from the router
-  // is correct on both.
-  const { id } = useParams<{ id: string }>();
-  const { data, error, loading, reload } = useAsync(() => api.decision(id), [id]);
+  // `useSearchParams` suspends during prerender, so this boundary is required rather than tidy.
+  return (
+    <Suspense
+      fallback={
+        <Page title="Decision" width="narrow">
+          <Loading />
+        </Page>
+      }
+    >
+      <Decision />
+    </Suspense>
+  );
+}
+
+function Decision() {
+  const id = useSearchParams().get("id") ?? "";
+  const { data, error, loading, reload } = useAsync(
+    () => (id ? api.decision(id) : Promise.resolve(null)),
+    [id],
+  );
   const [raw, setRaw] = useState(false);
+
+  if (!id) {
+    return (
+      <Page title="Decision" width="narrow">
+        <Empty
+          title="No decision named"
+          body="This page shows the evidence behind one decision. Pick one from the list."
+          action={
+            <Link href="/decisions" className="text-sm font-medium text-accent hover:underline">
+              All decisions
+            </Link>
+          }
+        />
+      </Page>
+    );
+  }
 
   return (
     <Page

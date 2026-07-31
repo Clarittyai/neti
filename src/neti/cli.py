@@ -555,7 +555,76 @@ def serve(
     typer.echo(f"  records: {records}")
     typer.echo("  web ui:  cd web && npm run dev   ->  http://localhost:3100")
     try:
+        uvicorn.run(
+            create_app(state, serve_console=False), host=host, port=port, log_level="warning"
+        )
+    finally:
+        state.close()
+
+
+@app.command()
+def console(
+    config: Annotated[str, typer.Option("--config", "-c")] = "neti.yaml",
+    records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
+    host: Annotated[str, typer.Option()] = "127.0.0.1",
+    port: Annotated[int, typer.Option()] = 8722,
+    demo: Annotated[
+        bool | None, typer.Option("--demo/--live", help="Force the fixture or a real tenant.")
+    ] = None,
+    open_browser: Annotated[bool, typer.Option("--open/--no-open")] = True,
+) -> None:
+    """Open the console: the API and the web UI, one process, one port.
+
+    `neti serve` is the same API without the UI, for anyone running the web app from source.
+    """
+    try:
+        import uvicorn
+
+        from neti.api.app import create_app
+        from neti.api.static import console_dir
+    except ImportError as exc:
+        typer.secho(
+            "error: the console extra is not installed — run: pip install 'neti[console]'",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(2) from exc
+
+    from neti.api.state import build_state
+
+    if console_dir() is None:
+        # A source checkout that has never built the web app. Say what is missing and what to do,
+        # rather than starting a server that answers every page with a 404.
+        typer.secho("error: this install has no built console.", fg=typer.colors.RED, err=True)
+        typer.echo(
+            "\nFrom a source checkout:  cd web && npm install && npm run build && just console-sync"
+            "\nOr run the API alone:     neti serve      (then cd web && npm run dev)",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    try:
+        state = build_state(config=config, records=records, demo=demo)
+    except (OSError, RuntimeError, ValueError) as exc:
+        typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2) from exc
+
+    url = f"http://{host}:{port}"
+    typer.secho(f"neti console on {url}", fg=typer.colors.GREEN, bold=True)
+    typer.echo(f"  mode:    {state.mode}  ({state.tenant_label})")
+    typer.echo(f"  policy:  {config}  digest {state.policy.digest()[:12]}")
+    typer.echo(f"  records: {records}")
+
+    if open_browser:
+        import threading
+        import webbrowser
+
+        threading.Timer(0.7, lambda: webbrowser.open(url)).start()
+
+    try:
         uvicorn.run(create_app(state), host=host, port=port, log_level="warning")
+    except KeyboardInterrupt:
+        pass
     finally:
         state.close()
 

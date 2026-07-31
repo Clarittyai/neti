@@ -8,16 +8,42 @@ version = "0.1.0"
 description = "A preflight gate for agent tool calls: resolve what an action will touch, block it if it exceeds a declared ceiling."
 readme = "README.md"
 requires-python = ">=3.12"
+license = "Apache-2.0"
+license-files = ["LICENSE"]
+keywords = ["mcp", "agents", "security", "blast-radius", "preflight", "guardrails"]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: System :: Systems Administration :: Authentication/Directory",
+    "Typing :: Typed",
+]
 dependencies = [
     "pydantic>=2.9",
     "pyyaml>=6.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/neti-gate/neti"
+Source = "https://github.com/neti-gate/neti"
+Issues = "https://github.com/neti-gate/neti/issues"
 
 [project.optional-dependencies]
 graph = ["httpx[http2]>=0.27", "msal>=1.31"]
 mcp = ["httpx[http2]>=0.27"]
 cli = ["typer>=0.12", "rich>=13.9"]
 console = ["fastapi>=0.115", "uvicorn>=0.32"]
+# Everything a single machine needs, which is the entire free tier. `pipx install neti[all]`.
+all = [
+    "httpx[http2]>=0.27",
+    "msal>=1.31",
+    "typer>=0.12",
+    "rich>=13.9",
+    "fastapi>=0.115",
+    "uvicorn>=0.32",
+]
 dev = [
     "pytest>=8.3",
     "types-pyyaml>=6.0",
@@ -30,8 +56,21 @@ dev = [
 [project.scripts]
 neti = "neti.cli:app"
 
+[tool.hatch.build]
+# The built console, produced at package time rather than committed — `just console-sync` runs the
+# Next export and drops it in `src/neti/console`, which .gitignore excludes. Declared globally
+# because `uv build` makes the wheel out of the sdist, so listing it on the wheel target alone
+# leaves it out of both.
+#
+# A source checkout that has never built the web app simply has no console, and `neti console` says
+# so rather than starting a server that answers every page with a 404.
+artifacts = ["src/neti/console/**"]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/neti"]
+
+[tool.hatch.build.targets.sdist]
+exclude = ["web/node_modules", "web/.next", "web/out", ".venv", "out", "dist"]
 
 [tool.ruff]
 line-length = 100

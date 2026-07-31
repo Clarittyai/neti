@@ -17,3 +17,4 @@ web/.next/
 web/out/
 out/
 web/tsconfig.tsbuildinfo
+src/neti/console/

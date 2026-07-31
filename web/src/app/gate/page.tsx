@@ -278,7 +278,7 @@ function FiredList({ fired }: { fired: Fired[] }) {
             <span className="ml-auto flex items-center gap-3 text-xs text-muted-foreground">
               <span className="tnum">{result.trace.elapsed_ms.toFixed(2)} ms</span>
               <Link
-                href={`/decisions/${result.decision_id}`}
+                href={`/decision?id=${result.decision_id}`}
                 className="inline-flex items-center gap-0.5 text-accent hover:underline"
               >
                 Evidence <ChevronRight className="h-3 w-3" />

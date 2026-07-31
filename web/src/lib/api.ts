@@ -7,7 +7,10 @@
  * quietly blank.
  */
 
-const BASE = process.env.NEXT_PUBLIC_NETI_API ?? "http://127.0.0.1:8722";
+// Same origin by default, because `neti console` serves this bundle and the API from one process
+// on whatever port the operator chose — baking in a port would break the moment they picked another.
+// The dev flow, where the UI is on :3100 and the API on :8722, sets NEXT_PUBLIC_NETI_API instead.
+const BASE = process.env.NEXT_PUBLIC_NETI_API ?? "";
 
 export class ApiError extends Error {
   constructor(
@@ -29,7 +32,12 @@ async function call<T>(path: string, init?: RequestInit): Promise<T> {
   } catch {
     // The single most likely failure in a demo, and the one worth naming precisely: the console is
     // up and the engine is not. Anything vaguer sends someone hunting through the browser console.
-    throw new ApiError(0, `Cannot reach the neti API at ${BASE}. Is \`neti serve\` running?`);
+    throw new ApiError(
+      0,
+      BASE
+        ? `Cannot reach the neti API at ${BASE}. Is \`neti serve\` running?`
+        : "Cannot reach the neti API. Is `neti console` still running?",
+    );
   }
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));

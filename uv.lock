@@ -624,6 +624,14 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+all = [
+    { name = "fastapi" },
+    { name = "httpx", extra = ["http2"] },
+    { name = "msal" },
+    { name = "rich" },
+    { name = "typer" },
+    { name = "uvicorn" },
+]
 cli = [
     { name = "rich" },
     { name = "typer" },
@@ -650,20 +658,26 @@ mcp = [
 
 [package.metadata]
 requires-dist = [
+    { name = "fastapi", marker = "extra == 'all'", specifier = ">=0.115" },
     { name = "fastapi", marker = "extra == 'console'", specifier = ">=0.115" },
+    { name = "httpx", extras = ["http2"], marker = "extra == 'all'", specifier = ">=0.27" },
     { name = "httpx", extras = ["http2"], marker = "extra == 'graph'", specifier = ">=0.27" },
     { name = "httpx", extras = ["http2"], marker = "extra == 'mcp'", specifier = ">=0.27" },
     { name = "hypothesis", marker = "extra == 'dev'", specifier = ">=6.112" },
+    { name = "msal", marker = "extra == 'all'", specifier = ">=1.31" },
     { name = "msal", marker = "extra == 'graph'", specifier = ">=1.31" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13" },
     { name = "pydantic", specifier = ">=2.9" },
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "rich", marker = "extra == 'all'", specifier = ">=13.9" },
     { name = "rich", marker = "extra == 'cli'", specifier = ">=13.9" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.7" },
+    { name = "typer", marker = "extra == 'all'", specifier = ">=0.12" },
     { name = "typer", marker = "extra == 'cli'", specifier = ">=0.12" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
+    { name = "uvicorn", marker = "extra == 'all'", specifier = ">=0.32" },
     { name = "uvicorn", marker = "extra == 'console'", specifier = ">=0.32" },
 ]
 

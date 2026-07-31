@@ -17,6 +17,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from neti.api.state import ConsoleState, build_state
+from neti.api.static import mount_console
 from neti.api.trace import TraceCollector
 from neti.core.record import verify_chain
 from neti.core.types import ProposedCall
@@ -42,7 +43,9 @@ class ModeRequest(BaseModel):
     mode: str
 
 
-def create_app(state: ConsoleState | None = None, **kw: Any) -> FastAPI:
+def create_app(
+    state: ConsoleState | None = None, *, serve_console: bool = True, **kw: Any
+) -> FastAPI:
     st = state or build_state(**kw)
     app = FastAPI(title="neti console", docs_url="/api/docs")
 
@@ -304,6 +307,23 @@ def create_app(state: ConsoleState | None = None, **kw: Any) -> FastAPI:
         if found is None:
             raise HTTPException(404, f"no scenario {scenario_id}")
         return found.as_json()
+
+    # Last, and at the root. FastAPI matches in registration order, so every `/api/...` route above
+    # still wins.
+    if serve_console:
+
+        @app.api_route("/api/{rest:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH"])
+        def api_not_found(rest: str) -> None:
+            """Keep unmatched API paths JSON.
+
+            Without this, an unknown `/api/...` path falls through to the console mount below and is
+            answered with the 404 *page* — so a client debugging a typo'd endpoint gets a wall of
+            HTML and a Content-Type that tells it nothing. This is registered after every real route
+            and before the mount, which is the only window where it is both reachable and harmless.
+            """
+            raise HTTPException(404, f"no API route /api/{rest}")
+
+        mount_console(app)
 
     return app
 

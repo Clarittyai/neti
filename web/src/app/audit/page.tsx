@@ -122,7 +122,7 @@ export default function AuditPage() {
                     <VerdictPill verdict={link.verdict} />
                     <span className="font-mono text-[13px]">{link.tool}</span>
                     <Link
-                      href={`/decisions/${link.decision_id}`}
+                      href={`/decision?id=${link.decision_id}`}
                       className="font-mono text-[11px] text-accent hover:underline"
                     >
                       {link.decision_id.slice(0, 8)}

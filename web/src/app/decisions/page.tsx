@@ -63,7 +63,7 @@ function Row({ decision }: { decision: DecisionSummary }) {
   return (
     <li>
       <Link
-        href={`/decisions/${decision.decision_id}`}
+        href={`/decision?id=${decision.decision_id}`}
         className="glass-card flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl px-4 py-3 transition-colors hover:bg-foreground/[0.04]"
       >
         <VerdictPill verdict={unsizeable ? "unknown" : decision.verdict} />

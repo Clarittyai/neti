@@ -45,3 +45,13 @@ score:
 # Requires a live tenant. This is the measurement every latency figure in the plan is waiting on.
 measure GROUP_SMALL GROUP_LARGE:
     uv run neti measure -g {{GROUP_SMALL}} -g {{GROUP_LARGE}}
+
+# Build the console and copy the export into the Python package, so the wheel ships a UI.
+console-sync:
+    cd web && npm run build
+    rm -rf src/neti/console
+    cp -R web/out src/neti/console
+
+# Everything a release needs: the console, then the wheel.
+dist: console-sync
+    uv build
