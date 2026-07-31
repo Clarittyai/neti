@@ -277,3 +277,67 @@ def test_discovery_stays_quiet_about_a_server_s_startup_banner(server: ServerSpe
     finally:
         quiet.close()
     assert hasattr(quiet, "stderr_tail")
+
+
+# ---------------------------------------------------------------------------- platform branches
+
+
+@pytest.mark.parametrize(
+    ("platform", "env", "expected"),
+    [
+        ("darwin", {}, "Library/Application Support/Claude/claude_desktop_config.json"),
+        ("win32", {"APPDATA": "/roaming"}, "/roaming/Claude/claude_desktop_config.json"),
+        ("linux", {}, ".config/Claude/claude_desktop_config.json"),
+    ],
+)
+def test_claude_desktop_is_looked_for_in_the_right_place_per_platform(
+    monkeypatch: pytest.MonkeyPatch, platform: str, env: dict[str, str], expected: str
+) -> None:
+    """Two of these three branches have never executed anywhere.
+
+    Everything in this repo has been developed and run on macOS, so the Windows and Linux paths for
+    Claude Desktop's config were written from documentation and never once evaluated. A typo in
+    either is invisible until a stranger on that platform runs `neti init` and is told, wrongly,
+    that they have no MCP servers — the least debuggable possible first impression.
+    """
+    from pathlib import Path
+
+    from neti.insight import discover as mod
+
+    monkeypatch.setattr(mod.sys, "platform", platform)
+    for key, value in env.items():
+        monkeypatch.setenv(key, value)
+
+    paths = [str(p) for _, p in mod._candidates(Path("/proj"), Path("/home/u"))]
+    assert any(expected in p for p in paths), f"{platform}: no candidate matched {expected}"
+
+
+def test_windows_without_appdata_does_not_crash(monkeypatch: pytest.MonkeyPatch) -> None:
+    """`APPDATA` is all but guaranteed on Windows, and `os.environ[...]` would still be a crash on
+    the one machine where it is missing. It degrades to the platform-independent locations."""
+    from pathlib import Path
+
+    from neti.insight import discover as mod
+
+    monkeypatch.setattr(mod.sys, "platform", "win32")
+    monkeypatch.delenv("APPDATA", raising=False)
+
+    labels = [label for label, _ in mod._candidates(Path("/proj"), Path("/home/u"))]
+    assert "Claude Desktop" not in labels
+    assert "Claude Code (project)" in labels
+
+
+def test_every_platform_still_finds_the_project_level_configs(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """The per-platform branch must only ever *add*. If it replaced the common list, a Linux user
+    would silently lose .mcp.json discovery — which is the one everybody actually uses."""
+    from pathlib import Path
+
+    from neti.insight import discover as mod
+
+    for platform in ("darwin", "win32", "linux"):
+        monkeypatch.setattr(mod.sys, "platform", platform)
+        paths = [str(p) for _, p in mod._candidates(Path("/proj"), Path("/home/u"))]
+        assert any(p.endswith("/proj/.mcp.json") for p in paths), platform
+        assert any(p.endswith(".cursor/mcp.json") for p in paths), platform

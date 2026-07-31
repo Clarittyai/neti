@@ -140,6 +140,35 @@ send_email /to:  confirm above 150   block above 1,000     # 2× observed p99
 You edit the numbers and commit them. `neti propose` is a config-authoring aid read by a human —
 nothing learned ever reaches the decision path, so the gate stays a static integer comparison.
 
+## What it costs to run
+
+Measured against real Claude Code sessions, not modelled:
+
+| | |
+|---|---|
+| Hook overhead, per tool call | **p50 172ms · p95 184ms** |
+| Records | **~700 bytes per call**, so roughly 0.7 MB per thousand |
+| Decision itself | microseconds — the overhead above is almost entirely Python interpreter start |
+
+That last row is the one to act on. As a `PreToolUse` hook with `matcher: "*"`, neti starts a fresh
+process for *every* tool call, and interpreter start dominates a sub-millisecond decision. If ~170ms
+on every call is too much, narrow the matcher to the tools you actually gate:
+
+```json
+{"hooks": {"PreToolUse": [{"matcher": "Bash|Write|Edit",
+  "hooks": [{"type": "command", "command": "neti hook"}]}]}}
+```
+
+The MCP paths do not pay this: `neti gate` is one long-lived process, so the decision is the
+microseconds it measures.
+
+**Concurrent agents are safe.** Claude Code runs tool calls in parallel and each hook invocation is
+its own process, so several writers can reach the record file at once. Appends take an exclusive
+lock and re-read the chain head under it — many processes, one file, no forked chain. There is a
+test that runs eight real subprocesses and asserts exactly that, because a single-writer test cannot
+see this and an earlier version of the sink forked the chain the first time a real agent ran two
+tools at once.
+
 ## When a `confirm` needs an actual human
 
 A `confirm` band means *somebody other than the agent's operator should decide this one*. On one

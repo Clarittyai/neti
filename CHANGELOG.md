@@ -53,6 +53,24 @@ and shared budgets are designed but not built.
 The control plane is a POC: one shared organisation key, no SSO, no per-user identity beyond the
 name a reviewer types. Do not expose it to the public internet.
 
+### Verified against real agents
+
+Before release the gate was put in front of things nobody here wrote: real headless Claude Code
+sessions via the `PreToolUse` hook, and `@modelcontextprotocol/server-filesystem` over stdio. Both
+passed — no broken sessions, no wrong denials, chain intact — and both found defects no offline test
+could have:
+
+- **The record chain forked under concurrency.** Claude Code runs tool calls in parallel; as a hook,
+  each call is its own process; two read the same chain head and both appended from it. `neti verify`
+  correctly reported a break on a chain nobody had tampered with. Chaining now belongs to the sink,
+  under an exclusive file lock — not a thread lock, which would have looked correct and prevented
+  nothing. Fixing it also cut tail latency from p95 650ms to 184ms, because the contention was the
+  same problem.
+- **`neti init` told an operator who had already gated every server that it found none.** It was
+  skipping wrapped servers correctly and then reporting as if the config were empty.
+- **A server's startup banner made a working scan look broken**, interleaving npm warnings into
+  `init`'s output. Relaying a server's stderr while gating it is right; during discovery it is noise.
+
 ### Fixed before release
 
 - **The policy digest was not stable across processes.** `BudgetRule.tools` is a frozenset, which

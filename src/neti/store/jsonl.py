@@ -24,20 +24,67 @@ genuinely the only writer and would rather have the latency.
 
 from __future__ import annotations
 
-import fcntl
 import json
 import os
 import queue
+import sys
 import threading
 from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
-from typing import Any
+from typing import IO, Any
 
 from neti.core.record import DecisionRecord
 
 __all__ = ["JsonlSink", "chain_head", "read_records"]
 
 _SENTINEL = object()
+
+
+@contextmanager
+def _exclusive(fh: IO[str]) -> Iterator[None]:
+    """Lock a file across processes, on whichever platform this is.
+
+    `fcntl` is Unix-only and `msvcrt` is Windows-only, so importing either at module scope makes the
+    package unimportable on the other. Worth spelling out because it nearly shipped: the lock went
+    in on macOS, and a top-level `import fcntl` would have made `import neti` raise on every Windows
+    machine — while `neti init` carries a Windows branch for finding Claude Desktop's config, so we
+    plainly expect to run there.
+
+    Branching on `sys.platform` rather than catching `ImportError`, because that is the form the
+    type checker understands: it evaluates only the branch for the platform it is checking, which is
+    how the Windows call gets checked at all instead of being hidden inside an except clause.
+
+    **A failure to lock is not a failure to record.** If the filesystem refuses — some network
+    mounts do — the append still happens. It is simply no longer serialised, which is the pre-lock
+    behaviour and strictly better than dropping the decision on the floor.
+    """
+    if sys.platform == "win32":
+        import msvcrt
+
+        try:
+            fh.seek(0)
+            msvcrt.locking(fh.fileno(), msvcrt.LK_LOCK, 1)
+        except OSError:
+            yield
+            return
+        try:
+            yield
+        finally:
+            fh.seek(0)
+            msvcrt.locking(fh.fileno(), msvcrt.LK_UNLCK, 1)
+    else:
+        import fcntl
+
+        try:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
+        except OSError:
+            yield
+            return
+        try:
+            yield
+        finally:
+            fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
 
 
 class JsonlSink:
@@ -72,25 +119,21 @@ class JsonlSink:
     def _sealed_append(self, record: DecisionRecord) -> DecisionRecord:
         """Read the head and append, atomically with respect to every other writer.
 
-        `flock` rather than a thread lock, because the writers are separate *processes* — one per
-        tool call, when the gate is a `PreToolUse` hook. A `threading.Lock` would have looked
-        entirely correct and prevented nothing.
+        A *file* lock rather than a thread lock, because the writers are separate **processes** —
+        one per tool call, when the gate is a `PreToolUse` hook. A `threading.Lock` would have
+        looked entirely correct and prevented nothing.
         """
-        with self.path.open("a+", encoding="utf-8") as fh:
-            fcntl.flock(fh.fileno(), fcntl.LOCK_EX)
-            try:
-                fh.seek(0)
-                head: str | None = None
-                for line in fh:
-                    if line.strip():
-                        head = json.loads(line)["record_digest"]
-                sealed = record.sealed(head)
-                fh.seek(0, os.SEEK_END)
-                fh.write(json.dumps(sealed.model_dump(mode="json", by_alias=True)) + "\n")
-                fh.flush()
-                os.fsync(fh.fileno())
-            finally:
-                fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
+        with self.path.open("a+", encoding="utf-8") as fh, _exclusive(fh):
+            fh.seek(0)
+            head: str | None = None
+            for line in fh:
+                if line.strip():
+                    head = json.loads(line)["record_digest"]
+            sealed = record.sealed(head)
+            fh.seek(0, os.SEEK_END)
+            fh.write(json.dumps(sealed.model_dump(mode="json", by_alias=True)) + "\n")
+            fh.flush()
+            os.fsync(fh.fileno())
         return sealed
 
     def _run(self) -> None:
