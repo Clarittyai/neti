@@ -26,8 +26,10 @@ from neti.core.types import ProposedCall
 __all__ = [
     "Credentials",
     "HttpApprover",
+    "OrgClient",
     "credentials_path",
     "load_credentials",
+    "org_client",
     "save_credentials",
 ]
 
@@ -197,3 +199,84 @@ def _approval(payload: dict[str, Any]) -> Approval:
         reason=payload.get("reason"),
         expires_at=payload.get("expires_at"),
     )
+
+
+@dataclass
+class OrgClient:
+    """The reviewer's side of the control plane, for the console to sit in front of.
+
+    Separate from `HttpApprover` because the two have opposite shapes. The approver answers one
+    question about one call as fast as it can; this lists an inbox and posts decisions into it.
+    Folding them together would give the gate's hot path methods it must never call.
+
+    It lives in the Apache-2.0 package for the same reason the approver does: it is a client, it is
+    inert without a server, and the console must be able to show a Team section without the free
+    tier acquiring a dependency on the paid one.
+    """
+
+    url: str
+    key: str
+    timeout_s: float = 10.0
+
+    def __post_init__(self) -> None:
+        import httpx
+
+        self._client = httpx.Client(
+            base_url=self.url.rstrip("/"),
+            headers={"Authorization": f"Bearer {self.key}"},
+            timeout=self.timeout_s,
+        )
+
+    def close(self) -> None:
+        self._client.close()
+
+    def health(self) -> bool:
+        import httpx
+
+        try:
+            response = self._client.get("/v1/health")
+        except httpx.HTTPError:
+            return False
+        return response.status_code == 200 and bool(response.json().get("ok"))
+
+    def approvals(self, state: str | None = None, limit: int = 100) -> list[dict[str, Any]]:
+        params = {"limit": limit}
+        if state:
+            params["state"] = state  # type: ignore[assignment]
+        rows: list[dict[str, Any]] = self._json("GET", "/v1/approvals", params=params)["approvals"]
+        return rows
+
+    def decide(
+        self, approval_id: str, *, granted: bool, decided_by: str, reason: str | None = None
+    ) -> dict[str, Any]:
+        return self._json(
+            "POST",
+            f"/v1/approvals/{approval_id}/decide",
+            json={"granted": granted, "decided_by": decided_by, "reason": reason},
+        )
+
+    def _json(self, method: str, path: str, **kw: Any) -> dict[str, Any]:
+        import httpx
+
+        try:
+            response = self._client.request(method, path, **kw)
+        except httpx.HTTPError as exc:
+            raise ApproverError(f"control plane unreachable: {exc}") from exc
+        if response.status_code == 401:
+            raise ApproverError("control plane rejected the organisation key")
+        if response.status_code == 409:
+            # Somebody else got there first. A distinct message because "already answered" is a
+            # thing the reviewer needs told, not a generic failure.
+            raise ApproverError(response.json().get("detail", "already decided"))
+        if response.status_code >= 400:
+            raise ApproverError(f"control plane returned {response.status_code}")
+        parsed: dict[str, Any] = response.json()
+        return parsed
+
+
+def org_client() -> OrgClient | None:
+    """An `OrgClient` if this machine is logged in, else `None` — which means the free tier."""
+    creds = load_credentials()
+    if creds is None or not creds.configured:
+        return None
+    return OrgClient(url=creds.url, key=creds.key)

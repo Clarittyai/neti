@@ -282,7 +282,7 @@ def test_a_bad_key_is_an_outage_not_a_denial(api: TestClient, tenant: SyntheticT
 
 
 def test_the_reviewers_sentence_leads_with_the_magnitude(store: Store) -> None:
-    """"Approve send_email?" is unanswerable. The number is what makes it a decision."""
+    """ "Approve send_email?" is unanswerable. The number is what makes it a decision."""
     row = store.request(
         "d5",
         {"tool": "send_email", "ceiling": 50},

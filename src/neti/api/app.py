@@ -43,6 +43,12 @@ class ModeRequest(BaseModel):
     mode: str
 
 
+class DecideRequest(BaseModel):
+    granted: bool
+    decided_by: str
+    reason: str | None = None
+
+
 def create_app(
     state: ConsoleState | None = None, *, serve_console: bool = True, **kw: Any
 ) -> FastAPI:
@@ -294,6 +300,71 @@ def create_app(
 
         summary = build_report(_records(st)) if _records(st) else None
         return json.loads(scorecard_json(build_scorecard(summary, st.policy)))
+
+    # ---------------------------------------------------------------- team (paid)
+
+    # The console talks to the control plane over HTTP like any other client. It does not import
+    # `neti_cloud` and could not — that is the licence boundary, and it is why these endpoints are
+    # a proxy rather than a direct call into a store.
+
+    @app.get("/api/org")
+    def org() -> dict[str, Any]:
+        """Whether this machine is attached to a control plane.
+
+        Answers honestly when it is configured but unreachable, because the console showing an empty
+        inbox for a server that is down would be the worst possible lie for an approvals screen.
+        """
+        from neti.cloud import load_credentials, org_client
+
+        creds = load_credentials()
+        if creds is None or not creds.configured:
+            return {"attached": False, "reason": "no control plane — run `neti login`"}
+
+        client = org_client()
+        assert client is not None
+        try:
+            reachable = client.health()
+        finally:
+            client.close()
+        return {
+            "attached": True,
+            "org": creds.org,
+            "url": creds.url,
+            "reachable": reachable,
+            "reason": None if reachable else "the control plane is not answering",
+        }
+
+    @app.get("/api/approvals")
+    def approvals(state: str | None = None) -> dict[str, Any]:
+        from neti.approvals import ApproverError
+        from neti.cloud import org_client
+
+        client = org_client()
+        if client is None:
+            return {"attached": False, "approvals": []}
+        try:
+            return {"attached": True, "approvals": client.approvals(state)}
+        except ApproverError as exc:
+            raise HTTPException(502, str(exc)) from exc
+        finally:
+            client.close()
+
+    @app.post("/api/approvals/{approval_id}/decide")
+    def decide(approval_id: str, req: DecideRequest) -> dict[str, Any]:
+        from neti.approvals import ApproverError
+        from neti.cloud import org_client
+
+        client = org_client()
+        if client is None:
+            raise HTTPException(409, "not attached to a control plane — run `neti login`")
+        try:
+            return client.decide(
+                approval_id, granted=req.granted, decided_by=req.decided_by, reason=req.reason
+            )
+        except ApproverError as exc:
+            raise HTTPException(502, str(exc)) from exc
+        finally:
+            client.close()
 
     # ---------------------------------------------------------------- scenarios
 

@@ -44,8 +44,6 @@ all = [
     "fastapi>=0.115",
     "uvicorn>=0.32",
 ]
-# The control plane. Separately licensed (BUSL-1.1) and separately optional.
-cloud = ["fastapi>=0.115", "uvicorn>=0.32", "typer>=0.12", "httpx[http2]>=0.27"]
 dev = [
     "pytest>=8.3",
     "types-pyyaml>=6.0",
@@ -57,9 +55,6 @@ dev = [
 
 [project.scripts]
 neti = "neti.cli:app"
-# The control plane gets its own command rather than a `neti cloud` subcommand: the free CLI must
-# never import the paid package, and tests/property/test_licence_boundary.py enforces that.
-neti-cloud = "neti_cloud.cli:app"
 
 [tool.hatch.build]
 # The built console, produced at package time rather than committed — `just console-sync` runs the
@@ -72,10 +67,10 @@ neti-cloud = "neti_cloud.cli:app"
 artifacts = ["src/neti/console/**"]
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/neti", "src/neti_cloud"]
+packages = ["src/neti"]
 
 [tool.hatch.build.targets.sdist]
-exclude = ["web/node_modules", "web/.next", "web/out", ".venv", "out", "dist"]
+exclude = ["web/node_modules", "web/.next", "web/out", ".venv", "out", "dist", "cloud"]
 
 [tool.ruff]
 line-length = 100
@@ -84,9 +79,15 @@ target-version = "py312"
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 
+[tool.ruff.lint.isort]
+# Declared rather than inferred: ruff decides first-party by what is installed, so a checkout with
+# the control plane installed sorted imports differently from one without, and `ruff format --check`
+# disagreed with itself between a developer's machine and CI.
+known-first-party = ["neti", "neti_cloud"]
+
 [tool.mypy]
 python_version = "3.12"
-files = ["src/neti", "src/neti_cloud"]
+files = ["src/neti", "cloud/src/neti_cloud"]
 plugins = ["pydantic.mypy"]
 
 # The core is the part that must be type-tight: it is the whole decision.

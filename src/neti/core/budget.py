@@ -12,7 +12,7 @@ prints suggestions for a human to edit into config, and that is the only channel
 
 from __future__ import annotations
 
-from pydantic import Field, model_validator
+from pydantic import Field, field_serializer, model_validator
 
 from neti.core.decide import worst_tripped_band
 from neti.core.types import ArgDecision, Band, BudgetDecision, Frozen, sorted_bands
@@ -38,6 +38,21 @@ class BudgetRule(Frozen):
         # the invariant is asserted rather than assumed.
         object.__setattr__(self, "bands", sorted_bands(self.bands))
         return self
+
+    @field_serializer("tools")
+    def _sorted_tools(self, tools: frozenset[str]) -> list[str]:
+        """Sorted, because this is dumped into `Policy.digest()`.
+
+        A `frozenset` serialises in *hash order*, which varies with `PYTHONHASHSEED` — so the same
+        policy file produced a different digest in different processes, and that digest is stamped
+        into every decision record. Two agents on one config were recording two different policies,
+        `neti verify` could not have noticed, and an approval bound to a policy digest could never
+        be redeemed by the process that asked for it. Found by an approval that refused to match
+        itself across a retry.
+
+        The set is kept for `applies_to`'s O(1) lookup; only the serialised form is ordered.
+        """
+        return sorted(tools)
 
     def applies_to(self, tool: str) -> bool:
         return tool in self.tools

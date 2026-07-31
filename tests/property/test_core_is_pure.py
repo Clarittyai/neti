@@ -12,6 +12,7 @@ already-permitted import (`datetime` is legitimately imported for its *type*).
 from __future__ import annotations
 
 import ast
+import os
 from pathlib import Path
 
 CORE = Path(__file__).resolve().parents[2] / "src" / "neti" / "core"
@@ -121,3 +122,46 @@ def test_core_has_no_module_level_mutable_state() -> None:
                         continue
                     offenders.append(f"{path.name}: {t.id}")
     assert not offenders, f"module-level mutable state: {offenders}"
+
+
+# ---------------------------------------------------------------------------- the policy digest
+
+
+def test_the_policy_digest_is_stable_across_processes() -> None:
+    """Invariant: the same policy file hashes the same everywhere, always.
+
+    This is load-bearing in three places at once. The digest is stamped into every decision record,
+    so two agents on one config must not record two different policies. `neti verify` replays
+    against it. And an approval is bound to it, so a wobbling digest means a grant can never be
+    redeemed by the process that asked for it.
+
+    It was not stable. `BudgetRule.tools` is a `frozenset`, and a frozenset serialises in *hash*
+    order — so a policy with a two-tool session budget produced one digest under PYTHONHASHSEED=0
+    and another under =1. The CI matrix runs exactly those seeds and never caught it, because
+    nothing hashed a policy inside a test; it surfaced when a live approval refused to match itself
+    across a retry.
+
+    Run out-of-process on purpose: within one interpreter the seed is fixed and this passes
+    vacuously, which is precisely how the bug survived.
+    """
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    root = Path(__file__).resolve().parents[2]
+    script = (
+        "from neti.config.policy import load_policy;"
+        f"print(load_policy({str(root / 'examples' / 'entra.yaml')!r}).digest())"
+    )
+    digests = {
+        subprocess.run(
+            [sys.executable, "-c", script],
+            capture_output=True,
+            text=True,
+            check=True,
+            env={"PYTHONHASHSEED": seed, "PATH": os.environ.get("PATH", "")},
+            cwd=root,
+        ).stdout.strip()
+        for seed in ("0", "1", "2", "3")
+    }
+    assert len(digests) == 1, f"the policy digest depends on PYTHONHASHSEED: {digests}"

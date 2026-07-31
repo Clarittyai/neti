@@ -187,6 +187,37 @@ export interface DecisionSummary {
   magnitudes: { pointer: string; magnitude: number | null; unit: string }[];
 }
 
+export type ApprovalState = "pending" | "granted" | "denied" | "expired";
+
+export interface ApprovalRow {
+  id: string;
+  digest: string;
+  state: ApprovalState;
+  approved_magnitude: number | null;
+  unit: string | null;
+  evidence: {
+    tool?: string;
+    rule?: string;
+    ceiling?: number | null;
+    decision_id?: string;
+    policy_digest?: string;
+  };
+  requested_at: string;
+  expires_at: string;
+  decided_by: string | null;
+  decided_at: string | null;
+  reason: string | null;
+  redeemed: boolean;
+}
+
+export interface OrgState {
+  attached: boolean;
+  org?: string;
+  url?: string;
+  reachable?: boolean;
+  reason?: string | null;
+}
+
 export type Coverage = "caught" | "needs_resolver" | "needs_budget" | "out_of_scope";
 
 export interface Incident {
@@ -250,6 +281,14 @@ export const api = {
     get<{ ok: boolean; broken_at: string | null; count: number; head: string | null; links: AuditLink[] }>(
       "/api/audit/verify",
     ),
+  org: () => get<OrgState>("/api/org"),
+  approvals: (state?: string) =>
+    get<{ attached: boolean; approvals: ApprovalRow[] }>(
+      `/api/approvals${state ? `?state=${state}` : ""}`,
+    ),
+  decide: (id: string, granted: boolean, decided_by: string, reason?: string) =>
+    post<ApprovalRow>(`/api/approvals/${id}/decide`, { granted, decided_by, reason }),
+
   scenario: (id: string) => get<Scenario>(`/api/scenarios/${id}`),
   scenarios: () => get<{ scenarios: Scenario[] }>("/api/scenarios"),
 };

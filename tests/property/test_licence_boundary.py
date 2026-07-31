@@ -6,8 +6,9 @@ validates. That promise breaks the first time a single `import neti_cloud` appea
 — at that moment the free tier has a dependency on the paid one, and either it degrades without it
 or someone is tempted to make it.
 
-The reverse direction is fine and expected: `neti_cloud` imports `neti` freely. It is a server for
-the gate, not a fork of it.
+The two are separate distributions with separate licences (`pyproject.toml` and
+`cloud/pyproject.toml`), so this is a packaging invariant as well as an ethical one: BUSL code must
+never end up inside a wheel whose metadata says Apache-2.0.
 
 Checked against the imports declared in our own source rather than against `sys.modules`, for the
 same reason `test_core_is_pure.py` gives: measuring what our dependencies happen to load is both
@@ -19,9 +20,12 @@ from __future__ import annotations
 import ast
 from pathlib import Path
 
-ROOT = Path(__file__).resolve().parents[2] / "src"
+REPO = Path(__file__).resolve().parents[2]
+ROOT = REPO / "src"
 FREE = ROOT / "neti"
-PAID = ROOT / "neti_cloud"
+# A second distribution entirely — see cloud/pyproject.toml. Shipping BUSL code inside a wheel whose
+# metadata says Apache-2.0 would be a licence misstatement, and metadata is what auditors read.
+PAID = REPO / "cloud" / "src" / "neti_cloud"
 
 FORBIDDEN = "neti_cloud"
 
@@ -88,7 +92,7 @@ def test_the_control_plane_never_decides() -> None:
         return
 
     offenders = [
-        f"{source.relative_to(ROOT)} imports {name}"
+        f"{source.relative_to(REPO)} imports {name}"
         for source in sorted(PAID.rglob("*.py"))
         for name in _imported_modules(source)
         if name in DECISION_MACHINERY

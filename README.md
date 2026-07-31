@@ -105,6 +105,7 @@ anything that speaks neither MCP nor a hook protocol:
 
 ```python
 from neti import Preflight
+
 pf = Preflight.from_config("neti.yaml")
 
 for block in message.content:
@@ -138,6 +139,40 @@ send_email /to:  confirm above 150   block above 1,000     # 2× observed p99
 
 You edit the numbers and commit them. `neti propose` is a config-authoring aid read by a human —
 nothing learned ever reaches the decision path, so the gate stays a static integer comparison.
+
+## When a `confirm` needs an actual human
+
+A `confirm` band means *somebody other than the agent's operator should decide this one*. On one
+machine there is nobody to ask, so the gate stops the call and says so. That is correct, and it is
+what a free install will keep doing.
+
+The paid tier — [`neti-cloud`](cloud/), BUSL-1.1 — is the somewhere the question can go:
+
+```console
+$ neti-cloud serve --key $KEY                        # the control plane
+$ neti login --url http://localhost:8730 --key $KEY  # on the agent's machine
+$ neti gate --stdio --org -- npx -y @acme/entra-mcp
+```
+
+The agent's call stops with *"approval a_b271… is pending; retry this exact call once it is
+granted."* A reviewer opens the console and sees **500 recipients**, above a ceiling of 50, and
+approves. The agent's retry proceeds. The grant is bound to that exact call under that exact policy,
+is single-use, expires, and is refused if the target has grown since a human looked at it.
+
+**If the control plane is unreachable, absent, or unpaid, the gate behaves exactly as the free
+tier.** A control plane can only ever make a decision *more* permissive, and only through a named
+human — so nothing about paying adds availability risk to enforcement. That is a test, not a promise.
+
+| Free — Apache-2.0 | Paid — BUSL-1.1 |
+|---|---|
+| the engine, all three seams, **observe and enforce** | a second human approving a `confirm` |
+| `init` · `inventory` · `report` · `propose` · `verify` · `score` | org policy, one version across the fleet |
+| the record chain and `neti verify` | session budgets that survive a restart |
+| the console, every screen | audit across every agent |
+
+The rule is *"can one machine do this?"* — which is why enforcement is free and why every paid
+feature is a hole [SCOPE.md](SCOPE.md) already documents. See [LICENSING.md](LICENSING.md); the
+boundary is enforced by a test, not by good intentions.
 
 ## What it does not do
 

@@ -80,9 +80,9 @@ class McpGateway:
             session_id=session_id,
         )
 
-        decision = Gatekeeper(
-            engine=self.engine, sink=self.sink, approver=self.approver
-        ).decide(call)
+        decision = Gatekeeper(engine=self.engine, sink=self.sink, approver=self.approver).decide(
+            call
+        )
         self._count(decision)
 
         if decision.proceeds:

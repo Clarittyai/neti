@@ -154,7 +154,6 @@ def _worst_magnitude(result: GateResult) -> int | None:
     resolved = [
         arg.resolution.magnitude
         for arg in result.decision.args
-        if arg.resolution.state is ResolutionState.RESOLVED
-        and arg.resolution.magnitude is not None
+        if arg.resolution.state is ResolutionState.RESOLVED and arg.resolution.magnitude is not None
     ]
     return max(resolved) if resolved else None

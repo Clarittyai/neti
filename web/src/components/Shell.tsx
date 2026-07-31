@@ -28,6 +28,7 @@ import {
   ShieldCheck,
   SlidersHorizontal,
   Target,
+  UserCheck,
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -38,6 +39,7 @@ const NAV = [
   { href: "/gate", label: "Live gate", icon: Activity },
   { href: "/decisions", label: "Decisions", icon: ScrollText },
   { href: "/policy", label: "Policy", icon: SlidersHorizontal },
+  { href: "/approvals", label: "Approvals", icon: UserCheck },
   { href: "/audit", label: "Audit", icon: FileCheck },
   { href: "/scorecard", label: "Scorecard", icon: Target },
   { href: "/connect", label: "Connect", icon: Plug },
