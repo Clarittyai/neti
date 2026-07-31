@@ -222,8 +222,11 @@ def test_hook_records_passes_as_well_as_denials(tenant: SyntheticTenant) -> None
         def __init__(self) -> None:
             self.written: list[Any] = []
 
-        def write(self, record: Any) -> None:
+        def write(self, record: Any) -> Any:
+            # Returns the record, as a real sink does: it re-seals against the true head under a
+            # lock, and the caller has to carry the stored one forward.
             self.written.append(record)
+            return record
 
     sink = Sink()
     run_hook(engine, hook_event("send_email", {"to": "g-team"}), sink)

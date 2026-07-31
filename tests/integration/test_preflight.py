@@ -182,3 +182,46 @@ def test_a_session_id_reaches_the_cumulative_budget() -> None:
 
     # A different session starts from zero — the budget is per session, not global.
     assert pf.check("send_email", {"to": "g-team"}, session_id="s2").proceeds
+
+
+def test_concurrent_processes_do_not_fork_the_chain(tmp_path: Path) -> None:
+    """The bug a real agent found and no single-writer test could.
+
+    Claude Code runs tool calls in parallel, and as a `PreToolUse` hook every call is its own
+    process. Two of them read the same chain head, both sealed against it, and both appended — one
+    `prev_digest` claimed by two records, and `neti verify` correctly reported a broken chain on a
+    chain nobody had tampered with.
+
+    The fix is that the sink re-seals under an exclusive file lock, so this is the shape that has to
+    hold: N *processes*, one file, no forks. A `threading.Lock` would pass a threads-only version of
+    this test and prevent nothing.
+    """
+    import collections
+    import subprocess
+    import sys
+
+    records = tmp_path / "concurrent.ndjson"
+    script = (
+        "import sys;"
+        "from neti.preflight import Preflight;"
+        f"pf = Preflight.demo({str(EXAMPLE)!r}, mode='enforce', records={str(records)!r});"
+        "pf.check('send_email', {'to': 'g-team'});"
+        "pf.close()"
+    )
+    procs = [
+        subprocess.Popen([sys.executable, "-c", script], cwd=Path(__file__).resolve().parents[2])
+        for _ in range(8)
+    ]
+    for proc in procs:
+        assert proc.wait(timeout=120) == 0
+
+    stored = list(read_records(str(records)))
+    assert len(stored) == 8
+
+    prevs = collections.Counter(r.prev_digest for r in stored)
+    forks = {d: n for d, n in prevs.items() if n > 1}
+    assert not forks, f"a prev_digest was claimed by more than one record: {forks}"
+
+    from neti.core.record import verify_chain
+
+    assert verify_chain(stored) == (True, None)

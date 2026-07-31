@@ -29,9 +29,13 @@ __all__ = ["Decision", "Escalation", "Gatekeeper", "RecordSink"]
 
 
 class RecordSink(Protocol):
-    """Structural, so `JsonlSink` satisfies it without knowing this module exists."""
+    """Structural, so `JsonlSink` satisfies it without knowing this module exists.
 
-    def write(self, record: DecisionRecord) -> None: ...
+    `write` returns the record *as stored*. The sink re-seals against the true head under a lock, so
+    the digest a caller reports must be the one that came back — see `neti.store.jsonl`.
+    """
+
+    def write(self, record: DecisionRecord) -> DecisionRecord: ...
 
 
 @dataclass(frozen=True)
@@ -93,7 +97,10 @@ class Gatekeeper:
         result = self.engine.gate(call, **kw)
         escalation = self._escalate(call, result)
         if self.sink is not None:
-            self.sink.write(result.record)
+            # Carry the stored record forward, not the one the engine produced: under concurrency
+            # the sink re-seals against the true head, and reporting the pre-seal digest would name
+            # a record that is not in the file.
+            result = GateResult(decision=result.decision, record=self.sink.write(result.record))
         return Decision(result=result, escalation=escalation)
 
     # ------------------------------------------------------------------ internals

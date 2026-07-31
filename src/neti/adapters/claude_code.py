@@ -35,7 +35,7 @@ from neti.gateway.mcp import explain_denial
 
 
 class RecordSink(Protocol):
-    def write(self, record: DecisionRecord) -> None: ...
+    def write(self, record: DecisionRecord) -> DecisionRecord: ...
 
 
 __all__ = ["PRE_TOOL_USE", "hook_response", "normalise_tool", "read_event", "run_hook"]
