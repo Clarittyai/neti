@@ -103,6 +103,32 @@ def init(
     typer.secho(f"\nWrote {out}", bold=True)
     example = found.servers[0] if found.servers else None
     wrap = " ".join(example.argv) if example else "<your server command>"
+
+    if not found.gated:
+        # The likeliest first run there is, and it used to end in a dead end: nothing gated, then
+        # "next: neti inventory", then "Nothing to inventory." Say what is actually true — the
+        # resolver catalogue does not cover these tools yet — because a stranger's read of an empty
+        # result should be "I see the limit", not "this is broken".
+        typer.secho(
+            f"  0 of {len(found.tools)} tool(s) gated.",
+            fg=typer.colors.YELLOW,
+            bold=True,
+        )
+        typer.echo(
+            "\n  Nothing here has a parameter any shipped resolver can size. Today's catalogue\n"
+            "  is Entra groups (principals, apps, guests) and Terraform plans — a real limit of\n"
+            "  this release, not a misconfiguration on your side.\n"
+            "\n  Two things still worth doing:\n"
+            f"\n    neti gate --stdio -c {out} -- {wrap[:52]}\n"
+            "       run in observe anyway. Every call is recorded and sealed into the chain, so\n"
+            "       `neti report` will tell you what your agents actually do — which is what you\n"
+            "       would need before declaring any ceiling.\n"
+            "\n    RESOLVER_CONTRACT.md\n"
+            "       ~80 lines to size something these tools do touch. It is the one contribution\n"
+            "       that turns this from a directory tool into one that covers your stack.\n"
+        )
+        return
+
     typer.echo(f"  {len(found.gated)} tool(s) gated, every ceiling left blank on purpose.")
     typer.secho("\nNext, in order:", bold=True)
     typer.echo(

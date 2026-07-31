@@ -14,6 +14,7 @@ import json
 import sys
 import textwrap
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -341,3 +342,34 @@ def test_every_platform_still_finds_the_project_level_configs(
         paths = [str(p) for _, p in mod._candidates(Path("/proj"), Path("/home/u"))]
         assert any(p.endswith("/proj/.mcp.json") for p in paths), platform
         assert any(p.endswith(".cursor/mcp.json") for p in paths), platform
+
+
+def test_gating_nothing_is_explained_rather_than_left_as_a_dead_end(server: ServerSpec) -> None:
+    """The likeliest first run there is, and it used to end nowhere.
+
+    Most MCP servers are not directory servers, so `neti init` gates nothing for most people. It
+    then said "next: neti inventory", and inventory said "Nothing to inventory." A stranger's five
+    minutes ended in what reads as a broken tool rather than as a stated limit.
+
+    The rendered policy has to survive that case too — an operator who reads the file must find a
+    loadable document that says what happened, not an empty `tools: {}` with no explanation.
+    """
+    from neti.insight.discover import Discovery
+
+    empty = Discovery(servers=(server,), tools=(), errors=())
+    assert empty.gated == ()
+
+    yaml = render_policy(empty)
+    assert "tools: {}" in yaml
+    assert "RESOLVER_CONTRACT.md" in yaml, "the file must point at how to close the gap"
+    assert load_policy_from_text(yaml).tools == {}
+
+
+def load_policy_from_text(text: str) -> Any:
+    """Round-trip helper: the generated file has to actually load."""
+    import tempfile
+
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
+        fh.write(text)
+        path = fh.name
+    return load_policy(path)
