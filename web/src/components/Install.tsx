@@ -117,7 +117,17 @@ export function Install() {
         learns that a call was too big, which is a thing it already knows how to handle.
       </p>
 
-      <div className="mt-3 flex flex-wrap gap-1.5">
+      <div className="glass-card mt-3 rounded-xl p-4">
+        <p className="text-[13px] leading-relaxed text-muted-foreground">
+          Or skip the reading:{" "}
+          <code className="font-mono text-[12px] text-foreground">neti init</code> finds the MCP
+          servers already configured on the machine, asks each one what tools it exposes, and writes
+          the policy — with every ceiling left blank, because those come from your traffic a week
+          later and not from a generator.
+        </p>
+      </div>
+
+      <div className="mt-4 flex flex-wrap gap-1.5">
         {TARGETS.map((t) => (
           <button
             key={t.id}

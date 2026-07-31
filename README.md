@@ -16,27 +16,62 @@ An agent asks to do one thing. That one thing turns out to be a million things. 
 until after. Alignment, authorization, provenance, sandboxing, anomaly detection and rollback all
 answer a different question; none of them answers *how big is this*.
 
+## The first hour
+
+Two commands, from a directory with nothing in it. No YAML to write, no traffic to wait for, and no
+ceilings to guess at.
+
+```console
+$ neti init
+Found 1 MCP server(s):
+  entra    npx -y @acme/entra-mcp     (Claude Code (project))
+
+Asking each one what tools it exposes…
+
+  gated   delete_group           /group → entra.principals, /group#apps → entra.apps
+  gated   remove_group_members   /group → entra.principals, /group#apps → entra.apps
+  gated   send_email             /to → entra.principals
+  ungated search_directory       nothing here can be sized
+
+Wrote neti.yaml
+  3 tool(s) gated, every ceiling left blank on purpose.
+```
+
+It reads the MCP client configs already on the machine, launches each server the way its client
+does, asks `tools/list`, and writes a policy matching the tools it found. It declares **no ceilings**
+— every band is empty and the mode is `observe`, so nothing can be blocked. Those numbers are meant
+to arrive a week later out of your own traffic; a ceiling nobody chose is a ceiling nobody will
+defend the first time it fires.
+
+Then, still with no traffic:
+
+```console
+$ neti inventory
+tool                  param        resolver          max reachable  risk
+remove_group_members  /group       entra.principals         52,400  no ceiling declared — up to 52,400 principals in one call
+send_email            /to          entra.principals         52,400  no ceiling declared — up to 52,400 principals in one call
+remove_group_members  /group#apps  entra.apps                  214  no ceiling declared — up to 214 apps in one call
+
+5 of 5 gated parameters have no ceiling declared. They resolve and record, but they cannot block.
+```
+
+That is the finding, on day one: *this agent holds a credential that can, in one call, reach 52,400
+people and 214 applications, and nothing today would stop it.*
+
+Add `--demo` to `neti inventory` or `neti gate` to run the whole path against a synthetic tenant with
+no credentials at all — same engine, same records, only the numbers differ.
+
 ## Install
 
 Three steps, no code change.
 
 1. Register an Entra app and grant one permission — `GroupMember.Read.All`, Microsoft's documented
    least-privilege choice for the count endpoint. Admin-consent it.
-2. Point your MCP server URL at `neti`.
-3. Nothing else. Uninstall is reverting the URL.
+2. `neti init`, then put the command it prints into your client's config.
+3. Nothing else. Uninstall is reverting that one line.
 
-The default mode is `observe`: a pass-through proxy that resolves and records and **cannot block
-anything**. The worst case of installing it is one proxy hop.
-
-## The first hour, with no traffic and no configuration
-
-```console
-$ neti inventory
-tool                    param    resolver               max reachable   ungated risk
-remove_group_members    /group   entra.principals              41,203   ← 41,203 people
-send_email              /to      entra.principals              41,203   ← 38,014 external
-revoke_app_access       /group   entra.app_assignments             37   ← 37 applications
-```
+The default mode is `observe`: a pass-through that resolves and records and **cannot block
+anything**. The worst case of installing it is one hop.
 
 ## Putting it in front of an agent
 

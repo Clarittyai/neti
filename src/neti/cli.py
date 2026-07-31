@@ -1,8 +1,9 @@
 """The `neti` command line.
 
-The order these appear in `--help` is the order an operator meets them: measure the provider,
-inventory what the credential can reach, run the gate in observe mode, report what happened, propose
-ceilings from that, and verify the record chain.
+The order these appear in `--help` is the order an operator meets them: init to find the tools and
+write a policy, inventory what the credential can reach, run the gate in observe mode, report what
+happened, propose ceilings from that, and verify the record chain. `measure` and `check` come first
+in the list only for the operator validating a tenant before any of it.
 """
 
 from __future__ import annotations
@@ -21,6 +22,81 @@ app = typer.Typer(
     help="A preflight gate for agent tool calls: resolve what an action will touch, "
     "block it if it exceeds a declared ceiling.",
 )
+
+
+@app.command()
+def init(
+    out: Annotated[
+        str, typer.Option("--out", "-o", help="Where to write the policy.")
+    ] = "neti.yaml",
+    probe: Annotated[
+        bool,
+        typer.Option(help="Launch each server to ask what tools it exposes. --no-probe to skip."),
+    ] = True,
+    force: Annotated[bool, typer.Option("--force", help="Overwrite an existing policy.")] = False,
+) -> None:
+    """Find your agent's tools and write a starting policy.
+
+    Reads the MCP client configs already on this machine, launches each server the way its client
+    does, and asks it what tools it exposes. Writes a policy matching the tools it found — in
+    observe mode, with every ceiling left blank, because those numbers are supposed to come out of
+    your own traffic a week from now and not out of this command.
+    """
+    from neti.insight.discover import discover, find_clients, render_policy
+
+    target = Path(out)
+    if target.exists() and not force:
+        typer.secho(f"error: {out} already exists. Pass --force to overwrite.", fg="red", err=True)
+        raise typer.Exit(2)
+
+    servers = find_clients()
+    if not servers:
+        typer.secho("No MCP servers found in any client config on this machine.", fg="yellow")
+        typer.echo(
+            "\nLooked in .mcp.json, ~/.claude.json, ~/.cursor/mcp.json, .vscode/mcp.json and the\n"
+            "Claude Desktop config. If your agent's tools are not MCP servers, they can still be\n"
+            "gated — see `neti hook --help` for Claude Code's built-ins, or `from neti import\n"
+            "Preflight` for a tool loop you wrote yourself."
+        )
+        raise typer.Exit(1)
+
+    typer.secho(f"Found {len(servers)} MCP server(s):", bold=True)
+    for server in servers:
+        typer.echo(f"  {server.name:22} {' '.join(server.argv)[:60]}   ({server.client})")
+
+    if probe:
+        typer.echo("\nAsking each one what tools it exposes…")
+    found = discover(servers, probe=probe)
+
+    for error in found.errors:
+        typer.secho(f"  could not introspect {error}", fg="yellow")
+
+    typer.echo("")
+    for tool in sorted(found.tools, key=lambda t: (not t.gated, t.name)):
+        if tool.gated:
+            what = ", ".join(f"{g.pointer} → {g.resolver}" for g in tool.gated)
+            typer.secho(f"  gated   {tool.name:26} {what}", fg="green")
+        else:
+            typer.echo(f"  ungated {tool.name:26} nothing here can be sized")
+
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_text(render_policy(found))
+
+    typer.secho(f"\nWrote {out}", bold=True)
+    example = found.servers[0] if found.servers else None
+    wrap = " ".join(example.argv) if example else "<your server command>"
+    typer.echo(f"  {len(found.gated)} tool(s) gated, every ceiling left blank on purpose.")
+    typer.secho("\nNext, in order:", bold=True)
+    typer.echo(
+        f"  1. neti inventory -c {out}\n"
+        "       what those tools can reach right now — no traffic, no ceilings needed.\n"
+        f"       Add --demo to see the shape of the answer with no credentials.\n"
+        f"\n  2. neti gate --stdio -c {out} -- {wrap[:56]}\n"
+        "       put that in your client's config in place of the command above, and\n"
+        "       run a week in observe. Nothing is blocked; everything is recorded.\n"
+        "\n  3. neti report   then   neti propose\n"
+        "       ceilings out of what you actually did. Edit them in and set mode: enforce.\n"
+    )
 
 
 @app.command()
@@ -118,21 +194,24 @@ def inventory(
     config: Annotated[
         str, typer.Option("--config", "-c", help="Policy file. See examples/entra.yaml.")
     ] = "neti.yaml",
+    demo: Annotated[
+        bool, typer.Option("--demo", help="Resolve against the synthetic tenant. No credentials.")
+    ] = False,
     timeout_ms: Annotated[int, typer.Option(help="Per-request timeout.")] = 800,
 ) -> None:
     """What could each gated tool reach in one call? No traffic and no ceilings required.
 
     The hour-one finding: "your agent holds a credential that can, in one call, remove 41,203
-    people from a group." Needs NETI_TENANT_ID, NETI_CLIENT_ID and NETI_CLIENT_SECRET.
+    people from a group." Needs NETI_TENANT_ID, NETI_CLIENT_ID and NETI_CLIENT_SECRET, or --demo
+    to see the shape of the answer against the synthetic tenant first.
     """
     from neti.config.policy import PolicyError, load_policy
     from neti.insight.inventory import build_inventory, format_inventory
     from neti.resolvers.base import ResolveContext, ResolverError
-    from neti.resolvers.registry import build_entra_resolvers
 
     try:
         policy = load_policy(config)
-        resolvers, client = build_entra_resolvers(timeout_ms=timeout_ms)
+        resolvers, client = _build_resolvers(demo=demo, timeout_ms=timeout_ms)
     except (PolicyError, OSError, ResolverError) as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from exc
