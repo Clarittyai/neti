@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 
 from neti.resolvers.base import Resolver, ResolverError
+from neti.resolvers.filesystem import FilesystemResolver
 from neti.resolvers.graph_client import ClientCredential, GraphClient
 from neti.resolvers.graph_entra import (
     EntraAppsResolver,
@@ -33,8 +34,12 @@ def resolvers_for_client(client: GraphClient) -> dict[str, Resolver]:
         # single O(1) `$count` is the latency claim the whole design rests on, and folding a second
         # round trip into it would quietly double every gated call. The operator opts in.
         "entra.principals_with_guests": PrincipalsWithGuestBreakdown(principals, guests),
-        # Needs no credential at all — it reads a local plan artifact — so it is always available.
+        # Neither of these needs a credential — they read local artifacts — so they are always
+        # available, including under `--demo`. `fs.paths` is what makes a coding agent gateable at
+        # all: without it every tool call a Claude Code or Cursor session makes resolves to nothing
+        # and records `allow`.
         "terraform.destroy": TerraformPlanResolver(),
+        "fs.paths": FilesystemResolver(),
     }
 
 
