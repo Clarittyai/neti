@@ -22,10 +22,10 @@ and one policy file should govern the same tool whichever route it arrives by.
 from __future__ import annotations
 
 import json
-import re
 from typing import Any, Protocol
 
 from neti.approvals import ApprovalState, Approver
+from neti.config.policy import strip_mcp_prefix
 from neti.core.record import DecisionRecord
 from neti.core.types import ProposedCall
 from neti.core.verdict import Verdict
@@ -42,14 +42,15 @@ __all__ = ["PRE_TOOL_USE", "hook_response", "normalise_tool", "read_event", "run
 
 PRE_TOOL_USE = "PreToolUse"
 
-# `mcp__<server>__<tool>`, where the server name may itself contain underscores. Anchored on the
-# literal `mcp__` prefix and the last `__`, which is the only part of the shape that is guaranteed.
-_MCP_PREFIX = re.compile(r"^mcp__.+?__(?=[^_])")
-
 
 def normalise_tool(name: str) -> str:
-    """`mcp__entra__remove_group_members` -> `remove_group_members`."""
-    return _MCP_PREFIX.sub("", name)
+    """`mcp__entra__remove_group_members` -> `remove_group_members`.
+
+    Kept as a name here because three adapters import it, but the definition now belongs to
+    `Policy` — matching a policy key is the thing it is for, and `Policy.match_tool` applies it as
+    a fallback so a seam that forgets to call this still cannot let a prefixed name through.
+    """
+    return strip_mcp_prefix(name)
 
 
 def hook_response(engine: Engine, decision: Decision) -> dict[str, Any]:

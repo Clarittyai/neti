@@ -12,6 +12,7 @@ not learned baselines" true, and it is the seam a security reviewer will probe f
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 from typing import Any
 
@@ -25,12 +26,27 @@ from neti.core.types import Band, Ceiling, Frozen, ProposedCall, sorted_bands
 from neti.core.units import Unit
 from neti.core.verdict import Mode, ModeValue, Verdict, VerdictValue
 
-__all__ = ["GateSpec", "Policy", "PolicyError", "ToolSpec", "load_policy"]
+__all__ = ["GateSpec", "Policy", "PolicyError", "ToolSpec", "load_policy", "strip_mcp_prefix"]
 
 
 class PolicyError(ValueError):
     """The policy file is not usable. Always fatal at load: a half-understood gate is worse than
     none, because the operator believes they are covered."""
+
+
+# `mcp__<server>__<tool>`, where the server name may itself contain underscores. Anchored on the
+# literal `mcp__` prefix and the last `__`, which is the only part of the shape that is guaranteed.
+_MCP_PREFIX = re.compile(r"^mcp__.+?__(?=[^_])")
+
+
+def strip_mcp_prefix(name: str) -> str:
+    """`mcp__entra__remove_group_members` -> `remove_group_members`.
+
+    Lives here rather than in an adapter because it is a fact about how policy keys are matched,
+    and every seam has to apply it identically. `claude_code.normalise_tool` re-exports it so
+    existing imports keep working.
+    """
+    return _MCP_PREFIX.sub("", name)
 
 
 class GateSpec(Frozen):
@@ -114,11 +130,36 @@ class Policy(Frozen):
                     )
         return self
 
+    def match_tool(self, tool: str) -> str | None:
+        """The policy key governing this call, or `None` if it is ungated.
+
+        Exact name first, then the same name with an `mcp__<server>__` prefix stripped. Both halves
+        of that matter and the order is the whole point:
+
+        - **Exact first** keeps per-server entries working. An operator running two MCP servers that
+          both expose `delete_repo` can declare `mcp__prod__delete_repo` separately and have it win.
+        - **Then stripped**, because a federating MCP server — a proxy or hub in front of several
+          others — really does rename its children that way, and the gate sees the prefixed name on
+          the wire. Without the fallback, a policy that gates `delete_repo` silently allows
+          `mcp__prod__delete_repo`. `unknown_tool: allow` is deliberate for a tool nobody gated;
+          it is the wrong answer for one somebody did.
+
+        Found by `tests/e2e/test_seam_equivalence.py`: three seams normalised the name in their
+        adapter and three did not, so the same call was blocked or allowed depending on which door
+        it came through.
+        """
+        if tool in self.tools:
+            return tool
+        stripped = strip_mcp_prefix(tool)
+        return stripped if stripped != tool and stripped in self.tools else None
+
     def is_gated(self, tool: str) -> bool:
-        return tool in self.tools and bool(self.tools[tool].gate)
+        key = self.match_tool(tool)
+        return key is not None and bool(self.tools[key].gate)
 
     def gate_specs(self, tool: str) -> dict[str, GateSpec]:
-        return self.tools[tool].gate if tool in self.tools else {}
+        key = self.match_tool(tool)
+        return self.tools[key].gate if key is not None else {}
 
     def targets(self, call: ProposedCall) -> list[tuple[str, str | None, GateSpec]]:
         """Extract `(pointer, target, spec)` for each gated argument of this call.
