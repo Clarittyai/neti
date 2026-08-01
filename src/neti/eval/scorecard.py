@@ -38,7 +38,10 @@ NON_COVERAGE = {
     "NC-07": "entitlements inside downstream apps — one hop only",
     "NC-08": "the eventual-consistency window; we sell an auditable bound, not freshness",
     "NC-09": "ungated tools and undeclared parameters",
-    "NC-10": "row-count gating on SQL predicates (EXPLAIN is biased low)",
+    "NC-10": (
+        "exact row counts, and statements db.rows does not certainly recognise "
+        "(cascades are invisible, so every count is a lower bound)"
+    ),
     "NC-11": "containment and rollback",
     "NC-12": "reads that are individually small but collectively large",
 }

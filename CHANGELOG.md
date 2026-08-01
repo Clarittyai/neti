@@ -47,12 +47,36 @@ Each declines rather than guessing, and none can return `0` for something it cou
   a missing file, the symptom was an empty database in the working directory rather than an error.
   Now read-only, and absent files say so.
 
+### Verified against the live GitHub API
+
+`tests/live/` runs the GitHub resolvers against api.github.com and is skipped without a token
+(`NETI_GITHUB_TOKEN=$(gh auth token)`). Counts cross-checked independently: 96 repositories, 1,291
+files. The truncation path fires on a real repository rather than only a synthetic one. Fifteen
+offline tests passed while three defects were live:
+
+- **`/orgs/{owner}` is a 404 for a person**, so `torvalds` — twelve repositories — resolved
+  UNRESOLVED. Falls back to `/users/{owner}`.
+- **A wrong `EXACT`.** `total_private_repos` comes back `null` when the token cannot see inside the
+  account, so a real org resolved to `EXACT 96` with its private repositories invisible. Now a
+  `LOWER_BOUND` unless the count is known complete.
+- **`github.files` needs seconds.** torvalds/linux measured 5,684ms against a claimed 800ms budget;
+  registered with a ten-second timeout, and the docstring carries the measured numbers instead of
+  the claim.
+
+`neti check --demo` now exists, so the Entra tenant check can be run end to end on this machine.
+It proves the command works; it proves nothing about any real directory.
+
 ### Still not claimed
 
 `neti score` still reports 3 of 7 on incident coverage. `storage.objects` was built expecting to
 close the PocketOS/Railway entry and does not: that was a Railway block volume deleted by ID through
 Railway's API, where `ListObjectsV2` has nothing to enumerate. Its proximate cause was also an
 unscoped credential, which is upstream of any magnitude gate.
+
+**The Entra claims remain unverified against a real tenant.** Risk R2 — that
+`$filter=userType eq 'Guest'` is O(1) on the cast `transitiveMembers` collection — and metric M2,
+latency, both need a directory nobody here has. `neti check` answers both in one command and is
+now itself tested; the tenant is the only thing missing. `neti score` says so.
 
 ## 0.1.0 — first release
 

@@ -214,3 +214,64 @@ def test_r2_proves_the_resolver_and_not_only_the_url(tenant: SyntheticTenant) ->
     assert r2.status is Status.PASS  # type: ignore[union-attr]
     assert "entra.principals_with_guests emitted" in r2.detail  # type: ignore[union-attr]
     assert r2.data["breakdown"] == {"guest": 412, "internal": 40_791}  # type: ignore[union-attr,index]
+
+
+# ---------------------------------------------------------------------------- the command itself
+
+
+def test_the_check_command_runs_end_to_end_under_demo() -> None:
+    """`neti check` is the operator's one-shot tenant verification, and until now the *command* had
+    never been executed — only `run_checks` had, called directly by the tests above.
+
+    Argument parsing, credential construction, target discovery, report rendering and the exit code
+    were an untested seam in front of well-tested logic. `--demo` closes that, so that when someone
+    finally has a tenant the only unknown left is the tenant.
+    """
+    import subprocess
+    import sys
+
+    out = subprocess.run(
+        [sys.executable, "-m", "neti.cli", "check", "--demo", "--repeat", "3"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert out.returncode == 0, out.stderr
+    assert "[PASS] R1" in out.stdout
+    assert "[PASS] R2" in out.stdout
+    assert "STILL MANUAL" in out.stdout
+
+
+def test_demo_says_it_proves_nothing_about_your_tenant() -> None:
+    """The banner is load-bearing. Against a MockTransport R6 reports `worst observed 0 ms` and
+    passes — a real-looking latency result measured on nothing at all. A reader who missed that
+    this was synthetic would take away the opposite of the truth.
+    """
+    import subprocess
+    import sys
+
+    out = subprocess.run(
+        [sys.executable, "-m", "neti.cli", "check", "--demo", "--repeat", "3"],
+        capture_output=True,
+        text=True,
+    )
+
+    assert "synthetic tenant, not yours" in out.stdout
+    assert "proves nothing about your directory" in out.stdout
+
+
+def test_without_credentials_it_points_at_demo_rather_than_stopping_dead() -> None:
+    """The other half: someone who runs `neti check` with nothing exported should learn both what
+    to register *and* that they can see the shape of the answer right now."""
+    import os
+    import subprocess
+    import sys
+
+    env = {k: v for k, v in os.environ.items() if not k.startswith("NETI_")}
+    out = subprocess.run(
+        [sys.executable, "-m", "neti.cli", "check"], capture_output=True, text=True, env=env
+    )
+
+    assert out.returncode == 2
+    assert "GroupMember.Read.All" in out.stderr
+    assert "neti check --demo" in out.stderr

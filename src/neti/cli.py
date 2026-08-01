@@ -185,6 +185,10 @@ def check(
     ] = None,
     repeat: Annotated[int, typer.Option(help="Latency samples per group.")] = 20,
     timeout_ms: Annotated[int, typer.Option()] = 800,
+    demo: Annotated[
+        bool,
+        typer.Option("--demo", help="Rehearse against the synthetic tenant. No credentials."),
+    ] = False,
 ) -> None:
     """Answer the four tenant-side questions the project is blocked on, in one command.
 
@@ -194,33 +198,51 @@ def check(
     With no `--group`, it picks the smallest and largest groups it can see. The claim under test is
     that a 40,000-member group costs the same to size as a 3-member one, so two similar groups
     cannot answer it — which is why the selection is by extremes and is printed.
+
+    `--demo` runs the whole thing against the synthetic tenant. It cannot tell you anything about
+    *your* tenant — that is the entire point of the command — but it proves this machine can run
+    the check, so that when you do have credentials the only unknown left is the tenant.
     """
     import httpx
 
     from neti.eval.tenant_checks import discover_targets, format_checks, run_checks
     from neti.resolvers.graph_client import ClientCredential, GraphClient, GraphError
 
-    missing = [
-        name
-        for name in ("NETI_TENANT_ID", "NETI_CLIENT_ID", "NETI_CLIENT_SECRET")
-        if not os.environ.get(name)
-    ]
-    if missing:
-        typer.secho(f"error: not set: {', '.join(missing)}", fg=typer.colors.RED, err=True)
-        typer.echo(
-            "\nRegister an Entra app, grant Microsoft Graph > Application > GroupMember.Read.All,\n"
-            "grant admin consent, add a client secret, then export the three variables.",
-            err=True,
-        )
-        raise typer.Exit(2)
+    if demo:
+        from neti.eval.synthetic import default_tenant
 
-    credential = ClientCredential(
-        tenant_id=os.environ["NETI_TENANT_ID"],
-        client_id=os.environ["NETI_CLIENT_ID"],
-        client_secret=os.environ["NETI_CLIENT_SECRET"],
-    )
-    client = GraphClient(credential, timeout_ms=timeout_ms)
-    raw = httpx.Client(timeout=timeout_ms / 1000)
+        transport = default_tenant().transport()
+        credential = ClientCredential(tenant_id="demo", client_id="demo", client_secret="demo")
+        client = GraphClient(credential, transport=transport, timeout_ms=timeout_ms)
+        raw = httpx.Client(transport=transport, timeout=timeout_ms / 1000)
+        typer.secho(
+            "--demo: the synthetic tenant, not yours. This proves the check runs; it proves "
+            "nothing about your directory.\n",
+            fg=typer.colors.YELLOW,
+        )
+    else:
+        missing = [
+            name
+            for name in ("NETI_TENANT_ID", "NETI_CLIENT_ID", "NETI_CLIENT_SECRET")
+            if not os.environ.get(name)
+        ]
+        if missing:
+            typer.secho(f"error: not set: {', '.join(missing)}", fg=typer.colors.RED, err=True)
+            typer.echo(
+                "\nRegister an Entra app, grant Microsoft Graph > Application > "
+                "GroupMember.Read.All,\ngrant admin consent, add a client secret, then export the "
+                "three variables.\n\nTo see the shape of the answer first: neti check --demo",
+                err=True,
+            )
+            raise typer.Exit(2)
+
+        credential = ClientCredential(
+            tenant_id=os.environ["NETI_TENANT_ID"],
+            client_id=os.environ["NETI_CLIENT_ID"],
+            client_secret=os.environ["NETI_CLIENT_SECRET"],
+        )
+        client = GraphClient(credential, timeout_ms=timeout_ms)
+        raw = httpx.Client(timeout=timeout_ms / 1000)
     try:
         try:
             token = client.token_for_checks()
