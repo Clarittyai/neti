@@ -51,7 +51,16 @@ all = [
 # The agent runtimes neti adapts to. Test-only: nothing in `neti` imports them at module scope,
 # and each adapter imports its SDK inside the function that needs it, so `pip install neti` pulls
 # in none of them.
-sdks = ["anthropic>=0.120", "openai>=2.0", "openai-agents>=0.19"]
+sdks = [
+    "anthropic>=0.120",
+    "openai>=2.0",
+    "openai-agents>=0.19",
+    "langchain-core>=0.3",
+    # langgraph, not just langchain-core: the LangGraph adapter's only real regression test runs a
+    # compiled StateGraph, because `ToolNode` requires a ToolMessage back and a direct `invoke`
+    # never reveals that. Without this the one test that caught the defect silently skips.
+    "langgraph>=0.6",
+]
 dev = [
     "pytest>=8.3",
     "types-pyyaml>=6.0",

@@ -100,8 +100,26 @@ already configured keep working exactly as they were. In `.claude/settings.json`
   "hooks": [{"type": "command", "command": "neti hook"}]}]}}
 ```
 
-**A tool loop you wrote yourself** — an Anthropic or OpenAI function-calling loop, a LangChain tool,
-anything that speaks neither MCP nor a hook protocol:
+**An agent SDK.** Each of the three has one place where a request becomes an execution, and each
+adapter wraps that place — so a blocked call comes back to the model as a tool *result* with the
+number in it, never as an exception that kills the run:
+
+```python
+from neti.adapters.anthropic_tools import gate_tools     # Anthropic tool_runner
+from neti.adapters.openai_agents  import neti_guardrail  # OpenAI Agents SDK
+from neti.adapters.langchain_tools import gate_tools     # LangChain + LangGraph
+
+runner = client.beta.messages.tool_runner(tools=gate_tools(pf, TOOLS), ...)
+agent  = create_react_agent(model, gate_tools(pf, TOOLS))          # LangGraph
+```
+
+The tools keep their names, schemas and descriptions exactly as they were: an agent must not be able
+to tell a gated tool from an ungated one by looking at it, or the gate leaks into the prompt and into
+what the model believes it may attempt. One `neti.yaml` governs a tool whichever runtime it arrives
+through, because names are normalised the same way everywhere.
+
+**A tool loop you wrote yourself** — an Anthropic or OpenAI function-calling loop, anything that
+speaks neither MCP nor a hook protocol:
 
 ```python
 from neti import Preflight
