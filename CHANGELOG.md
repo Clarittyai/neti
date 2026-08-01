@@ -47,6 +47,42 @@ Each declines rather than guessing, and none can return `0` for something it cou
   a missing file, the symptom was an empty database in the working directory rather than an error.
   Now read-only, and absent files say so.
 
+### `neti propose` reports the interrupts its ceilings cannot remove
+
+The IMPACT line used to be computed by comparing bare magnitudes, which made it wrong for every
+resolver that reports a bound. `decide` escalates any resolution that cannot soundly clear a
+ceiling, so with `db.rows`, `storage.objects`, a capped `fs.paths` or `github.files`, a call
+*under* the ceiling is still an interrupt. On real traffic the old output read "nothing in the
+observed window would have been stopped" when in fact all forty calls escalate.
+
+There is now a second line reporting those separately, because no choice of ceiling changes them:
+
+```
+  IMPACT    over the observed window this would have blocked 4 call(s) and asked about 0
+  ALSO      36 call(s) under these ceilings resolved to a bound rather than a count
+            (cascades, caps, members you cannot see). These take your declared
+            on_unbounded / on_unresolved verdict whatever ceiling you pick.
+```
+
+### End-to-end coverage, and the four defects it found
+
+A new `tests/e2e/` tier tests the product rather than its parts: one invariant over all seven
+integration seams, the operator's first week as one flow, every resolver driven through record and
+report and back, the hook fuzzed for crash-safety, and `neti gate --stdio` in front of a real
+`@modelcontextprotocol/server-filesystem`. It found:
+
+- **An `mcp__server__` prefix bypass.** Tool-name normalisation lived in the adapters, so a
+  federated name matched the policy through the hook and the three SDKs but fell through as unknown
+  over MCP and through `Preflight`. `Policy.match_tool` now matches exact-first, then
+  prefix-stripped — so per-server entries still win, and a proxy's renamed tool no longer slips a
+  gate somebody wrote.
+- **A resolver that raised took the process with it.** An 80,000-character argument reached httpx
+  as a URL and raised `InvalidURL`, exiting the hook with 1 — which fails *every* subsequent tool
+  call in that Claude Code session. The engine now contains any exception from a resolver and routes
+  it through the declared `on_unresolved`.
+- **CI never ran the three SDK adapters** (below), and **`propose` mispredicted its own impact**
+  (above).
+
 ### Verified against the live GitHub API
 
 `tests/live/` runs the GitHub resolvers against api.github.com and is skipped without a token

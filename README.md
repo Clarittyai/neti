@@ -265,13 +265,27 @@ and a per-call gate cannot see 4,000 individual sends unless you declare a sessi
 ## Development
 
 ```console
-uv venv --python 3.12 && uv pip install -e '.[dev,cli,graph,mcp]'
-uv run pytest
+just install          # or: uv pip install -e '.[dev,cli,graph,mcp,console,sdks,storage,database]'
+just test-all         # NETI_REQUIRE_SDKS=1 uv run pytest -q — what CI runs
 uv run mypy
 uv run ruff check
 ```
 
-`tests/live/` runs against real providers and is skipped unless you give it credentials. It is
+Install the extras. Without them the Anthropic, OpenAI Agents, LangChain and LangGraph tests
+`importorskip` and vanish into a skip count, which is indistinguishable from a pass — that is how
+three runtimes went untested through a green build for a release. `NETI_REQUIRE_SDKS=1` turns those
+skips back into failures, and `tests/e2e/test_no_silent_skips.py` keeps the CI install line honest.
+
+The suite has four tiers:
+
+| | |
+|---|---|
+| `tests/property/` | executable invariants over the whole codebase — determinism, purity, direction soundness, the docs being true |
+| `tests/integration/` | each component against its own seam |
+| `tests/e2e/` | the product: all seven seams agreeing, the operator's first week as one flow, every resolver through record and report, and `neti gate --stdio` in front of a real MCP server |
+| `tests/live/` | real providers, opt-in |
+
+`tests/live/` is skipped unless you give it credentials. It is
 worth running: every defect it has ever found was invisible to the offline suite, because an offline
 test asserts what happens *given* a shape and only a live one tells you the shape is real.
 
