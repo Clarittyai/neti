@@ -112,6 +112,9 @@ class EntraPrincipalsResolver(_EntraCountResolver):
     """
 
     unit = Unit.PRINCIPALS
+    # One `$count`, one number. The guest split needs a second request and lives in
+    # `PrincipalsWithGuestBreakdown`, so a `breakdown_bands` rule against this name is refused.
+    breakdown_keys: ClassVar[frozenset[str]] = frozenset()
     _path_template = "/groups/{target}/transitiveMembers/$count"
 
 
@@ -122,6 +125,7 @@ class EntraAppsResolver(_EntraCountResolver):
     """
 
     unit = Unit.APPS
+    breakdown_keys: ClassVar[frozenset[str]] = frozenset()
     _path_template = "/groups/{target}/appRoleAssignments/$count"
 
     def reachable_max(self, ctx: ResolveContext) -> Resolution:
@@ -152,6 +156,7 @@ class EntraGuestsResolver(_EntraCountResolver):
     """
 
     unit = Unit.PRINCIPALS
+    breakdown_keys: ClassVar[frozenset[str]] = frozenset()
     _path_template = "/groups/{target}/transitiveMembers/microsoft.graph.user/$count"
     _params: ClassVar[dict[str, str] | None] = {"$filter": "userType eq 'Guest'"}
 
@@ -194,3 +199,34 @@ def resolve_with_guest_breakdown(
             }
         }
     )
+
+
+class PrincipalsWithGuestBreakdown:
+    """Total principals, with the external share attached as a `guest` / `internal` breakdown.
+
+    Registered separately from `entra.principals` rather than folded into it, and the reason is the
+    central latency claim. `entra.principals` is **one** O(1) `$count`; this is two, because Graph
+    has no single endpoint for both. Hiding a second round trip inside the name every gate already
+    uses would silently double the provider latency of every gated call — so the cost lives in the
+    name, and an operator who wants the breakdown opts into paying for it.
+
+    That split is not academic. `breakdown_bands` on `guest` was declared in the shipped example
+    policy while nothing emitted a breakdown, so a `guest: above 100 → block` rule sat there looking
+    configured and never fired once — on a fixture group with 412 guests. This class is the half
+    that was missing; `Engine._check_breakdown_keys` is the half that stops it recurring.
+    """
+
+    unit = Unit.PRINCIPALS
+    breakdown_keys: ClassVar[frozenset[str]] = frozenset({"guest", "internal"})
+
+    def __init__(self, principals: EntraPrincipalsResolver, guests: EntraGuestsResolver) -> None:
+        self._principals = principals
+        self._guests = guests
+
+    def resolve(self, target: str, ctx: ResolveContext) -> Resolution:
+        return resolve_with_guest_breakdown(self._principals, self._guests, target, ctx)
+
+    def reachable_max(self, ctx: ResolveContext) -> Resolution:
+        """The total is the bound. A guest count cannot exceed it, so the total is the honest
+        ceiling for both, and `neti inventory` keeps reporting one number per parameter."""
+        return self._principals.reachable_max(ctx)

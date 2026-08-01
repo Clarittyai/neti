@@ -330,3 +330,99 @@ def test_a_correct_policy_still_constructs(tenant: SyntheticTenant) -> None:
     """The guard must not reject the policy we ship as an example."""
     client = GraphClient(CRED, transport=tenant.transport())
     assert Engine(policy=load_policy(EXAMPLE), resolvers=resolvers_for_client(client))
+
+
+def test_the_guest_breakdown_actually_fires(tenant: SyntheticTenant) -> None:
+    """The bug that was live in the shipped example for the whole life of the file.
+
+    `examples/entra.yaml` banded `guest: above 100 → block` on `send_email/to` while the bound
+    resolver emitted no breakdown at all. The fixture group has 412 guests. The rule never fired
+    once, and nothing anywhere said so — the external share is a claimed differentiator that did
+    nothing.
+
+    Asserted against the shipped example on purpose: a test using its own hand-built policy would
+    have passed throughout the period the real one was broken.
+    """
+    client = GraphClient(CRED, transport=tenant.transport())
+    engine = Engine(
+        policy=load_policy(EXAMPLE).model_copy(update={"mode": Mode.ENFORCE}),
+        resolvers=resolvers_for_client(client),
+    )
+    result = engine.gate(ProposedCall(tool="send_email", args={"to": "g-eng-all"}))
+    arg = result.decision.args[0]
+
+    assert dict(arg.resolution.breakdown) == {"guest": 412, "internal": 40_791}
+    assert ("breakdown:guest", 412, 100) in [(b.source, b.observed, b.above) for b in arg.breaches]
+    assert result.decision.verdict is Verdict.BLOCK
+
+
+def test_a_breakdown_band_nothing_emits_is_refused(tenant: SyntheticTenant) -> None:
+    """The guard for the class, not the instance.
+
+    `decide` skipping an absent breakdown key is correct and has to stay — a resolver whose guest
+    lookup failed must not be read as reporting zero guests, which would turn a failed lookup into
+    a permissive verdict. That correctness is exactly what made the typo invisible, so the check
+    belongs at construction, where both the policy and the resolvers are known.
+    """
+    policy = load_policy(EXAMPLE)
+    gate = policy.tools["send_email"].gate["/to"]
+    # Point the banded gate back at the single-count resolver, which emits no breakdown.
+    broken = policy.model_copy(
+        update={
+            "tools": {
+                **policy.tools,
+                "send_email": policy.tools["send_email"].model_copy(
+                    update={
+                        "gate": {
+                            "/to": gate.model_copy(update={"resolver": "entra.principals"})
+                        }
+                    }
+                ),
+            }
+        }
+    )
+    client = GraphClient(CRED, transport=tenant.transport())
+
+    with pytest.raises(ValueError) as caught:
+        Engine(policy=broken, resolvers=resolvers_for_client(client))
+
+    message = str(caught.value)
+    assert "would never fire" in message
+    assert "'guest'" in message
+    assert "emits no breakdown at all" in message
+
+
+def test_every_resolver_declares_what_it_emits(tenant: SyntheticTenant) -> None:
+    """Without this the guard has nothing to check against and silently permits everything."""
+    client = GraphClient(CRED, transport=tenant.transport())
+    resolvers = resolvers_for_client(client)
+
+    for name, resolver in resolvers.items():
+        assert isinstance(resolver.breakdown_keys, frozenset), name
+
+    assert resolvers["entra.principals"].breakdown_keys == frozenset()
+    assert resolvers["entra.principals_with_guests"].breakdown_keys == {"guest", "internal"}
+    assert "destroy" in resolvers["terraform.destroy"].breakdown_keys
+
+
+def test_the_cheap_resolver_stays_one_request(tenant: SyntheticTenant) -> None:
+    """The latency claim the whole design rests on.
+
+    The breakdown costs a second Graph round trip, so it lives under its own name. If it were
+    folded into `entra.principals`, every gated call in every policy would quietly pay double.
+    """
+    client = GraphClient(CRED, transport=tenant.transport())
+    resolvers = resolvers_for_client(client)
+    # Warm up first: the very first call also fetches a token, and counting that would measure
+    # authentication rather than the thing under test.
+    resolvers["entra.principals"].resolve("g-team", ResolveContext())
+    before = len(tenant.headers_seen)
+
+    resolvers["entra.principals"].resolve("g-eng-all", ResolveContext())
+    one = len(tenant.headers_seen) - before
+
+    resolvers["entra.principals_with_guests"].resolve("g-eng-all", ResolveContext())
+    two = len(tenant.headers_seen) - before - one
+
+    assert one == 1, "entra.principals must stay a single O(1) count"
+    assert two == 2, "the breakdown pays for a second request, visibly"

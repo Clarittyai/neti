@@ -87,6 +87,12 @@ class TerraformPlanResolver:
     """
 
     unit: ClassVar[Unit] = Unit.RESOURCES
+    # Every action `summarise_plan` counts. `destroy` and `replace` make the magnitude; the others
+    # are here so an operator can band them separately, and naming them is what lets the Engine
+    # refuse a `breakdown_bands` key that would never have fired.
+    breakdown_keys: ClassVar[frozenset[str]] = frozenset(
+        {"destroy", "replace", "create", "update", "no-op"}
+    )
 
     def resolve(self, target: str, ctx: ResolveContext) -> Resolution:
         plan, error = _load(target)

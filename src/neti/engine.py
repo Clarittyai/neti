@@ -97,6 +97,7 @@ class Engine:
     def __post_init__(self) -> None:
         if self.strict:
             self._check_resolvers_exist()
+            self._check_breakdown_keys()
             self._check_budget_units()
         # Recomputed per decision it costs ~226us, which is most of the pure-CPU budget, and it
         # cannot change: Policy is frozen and this engine holds one.
@@ -126,6 +127,38 @@ class Engine:
                 "policy names resolvers that do not exist:\n  "
                 + "\n  ".join(problems)
                 + f"\n\nRegistered: {', '.join(known) or 'none'}"
+            )
+
+    def _check_breakdown_keys(self) -> None:
+        """A `breakdown_bands` key the bound resolver never emits is a rule that cannot fire.
+
+        The third instance of one failure — declared config that looks live and is not — and the
+        one that was live in the shipped example: `send_email/to` banded `guest: above 100 → block`
+        against `entra.principals`, which emits no breakdown at all, on a fixture group with 412
+        guests. It never fired once.
+
+        `decide` skipping an absent key is correct and must stay: a resolver whose guest lookup
+        failed must not be read as reporting zero guests, which would turn a failed lookup into a
+        permissive verdict. That correctness is precisely what makes the typo invisible, so the
+        check belongs here — at construction, where both halves are known.
+        """
+        problems: list[str] = []
+        for tool, spec in self.policy.tools.items():
+            for pointer, gate in spec.gate.items():
+                resolver = self.resolvers.get(gate.resolver)
+                if resolver is None:
+                    continue  # already reported by _check_resolvers_exist
+                emits = resolver.breakdown_keys
+                for key in sorted(gate.breakdown_bands):
+                    if key not in emits:
+                        offer = ", ".join(sorted(emits)) or "no breakdown at all"
+                        problems.append(
+                            f"{tool}{pointer}: breakdown band {key!r} would never fire — "
+                            f"{gate.resolver} emits {offer}"
+                        )
+        if problems:
+            raise ValueError(
+                "policy declares breakdown bands nothing produces:\n  " + "\n  ".join(problems)
             )
 
     def _check_budget_units(self) -> None:

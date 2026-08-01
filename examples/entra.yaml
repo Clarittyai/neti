@@ -49,7 +49,12 @@ tools:
   send_email:
     gate:
       /to:
-        resolver: entra.principals
+        # Two Graph requests, not one — the total and the guest split have no single endpoint. The
+        # cost is in the name on purpose: `entra.principals` stays a single O(1) count, and a gate
+        # that wants the external share opts into paying for it. Declaring `breakdown_bands: guest`
+        # against plain `entra.principals` is refused at startup, because that rule could never
+        # fire — which it silently did not, for the entire life of this file.
+        resolver: entra.principals_with_guests
         # The resolver counts directory principals; in this role they are recipients. Units are a
         # property of the parameter's role, not the resolver — and session_budgets aggregate by
         # unit, so this line is what makes the recipients budget below apply at all.

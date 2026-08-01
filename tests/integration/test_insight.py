@@ -201,7 +201,11 @@ def test_a_proposal_merges_into_the_existing_policy(tenant: SyntheticTenant, tmp
     policy = load_policy(candidate)
     bands = policy.gate_specs("send_email")["/to"].bands
     assert [b.verdict.name for b in bands] == ["BLOCK", "CONFIRM"], "stored most-severe first"
-    assert policy.gate_specs("send_email")["/to"].resolver == "entra.principals"
+    # The point is that the merge preserves whatever resolver was bound, not which one it is.
+    assert (
+        policy.gate_specs("send_email")["/to"].resolver
+        == load_policy(EXAMPLE).gate_specs("send_email")["/to"].resolver
+    )
 
 
 def test_a_proposal_catches_the_outliers_in_its_own_window(

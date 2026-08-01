@@ -15,6 +15,7 @@ from neti.resolvers.graph_entra import (
     EntraAppsResolver,
     EntraGuestsResolver,
     EntraPrincipalsResolver,
+    PrincipalsWithGuestBreakdown,
 )
 from neti.resolvers.terraform import TerraformPlanResolver
 
@@ -22,10 +23,16 @@ __all__ = ["build_entra_resolvers", "resolvers_for_client"]
 
 
 def resolvers_for_client(client: GraphClient) -> dict[str, Resolver]:
+    principals = EntraPrincipalsResolver(client)
+    guests = EntraGuestsResolver(client)
     return {
-        "entra.principals": EntraPrincipalsResolver(client),
+        "entra.principals": principals,
         "entra.apps": EntraAppsResolver(client),
-        "entra.guests": EntraGuestsResolver(client),
+        "entra.guests": guests,
+        # Two requests, not one — which is why it is a separate name. `entra.principals` staying a
+        # single O(1) `$count` is the latency claim the whole design rests on, and folding a second
+        # round trip into it would quietly double every gated call. The operator opts in.
+        "entra.principals_with_guests": PrincipalsWithGuestBreakdown(principals, guests),
         # Needs no credential at all — it reads a local plan artifact — so it is always available.
         "terraform.destroy": TerraformPlanResolver(),
     }

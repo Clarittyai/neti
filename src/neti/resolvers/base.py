@@ -68,6 +68,17 @@ class Resolver(Protocol):
         """
         ...
 
+    @property
+    def breakdown_keys(self) -> frozenset[str]:
+        """Which keys this resolver may put in `Resolution.breakdown`. Empty for most.
+
+        Declared so a policy naming a `breakdown_bands` key nothing emits can be refused at
+        construction instead of sitting there looking configured. `decide` skips a missing key by
+        design — a resolver that failed to produce a breakdown must not be treated as reporting
+        zero — and that correct behaviour is exactly what makes a typo invisible without this.
+        """
+        return frozenset()
+
     def resolve(self, target: str, ctx: ResolveContext) -> Resolution:
         """How big is *this* target. Never raises for provider failure — returns UNRESOLVED."""
         ...
