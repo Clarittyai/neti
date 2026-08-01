@@ -1,0 +1,6 @@
+$ neti inventory --demo -c bad.yaml
+[exit 2]
+error: bad.yaml: not valid YAML: mapping values are not allowed here
+  in "<unicode string>", line 2, column 7:
+      mode: [unclosed
+          ^

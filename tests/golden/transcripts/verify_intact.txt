@@ -1,0 +1,4 @@
+$ neti verify -r d.ndjson
+[exit 0]
+3 records, chain intact
+head: <digest>

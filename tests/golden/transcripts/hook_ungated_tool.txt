@@ -1,0 +1,2 @@
+$ neti hook --demo --mode enforce -c neti.yaml -r h.ndjson
+[exit 0]

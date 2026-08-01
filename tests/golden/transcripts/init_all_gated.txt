@@ -1,0 +1,6 @@
+$ neti init --out gen.yaml
+[exit 0]
+All 1 MCP server(s) here are already behind the gate: entra
+
+Nothing to do. To regenerate the policy, point --out at a new file and unwrap one
+server first, or edit the policy you already have.

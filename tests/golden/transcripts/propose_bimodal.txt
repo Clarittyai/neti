@@ -1,0 +1,26 @@
+$ neti propose -r d.ndjson
+[exit 0]
+Proposed ceilings, derived from YOUR observed traffic.
+
+These are a starting point for review, not a configuration. Edit the numbers, then paste
+them into your policy file. Nothing here is applied automatically and nothing computed
+here is ever read at decision time — the gate only ever compares against numbers you
+committed.
+
+send_email /to:
+  observed  n=40  p50=25  max=41,203  [recipients]
+  proposed  confirm above 50   block above 500
+  rationale 2x and 10x the observed p50 (25). p95 was 41,203 here — your large calls are more than 5% of the traffic, so they *are* the p95, and multiplying it proposes a ceiling above everything you have ever done. Anchored on the median instead; expect a higher interrupt rate. The observed maximum (41,203) is far beyond this ceiling — check that it was intended
+  IMPACT    over the observed window this would have blocked 4 call(s) and asked about 4
+            largest affected: 41,203, 41,203, 41,203 recipients
+
+# merge these bands into the gates you already have, keeping each
+# existing `resolver:` line, once you are satisfied with the numbers:
+
+tools:
+  send_email:
+    gate:
+      /to:
+        bands:
+          - { above: 50, verdict: confirm }
+          - { above: 500, verdict: block }

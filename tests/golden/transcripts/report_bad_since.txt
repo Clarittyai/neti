@@ -1,0 +1,3 @@
+$ neti report --since lastweek -r d.ndjson
+[exit 2]
+error: cannot read 'lastweek' as a window. Use a number and a unit: 90s, 30m, 12h, 7d, 2w.

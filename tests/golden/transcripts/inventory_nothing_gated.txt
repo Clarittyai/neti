@@ -1,0 +1,3 @@
+$ neti inventory --demo -c empty.yaml
+[exit 0]
+No gated parameters declared. Nothing to inventory — see SCOPE.md NC-09.

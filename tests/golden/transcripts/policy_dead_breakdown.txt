@@ -1,0 +1,4 @@
+$ neti gate --stdio --demo -c dead.yaml -- true
+[exit 2]
+error: policy declares breakdown bands nothing produces:
+  send_email/to: breakdown band 'guest' would never fire — entra.principals emits no breakdown at all

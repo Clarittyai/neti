@@ -1,0 +1,3 @@
+$ neti verify -r d.ndjson
+[exit 1]
+CHAIN BROKEN at decision <id>

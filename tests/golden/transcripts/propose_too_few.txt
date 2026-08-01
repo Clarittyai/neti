@@ -1,0 +1,11 @@
+$ neti propose -r d.ndjson
+[exit 0]
+Proposed ceilings, derived from YOUR observed traffic.
+
+These are a starting point for review, not a configuration. Edit the numbers, then paste
+them into your policy file. Nothing here is applied automatically and nothing computed
+here is ever read at decision time — the gate only ever compares against numbers you
+committed.
+
+Not enough traffic to propose anything for:
+  send_email /to — only 5 observation(s); 30 needed before a ceiling means anything. Keep observing.

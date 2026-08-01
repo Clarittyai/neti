@@ -1,0 +1,8 @@
+$ neti init --out gen.yaml
+[exit 1]
+No MCP servers found in any client config on this machine.
+
+Looked in .mcp.json, ~/.claude.json, ~/.cursor/mcp.json, .vscode/mcp.json and the
+Claude Desktop config. If your agent's tools are not MCP servers, they can still be
+gated — see `neti hook --help` for Claude Code's built-ins, or `from neti import
+Preflight` for a tool loop you wrote yourself.

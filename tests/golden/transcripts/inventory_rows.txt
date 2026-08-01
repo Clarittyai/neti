@@ -1,0 +1,10 @@
+$ neti inventory --demo -c neti.yaml
+[exit 0]
+tool                  param        resolver                      max reachable  risk
+---------------------------------------------------------------------------------------------------
+delete_group          /group       entra.principals                     52,400  capped at 50 of 52,400 reachable principals
+remove_group_members  /group       entra.principals                     52,400  capped at 200 of 52,400 reachable principals
+send_email            /to          entra.principals_with_guests         52,400  capped at 500 of 52,400 reachable principals
+remove_group_members  /group#apps  entra.apps                              214  capped at 5 of 214 reachable apps
+
+Reachable maxima are UPPER BOUNDS on tenant capability, not measurements of any call. They are reporting only and never gate a decision.

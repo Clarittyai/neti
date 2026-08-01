@@ -1,0 +1,10 @@
+$ neti report -r d.ndjson
+[exit 0]
+neti report — 40 decisions (all recorded, mode: observe)
+   allow=8  block=8  confirm=24
+
+send_email /to   n=40   p50=25   p95=41,203   p99=41,203   max=41,203  [recipients]
+    ▸ 8 call(s) exceeded a declared ceiling
+        41,203 recipients against a ceiling of 500   (<id>)
+        41,203 recipients against a ceiling of 500   (<id>)
+        41,203 recipients against a ceiling of 500   (<id>)

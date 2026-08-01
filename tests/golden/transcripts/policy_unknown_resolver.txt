@@ -1,0 +1,7 @@
+$ neti inventory --demo -c typo.yaml
+[exit 0]
+tool        param  resolver         max reachable  risk
+--------------------------------------------------------------------
+send_email  /to  entra.principal              ?  unresolved: no resolver registered named 'entra.principal'
+
+Reachable maxima are UPPER BOUNDS on tenant capability, not measurements of any call. They are reporting only and never gate a decision.

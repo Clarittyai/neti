@@ -1,0 +1,25 @@
+$ neti propose -r d.ndjson
+[exit 0]
+Proposed ceilings, derived from YOUR observed traffic.
+
+These are a starting point for review, not a configuration. Edit the numbers, then paste
+them into your policy file. Nothing here is applied automatically and nothing computed
+here is ever read at decision time — the gate only ever compares against numbers you
+committed.
+
+send_email /to:
+  observed  n=60  p95=3  max=3  [recipients]
+  proposed  confirm above 6   block above 50
+  rationale 2x and 10x the observed p95 (3). p95 rather than p99 because at n=60 the outliers sit inside the top percentile and would otherwise define normal as themselves
+  IMPACT    nothing in the observed window would have been stopped — these ceilings only bind on behaviour you have not seen yet
+
+# merge these bands into the gates you already have, keeping each
+# existing `resolver:` line, once you are satisfied with the numbers:
+
+tools:
+  send_email:
+    gate:
+      /to:
+        bands:
+          - { above: 6, verdict: confirm }
+          - { above: 50, verdict: block }

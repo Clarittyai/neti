@@ -1,0 +1,3 @@
+$ neti report -r none.ndjson
+[exit 0]
+No decisions recorded yet. Point an MCP client at the gate and run some traffic.
