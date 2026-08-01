@@ -61,9 +61,7 @@ def test_there_are_sources_to_check() -> None:
 def test_no_platform_only_import_at_module_scope(source: Path) -> None:
     tree = ast.parse(source.read_text(encoding="utf-8"), filename=str(source))
     offenders = {
-        name: PLATFORM_ONLY[name]
-        for name in _module_scope_imports(tree)
-        if name in PLATFORM_ONLY
+        name: PLATFORM_ONLY[name] for name in _module_scope_imports(tree) if name in PLATFORM_ONLY
     }
     assert not offenders, (
         f"{source.relative_to(REPO)} imports {offenders} at module scope, so `import neti` raises "

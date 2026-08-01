@@ -373,9 +373,7 @@ def test_a_breakdown_band_nothing_emits_is_refused(tenant: SyntheticTenant) -> N
                 **policy.tools,
                 "send_email": policy.tools["send_email"].model_copy(
                     update={
-                        "gate": {
-                            "/to": gate.model_copy(update={"resolver": "entra.principals"})
-                        }
+                        "gate": {"/to": gate.model_copy(update={"resolver": "entra.principals"})}
                     }
                 ),
             }
