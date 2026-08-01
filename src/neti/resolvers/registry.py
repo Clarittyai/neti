@@ -18,6 +18,7 @@ from neti.resolvers.graph_entra import (
     EntraPrincipalsResolver,
     PrincipalsWithGuestBreakdown,
 )
+from neti.resolvers.storage import ObjectStoreResolver, S3Lister
 from neti.resolvers.terraform import TerraformPlanResolver
 
 __all__ = ["build_entra_resolvers", "resolvers_for_client"]
@@ -40,6 +41,11 @@ def resolvers_for_client(client: GraphClient) -> dict[str, Resolver]:
         # and records `allow`.
         "terraform.destroy": TerraformPlanResolver(),
         "fs.paths": FilesystemResolver(),
+        # Registered unconditionally even though it needs boto3, because the import is deferred to
+        # the first call. A policy that binds it without the extra installed fails on that call as
+        # UNRESOLVED with the reason in the evidence — which routes through the declared
+        # `on_unresolved` — rather than making every other resolver unavailable at import time.
+        "storage.objects": ObjectStoreResolver(S3Lister()),
     }
 
 

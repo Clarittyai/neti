@@ -35,6 +35,10 @@ graph = ["httpx[http2]>=0.27", "msal>=1.31"]
 mcp = ["httpx[http2]>=0.27"]
 cli = ["typer>=0.12", "rich>=13.9"]
 console = ["fastapi>=0.115", "uvicorn>=0.32"]
+# Only `storage.objects` needs this, and it imports boto3 inside the call rather than at module
+# scope — so a policy that never binds that resolver never pays for it. Left out of `all`
+# deliberately: boto3 is a large dependency to hand somebody who is gating a coding agent.
+storage = ["boto3>=1.35"]
 # Everything a single machine needs, which is the entire free tier. `pipx install neti[all]`.
 all = [
     "httpx[http2]>=0.27",

@@ -126,9 +126,12 @@ INCIDENTS: tuple[Incident, ...] = (
         source="https://www.theregister.com/2026/04/27/cursoropus_agent_snuffs_out_pocketos/",
         coverage=Coverage.NEEDS_RESOLVER,
         note=(
-            "MISS. Needs a bytes/objects resolver for storage volumes, which is not built. Do "
-            "not claim this incident. Note also that the proximate cause was an unscoped "
-            "credential, which is an authorization problem upstream of a magnitude gate."
+            "MISS, and it stays a miss now that `storage.objects` ships. That resolver counts an "
+            "object-store prefix by enumerating it; a Railway volume is a block volume addressed "
+            "by ID through Railway's own API, where ListObjectsV2 has nothing to enumerate. "
+            "Closing this needs a Railway resolver mapping volume ID to size, which is not built. "
+            "Note also that the proximate cause was an unscoped credential, which is an "
+            "authorization problem upstream of a magnitude gate (NC-04)."
         ),
     ),
     Incident(

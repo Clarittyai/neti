@@ -57,12 +57,21 @@ def test_the_blind_spot_list_matches_scope_md() -> None:
 
 
 def test_the_corpus_does_not_claim_the_pocketos_incident() -> None:
-    """The nine-second deletion needs a bytes resolver that does not exist. Claiming it is the
-    overclaim that loses a security audience in one question."""
+    """The nine-second deletion stays a miss. Claiming it is the overclaim that loses a security
+    audience in one question.
+
+    This guard used to pin the literal sentence "Do not claim this incident", and shipping
+    `storage.objects` is exactly the moment that phrasing needed to change — the note now has to
+    explain why a bytes resolver *existing* still does not close this. So the assertion moved to
+    the substance: it must stay a miss, and it must name both reasons it is one. A resolver that
+    counts object-store prefixes does not size a Railway block volume, and the proximate cause was
+    an unscoped credential either way.
+    """
     pocketos = next(i for i in INCIDENTS if i.id == "pocketos-railway")
     assert pocketos.coverage is not Coverage.CAUGHT
     assert "MISS" in pocketos.note
-    assert "Do not claim this incident" in pocketos.note
+    assert "Railway resolver" in pocketos.note, "the note must name what is actually missing"
+    assert "credential" in pocketos.note, "the authorization cause is upstream and stays stated"
 
 
 def test_the_corpus_attributes_the_nine_second_deletion_correctly() -> None:
