@@ -136,7 +136,7 @@ def test_a_symlink_cycle_terminates(tmp_path: Path) -> None:
 
 
 def test_without_a_root_it_refuses_to_claim_a_reachable_maximum() -> None:
-    """"Every file this process can read" is not a bound, and inventing one would put a number in
+    """ "Every file this process can read" is not a bound, and inventing one would put a number in
     front of an operator that nobody could defend."""
     res = FilesystemResolver().reachable_max(CTX)
     assert res.state is ResolutionState.UNRESOLVED
