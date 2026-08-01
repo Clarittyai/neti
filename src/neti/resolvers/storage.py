@@ -1,12 +1,9 @@
 """How many objects, and how many bytes, is this prefix.
 
-Built for the entry `neti score` has been printing as a miss:
-
-    pocketos-railway   MISS. Needs a bytes/objects resolver for storage volumes, which is not
-                       built. Do not claim this incident.
-
-An agent with a root token deleted a storage volume. The magnitude was sizeable before the call ran,
-and nothing sized it.
+Object stores are where agents are handed bulk-delete verbs: an `aws s3 rm --recursive` tool, an
+MCP S3 server, a backup-rotation script an agent was told to tidy up. `s3://bucket/prefix` is a
+string that looks the same whether it addresses nine objects or nine million, which is the exact
+shape this product exists for.
 
 **It is not O(1), and that difference is the point.** Every other resolver here answers in one
 request because the provider offers a counting endpoint: Graph has `$count`, a Terraform plan is a
@@ -20,10 +17,12 @@ never sound to allow on — so a prefix too large to count is a prefix that cann
 expensive case and the dangerous case are the same case, which is the only reason a cap this
 aggressive is safe.
 
-**What it still does not fix.** The Railway incident's proximate cause was an unscoped credential:
-the agent had a root token it found in an unrelated file. That is an authorization failure, upstream
-of any magnitude gate, and `SCOPE.md` NC-04 says so. Sizing the call is not the same as deciding
-the caller should have been able to make it, and the scorecard entry keeps saying that.
+**It does not close the `pocketos-railway` scorecard miss**, which is what it was picked up to do.
+That was a Railway *block volume*, deleted by ID through Railway's own API — there is no prefix to
+enumerate, and closing it needs a Railway resolver mapping volume ID to size. Its proximate cause
+was also an unscoped credential, which is an authorization failure upstream of any magnitude gate
+(`SCOPE.md` NC-04). Sizing a call is not the same as deciding the caller should have been able to
+make it. The scorecard stays at three of seven and its note says both of those things.
 """
 
 from __future__ import annotations
