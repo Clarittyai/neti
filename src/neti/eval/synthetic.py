@@ -118,6 +118,26 @@ class SyntheticTenant:
             return self._count(self.total_service_principals)
 
         parts = path.strip("/").split("/")
+
+        # `GET /groups` — the listing `neti check` uses to pick its own subjects when the operator
+        # gives none. Served here so that path is exercised offline: on the one run against a real
+        # tenant, the only thing that should be unknown is Graph's behaviour, not ours.
+        # Only the *unfiltered* listing. `_resolve_target` looks a group up by mail with
+        # `GET /groups?$filter=mail eq '…'` on this same path, and answering that with every group
+        # in the tenant made a dynamic distribution group resolve to an unrelated one — turning the
+        # check that detects DDGs into one that silently passes.
+        if parts[-1] == "groups" and not request.url.params.get("$filter"):
+            top = int(request.url.params.get("$top") or 100)
+            return httpx.Response(
+                200,
+                json={
+                    "value": [
+                        {"id": g.group_id, "displayName": g.display_name}
+                        for g in list(self.groups.values())[:top]
+                    ]
+                },
+            )
+
         if len(parts) >= 3 and parts[1] == "groups":
             return self._group_route(parts, request)
 

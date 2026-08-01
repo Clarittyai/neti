@@ -34,7 +34,13 @@ from typing import Any
 
 import httpx
 
+from neti.resolvers.base import ResolveContext
 from neti.resolvers.graph_client import GRAPH, GraphClient
+from neti.resolvers.graph_entra import (
+    EntraGuestsResolver,
+    EntraPrincipalsResolver,
+    PrincipalsWithGuestBreakdown,
+)
 
 __all__ = ["CheckResult", "Status", "format_checks", "run_checks"]
 
@@ -223,15 +229,46 @@ def run_checks(
         body = response.text.strip()
         if response.status_code == 200 and body.isdigit():
             probe.guests = int(body)
-            results.append(
-                CheckResult(
-                    id="R2",
-                    title="guest breakdown is O(1)",
-                    status=Status.PASS,
-                    detail=f"{probe.guests:,} guests of {probe.members:,} in one request",
-                    data={"guests": probe.guests},
-                )
+
+            # The raw request working is necessary and not sufficient.
+            # `entra.principals_with_guests` is what the shipped policy binds, and it has its own
+            # path: two resolutions, a min() against the total, and a copy that attaches the
+            # breakdown. Checking only the URL leaves our own code unverified on the one run we get.
+            composite = PrincipalsWithGuestBreakdown(
+                EntraPrincipalsResolver(client), EntraGuestsResolver(client)
             )
+            resolved = composite.resolve(str(probe.resolved_id), ResolveContext())
+            emitted = dict(resolved.breakdown)
+
+            if "guest" in emitted:
+                results.append(
+                    CheckResult(
+                        id="R2",
+                        title="guest breakdown is O(1)",
+                        status=Status.PASS,
+                        detail=(
+                            f"{probe.guests:,} guests of {probe.members:,} in one request; "
+                            f"entra.principals_with_guests emitted {emitted}"
+                        ),
+                        data={"guests": probe.guests, "breakdown": emitted},
+                    )
+                )
+            else:
+                results.append(
+                    CheckResult(
+                        id="R2",
+                        title="guest breakdown is O(1)",
+                        status=Status.FAIL,
+                        detail=(
+                            "the raw filter works but entra.principals_with_guests emitted no "
+                            f"breakdown: {resolved.evidence.get('guest_breakdown', 'no reason')}"
+                        ),
+                        changes=(
+                            "a bug in this package rather than in Graph — the provider answered. "
+                            "Fix the resolver before drawing any conclusion about the tenant."
+                        ),
+                    )
+                )
         else:
             results.append(
                 CheckResult(
@@ -240,8 +277,12 @@ def run_checks(
                     status=Status.FAIL,
                     detail=f"{response.status_code}: {body[:200]}",
                     changes=(
-                        "breakdown_bands comes out of the POC. The external-share story degrades "
-                        "to total-count-only, and examples/entra.yaml needs its guest band removed."
+                        "the external-share story degrades to total-count-only. Remediation is two "
+                        "edits, not one: in examples/entra.yaml point send_email/to back at "
+                        "`entra.principals` AND delete its `breakdown_bands`. Removing only the "
+                        "band leaves the two-request resolver paying for a breakdown nobody reads; "
+                        "removing only the resolver is refused at startup, because a band no "
+                        "resolver emits can never fire."
                     ),
                 )
             )
@@ -374,3 +415,51 @@ def format_checks(results: list[CheckResult]) -> str:
         "number and an owner, the configuration surface does not exist."
     )
     return "\n".join(out)
+
+
+def discover_targets(
+    raw: httpx.Client, token: str, *, sample: int = 40, want: int = 2
+) -> tuple[list[str], str]:
+    """Find groups spanning a range of sizes, so `neti check` needs no arguments.
+
+    R6 asks whether resolution latency is flat in magnitude, which is unanswerable without groups of
+    *different* sizes — so the command required an operator to go and find object ids in a portal
+    before they could run the one diagnostic that unblocks the project. That is a real barrier in
+    front of the single most important pending task, and it is removable: Graph will list the groups
+    and the counts are the thing we already know how to fetch.
+
+    Returns `(ids, how)`. `how` is displayed, because a check that silently chose its own subjects
+    would make a PASS impossible to interpret — the reader has to know which groups were measured.
+    """
+    listing = raw.get(
+        f"{GRAPH}/groups",
+        params={"$select": "id,displayName", "$top": str(sample)},
+        headers={"Authorization": f"Bearer {token}", "ConsistencyLevel": "eventual"},
+    )
+    if listing.status_code != 200:
+        return [], f"could not list groups ({listing.status_code})"
+
+    candidates = [g for g in (listing.json().get("value") or []) if g.get("id")]
+    if not candidates:
+        return [], "the tenant has no groups this credential can see"
+
+    sized: list[tuple[int, str]] = []
+    for group in candidates:
+        counted = raw.get(
+            f"{GRAPH}/groups/{group['id']}/transitiveMembers/$count",
+            headers={"Authorization": f"Bearer {token}", "ConsistencyLevel": "eventual"},
+        )
+        body = counted.text.strip()
+        if counted.status_code == 200 and body.isdigit():
+            sized.append((int(body), str(group["id"])))
+
+    if not sized:
+        return [], "no group could be counted — check the GroupMember.Read.All grant"
+
+    sized.sort()
+    # The extremes, not a random pair. The claim under test is that magnitude does not affect
+    # latency, and two similarly-sized groups cannot answer it however many samples are taken.
+    picked = [sized[0]] if len(sized) == 1 else [sized[0], sized[-1]]
+    picked = picked[:want]
+    how = "auto-selected " + ", ".join(f"{n:,} members" for n, _ in picked)
+    return [gid for _, gid in picked], how

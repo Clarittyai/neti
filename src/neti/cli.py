@@ -175,13 +175,13 @@ def measure(
 @app.command()
 def check(
     group: Annotated[
-        list[str],
+        list[str] | None,
         typer.Option(
             "--group",
             "-g",
-            help="Group object id or mail address. Pass at least two of very different sizes.",
+            help="Group object id or mail address. Omit and two are chosen for you.",
         ),
-    ],
+    ] = None,
     repeat: Annotated[int, typer.Option(help="Latency samples per group.")] = 20,
     timeout_ms: Annotated[int, typer.Option()] = 800,
 ) -> None:
@@ -190,12 +190,13 @@ def check(
     Needs NETI_TENANT_ID, NETI_CLIENT_ID and NETI_CLIENT_SECRET, and an Entra app with
     GroupMember.Read.All (application permission, admin-consented). Read-only throughout.
 
-    Pass at least one small and one large group: the claim under test is that a 40,000-member
-    group costs the same to size as a 3-member one.
+    With no `--group`, it picks the smallest and largest groups it can see. The claim under test is
+    that a 40,000-member group costs the same to size as a 3-member one, so two similar groups
+    cannot answer it — which is why the selection is by extremes and is printed.
     """
     import httpx
 
-    from neti.eval.tenant_checks import format_checks, run_checks
+    from neti.eval.tenant_checks import discover_targets, format_checks, run_checks
     from neti.resolvers.graph_client import ClientCredential, GraphClient, GraphError
 
     missing = [
@@ -225,7 +226,15 @@ def check(
         except GraphError as exc:
             typer.secho(f"error: could not authenticate: {exc}", fg=typer.colors.RED, err=True)
             raise typer.Exit(2) from exc
-        results = run_checks(client, raw, token, list(group), repeat=repeat)
+        targets = list(group or [])
+        if not targets:
+            targets, how = discover_targets(raw, token)
+            if not targets:
+                typer.secho(f"error: {how}", fg=typer.colors.RED, err=True)
+                typer.echo("Pass --group with two groups of very different sizes.", err=True)
+                raise typer.Exit(2)
+            typer.echo(f"No --group given; {how}.\n")
+        results = run_checks(client, raw, token, targets, repeat=repeat)
     finally:
         raw.close()
         client.close()
