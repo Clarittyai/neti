@@ -29,7 +29,7 @@ from typing import TYPE_CHECKING, Any
 from neti.preflight import Preflight
 
 if TYPE_CHECKING:  # pragma: no cover - import only for types
-    from agents import ToolGuardrailFunctionOutput, ToolInputGuardrailData
+    from agents import ToolInputGuardrailData
 
 __all__ = ["neti_guardrail", "verdict_for"]
 
@@ -91,7 +91,7 @@ def neti_guardrail(preflight: Preflight) -> Any:
     from agents import tool_input_guardrail
 
     @tool_input_guardrail
-    def gate(data: ToolInputGuardrailData) -> ToolGuardrailFunctionOutput:
+    def gate(data: ToolInputGuardrailData) -> Any:
         return verdict_for(preflight, data)
 
     return gate

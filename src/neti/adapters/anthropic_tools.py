@@ -56,7 +56,7 @@ def gate_tool(preflight: Preflight, tool: Any) -> Any:
         # what makes it retry with a narrower target instead of giving up or repeating itself.
         return verdict.message
 
-    tool.call = gated  # type: ignore[method-assign]
+    tool.call = gated
     return tool
 
 
