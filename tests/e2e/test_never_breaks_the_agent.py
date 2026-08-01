@@ -93,9 +93,12 @@ events = st.one_of(
 )
 
 
+# 15 rather than a few hundred: every example is a subprocess, and interpreter startup dominates.
+# The generated cases are a net for shapes nobody thought of; the shapes anybody *has* thought of
+# are enumerated in `test_specific_hostile_inputs`, which is where a regression should be pinned.
 @given(event=events)
 @settings(
-    max_examples=40, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
+    max_examples=15, deadline=None, suppress_health_check=[HealthCheck.function_scoped_fixture]
 )
 def test_no_input_can_crash_the_hook(event: str, config: Path, tmp_path: Path) -> None:
     """Anything at all on stdin, and the session keeps working."""

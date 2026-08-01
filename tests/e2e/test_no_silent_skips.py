@@ -18,8 +18,7 @@ from __future__ import annotations
 
 import importlib
 import os
-import subprocess
-import sys
+import shutil
 from pathlib import Path
 
 import pytest
@@ -57,20 +56,47 @@ def test_every_optional_dependency_is_actually_installed(module: str) -> None:
 
 
 @requires_full_install
-def test_the_suite_reports_no_unexpected_skips() -> None:
-    """The invariant the per-module checks above cannot express.
+def test_node_is_available_for_the_real_mcp_server_test() -> None:
+    """`tests/e2e/test_real_mcp_server.py` skips without `npx`, which is the same failure shape.
 
-    A new `importorskip` on a dependency nobody added to `REQUIRED` would slip straight through
-    them. This runs the suite's own collection and asserts that nothing outside `tests/live/` —
-    which is opt-in by design, because it needs real credentials — is skipped.
+    stdio is the transport essentially every local MCP server uses, and that file is the only place
+    the gate is driven against a real one. Silently skipping it would leave the most common
+    deployment untested while the summary stayed green.
     """
-    out = subprocess.run(
-        [sys.executable, "-m", "pytest", "-q", "--co", "-m", "", str(REPO / "tests")],
-        capture_output=True,
-        text=True,
-        cwd=REPO,
+    assert shutil.which("npx"), (
+        "npx is missing, so the real MCP server test is skipping and the stdio transport is only "
+        "being exercised against fakes. CI installs Node for this."
     )
-    assert out.returncode == 0, out.stdout[-3000:] + out.stderr[-2000:]
+
+
+@requires_full_install
+def test_every_importorskip_in_the_suite_names_a_dependency_that_is_installed() -> None:
+    """The invariant the fixed list above cannot express: a *new* skip guard nobody thought to add.
+
+    Read out of the source rather than by running pytest and parsing its skip report. Spawning the
+    suite cost 53 seconds and could only say "something skipped"; this takes milliseconds and names
+    the package. It also cannot recurse into itself, which the subprocess version could.
+
+    `tests/live/` is exempt because it is opt-in by design — it needs real provider credentials.
+    """
+    import re
+
+    pattern = re.compile(r"""importorskip\(\s*["']([A-Za-z_][A-Za-z0-9_.]*)["']""")
+    missing: list[str] = []
+    for path in sorted((REPO / "tests").rglob("test_*.py")):
+        if "live" in path.parts:
+            continue
+        for module in pattern.findall(path.read_text()):
+            try:
+                importlib.import_module(module)
+            except ImportError:
+                missing.append(f"{path.relative_to(REPO)} skips without `{module}`")
+
+    assert not missing, (
+        "whole test modules will skip, which is invisible in a -q summary:\n  "
+        + "\n  ".join(missing)
+        + "\nAdd the package to the CI install line and to `REQUIRED` above."
+    )
 
 
 def test_the_ci_workflow_installs_what_the_tests_import() -> None:

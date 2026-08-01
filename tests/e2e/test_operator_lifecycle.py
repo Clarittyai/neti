@@ -35,24 +35,66 @@ def run(*args: str, cwd: Path, stdin: str = "") -> subprocess.CompletedProcess[s
     return out
 
 
-def gate_one(workdir: Path, policy: Path, records: Path, tool: str, args: dict[str, object]) -> str:
-    """One call through the hook — the seam that needs no server — returning the verdict."""
-    event = json.dumps({"hook_event_name": "PreToolUse", "tool_name": tool, "tool_input": args})
+ECHO_SERVER = (
+    "import sys, json\n"
+    "for line in sys.stdin:\n"
+    "    msg = json.loads(line)\n"
+    "    if msg.get('id') is None:\n"
+    "        continue\n"
+    "    body = {'content': [{'type': 'text', 'text': 'ran'}]}\n"
+    "    print(json.dumps({'jsonrpc': '2.0', 'id': msg['id'], 'result': body}), flush=True)\n"
+)
+
+
+def gate_corpus(
+    workdir: Path, policy: Path, records: Path, corpus: list[tuple[str, dict[str, object]]]
+) -> Counter[str]:
+    """Run the whole corpus through `neti gate --stdio` in one process, returning verdict counts.
+
+    One process rather than one per call, and `gate` rather than `hook`, purely for wall clock: the
+    hook is invoked per call by design, so forty calls meant forty interpreter startups and about a
+    minute. `gate --stdio` is a long-lived process that sees a stream, which is also how a real MCP
+    server is gated — so this is the more representative seam as well as the faster one.
+    """
+    lines = [
+        json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": i,
+                "method": "tools/call",
+                "params": {"name": tool, "arguments": args},
+            }
+        )
+        for i, (tool, args) in enumerate(corpus, start=1)
+    ]
     out = run(
-        "hook",
+        "gate",
+        "--stdio",
         "--config",
         str(policy),
         "--records",
         str(records),
         "--demo",
+        "--",
+        sys.executable,
+        "-c",
+        ECHO_SERVER,
         cwd=workdir,
-        stdin=event,
+        stdin="\n".join(lines) + "\n",
     )
     assert out.returncode == 0, out.stderr
-    if not out.stdout.strip():
-        return "allow"  # a pass says nothing at all
-    decision = json.loads(out.stdout)["hookSpecificOutput"]["permissionDecision"]
-    return {"deny": "block", "ask": "confirm"}[decision]
+
+    counts: Counter[str] = Counter()
+    for line in out.stdout.splitlines():
+        if not line.strip():
+            continue
+        result = json.loads(line).get("result") or {}
+        if not result.get("isError"):
+            counts["allow"] += 1
+            continue
+        payload = (result.get("_meta") or {}).get("neti") or {}
+        counts[payload.get("verdict", "block")] += 1
+    return counts
 
 
 # The corpus. Bimodal on purpose: ordinary sends plus a handful of enormous ones, which is the shape
@@ -83,7 +125,17 @@ def test_the_first_week_end_to_end(workdir: Path) -> None:
     # shipped example: it is what the README tells an operator to start from and the only policy
     # with gates the synthetic tenant can resolve.
     source = Path(__file__).resolve().parents[2] / "examples" / "entra.yaml"
-    policy.write_text(source.read_text().replace("mode: observe", "mode: observe", 1))
+    started = yaml.safe_load(source.read_text())
+
+    # The session budget comes out, and the reason is the point of step 7 rather than a convenience.
+    # `propose` reasons about *per-call* ceilings: it reads a distribution of individual magnitudes
+    # and suggests bands for one call at a time. A cumulative session budget is a second, separate
+    # source of interrupts that it does not model and should not — declaring one is the operator's
+    # answer to NC-01, not something derived from traffic. Leaving it in would make step 7 compare
+    # a per-call prediction against a per-call-plus-per-session reality and fail for a reason that
+    # is not a defect. That the budget does fire is asserted on its own, below.
+    started.pop("session_budgets", None)
+    policy.write_text(yaml.safe_dump(started, sort_keys=False))
 
     # ---------------------------------------------------------------- 2. inventory
     inventory = run("inventory", "--config", str(policy), "--demo", cwd=workdir)
@@ -94,8 +146,8 @@ def test_the_first_week_end_to_end(workdir: Path) -> None:
     )
 
     # ---------------------------------------------------------------- 3. observe
-    observed = Counter(gate_one(workdir, policy, records, t, a) for t, a in CORPUS)
-    assert observed == {"allow": len(CORPUS)}, (
+    observed = gate_corpus(workdir, policy, records, CORPUS)
+    assert observed == Counter({"allow": len(CORPUS)}), (
         f"observe mode must never stop anything, got {dict(observed)}"
     )
     assert records.exists() and len(records.read_text().splitlines()) == len(CORPUS)
@@ -126,7 +178,7 @@ def test_the_first_week_end_to_end(workdir: Path) -> None:
 
     # ---------------------------------------------------------------- 7. the prediction
     enforced_records = workdir / "enforced.ndjson"
-    actual = Counter(gate_one(workdir, policy, enforced_records, t, a) for t, a in CORPUS)
+    actual = gate_corpus(workdir, policy, enforced_records, CORPUS)
 
     assert actual["block"] == predicted["block"], (
         f"propose predicted {predicted['block']} block(s), the gate produced {actual['block']}"
@@ -155,8 +207,7 @@ def test_the_proposed_ceilings_actually_bind(workdir: Path) -> None:
     source = Path(__file__).resolve().parents[2] / "examples" / "entra.yaml"
     policy.write_text(source.read_text())
 
-    for tool, args in CORPUS:
-        gate_one(workdir, policy, records, tool, args)
+    gate_corpus(workdir, policy, records, CORPUS)
 
     proposed = run("propose", "--records", str(records), cwd=workdir)
     predicted = _predicted_impact(proposed.stdout)
@@ -206,3 +257,37 @@ def _merge(policy: dict, fragment: dict) -> dict:
             assert "resolver" in existing, "the gate being merged into must already name a resolver"
             existing["bands"] = gate["bands"]
     return policy
+
+
+def test_a_session_budget_bites_across_a_long_lived_session(workdir: Path) -> None:
+    """The other half of what step 7 deliberately excludes, and the mitigation for `SCOPE.md` NC-01.
+
+    A per-call ceiling is structurally blind to four thousand individually-small sends. The declared
+    session budget is the answer, and it only means anything over a *session* — so it needs the
+    long-lived `gate --stdio` process to show up at all, which is exactly why forty separate hook
+    invocations never exercised it.
+
+    The same corpus that produces four interrupts under per-call ceilings alone produces many more
+    once the cumulative total is declared. That difference is the feature.
+    """
+    policy = workdir / "neti.yaml"
+    records = workdir / "d.ndjson"
+    source = Path(__file__).resolve().parents[2] / "examples" / "entra.yaml"
+    declared = yaml.safe_load(source.read_text())
+    assert declared.get("session_budgets"), "the shipped example must still declare one"
+    declared["mode"] = "enforce"
+    policy.write_text(yaml.safe_dump(declared, sort_keys=False))
+
+    counts = gate_corpus(workdir, policy, records, CORPUS)
+
+    assert counts["allow"] < len(CORPUS), "a cumulative budget that never fires is dead config"
+    stopped = sum(v for k, v in counts.items() if k != "allow")
+    assert stopped > 4, (
+        f"only {stopped} call(s) stopped — the per-call ceilings alone account for that, so the "
+        "session budget is not contributing"
+    )
+
+    # And the reason has to say which one it was: "narrow this call" and "start a new session" are
+    # different remedies, and a denial that conflates them tells the agent to do the wrong thing.
+    report = run("report", "--records", str(records), cwd=workdir)
+    assert report.returncode == 0, report.stderr
