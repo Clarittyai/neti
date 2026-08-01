@@ -9,16 +9,27 @@ different ceilings are worth declaring:
 - **`github.files`** — `acme/api` resolves to the number of files on its default branch. This is
   what sizes a bulk rewrite, a branch delete, or an agent told to "clean up the repo".
 
-**Both are one request.** `GET /orgs/{org}` reports `public_repos` and `total_private_repos`
-directly, and `GET /repos/{o}/{r}/git/trees/{sha}?recursive=1` returns the whole tree in a single
-response with an explicit `truncated` flag. Neither needs pagination, which is what keeps them
-inside the same latency budget as the Graph `$count` resolvers.
+**Both are one request, and only one of them is cheap.** Measured against the live API:
 
-**`truncated` is the whole reason the tree endpoint is usable.** GitHub caps that response at
-100,000 entries and *tells you* it did, so a repository too large to enumerate reports a
-`LOWER_BOUND` rather than a wrong number. That is the same shape as the storage and filesystem
-caps: sound to block on, never sound to allow on, so the repositories this cannot size are exactly
-the ones it will not let through quietly.
+    github.repos  anthropics                        96 repos    exact          509ms
+    github.files  anthropics/anthropic-sdk-python   1,291 files exact          908ms
+    github.files  torvalds/linux                    67,653      lower_bound  5,684ms
+
+`GET /orgs/{org}` is `$count`-class: a small body, inside the 800ms budget. The tree endpoint is
+not. It is a single request that returns *the entire tree*, so a large repository means megabytes of
+JSON and seconds of wall clock — one round trip is not the same claim as one cheap round trip, and
+an earlier draft of this docstring asserted both were "inside the same latency budget as the Graph
+`$count` resolvers" until the numbers above were taken. `github.files` is registered with a ten-
+second timeout for that reason; treat it as bounded work like `fs.paths`, not as a counter.
+
+**`truncated` is the whole reason the tree endpoint is usable.** GitHub caps that response and
+*tells you* it did — the Linux row above is a real truncation, not a synthetic one — so a repository
+too large to enumerate reports a `LOWER_BOUND` rather than a wrong number. Same shape as the storage
+and filesystem caps: sound to block on, never sound to allow on.
+
+**An owner may be a person.** `GET /orgs/{owner}` 404s for a personal account, so `torvalds` — a
+perfectly ordinary target holding twelve repositories — resolved UNRESOLVED until the live check
+caught it. It falls back to `GET /users/{owner}`, which answers for both.
 """
 
 from __future__ import annotations
@@ -119,22 +130,53 @@ class GitHubReposResolver:
             # Named explicitly, so it is exactly one and no request is needed. Deliberately not
             # verified to exist: a gate's job is to size the call, and a repository that is not
             # there fails on its own without costing a round trip on every single tool call.
-            return self._resolved(1, {"private": 0}, {"owner": owner, "repo": repo})
-
-        try:
-            body = self.api.get(f"/orgs/{owner}")
-        except Exception as exc:
-            # An org we cannot read is not an org with no repositories in it.
-            return Resolution.unresolved(
-                self.unit,
-                reason="lookup_failed",
-                evidence={"error": str(exc)[:200], "owner": owner},
+            return self._resolved(
+                1, {"private": 0}, Direction.EXACT, {"owner": owner, "repo": repo}
             )
 
+        # Orgs first, because only that endpoint reports `total_private_repos` — a count that
+        # omitted private repositories would be an under-count, which is the dangerous direction.
+        # Then users, because an owner is very often a person and `/orgs/{person}` is a 404.
+        basis = "orgs endpoint"
+        try:
+            body = self.api.get(f"/orgs/{owner}")
+        except Exception as org_error:
+            try:
+                body = self.api.get(f"/users/{owner}")
+                basis = "users endpoint"
+            except Exception as user_error:
+                # Neither: an owner we cannot read is not an owner with no repositories.
+                return Resolution.unresolved(
+                    self.unit,
+                    reason="lookup_failed",
+                    evidence={
+                        "error": str(user_error)[:200],
+                        "org_error": str(org_error)[:120],
+                        "owner": owner,
+                    },
+                )
+
         public = int(body.get("public_repos") or 0)
-        private = int(body.get("total_private_repos") or 0)
+
+        # `total_private_repos` is only populated when the token can see inside the account. It came
+        # back `null` for a real org on the live check, and the resolver reported EXACT 96 for an
+        # organisation that certainly has private repositories — a wrong EXACT, which is the one
+        # kind of wrong this product must not produce. Present means we saw everything; absent means
+        # private repositories exist and are invisible, so the count is a floor.
+        declared_private = body.get("total_private_repos")
+        private = int(declared_private or 0)
+        complete = declared_private is not None
+
         return self._resolved(
-            public + private, {"private": private}, {"owner": owner, "basis": "orgs endpoint"}
+            public + private,
+            {"private": private},
+            Direction.EXACT if complete else Direction.LOWER_BOUND,
+            {
+                "owner": owner,
+                "basis": basis,
+                "type": body.get("type") or "Organization",
+                "private_visible": complete,
+            },
         )
 
     def reachable_max(self, ctx: ResolveContext) -> Resolution:
@@ -151,12 +193,16 @@ class GitHubReposResolver:
         )
 
     def _resolved(
-        self, count: int, breakdown: dict[str, int], evidence: dict[str, Any]
+        self,
+        count: int,
+        breakdown: dict[str, int],
+        direction: Direction,
+        evidence: dict[str, Any],
     ) -> Resolution:
         return Resolution.resolved(
             self.unit,
             count,
-            direction=Direction.EXACT,
+            direction=direction,
             resolved_at=datetime.now(UTC),
             consistency="eventual",
             breakdown=breakdown,

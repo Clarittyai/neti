@@ -54,7 +54,12 @@ def resolvers_for_client(client: GraphClient) -> dict[str, Resolver]:
         "db.rows": RowsResolver(EnvCountRunner()),
         # And again for GitHub: the token is read per call from NETI_GITHUB_TOKEN.
         "github.repos": GitHubReposResolver(HttpGitHubApi()),
-        "github.files": GitHubFilesResolver(HttpGitHubApi()),
+        # Ten seconds, not the default 800ms, because the two are not the same class of request.
+        # `/orgs/{org}` is a small body; the recursive tree endpoint returns the *whole* tree, and
+        # torvalds/linux measured 5.7s against the live API. At 800ms every large repository would
+        # time out into UNRESOLVED — safe, but it would mean the resolver only worked on the repos
+        # that did not need gating.
+        "github.files": GitHubFilesResolver(HttpGitHubApi(timeout_ms=10_000)),
     }
 
 

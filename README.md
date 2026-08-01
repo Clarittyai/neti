@@ -270,3 +270,16 @@ uv run pytest
 uv run mypy
 uv run ruff check
 ```
+
+`tests/live/` runs against real providers and is skipped unless you give it credentials. It is
+worth running: every defect it has ever found was invisible to the offline suite, because an offline
+test asserts what happens *given* a shape and only a live one tells you the shape is real.
+
+```console
+NETI_GITHUB_TOKEN=$(gh auth token) uv run pytest tests/live -q     # read-only
+NETI_TENANT_ID=… NETI_CLIENT_ID=… NETI_CLIENT_SECRET=… uv run neti check
+```
+
+`neti check` is the Entra half: it answers the tenant-side questions the scorecard still lists as
+unverified. It needs an app registration with `GroupMember.Read.All` (application permission,
+admin-consented) and is read-only throughout.
