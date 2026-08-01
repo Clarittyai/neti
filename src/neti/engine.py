@@ -238,7 +238,27 @@ class Engine:
                 )
                 continue
             emit(RESOLVE_STARTED, {"pointer": pointer, "target": target, "unit": unit.value})
-            resolution = _relabel(resolver.resolve(target, self.ctx), unit)
+            try:
+                resolution = _relabel(resolver.resolve(target, self.ctx), unit)
+            except Exception as exc:  # a resolver must not be able to end the process
+                # `RESOLVER_CONTRACT.md` says a resolver reports failure rather than raising, and
+                # every shipped one obeys. The gate still must not *trust* that, because of where it
+                # runs: `neti hook` is invoked on every tool call in a Claude Code session, so an
+                # exception escaping here is not one failed call, it is every subsequent call in the
+                # session failing until somebody works out that a hook is the cause.
+                #
+                # Found by fuzzing the hook: an 80,000-character argument reached httpx as a URL and
+                # raised `InvalidURL: URL too long`, which propagated all the way out and exited 1.
+                # An agent passing a long list or a large statement is entirely ordinary.
+                #
+                # Becoming UNRESOLVED rather than a verdict of our own choosing is the point — the
+                # operator's declared `on_unresolved` decides, exactly as it does for a provider
+                # that timed out or a target that does not exist.
+                resolution = Resolution.unresolved(
+                    unit,
+                    reason="resolver_raised",
+                    evidence={"error": f"{type(exc).__name__}: {exc}"[:200]},
+                )
             resolutions[pointer] = resolution
             emit(
                 RESOLVED,
