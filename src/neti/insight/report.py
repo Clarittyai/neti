@@ -16,8 +16,27 @@ from collections.abc import Iterable
 from dataclasses import dataclass, field
 
 from neti.core.record import DecisionRecord
+from neti.core.units import Direction, may_allow
 
-__all__ = ["Distribution", "ReportSummary", "build_report", "format_report"]
+__all__ = ["Distribution", "Observation", "ReportSummary", "build_report", "format_report"]
+
+
+@dataclass(frozen=True)
+class Observation:
+    """One resolved magnitude, with the direction it was measured in.
+
+    The direction has to travel with the number. A magnitude on its own cannot answer "would this
+    call have passed a ceiling of 500?", because a `LOWER_BOUND` of 3 does not clear *any* ceiling —
+    `decide.py:94` escalates it to `on_unbounded` instead. `propose` used to compare bare integers
+    and therefore under-reported its own interrupt rate for every resolver that reports a bound.
+    """
+
+    magnitude: int
+    direction: str
+
+    @property
+    def can_clear_a_ceiling(self) -> bool:
+        return may_allow(Direction(self.direction))
 
 
 @dataclass
@@ -27,14 +46,25 @@ class Distribution:
     tool: str
     pointer: str
     unit: str
-    magnitudes: list[int] = field(default_factory=list)
+    observations: list[Observation] = field(default_factory=list)
     unresolved: int = 0
     over_ceiling: list[tuple[str, int, int]] = field(default_factory=list)
     """`(decision_id, observed, ceiling)` for every call that breached — the tail that sells."""
 
     @property
+    def magnitudes(self) -> list[int]:
+        """The numbers alone, for percentiles and for the console. Derived rather than stored so
+        that a magnitude and its direction cannot drift apart."""
+        return [o.magnitude for o in self.observations]
+
+    @property
+    def unbounded(self) -> int:
+        """Observations that cannot clear any ceiling, whatever ceiling is chosen."""
+        return sum(1 for o in self.observations if not o.can_clear_a_ceiling)
+
+    @property
     def n(self) -> int:
-        return len(self.magnitudes)
+        return len(self.observations)
 
     def quantile(self, q: float) -> int:
         """Nearest-rank. Reported as an integer because the underlying quantity is a count.
@@ -103,7 +133,15 @@ def build_report(records: Iterable[DecisionRecord]) -> ReportSummary:
             if magnitude is None:
                 dist.unresolved += 1
                 continue
-            dist.magnitudes.append(int(magnitude))
+            dist.observations.append(
+                Observation(
+                    magnitude=int(magnitude),
+                    # Recorded on every cause since the first release; see `core/decide.py`. Absent
+                    # only in hand-written fixtures, where EXACT is the reading that keeps old
+                    # records meaning what they meant.
+                    direction=str(cause.get("direction") or Direction.EXACT.value),
+                )
+            )
 
             # A breach is recorded whether or not it decided the call, and whether or not the mode
             # was enforcing. In observe mode that is the entire point: these are the calls that ran.

@@ -58,6 +58,16 @@ class Proposal:
 
     would_confirm: int = 0
     would_block: int = 0
+
+    would_escalate: int = 0
+    """Calls under every proposed band that still cannot be allowed, because their resolution is a
+    bound rather than a count. These take the gate's declared `on_unbounded` verdict no matter what
+    numbers the operator picks — so they are interrupts the ceilings cannot tune away, and hiding
+    them made the proposal look cheaper than it is."""
+
+    unresolved: int = 0
+    """Calls that could not be sized at all. They take `on_unresolved` and are likewise unaffected
+    by the numbers below."""
     examples: list[int] = field(default_factory=list)
     """The largest observed calls this proposal would have stopped. The operator reviews these,
     not the arithmetic."""
@@ -153,8 +163,21 @@ def _propose_one(dist: Distribution) -> Proposal:
     # proposal that would have caught none of them.
     anchor, normal, confirm, block = _anchor(dist)
 
-    would_confirm = sum(1 for m in dist.magnitudes if confirm < m <= block)
+    # The three branches of `core/decide.py`, in its order, so this cannot drift from it:
+    #   1. over a band          -> that band's verdict
+    #   2. under every band but the direction cannot soundly allow -> `on_unbounded`
+    #   3. under every band     -> allow
+    #
+    # Only branch 1 used to be counted, which made the IMPACT line quietly false for every resolver
+    # that reports a bound rather than a count. `db.rows` measuring 3 rows does not clear a ceiling
+    # of 100: cascades are invisible to it, so the truth is *at least* 3 and the call escalates.
+    # Four of the nine shipped resolvers are in that position, and an operator reading "would have
+    # asked about 4" was being told the interrupt rate was smaller than it is.
     would_block = sum(1 for m in dist.magnitudes if m > block)
+    would_confirm = sum(1 for m in dist.magnitudes if confirm < m <= block)
+    would_escalate = sum(
+        1 for o in dist.observations if o.magnitude <= confirm and not o.can_clear_a_ceiling
+    )
     examples = sorted((m for m in dist.magnitudes if m > confirm), reverse=True)[:3]
 
     rationale = f"{CONFIRM_MULTIPLE}x and {BLOCK_MULTIPLE}x the observed {anchor} ({normal:,})"
@@ -188,6 +211,8 @@ def _propose_one(dist: Distribution) -> Proposal:
         rationale=rationale,
         would_confirm=would_confirm,
         would_block=would_block,
+        would_escalate=would_escalate,
+        unresolved=dist.unresolved,
         examples=examples,
     )
 
@@ -229,6 +254,24 @@ def format_proposals(proposals: list[Proposal]) -> str:
             out.append(
                 "  IMPACT    nothing in the observed window would have been stopped — "
                 "these ceilings only bind on behaviour you have not seen yet"
+            )
+
+        # Reported *after* the ceilings and separately from them, because no choice of ceiling
+        # changes it. An operator who tunes the numbers down to reduce interrupts and still sees
+        # this rate should be able to tell which half they were arguing with.
+        if p.would_escalate or p.unresolved:
+            parts = []
+            if p.would_escalate:
+                parts.append(
+                    f"{p.would_escalate:,} call(s) under these ceilings resolved to a bound "
+                    "rather than a count (cascades, caps, members you cannot see)"
+                )
+            if p.unresolved:
+                parts.append(f"{p.unresolved:,} could not be sized at all")
+            out.append(f"  ALSO      {'; '.join(parts)}.")
+            out.append(
+                "            These take your declared on_unbounded / on_unresolved verdict "
+                "whatever ceiling you pick."
             )
         out.append("")
 

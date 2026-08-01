@@ -5,10 +5,16 @@ default:
 
 install:
     uv venv --python 3.12
-    uv pip install -e '.[dev,cli,graph,mcp]'
+    uv pip install -e '.[dev,cli,graph,mcp,console,sdks,storage,database]'
 
 test:
     uv run pytest -q
+
+# What CI runs. `NETI_REQUIRE_SDKS` turns "the SDK extra is not installed" from a skipped test into
+# a failing one — the three agent runtimes most people reach for were silently untested for a whole
+# release, because a skip reads exactly like a pass in a `-q` summary.
+test-all:
+    NETI_REQUIRE_SDKS=1 uv run pytest -q
 
 # The load-bearing suite: determinism, monotonicity, direction soundness, purity.
 prop:

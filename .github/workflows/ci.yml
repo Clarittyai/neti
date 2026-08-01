@@ -13,6 +13,12 @@ jobs:
   # written on macOS: the cross-process file lock (fcntl vs msvcrt) and where `neti init` looks for
   # Claude Desktop's config. A top-level `import fcntl` would have made `import neti` raise on every
   # Windows machine, and nothing in the suite would have noticed.
+  # `sdks`, `storage` and `database` are in the install line for one reason: without them the
+  # Anthropic, OpenAI Agents, LangChain and LangGraph adapter tests hit `importorskip` and
+  # disappear from the summary. Eighteen tests covering the three runtimes most people reach for
+  # were silently not running, and the LangGraph defect that crashed a whole graph on a blocked
+  # call shipped through a green CI because of it. NETI_REQUIRE_SDKS turns a skip back into a
+  # failure — see tests/e2e/test_no_silent_skips.py.
   test:
     strategy:
       fail-fast: false
@@ -22,11 +28,18 @@ jobs:
     runs-on: ${{ matrix.os }}
     env:
       PYTHONHASHSEED: ${{ matrix.hashseed }}
+      NETI_REQUIRE_SDKS: "1"
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
+      # Node is here so `neti gate --stdio` is exercised against a real MCP server over a real
+      # pipe, rather than only against an in-process fake. It is the transport every local server
+      # in Claude Code, Claude Desktop and Cursor actually uses.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
       - run: uv venv --python 3.12
-      - run: uv pip install -e '.[dev,cli,graph,mcp,console]' -e ./cloud
+      - run: uv pip install -e '.[dev,cli,graph,mcp,console,sdks,storage,database]' -e ./cloud
       - run: uv run pytest -q
 
   gates:
@@ -35,7 +48,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
       - run: uv venv --python 3.12
-      - run: uv pip install -e '.[dev,cli,graph,mcp,console]' -e ./cloud
+      - run: uv pip install -e '.[dev,cli,graph,mcp,console,sdks,storage,database]' -e ./cloud
       - name: types
         run: uv run mypy
       - name: lint

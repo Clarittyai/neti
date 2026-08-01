@@ -27,21 +27,30 @@ from hypothesis import given, settings
 from hypothesis import strategies as st
 
 from neti.insight.propose import MIN_SAMPLES, SPREAD, Proposal, propose
-from neti.insight.report import Distribution, ReportSummary
+from neti.insight.report import Distribution, Observation, ReportSummary
 
 
-def summary_of(magnitudes: list[int]) -> ReportSummary:
+def summary_of(magnitudes: list[int], direction: str = "exact") -> ReportSummary:
+    """`exact` by default, which is what every property below was written against.
+
+    Direction is a parameter rather than a constant because it changes the answer: an observation
+    that cannot clear a ceiling escalates instead of passing, so the same list of numbers has a
+    different impact depending on how it was measured.
+    """
     return ReportSummary(
         distributions={
             ("send_email", "/to"): Distribution(
-                tool="send_email", pointer="/to", unit="recipients", magnitudes=magnitudes
+                tool="send_email",
+                pointer="/to",
+                unit="recipients",
+                observations=[Observation(m, direction) for m in magnitudes],
             )
         }
     )
 
 
-def only(magnitudes: list[int]) -> Proposal:
-    return propose(summary_of(magnitudes))[0]
+def only(magnitudes: list[int], direction: str = "exact") -> Proposal:
+    return propose(summary_of(magnitudes, direction))[0]
 
 
 # Enough calls to be proposed on at all. Magnitudes stay positive: a resolved magnitude is a
@@ -145,3 +154,65 @@ def test_a_proposal_never_blocks_everything(magnitudes: list[int]) -> None:
     if not p.actionable:
         return
     assert p.would_block < len(magnitudes), "a proposal that blocks every observed call is useless"
+
+
+# ---------------------------------------------------------------- direction, not just magnitude
+
+
+@given(magnitudes=enough)
+@settings(max_examples=200, deadline=None)
+def test_a_bound_measured_corpus_reports_the_interrupts_the_ceilings_cannot_remove(
+    magnitudes: list[int],
+) -> None:
+    """The defect this property was written for.
+
+    `propose` compared bare integers, so a corpus measured as `LOWER_BOUND` — every `db.rows`
+    delete, every capped `fs.paths` walk, every GitHub org whose private repos are invisible —
+    reported the same impact as one measured exactly. It is not the same. `core/decide.py:94`
+    escalates any resolution that cannot soundly allow, so calls *under* the proposed ceiling are
+    interrupts too, and the operator was shown a number smaller than the truth.
+
+    Every observation here sits under the confirm ceiling or over it. The ones under it must be
+    counted as escalations, and the two groups must together account for the whole corpus.
+    """
+    bounded = only(magnitudes, direction="lower_bound")
+    if not bounded.actionable:
+        return
+    confirm = bounded.confirm_above
+    assert confirm is not None
+
+    under = sum(1 for m in magnitudes if m <= confirm)
+    assert bounded.would_escalate == under, (
+        "every call under the ceiling escalates when the measurement is a bound"
+    )
+    assert bounded.would_escalate + bounded.would_confirm + bounded.would_block == len(
+        magnitudes
+    ), "under-the-ceiling plus over-the-ceiling must be the whole corpus"
+
+
+@given(magnitudes=enough)
+@settings(max_examples=200, deadline=None)
+def test_an_exactly_measured_corpus_escalates_nothing(magnitudes: list[int]) -> None:
+    """The other half: EXACT can clear a ceiling, so nothing is escalated and the original
+    magnitude-only arithmetic still holds. The fix must not invent interrupts."""
+    exact = only(magnitudes, direction="exact")
+    if not exact.actionable:
+        return
+    assert exact.would_escalate == 0
+
+
+@given(magnitudes=enough)
+@settings(max_examples=100, deadline=None)
+def test_direction_never_changes_the_proposed_numbers(magnitudes: list[int]) -> None:
+    """Ceilings come from the distribution, and direction is not part of it.
+
+    Worth pinning because the obvious wrong fix is to widen the ceilings so that bounded traffic
+    stops escalating — which would let the direction of past measurements move a number the operator
+    is meant to own.
+    """
+    exact = only(magnitudes, direction="exact")
+    bounded = only(magnitudes, direction="lower_bound")
+
+    assert exact.confirm_above == bounded.confirm_above
+    assert exact.block_above == bounded.block_above
+    assert exact.would_block == bounded.would_block
