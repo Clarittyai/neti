@@ -39,6 +39,9 @@ console = ["fastapi>=0.115", "uvicorn>=0.32"]
 # scope — so a policy that never binds that resolver never pays for it. Left out of `all`
 # deliberately: boto3 is a large dependency to hand somebody who is gating a coding agent.
 storage = ["boto3>=1.35"]
+# `db.rows` needs no driver for sqlite (stdlib) and psycopg only for postgres. Same deferred-import
+# shape as boto3, and out of `all` for the same reason.
+database = ["psycopg[binary]>=3.2"]
 # Everything a single machine needs, which is the entire free tier. `pipx install neti[all]`.
 all = [
     "httpx[http2]>=0.27",
