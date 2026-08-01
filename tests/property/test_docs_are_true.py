@@ -107,3 +107,32 @@ def test_the_commands_a_reader_meets_first_are_all_documented() -> None:
     journey = {"init", "inventory", "gate", "report", "propose", "verify"}
     missing = journey - documented
     assert not missing, f"the README no longer shows: {', '.join(sorted(missing))}"
+
+
+def test_the_readme_resolver_table_matches_the_registry() -> None:
+    """The catalogue a reader uses to decide whether this covers their stack.
+
+    A resolver missing from the table is invisible to everyone who does not read the source; a
+    resolver in the table that no longer exists is a promise the product breaks at policy-load.
+    Both are the docs-drift class the `--since` defect belonged to, so both are a diff a human sees
+    rather than something anybody has to remember.
+    """
+    import re
+
+    from neti.resolvers.graph_client import ClientCredential, GraphClient
+    from neti.resolvers.registry import resolvers_for_client
+
+    readme = (REPO / "README.md").read_text()
+    table = readme.split("## What can be sized", 1)[1].split("##", 1)[0]
+    documented = set(re.findall(r"^\| `([a-z_]+\.[a-z_]+)` \|", table, re.MULTILINE))
+
+    client = GraphClient(ClientCredential(tenant_id="t", client_id="c", client_secret="s"))
+    registered = set(resolvers_for_client(client))
+
+    assert documented, "the resolver table has changed shape — this test cannot see it any more"
+    assert not documented - registered, (
+        f"README promises resolvers that are not registered: {sorted(documented - registered)}"
+    )
+    assert not registered - documented, (
+        f"shipped but undocumented, so nobody will find them: {sorted(registered - documented)}"
+    )

@@ -12,6 +12,7 @@ import os
 from neti.resolvers.base import Resolver, ResolverError
 from neti.resolvers.database import EnvCountRunner, RowsResolver
 from neti.resolvers.filesystem import FilesystemResolver
+from neti.resolvers.github import GitHubFilesResolver, GitHubReposResolver, HttpGitHubApi
 from neti.resolvers.graph_client import ClientCredential, GraphClient
 from neti.resolvers.graph_entra import (
     EntraAppsResolver,
@@ -51,6 +52,9 @@ def resolvers_for_client(client: GraphClient) -> dict[str, Resolver]:
         # that does not bind it never needs a database and one that does gets a
         # readable UNRESOLVED instead of a startup crash.
         "db.rows": RowsResolver(EnvCountRunner()),
+        # And again for GitHub: the token is read per call from NETI_GITHUB_TOKEN.
+        "github.repos": GitHubReposResolver(HttpGitHubApi()),
+        "github.files": GitHubFilesResolver(HttpGitHubApi()),
     }
 
 

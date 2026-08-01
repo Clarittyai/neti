@@ -221,6 +221,33 @@ The rule is *"can one machine do this?"* — which is why enforcement is free an
 feature is a hole [SCOPE.md](SCOPE.md) already documents. See [LICENSING.md](LICENSING.md); the
 boundary is enforced by a test, not by good intentions.
 
+## What can be sized
+
+A seam without a resolver is a place to write `allow`, so this list is the real measure of coverage.
+
+| resolver | unit | one call resolves | cost |
+|---|---|---|---|
+| `fs.paths` | objects | a path, directory or glob | local walk, capped |
+| `db.rows` | rows | `DELETE`/`UPDATE` → `select count(*)` | one scan |
+| `storage.objects` | objects | `s3://bucket/prefix` | paginated list, capped |
+| `github.repos` | repositories | `owner` → every repo in the org | one request |
+| `github.files` | objects | `owner/repo` → files on the default branch | one request |
+| `entra.principals` | principals | a group → everyone in it, nested included | one `$count` |
+| `entra.apps` | apps | a group → applications assigned to it | one `$count` |
+| `entra.guests` | principals | a group → the external members only | one `$count` |
+| `entra.principals_with_guests` | principals | the above, split internal/guest | two requests |
+| `terraform.destroy` | resources | a plan file → what it would destroy | local read |
+
+Two properties hold across all of them, and they are what the decision procedure rests on. **None
+can return `0` for something it could not reach** — a failure is `UNRESOLVED` and routes through the
+verdict you declared, because an unreachable target and an empty one are opposite situations with
+the same number. And **anything capped or estimated reports a `LOWER_BOUND`**, which can block
+soundly and can never allow — so the targets too large to count are exactly the ones that cannot
+slip through quietly.
+
+Sizing something else is ~80 lines against
+[RESOLVER_CONTRACT.md](RESOLVER_CONTRACT.md), and it is the contribution that matters most.
+
 ## What it does not do
 
 Read [SCOPE.md](SCOPE.md). It is short, it is honest, and the non-coverage list is numbered so tests

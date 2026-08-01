@@ -235,3 +235,64 @@ def test_reachable_max_refuses_to_invent_a_bound(resolver: RowsResolver) -> None
     out = resolver.reachable_max(CTX)
     assert out.state is ResolutionState.UNRESOLVED
     assert out.evidence["reason"] == "no_reachable_hint_declared"
+
+
+# ---------------------------------------------------------------------------- the DSN
+
+
+def test_an_absolute_sqlite_dsn_is_not_turned_into_a_relative_one(tmp_path: object) -> None:
+    """`sqlite:////abs/path` has four slashes: three for the scheme, one for the root.
+
+    Stripping all of them made every absolute path relative — and because `sqlite3.connect`
+    *creates* a missing file, the symptom was not "no such file" but an empty database appearing in
+    the working directory while every count failed for an unrelated-looking reason.
+    """
+    import os
+    from pathlib import Path
+
+    from neti.resolvers.database import EnvCountRunner
+
+    root = Path(str(tmp_path))
+    db_path = root / "real.db"
+    conn = sqlite3.connect(db_path)
+    conn.execute("create table t (id integer)")
+    conn.executemany("insert into t values (?)", [(i,) for i in range(42)])
+    conn.commit()
+    conn.close()
+
+    os.environ["NETI_DATABASE_URL"] = f"sqlite:///{db_path}"
+    try:
+        assert EnvCountRunner().count("t", None) == 42
+    finally:
+        del os.environ["NETI_DATABASE_URL"]
+
+
+def test_a_missing_sqlite_file_fails_instead_of_being_created(tmp_path: object) -> None:
+    """Read-only, so a wrong path says so rather than silently becoming an empty database."""
+    import os
+    from pathlib import Path
+
+    from neti.resolvers.database import EnvCountRunner
+
+    missing = Path(str(tmp_path)) / "not-here.db"
+    os.environ["NETI_DATABASE_URL"] = f"sqlite:///{missing}"
+    try:
+        with pytest.raises(Exception):  # noqa: B017 - the driver's own error is the message
+            EnvCountRunner().count("t", None)
+    finally:
+        del os.environ["NETI_DATABASE_URL"]
+    assert not missing.exists(), "sizing a query must never create a database"
+
+
+def test_no_dsn_says_what_to_export() -> None:
+    import os
+
+    from neti.resolvers.database import EnvCountRunner
+
+    previous = os.environ.pop("NETI_DATABASE_URL", None)
+    try:
+        with pytest.raises(RuntimeError, match="NETI_DATABASE_URL"):
+            EnvCountRunner().count("t", None)
+    finally:
+        if previous is not None:
+            os.environ["NETI_DATABASE_URL"] = previous

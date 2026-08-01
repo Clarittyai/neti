@@ -32,8 +32,13 @@ class Unit(StrEnum):
     """Data volume."""
 
     ROWS = "rows"
-    """Database rows. Separate from OBJECTS because its resolvers are estimate-based and
-    biased low; see SCOPE.md NC-10."""
+    """Database rows. Separate from OBJECTS because a row ceiling and a file ceiling are declared by
+    different people about different risks. `db.rows` counts them with `select count(*)` rather than
+    an estimate, but never claims EXACT — cascades are invisible to it; see SCOPE.md NC-10."""
+
+    REPOSITORIES = "repositories"
+    """Git repositories. Separate from OBJECTS for the same reason RESOURCES is: "block above 50"
+    is a sentence somebody can defend about files and a very different one about repositories."""
 
     RESOURCES = "resources"
     """Infrastructure resources in a plan — the Terraform/IaC unit.

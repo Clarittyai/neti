@@ -115,9 +115,10 @@ def init(
             bold=True,
         )
         typer.echo(
-            "\n  Nothing here has a parameter any shipped resolver can size. Today's catalogue\n"
-            "  is Entra groups (principals, apps, guests) and Terraform plans — a real limit of\n"
-            "  this release, not a misconfiguration on your side.\n"
+            "\n  Nothing here has a parameter any shipped resolver can size. Today's catalogue is\n"
+            "  filesystem paths, database rows, object-store prefixes, GitHub repos and files,\n"
+            "  Entra groups (principals, apps, guests) and Terraform plans — a real limit of this\n"
+            "  release, not a misconfiguration on your side.\n"
             "\n  Two things still worth doing:\n"
             f"\n    neti gate --stdio -c {out} -- {wrap[:52]}\n"
             "       run in observe anyway. Every call is recorded and sealed into the chain, so\n"
@@ -264,7 +265,9 @@ def inventory(
 
     try:
         policy = load_policy(config)
-        resolvers, client = _build_resolvers(demo=demo, timeout_ms=timeout_ms)
+        resolvers, client = _build_resolvers(
+            demo=demo, timeout_ms=timeout_ms, needs_entra=_needs_entra(policy)
+        )
     except (PolicyError, OSError, ResolverError) as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from exc
@@ -352,7 +355,21 @@ def _apply_mode(policy: Any, override: str | None) -> Any:
         raise typer.Exit(2) from exc
 
 
-def _build_resolvers(*, demo: bool, timeout_ms: int) -> tuple[Any, Any]:
+def _needs_entra(policy: Any) -> bool:
+    """Does this policy actually bind a resolver that needs a directory credential?
+
+    Asked because it was not, and the result was that gating a coding agent on `fs.paths` and
+    `db.rows` refused to start without `NETI_TENANT_ID`. Demanding an Entra app registration from
+    somebody whose policy never mentions Entra is a wall in front of the cheapest install there is.
+    """
+    return any(
+        gate.resolver.startswith("entra.")
+        for tool in policy.tools.values()
+        for gate in tool.gate.values()
+    )
+
+
+def _build_resolvers(*, demo: bool, timeout_ms: int, needs_entra: bool = True) -> tuple[Any, Any]:
     """The demo/live seam, shared by every command that gates.
 
     `Engine`, `decide` and the records are the same objects either way; only the transport under the
@@ -363,8 +380,17 @@ def _build_resolvers(*, demo: bool, timeout_ms: int) -> tuple[Any, Any]:
     from neti.resolvers.graph_client import ClientCredential, GraphClient
     from neti.resolvers.registry import build_entra_resolvers, resolvers_for_client
 
-    if not demo:
+    if not demo and needs_entra:
         return build_entra_resolvers(timeout_ms=timeout_ms)
+
+    if not demo:
+        # No Entra gate in the policy, so no Entra credential is required. The registry is still
+        # built whole — the entra resolvers are present but unreachable, and would fail loudly on
+        # the first token fetch if a policy somehow named one. Nothing here touches the network:
+        # `GraphClient` acquires its token lazily.
+        blank = ClientCredential(tenant_id="", client_id="", client_secret="")
+        client = GraphClient(blank, timeout_ms=timeout_ms)
+        return resolvers_for_client(client), client
 
     credential = ClientCredential(tenant_id="demo", client_id="demo", client_secret="demo")
     client = GraphClient(credential, transport=default_tenant().transport(), timeout_ms=timeout_ms)
@@ -436,7 +462,9 @@ def gate(
 
     try:
         policy = _apply_mode(load_policy(config), mode_override)
-        resolvers, client = _build_resolvers(demo=demo, timeout_ms=timeout_ms)
+        resolvers, client = _build_resolvers(
+            demo=demo, timeout_ms=timeout_ms, needs_entra=_needs_entra(policy)
+        )
         # Inside the try: the Engine refuses a policy that can never work — a resolver that is not
         # registered, a session budget in a unit nothing produces. Those are config mistakes and
         # deserve the same one-line error as a malformed YAML file, not a traceback.
@@ -588,7 +616,9 @@ def hook(
     try:
         event = read_event(sys.stdin.read())
         policy = _apply_mode(load_policy(config), mode_override)
-        resolvers, client = _build_resolvers(demo=demo, timeout_ms=timeout_ms)
+        resolvers, client = _build_resolvers(
+            demo=demo, timeout_ms=timeout_ms, needs_entra=_needs_entra(policy)
+        )
         # Engine construction belongs inside this try, and it is the whole reason the net is this
         # wide. The Engine refuses a policy that can never work; if that exception escaped here it
         # would crash the hook, and a crashed PreToolUse hook takes out *every tool call in the

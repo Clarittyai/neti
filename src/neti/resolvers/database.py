@@ -244,7 +244,19 @@ def _connect_from_env() -> object:
     if dsn.startswith("sqlite://"):
         import sqlite3
 
-        return sqlite3.connect(dsn.removeprefix("sqlite://").lstrip("/") or ":memory:")
+        # SQLAlchemy's convention, because it is the one people already have in an env var:
+        # `sqlite:///relative/path` and `sqlite:////absolute/path`. Exactly one slash belongs to the
+        # separator. Stripping all of them turns every absolute path into a relative one — and
+        # because `sqlite3.connect` *creates* a missing file, the symptom is not "no such file" but
+        # an empty database in the working directory where every count fails for the wrong reason.
+        rest = dsn.removeprefix("sqlite://")
+        path = rest[1:] if rest.startswith("/") else rest
+        if not path or path == ":memory:":
+            return sqlite3.connect(":memory:")
+        # Read-only, and failing loudly when the file is not there. Opening read-write would both
+        # create that empty database and hand write access to the one component here that composes
+        # SQL — belt and braces, as the runner's docstring promises.
+        return sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     if dsn.startswith(("postgres://", "postgresql://")):
         try:
             import psycopg  # type: ignore[import-not-found]

@@ -1,5 +1,59 @@
 # Changelog
 
+## Unreleased
+
+Coverage of what agents actually run: four more resolvers and a fourth runtime. 0.1.0 could size an
+Entra group and a Terraform plan, which meant that pointing it at a coding agent produced a page of
+`allow` — the seams worked and there was nothing behind them.
+
+### Resolvers
+
+- **`fs.paths`** — files under a path, directory or glob. Exact, local, strongly consistent; capped,
+  and a capped answer is a `LOWER_BOUND` rather than a small number. This is the one that makes
+  gating a coding agent mean anything.
+- **`db.rows`** — rows a `DELETE` or `UPDATE` would take, counted with `select count(*)` rather than
+  `EXPLAIN`, so the low bias of planner estimates never applies. Always a `LOWER_BOUND`, because
+  `ON DELETE CASCADE` fan-out is invisible to it. It recognises two statement shapes and declines
+  everything else: a mis-parse yields a count of the wrong predicate and a confident wrong verdict,
+  which is worse than no answer. `SCOPE.md` NC-10 is rewritten to say exactly what is now covered.
+- **`storage.objects`** — objects and bytes under an `s3://bucket/prefix`. The only resolver here
+  that is not O(1), because object stores have no prefix-granularity count; capped hard, and past
+  the cap a `LOWER_BOUND`.
+- **`github.repos` / `github.files`** — every repository in an org (one request), and every file on
+  a repository's default branch (one recursive tree request, with GitHub's own `truncated` flag
+  becoming the direction). New `repositories` unit, because "block above 50" is a sentence somebody
+  can defend about files and a very different one about repositories.
+
+Each declines rather than guessing, and none can return `0` for something it could not reach.
+
+### Runtimes
+
+- **LangChain and LangGraph**, via a delegating `BaseTool` — `bind_tools`, `create_react_agent` and
+  `ToolNode` all accept it, and `convert_to_openai_tool` produces a byte-identical schema, so an
+  agent cannot tell a gated tool from an ungated one.
+- Alongside the Anthropic `tool_runner` and OpenAI Agents SDK adapters. All three return a denial as
+  a tool *result*, never an exception: a run that has died cannot narrow its scope and try again.
+
+### Fixed
+
+- **A policy that gated no Entra tool still demanded `NETI_TENANT_ID`.** Every command built the
+  full directory registry before reading the policy, so gating file writes required an Azure app
+  registration. Credentials are now required only by the resolvers a policy actually binds — and a
+  policy that *does* bind one still fails loudly at startup rather than on the hot path.
+- **A blocked call killed a LangGraph run.** `ToolNode` requires a `ToolMessage`; the denial was a
+  bare string, so it raised `TypeError` inside the node. Every direct-`invoke` test passed against
+  that. A gate that crashes the agent is worse than the call it stopped.
+- **`sqlite:////absolute/path` was read as a relative path**, and because `sqlite3.connect` creates
+  a missing file, the symptom was an empty database in the working directory rather than an error.
+  Now read-only, and absent files say so.
+
+### Still not claimed
+
+`neti score` still reports 3 of 7 on incident coverage. `storage.objects` was built expecting to
+close the PocketOS/Railway entry and does not: that was a Railway block volume deleted by ID through
+Railway's API, where `ListObjectsV2` has nothing to enumerate. Its proximate cause was also an
+unscoped credential, which is upstream of any magnitude gate.
+
 ## 0.1.0 — first release
 
 `neti` resolves what an agent's tool call will actually touch, before it runs, and stops it when
