@@ -1,0 +1,152 @@
+# A starting policy for a coding agent — Claude Code, Cursor, or anything driving an MCP
+# filesystem server.
+#
+# Read this top to bottom before copying it. The numbers below are ILLUSTRATIVE and every one of
+# them is commented out on purpose. Run a week in observe mode, then `neti report` and
+# `neti propose`, and declare numbers that came from your own traffic. A ceiling nobody chose is a
+# ceiling nobody will defend at 2am when it fires.
+#
+#   neti inventory -c examples/coding-agent.yaml     what your agent can reach, right now
+#   neti demo --here                                 the same thing, narrated
+#
+# Install it in .claude/settings.json:
+#
+#   {"hooks": {"PreToolUse": [{"matcher": "*",
+#     "hooks": [{"type": "command", "command": "neti hook -c examples/coding-agent.yaml"}]}]}}
+
+version: 1
+mode: observe # observe | enforce. Observe cannot block anything; start here.
+
+providers:
+  fs:
+    # What `neti inventory` reports as reachable — the day-one finding, with no traffic at all.
+    # Point it at the tree the agent is actually allowed into. Without it the resolver correctly
+    # declines, because "every file this process can read" is not a bound anyone can defend.
+    root: .
+    # A latency control, not a safety one: past this many files the walk stops and reports a
+    # LOWER_BOUND, which can block but can never allow. The cheap answer and the safe answer point
+    # the same way, which is the only reason a cap is survivable.
+    cap: 200000
+
+tools:
+  # ---------------------------------------------------------------- the broad reads and writes
+  # These are the calls where one short argument addresses an unbounded number of files. `**/*` is
+  # eleven characters and it is the whole repository.
+
+  Glob:
+    gate:
+      /pattern:
+        resolver: fs.paths
+        # bands:
+        #   - { above: 500, verdict: confirm }
+        #   - { above: 5000, verdict: block }
+        on_unresolved: allow # a pattern matching nothing is a normal, harmless call
+        on_unbounded: confirm # past the cap we only know it is *at least* this big
+
+  Grep:
+    gate:
+      /path:
+        resolver: fs.paths
+        # bands:
+        #   - { above: 5000, verdict: confirm }
+        on_unresolved: allow
+        on_unbounded: confirm
+
+  # ---------------------------------------------------------------- an MCP filesystem server
+  # Tool names as `@modelcontextprotocol/server-filesystem` exposes them. A `mcp__fs__` prefix from
+  # a federating proxy still matches these — `Policy.match_tool` tries the exact name first, then
+  # the same name with the prefix stripped.
+
+  directory_tree:
+    gate:
+      /path:
+        resolver: fs.paths
+        # bands:
+        #   - { above: 5000, verdict: block }
+        on_unresolved: block # a path we cannot size is a path we will not walk
+        on_unbounded: confirm
+
+  list_directory:
+    gate:
+      /path:
+        resolver: fs.paths
+        on_unresolved: block
+        on_unbounded: confirm
+
+  search_files:
+    gate:
+      /path:
+        resolver: fs.paths
+        on_unresolved: block
+        on_unbounded: confirm
+
+  # ---------------------------------------------------------------- single-file operations
+  # Each of these resolves to 1, so a per-call ceiling on them is close to meaningless. They are
+  # gated anyway, for two reasons: every call gets recorded, which is what makes `neti report`
+  # describe the whole session rather than a fraction of it; and the session budget below can only
+  # count what something resolved.
+  #
+  # `neti inventory` will report the same "max reachable" for these as for `Glob`, which is worth
+  # understanding before it looks like a bug. Reachable-max is a property of the *resolver* — what
+  # `fs.paths` could reach under this root — not of the parameter, because the gate has no way to
+  # know that Claude Code will only ever put a single file in `/file_path`. It is a correct upper
+  # bound and a deliberately loose one; the inventory's own caveat says it bounds capability rather
+  # than measuring any call.
+
+  Read:
+    gate:
+      /file_path: { resolver: fs.paths, on_unresolved: allow }
+  Edit:
+    gate:
+      /file_path: { resolver: fs.paths, on_unresolved: allow }
+  Write:
+    gate:
+      /file_path: { resolver: fs.paths, on_unresolved: allow }
+
+  # ---------------------------------------------------------------- GitHub
+  # Needs NETI_GITHUB_TOKEN (or GITHUB_TOKEN — `gh auth token` produces one). Uncomment
+  # `providers.github.owner` to have `neti inventory` report how many repositories the token can
+  # reach, which is a permissions-shaped finding rather than a filesystem one.
+  #
+  # delete_repository:
+  #   gate:
+  #     /owner:
+  #       resolver: github.repos
+  #       bands:
+  #         - { above: 1, verdict: block }   # a bare owner is the whole org
+  #       on_unresolved: block
+
+# ---------------------------------------------------------------- cumulative budgets
+# SCOPE.md NC-01: a per-call gate is structurally blind to 4,000 individual reads, because each one
+# resolves to a magnitude of 1 and passes every per-call ceiling. Only a declared cumulative budget
+# sees it. For a coding agent this is the realistic exfiltration shape — nothing is ever "too big",
+# there is just a great deal of it.
+#
+# Per-process in this release: a restart resets the total, and the mitigation stops applying until
+# the next call. Stated rather than discovered.
+#
+# session_budgets:
+#   - tools: [Read, Grep, Glob]
+#     unit: objects
+#     window: session
+#     bands:
+#       - { above: 20000, verdict: confirm }
+
+defaults:
+  # An ungated tool is out of scope, not denied (NC-09). Failing closed on everything undeclared
+  # would make the gate unusable on its first day, and it would simply be switched off.
+  unknown_tool: allow
+
+# ---------------------------------------------------------------- what is deliberately NOT here
+#
+# `Bash` is ungated, and that is a decision rather than an omission.
+#
+# Sizing it would mean parsing a shell command to work out what `rm -rf "$BUILD/../.."` removes —
+# a syntactic gate over an unbounded grammar, guessing at a string's meaning instead of reading a
+# value. `SCOPE.md` NC-09 and NC-10 take that position deliberately: a gate that guesses makes a
+# weaker claim than one that measures, and a weak claim in a security tool is worse than an absent
+# one because somebody will rely on it.
+#
+# So `Bash` is out of scope and says so, and the honest consequence is that an agent with `Bash`
+# can do things this policy does not see. If that is unacceptable, the answer is to take `Bash`
+# away in `.claude/settings.json` — a permissions decision, made where permissions live.
