@@ -113,6 +113,15 @@ class GitHubReposResolver:
 
     api: GitHubApi
 
+    owner: str | None = None
+    """The org or user `neti inventory` should report as reachable, from `providers.github.owner`.
+
+    Without it there is no bound to report: a token's real reach spans every organisation it is
+    installed on, which is not something this resolver can enumerate and not a number anyone should
+    invent. Declaring one turns the inventory row from `?` into "this token reaches 96 repositories
+    in one call", which is the day-one finding.
+    """
+
     unit: ClassVar[Unit] = Unit.REPOSITORIES
     breakdown_keys: ClassVar[frozenset[str]] = frozenset({"private"})
 
@@ -180,17 +189,21 @@ class GitHubReposResolver:
         )
 
     def reachable_max(self, ctx: ResolveContext) -> Resolution:
-        del ctx
-        return Resolution.unresolved(
-            self.unit,
-            reason="no_owner_declared",
-            evidence={
-                "hint": (
-                    "what this token could reach spans every org it is installed on; bind the "
-                    "resolver to a parameter rather than asking it for a global bound"
-                )
-            },
-        )
+        if self.owner is None:
+            return Resolution.unresolved(
+                self.unit,
+                reason="no_owner_declared",
+                evidence={
+                    "hint": (
+                        "what this token could reach spans every org it is installed on, which is "
+                        "not a bound this resolver can enumerate. Declare `providers.github.owner` "
+                        "to report the one you care about."
+                    )
+                },
+            )
+        # The same request `resolve` makes for a bare owner, which is why this needs no separate
+        # code path and inherits the same honesty about invisible private repositories.
+        return self.resolve(self.owner, ctx)
 
     def _resolved(
         self,

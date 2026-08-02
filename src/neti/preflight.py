@@ -111,7 +111,9 @@ class Preflight:
         policy = load_policy(str(config))
         if mode is not None:
             policy = policy.model_copy(update={"mode": Mode[mode.upper()]})
-        resolvers, _client = build_entra_resolvers(timeout_ms=timeout_ms)
+        resolvers, _client = build_entra_resolvers(
+            timeout_ms=timeout_ms, providers=policy.providers
+        )
         return cls._assemble(policy, resolvers, records, timeout_ms, ResolveContext)
 
     @classmethod
@@ -138,7 +140,11 @@ class Preflight:
             credential, transport=default_tenant().transport(), timeout_ms=timeout_ms
         )
         return cls._assemble(
-            policy, resolvers_for_client(client), records, timeout_ms, ResolveContext
+            policy,
+            resolvers_for_client(client, policy.providers),
+            records,
+            timeout_ms,
+            ResolveContext,
         )
 
     @classmethod

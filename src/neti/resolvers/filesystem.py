@@ -22,6 +22,16 @@ soundly *block* (measured over the ceiling means the truth is too) but can never
 declared `on_unbounded` verdict instead of sailing through. The cap is a latency control that cannot
 turn into a permissive answer.
 
+**What it counts, for anyone checking the number.** Every directory entry that is not a directory —
+so regular files *and* symlinks, because deleting a symlink is a real effect even though it is a
+small one. The obvious cross-check disagrees for exactly that reason:
+
+    find . -type f | wc -l                  35,807   regular files only
+    find . \\( -type f -o -type l \\) | wc -l   35,840   what this resolver reports
+
+Use the second one. The first is the check most people reach for and it will look like a 33-file
+overcount.
+
 **What it deliberately does not do.** It sizes *structured path arguments*. It does not parse a
 shell command to work out what `rm -rf` would remove. That is a syntactic gate over an unbounded
 grammar, and `SCOPE.md` NC-10 already takes that position about SQL predicates: a gate guessing at a

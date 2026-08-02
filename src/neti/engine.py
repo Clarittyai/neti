@@ -24,6 +24,7 @@ from neti.core.types import Ceiling, Decision, ProposedCall, Resolution
 from neti.core.units import Unit
 from neti.core.verdict import ResolutionState
 from neti.resolvers.base import ResolveContext, Resolver
+from neti.resolvers.registry import PROVIDER_OPTIONS
 
 __all__ = [
     "BOUND",
@@ -99,6 +100,7 @@ class Engine:
             self._check_resolvers_exist()
             self._check_breakdown_keys()
             self._check_budget_units()
+            self._check_providers()
         # Recomputed per decision it costs ~226us, which is most of the pure-CPU budget, and it
         # cannot change: Policy is frozen and this engine holds one.
         self._policy_digest = self.policy.digest()
@@ -127,6 +129,36 @@ class Engine:
                 "policy names resolvers that do not exist:\n  "
                 + "\n  ".join(problems)
                 + f"\n\nRegistered: {', '.join(known) or 'none'}"
+            )
+
+    def _check_providers(self) -> None:
+        """A `providers:` block or option nobody reads is configuration that does nothing.
+
+        The fourth instance of the same failure, and the most embarrassing one: `providers:` was in
+        the policy schema from the first release and was read by *nothing*. An operator could write
+        `providers: {fs: {root: /srv}}`, commit it, and get exactly the behaviour of having written
+        nothing — with no error, because pydantic accepted the shape.
+
+        Now that it is wired, the way to stop that recurring is to refuse anything unrecognised.
+        `providers.fs.roots` and `providers.filesystem.root` are both the kind of near-miss that
+        would otherwise silently leave the inventory reporting `?` while looking configured.
+        """
+        problems: list[str] = []
+        for name, block in self.policy.providers.items():
+            allowed = PROVIDER_OPTIONS.get(name)
+            if allowed is None:
+                known = ", ".join(sorted(PROVIDER_OPTIONS))
+                problems.append(f"providers.{name}: no such provider. Known providers: {known}")
+                continue
+            for option in sorted(block):
+                if option not in allowed:
+                    offer = ", ".join(sorted(allowed))
+                    problems.append(
+                        f"providers.{name}.{option}: not an option. {name} accepts: {offer}"
+                    )
+        if problems:
+            raise ValueError(
+                "policy declares provider config that is not read:\n  " + "\n  ".join(problems)
             )
 
     def _check_breakdown_keys(self) -> None:

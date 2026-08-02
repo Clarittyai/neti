@@ -288,7 +288,10 @@ def inventory(
     try:
         policy = load_policy(config)
         resolvers, client = _build_resolvers(
-            demo=demo, timeout_ms=timeout_ms, needs_entra=_needs_entra(policy)
+            demo=demo,
+            timeout_ms=timeout_ms,
+            needs_entra=_needs_entra(policy),
+            providers=policy.providers,
         )
     except (PolicyError, OSError, ResolverError) as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
@@ -391,19 +394,29 @@ def _needs_entra(policy: Any) -> bool:
     )
 
 
-def _build_resolvers(*, demo: bool, timeout_ms: int, needs_entra: bool = True) -> tuple[Any, Any]:
+def _build_resolvers(
+    *,
+    demo: bool,
+    timeout_ms: int,
+    needs_entra: bool = True,
+    providers: dict[str, Any] | None = None,
+) -> tuple[Any, Any]:
     """The demo/live seam, shared by every command that gates.
 
     `Engine`, `decide` and the records are the same objects either way; only the transport under the
     Graph client differs. That is what lets `--demo` be an honest rehearsal of the install rather
     than a separate code path that drifts from it.
+
+    `providers` is the policy's own block. It is what gives `fs.paths` a root and `github.repos` an
+    owner, and therefore what lets `neti inventory` report a number rather than `?` for anything
+    outside Entra.
     """
     from neti.eval.synthetic import default_tenant
     from neti.resolvers.graph_client import ClientCredential, GraphClient
     from neti.resolvers.registry import build_entra_resolvers, resolvers_for_client
 
     if not demo and needs_entra:
-        return build_entra_resolvers(timeout_ms=timeout_ms)
+        return build_entra_resolvers(timeout_ms=timeout_ms, providers=providers)
 
     if not demo:
         # No Entra gate in the policy, so no Entra credential is required. The registry is still
@@ -412,11 +425,11 @@ def _build_resolvers(*, demo: bool, timeout_ms: int, needs_entra: bool = True) -
         # `GraphClient` acquires its token lazily.
         blank = ClientCredential(tenant_id="", client_id="", client_secret="")
         client = GraphClient(blank, timeout_ms=timeout_ms)
-        return resolvers_for_client(client), client
+        return resolvers_for_client(client, providers), client
 
     credential = ClientCredential(tenant_id="demo", client_id="demo", client_secret="demo")
     client = GraphClient(credential, transport=default_tenant().transport(), timeout_ms=timeout_ms)
-    return resolvers_for_client(client), client
+    return resolvers_for_client(client, providers), client
 
 
 @app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
@@ -485,7 +498,10 @@ def gate(
     try:
         policy = _apply_mode(load_policy(config), mode_override)
         resolvers, client = _build_resolvers(
-            demo=demo, timeout_ms=timeout_ms, needs_entra=_needs_entra(policy)
+            demo=demo,
+            timeout_ms=timeout_ms,
+            needs_entra=_needs_entra(policy),
+            providers=policy.providers,
         )
         # Inside the try: the Engine refuses a policy that can never work — a resolver that is not
         # registered, a session budget in a unit nothing produces. Those are config mistakes and
@@ -639,7 +655,10 @@ def hook(
         event = read_event(sys.stdin.read())
         policy = _apply_mode(load_policy(config), mode_override)
         resolvers, client = _build_resolvers(
-            demo=demo, timeout_ms=timeout_ms, needs_entra=_needs_entra(policy)
+            demo=demo,
+            timeout_ms=timeout_ms,
+            needs_entra=_needs_entra(policy),
+            providers=policy.providers,
         )
         # Engine construction belongs inside this try, and it is the whole reason the net is this
         # wide. The Engine refuses a policy that can never work; if that exception escaped here it
