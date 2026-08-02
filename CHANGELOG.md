@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### The published record size was ~50% optimistic
+
+`README.md` said **~700 bytes per call**, under a heading that says *measured, not modelled*. A
+coding agent's calls against `examples/coding-agent.yaml` write a median of **1,057 bytes** with
+short relative paths and **1,230** with a realistic absolute one. Nothing recent caused it — the
+`synthetic` field added this release is five bytes of it — the number had simply not been
+re-measured, and it was wrong in the direction that flatters us.
+
+Most of a record is `causes`, the per-argument evidence that makes a verdict re-derivable, plus
+whatever `args` the call carried; it moves with how long the operator's paths are. So the table now
+publishes a range, and `test_docs_are_true.py` measures records and compares them against the range
+it reads out of the README. A project that asks people to check its numbers has to survive its own
+numbers being checked.
+
+### The console showed invented magnitudes as measured ones
+
+The third and last layer of the `--demo` defect. The record carries `synthetic`, the API returns it,
+and the console rendered neither — so a demo row sat beside a measured one with the same confident
+figure and nothing to tell them apart, in the surface built specifically for showing people numbers.
+The decisions list now marks the row and the detail page names the source in its provenance block
+and says why the marker cannot be stripped.
+
 ### `neti prove` — every door, one call, and a chain you can re-check
 
 Eleven adapters is a number in a README. This runs the same call through every seam the machine it

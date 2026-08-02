@@ -69,6 +69,18 @@ function Row({ decision }: { decision: DecisionSummary }) {
         <VerdictPill verdict={unsizeable ? "unknown" : decision.verdict} />
         <span className="font-mono text-[13px]">{decision.tool}</span>
 
+        {/* A row whose magnitude was invented has to say so beside the number, not somewhere a
+            reader has to go looking. The console defaults to the built-in tenant whenever there is
+            no credential, which is most of the time anybody is looking at it. */}
+        {decision.synthetic ? (
+          <span
+            className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground"
+            title="Magnitudes from the built-in tenant, not from a provider."
+          >
+            synthetic
+          </span>
+        ) : null}
+
         <span className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {decision.magnitudes.map((m) => (
             <span key={m.pointer} className="tnum">

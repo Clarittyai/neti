@@ -136,3 +136,73 @@ def test_the_readme_resolver_table_matches_the_registry() -> None:
     assert not registered - documented, (
         f"shipped but undocumented, so nobody will find them: {sorted(registered - documented)}"
     )
+
+
+def test_the_record_size_the_readme_publishes_is_the_size_records_actually_are() -> None:
+    """The one number in the cost table that can be checked offline, so it is.
+
+    It said `~700 bytes per call` and the real figure is a little over a kilobyte — measured, not
+    modelled, and wrong in the flattering direction for as long as nobody re-measured. That is a
+    small error about disk and a large one about the posture: this project asks people to check its
+    numbers, so its own published numbers have to survive being checked.
+
+    The claim is a range because record size genuinely varies — most of a record is `causes`, the
+    per-argument evidence that makes a verdict re-derivable, plus whatever `args` the call carried,
+    so it moves with how long the operator's paths are. The range is what is defensible; a single
+    figure would be precise about something that is not.
+    """
+    import tempfile
+
+    from neti.config.policy import load_policy
+    from neti.core.types import ProposedCall
+    from neti.engine import Engine
+    from neti.gatekeeper import Gatekeeper
+    from neti.resolvers.graph_client import ClientCredential, GraphClient
+    from neti.resolvers.registry import resolvers_for_client
+    from neti.store.jsonl import JsonlSink
+
+    low, high = _published_record_size()
+
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / "tree").mkdir()
+        for i in range(5):
+            (root / "tree" / f"f{i}.txt").write_text("x")
+
+        policy = load_policy(str(REPO / "examples" / "coding-agent.yaml"))
+        blank = GraphClient(ClientCredential(tenant_id="", client_id="", client_secret=""))
+        records = root / "d.ndjson"
+        sink = JsonlSink(records)
+        gate = Gatekeeper(
+            engine=Engine(policy=policy, resolvers=resolvers_for_client(blank, policy.providers)),
+            sink=sink,
+        )
+        try:
+            for tool, args in (
+                ("Read", {"file_path": str(root / "tree" / "f0.txt")}),
+                ("Edit", {"file_path": str(root / "tree" / "f1.txt")}),
+                ("Write", {"file_path": str(root / "tree" / "f2.txt")}),
+                ("Glob", {"pattern": str(root / "tree" / "*.txt")}),
+            ):
+                gate.decide(ProposedCall(tool=tool, args=args))
+        finally:
+            sink.close()
+
+        lines = [line for line in records.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+    assert lines, "no records were written"
+    median = sorted(len(line) for line in lines)[len(lines) // 2]
+    assert low <= median <= high, (
+        f"a record is {median:,} bytes and the README publishes {low:,} to {high:,}. "
+        "Re-measure and update the cost table rather than leaving a number that flatters us."
+    )
+
+
+def _published_record_size() -> tuple[int, int]:
+    """The range out of the README's cost table, so the test reads the claim rather than a copy."""
+    import re
+
+    text = (REPO / "README.md").read_text(encoding="utf-8")
+    match = re.search("\\*\\*~([\\d.]+)\u2013([\\d.]+) KB per call\\*\\*", text)
+    assert match, "the README's record-size claim has changed shape; update this test with it"
+    return int(float(match.group(1)) * 1000), int(float(match.group(2)) * 1000)

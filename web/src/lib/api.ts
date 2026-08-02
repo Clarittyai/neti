@@ -117,6 +117,9 @@ export interface DecisionRecord {
   budget: Record<string, unknown> | null;
   policy_digest: string;
   code_version: string;
+  // True when the magnitudes came from the built-in tenant rather than a provider. Inside the
+  // record's digest, so it is evidence of provenance and not a label anyone can strip.
+  synthetic: boolean;
   prev_digest: string | null;
   record_digest: string;
 }
@@ -184,6 +187,7 @@ export interface DecisionSummary {
   rule: string;
   mode: Mode;
   session_id: string | null;
+  synthetic: boolean;
   magnitudes: { pointer: string; magnitude: number | null; unit: string }[];
 }
 

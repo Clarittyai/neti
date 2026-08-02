@@ -224,8 +224,16 @@ Measured against real Claude Code sessions, not modelled:
 | | |
 |---|---|
 | Hook overhead, per tool call | **p50 172ms · p95 184ms** |
-| Records | **~700 bytes per call**, so roughly 0.7 MB per thousand |
+| Records | **~1.0–1.2 KB per call**, so roughly 1 MB per thousand |
 | Decision itself | microseconds — the overhead above is almost entirely Python interpreter start |
+
+The record figure said ~700 bytes until somebody measured it again: a coding agent's calls against
+`examples/coding-agent.yaml` write a median of 1,057 bytes with short relative paths, and 1,230 with
+a realistic absolute one. Most of it is `causes` — the per-argument evidence that makes a verdict
+re-derivable — and the `args` the call carried, so the number moves with how long your paths are.
+`tests/property/test_docs_are_true.py` now measures it rather than trusting the table, because a
+published number that drifts in the flattering direction is the kind of thing this project exists
+not to do.
 
 That last row is the one to act on. As a `PreToolUse` hook with `matcher: "*"`, neti starts a fresh
 process for *every* tool call, and interpreter start dominates a sub-millisecond decision. If ~170ms

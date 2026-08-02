@@ -145,7 +145,17 @@ function Decision() {
               <Field label="code" value={data.code_version} mono />
               <Field label="previous" value={data.prev_digest ?? "genesis"} mono />
               <Field label="this record" value={data.record_digest} mono />
+              <Field label="source" value={data.synthetic ? "built-in tenant" : "provider"} />
             </dl>
+            {data.synthetic ? (
+              <p className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-[13px] leading-relaxed text-muted-foreground">
+                The magnitudes above came from the{" "}
+                <strong className="font-medium text-foreground">built-in tenant</strong>, not from a
+                provider. They are exact, confident and invented — this demonstrates behaviour and
+                is not a finding about anything. The marker is inside the record&apos;s digest, so it
+                is evidence of where the number came from rather than a label anyone can remove.
+              </p>
+            ) : null}
             <p className="mt-3 text-[11px] leading-relaxed text-muted-foreground">
               The policy digest is part of the record because a verdict means nothing without the
               ceilings that produced it. Change the policy and the digest changes with it.
