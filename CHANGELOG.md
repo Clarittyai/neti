@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Which runtime is yours, and which are not reached
+
+"Twelve adapters" answers a question nobody asks. What somebody asks is *does this work with
+Cursor*, and the answer is that neti never hears of Cursor at all: it speaks MCP, the gate goes in
+front of the MCP server, and whatever launched that server launches `neti gate` instead.
+
+`neti score` now lists 23 runtimes against the door each arrives through — and keeps two very
+different claims apart. An adapter row was **driven** by the seam table. An MCP client was not run
+at all: what is tested is that neti gates a real MCP server over a real pipe, and that Cursor speaks
+MCP is a fact about Cursor rather than something this suite establishes. Printing both as though
+each had been measured here is the overclaim the card exists to avoid, and a property test keeps the
+two groups separable.
+
+And the complement, because a coverage table without one is a marketing table. Not reached: an agent
+whose tools are in-process functions in a language this package cannot wrap and which does not go
+through MCP — a Vercel AI SDK or Mastra app with locally-defined TypeScript tools is the common
+case — and hosted runtimes that execute tools server-side, where there is no local seam to sit at.
+
 ### The shape most agents actually are
 
 Twelve seams now. The new one is not a framework at all: an Anthropic Messages loop or an OpenAI

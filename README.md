@@ -172,10 +172,30 @@ Two of these are less obvious than they look, and the adapters say so where they
 so the gate is a *pair* of hooks — the second one puts the number back. AutoGen has no before-tool
 callback at all, so it is the workbench that gets wrapped.
 
-They agree. `tests/e2e/test_seam_equivalence.py` drives all eleven seams — including `neti gate` and
+They agree. `tests/e2e/test_seam_equivalence.py` drives all twelve seams — including `neti gate` and
 the hook — across all five resolver families, and asserts the same verdict, the same magnitude and
 the same denial sentence byte for byte. A verdict that depends on which door a call came through is
 a bug in the product, not in the adapter.
+
+`neti prove` runs that same comparison on your machine, against whatever is installed, and hands you
+the chain to re-check.
+
+### Which runtime is yours
+
+`neti score` prints the full list. The short version: nine runtimes have an adapter here, and
+everything that speaks **MCP** — Cursor, Claude Desktop, Windsurf, Cline, Continue, VS Code, Zed,
+Goose, LlamaIndex, Semantic Kernel, Strands, smolagents — is reached without neti knowing they
+exist, because the gate goes in front of the MCP server and whatever launched it launches
+`neti gate` instead.
+
+Those two claims are not equally strong and the card keeps them apart. An adapter row was *driven*
+by the seam table. An MCP client was not run at all: what is tested is that neti gates a real MCP
+server, and that Cursor speaks MCP is a fact about Cursor.
+
+What it does not reach, also on the card: an agent whose tools are in-process functions in a
+language this package cannot wrap and which does not go through MCP — a Vercel AI SDK or Mastra app
+with locally-defined TypeScript tools — and hosted runtimes that execute tools server-side, where
+there is no local seam to sit at.
 
 **A tool loop you wrote yourself** — an Anthropic or OpenAI function-calling loop, anything that
 speaks neither MCP nor a hook protocol. One substitution gates every tool in your dispatch table:

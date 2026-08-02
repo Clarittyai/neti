@@ -26,7 +26,9 @@ from neti.insight.report import ReportSummary
 __all__ = [
     "EVIDENCE",
     "LIVE_VERIFIED",
+    "NOT_REACHED",
     "RESOLVERS",
+    "RUNTIMES",
     "SEAMS",
     "Scorecard",
     "Wild",
@@ -86,6 +88,66 @@ runtimes an operator can actually install in front of. Pinned by
 `tests/property/test_scorecard_is_true.py` against `neti.adapters`, so a shipped adapter missing
 from this list fails the build — which is the same mechanism `RESOLVERS` below uses, and for the
 same reason: a second copy of a list is how a coverage claim goes stale.
+"""
+
+RUNTIMES: dict[str, str] = {
+    # Reached by an adapter in this package. Each is a row in the seam table above.
+    "Claude Code (built-in tools)": "hook",
+    "Anthropic Messages / OpenAI Chat Completions loop": "tool-loop",
+    "Anthropic tool_runner": "anthropic",
+    "OpenAI Agents SDK": "openai-agents",
+    "LangChain / LangGraph": "langchain",
+    "CrewAI": "crewai",
+    "Pydantic AI": "pydantic-ai",
+    "AutoGen": "autogen",
+    "Google ADK": "google-adk",
+    # Reached because they speak MCP, and the gate sits in front of an MCP server. Nothing about
+    # these is neti-specific: whatever launches the server launches `neti gate` instead.
+    "Cursor": "mcp-stdio",
+    "Claude Desktop": "mcp-stdio",
+    "Windsurf": "mcp-stdio",
+    "Cline": "mcp-stdio",
+    "Continue": "mcp-stdio",
+    "VS Code (Copilot agent mode)": "mcp-stdio",
+    "Zed": "mcp-stdio",
+    "Goose": "mcp-stdio",
+    "LlamaIndex": "mcp-stdio",
+    "Semantic Kernel": "mcp-stdio",
+    "Strands Agents": "mcp-stdio",
+    "smolagents": "mcp-stdio",
+    "a remote / hosted MCP server": "mcp-http",
+    "anything else, one tool at a time": "preflight",
+}
+"""Which door each runtime an operator might name arrives through.
+
+The list exists because "eleven adapters" answers a question nobody asks. What somebody asks is
+*does this work with Cursor* — and the answer, for most of the second group, is that neti never
+hears of Cursor at all: it speaks MCP, the gate goes in front of the MCP server, and whatever
+launched that server launches `neti gate` instead.
+
+**The evidence differs between the two halves and the card says so.** The first group is driven by
+`tests/e2e/test_seam_equivalence.py`, which runs the real adapter. The second is *by construction*:
+what is tested is that neti gates a real MCP server (`tests/e2e/test_real_mcp_server.py`, against
+`@modelcontextprotocol/server-filesystem` over a real pipe), and that each of those clients speaks
+MCP is a fact about the client rather than something this suite establishes. Listing them as though
+each had been driven here would be the overclaim this card exists to avoid.
+"""
+
+NOT_REACHED = (
+    "An agent whose tools are in-process functions in a language this package cannot wrap, and "
+    "which does not go through MCP — a Vercel AI SDK or Mastra app with locally-defined "
+    "TypeScript tools is the common case. The MCP gateway is language-agnostic and covers those "
+    "same runtimes the moment their tools come from an MCP server; it is the locally-defined ones "
+    "that are out of reach.",
+    "Hosted agent runtimes that execute tools server-side, where there is no local seam at all: "
+    "the OpenAI Assistants/Responses hosted tools, Bedrock Agents' action groups, Vertex AI "
+    "extensions. A gate has to sit somewhere, and there is nowhere to sit.",
+)
+"""What the list above does not reach, named rather than left as an inference.
+
+A coverage table with no complement is a marketing table. These two are the honest shape of the
+limit: neti gates a call at a seam it can occupy, and an agent whose tools never pass through one
+is not gated — which SCOPE.md NC-09 already says about ungated tools, applied to whole runtimes.
 """
 
 _RESOLVER_FAMILIES = ("entra", "fs", "db", "storage", "terraform")
@@ -272,6 +334,12 @@ def build_scorecard(
     return card
 
 
+def _wrap_lines(text: str, width: int) -> list[str]:
+    import textwrap
+
+    return textwrap.wrap(text, width=width) or [""]
+
+
 def format_scorecard(card: Scorecard) -> str:
     out: list[str] = ["neti scorecard", "=" * 72, ""]
 
@@ -358,6 +426,22 @@ def format_scorecard(card: Scorecard) -> str:
         "    denial sentence byte for byte. A verdict that depends on which door a call came "
         "through is a bug in the product."
     )
+    out.append("")
+
+    out.append("    Runtimes, and the door each one arrives through:")
+    for runtime, seam in RUNTIMES.items():
+        # `driven` and `by construction` are different claims and the card keeps them apart. An
+        # adapter row was run by the seam table; an MCP client was not run at all — what was tested
+        # is that neti gates a real MCP server, and that the client speaks MCP is a fact about the
+        # client.
+        how = "driven" if seam not in ("mcp-stdio", "mcp-http") else "via MCP"
+        out.append(f"      {runtime:<52} {seam:<14} {how}")
+    out.append("")
+    out.append("    NOT reached:")
+    for limit in NOT_REACHED:
+        wrapped = _wrap_lines(limit, 96)
+        out.append(f"      - {wrapped[0]}")
+        out.extend(f"        {line}" for line in wrapped[1:])
     out.append("")
 
     out.append("M11 LIVE PROVIDER VERIFICATION (resolvers run against something real)")

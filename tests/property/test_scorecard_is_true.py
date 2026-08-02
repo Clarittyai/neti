@@ -257,3 +257,68 @@ def _full_card() -> str:
         ),
     )
     return format_scorecard(card)
+
+
+def test_every_runtime_the_card_names_arrives_through_a_seam_that_exists() -> None:
+    """The list is only useful while every entry points somewhere real.
+
+    A runtime naming a seam that is not in `SEAMS` would print a door that does not exist, and a
+    seam no runtime names is a door nobody was told about — the second is the likelier mistake and
+    the one that makes the product look narrower than it is.
+    """
+    from neti.eval.scorecard import RUNTIMES, SEAMS
+
+    assert set(RUNTIMES.values()) <= set(SEAMS), (
+        f"runtimes point at seams that do not exist: {sorted(set(RUNTIMES.values()) - set(SEAMS))}"
+    )
+    assert set(SEAMS) <= set(RUNTIMES.values()), (
+        f"seams no runtime is listed against: {sorted(set(SEAMS) - set(RUNTIMES.values()))}"
+    )
+
+
+def test_the_runtime_list_keeps_driven_and_via_mcp_apart() -> None:
+    """The distinction the whole table rests on.
+
+    An adapter row was actually run by the seam table. An MCP client was not run at all — what is
+    tested is that neti gates a real MCP server, and that Cursor speaks MCP is a fact about Cursor.
+    Printing both as though each had been driven here is the overclaim `neti score` exists to avoid,
+    so the two groups must stay separable: every non-MCP seam in the list has to be a shipped
+    adapter or the in-process gate.
+    """
+    import pkgutil
+
+    import neti.adapters
+    from neti.eval.scorecard import RUNTIMES
+
+    adapters = {name for _, name, _ in pkgutil.iter_modules(neti.adapters.__path__)}
+    driven = {seam for seam in RUNTIMES.values() if not seam.startswith("mcp-")}
+
+    # Each driven seam is either an adapter module or the in-process gate, which has no module.
+    assert len(driven) == len(adapters) + 1, (
+        f"{len(driven)} driven seams but {len(adapters)} adapters — a runtime is claimed as driven "
+        "without an adapter behind it, or an adapter has no runtime listed."
+    )
+    assert "preflight" in driven
+
+
+def test_the_card_says_what_it_does_not_reach() -> None:
+    """A coverage table with no complement is a marketing table.
+
+    Asserted as rendered output rather than as a constant, because the failure worth preventing is
+    somebody keeping the list and quietly dropping the section that prints it.
+    """
+    from neti.eval.scorecard import NOT_REACHED
+
+    assert NOT_REACHED, "the not-reached list is empty, which cannot be true"
+
+    rendered = _full_card()
+    assert "NOT reached:" in rendered
+
+    # Compared after unwrapping, because the card hard-wraps these to width and a substring check
+    # against the raw output would pass or fail on where the line breaks landed.
+    flat = " ".join(rendered.split())
+    for limit in NOT_REACHED:
+        assert " ".join(limit.split()) in flat, (
+            "a non-coverage entry is declared and never printed; the section that shows it has "
+            "been dropped or truncated"
+        )
