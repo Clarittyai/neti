@@ -91,3 +91,31 @@ def test_new_records_are_written_at_the_current_schema() -> None:
     """A default that silently stayed on v1 would leave the marker outside the digest forever."""
     assert a_record().schema_ == SCHEMA
     assert SCHEMA != SCHEMA_V1
+
+
+def test_the_recorded_code_version_is_the_version_that_shipped() -> None:
+    """`code_version` is part of the record's answer to *which build decided this*.
+
+    It was a second literal in `Engine`, agreeing with `pyproject.toml` by luck. Nothing compared
+    them, so the next release would have shipped a gate stamping every sealed record with the
+    version before it — an audit trail that misidentifies the code that produced it, which is the
+    same class of defect as a synthetic record that says nothing about being synthetic.
+
+    Read out of `pyproject.toml` rather than restated, for the reason this repo has learned three
+    times: a second copy of a fact is how the fact goes stale.
+    """
+    import tomllib
+    from pathlib import Path
+
+    from neti import __version__
+    from neti.engine import Engine
+
+    pyproject = Path(__file__).resolve().parents[2] / "pyproject.toml"
+    declared = tomllib.loads(pyproject.read_text(encoding="utf-8"))["project"]["version"]
+
+    assert __version__ == declared, (
+        f"neti.__version__ is {__version__} and pyproject says {declared}"
+    )
+    assert Engine.__dataclass_fields__["code_version"].default == declared, (
+        "the engine stamps a different version into records than the one that shipped"
+    )

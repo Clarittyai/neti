@@ -16,6 +16,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any, Protocol
 
+from neti._version import __version__
 from neti.config.policy import Policy
 from neti.core.budget import SessionTally, check_budgets
 from neti.core.decide import decide
@@ -78,7 +79,13 @@ class Engine:
     policy: Policy
     resolvers: dict[str, Resolver]
     ctx: ResolveContext = field(default_factory=ResolveContext)
-    code_version: str = "0.1.0"
+    code_version: str = __version__
+    """Which build decided. Read from `neti.__version__` rather than written out again here.
+
+    It was a second literal, and the two agreed only by luck — the next release would have shipped
+    a gate that stamped every record with the version *before* it, which is an audit trail that
+    misidentifies the code that produced it. `tests/property/test_record_schema.py` pins
+    `neti.__version__` to `pyproject.toml`, so there is now exactly one place to change."""
 
     strict: bool = True
     """Reject a policy whose session budgets can never fire. See `_check_budget_units`."""
