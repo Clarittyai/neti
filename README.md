@@ -223,9 +223,17 @@ Measured against real Claude Code sessions, not modelled:
 
 | | |
 |---|---|
-| Hook overhead, per tool call | **p50 172ms · p95 184ms** |
+| Hook overhead, per tool call | **p50 ~140ms · p95 ~145ms**, and flat as the record file grows |
 | Records | **~1.0–1.2 KB per call**, so roughly 1 MB per thousand |
 | Decision itself | microseconds — the overhead above is almost entirely Python interpreter start |
+
+"Flat" is the row that changed. `neti hook` used to read the entire record file twice per call —
+once to seed the chain, once under the append lock — so the cost grew with everything you had
+already recorded: **133ms fresh, 273ms at ten thousand records, 816ms at fifty thousand**, measured
+on a lean install. The advice on this page is to run a week in observe mode, which is how you get to
+fifty thousand. The head is cached in a `.head` sidecar now, keyed on the record file's byte length
+so anything that touches the file outside the gate invalidates it and every reader falls back to the
+full walk — it can fail to be *fast*, never to be right.
 
 The record figure said ~700 bytes until somebody measured it again: a coding agent's calls against
 `examples/coding-agent.yaml` write a median of 1,057 bytes with short relative paths, and 1,230 with

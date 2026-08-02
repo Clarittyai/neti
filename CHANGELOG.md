@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+### The gate got six times slower the longer you left it on
+
+`neti hook` is one process per tool call, and it read the **entire record file twice** on every one —
+once to seed the chain, once again under the append lock. Measured on a lean install:
+
+| records | before | after |
+|---|---|---|
+| fresh | 133ms | 139ms |
+| 10,000 | 273ms | 139ms |
+| 50,000 | 816ms | 136ms |
+
+The README published a flat *p50 172ms*, and this page's own advice is to run a week in observe
+mode — which is how you get to fifty thousand records. A gate that becomes six times slower the
+longer it is installed is a gate people uninstall, and nothing in the suite could see it because
+every test writes a handful of records to a fresh temp file.
+
+The head now lives in a `.head` sidecar keyed on the record file's byte length. Anything that
+appended, truncated or rewrote the file outside the sink stops the key matching and every reader
+falls back to the full walk, so a stale, corrupt or absent sidecar costs a walk and never a wrong
+answer — three tests in `test_regressions.py` hold that line, including one that makes the walk
+raise to prove the sidecar is genuinely being used.
+
+The cost table now publishes the flat figure and says what used to happen.
+
 ### `pip install neti` could not `import neti`
 
 The package's base dependencies are pydantic and pyyaml. `resolvers/graph_client.py` imported

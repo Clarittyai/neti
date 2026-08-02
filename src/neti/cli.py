@@ -410,10 +410,14 @@ def _build_resolvers(
     owner, and therefore what lets `neti inventory` report a number rather than `?` for anything
     outside Entra.
     """
-    from neti.eval.synthetic import default_tenant
     from neti.resolvers.graph_client import ClientCredential, GraphClient
     from neti.resolvers.registry import build_entra_resolvers, resolvers_for_client
 
+    # `neti.eval.synthetic` is the fixture tenant and it is built on an httpx MockTransport, so
+    # importing it here unconditionally made every non-demo command need the `graph` extra —
+    # `neti hook` on a filesystem policy included, which is the cheapest install this product has.
+    # The same shape as the httpx import in `graph_client`, one level up: a path paying for a
+    # dependency belonging to a path it never takes.
     if not demo and needs_entra:
         return build_entra_resolvers(timeout_ms=timeout_ms, providers=providers)
 
@@ -425,6 +429,8 @@ def _build_resolvers(
         blank = ClientCredential(tenant_id="", client_id="", client_secret="")
         client = GraphClient(blank, timeout_ms=timeout_ms)
         return resolvers_for_client(client, providers), client
+
+    from neti.eval.synthetic import default_tenant
 
     credential = ClientCredential(tenant_id="demo", client_id="demo", client_secret="demo")
     client = GraphClient(credential, transport=default_tenant().transport(), timeout_ms=timeout_ms)

@@ -24,6 +24,7 @@ genuinely the only writer and would rather have the latency.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import queue
@@ -144,18 +145,30 @@ class JsonlSink:
         A *file* lock rather than a thread lock, because the writers are separate **processes** —
         one per tool call, when the gate is a `PreToolUse` hook. A `threading.Lock` would have
         looked entirely correct and prevented nothing.
+
+        The head comes from the sidecar when it is current, and from a full walk when it is not.
+        Both happen under the lock, so a writer never seals against a head another writer has
+        already moved.
         """
         with self.path.open("a+", encoding="utf-8") as fh, _exclusive(fh):
-            fh.seek(0)
-            head: str | None = None
-            for line in fh:
-                if line.strip():
-                    head = json.loads(line)["record_digest"]
+            fh.seek(0, os.SEEK_END)
+            size = fh.tell()
+            cached = _cached_head(self.path, size)
+            head: str | None
+            if isinstance(cached, _Miss):
+                fh.seek(0)
+                head = None
+                for line in fh:
+                    if line.strip():
+                        head = json.loads(line)["record_digest"]
+            else:
+                head = cached
             sealed = record.sealed(head)
             fh.seek(0, os.SEEK_END)
             fh.write(json.dumps(sealed.model_dump(mode="json", by_alias=True)) + "\n")
             fh.flush()
             os.fsync(fh.fileno())
+            _write_head(self.path, fh.tell(), sealed.record_digest)
         return sealed
 
     def _run(self) -> None:
@@ -195,6 +208,41 @@ class JsonlSink:
         self.close()
 
 
+class _Miss:
+    """Distinct from `None`, which is a legitimate head: the empty chain."""
+
+
+_MISS = _Miss()
+
+
+def _head_path(path: Path) -> Path:
+    return path.with_name(path.name + ".head")
+
+
+def _cached_head(path: Path, size: int) -> str | _Miss | None:
+    """The last digest, if the sidecar still describes this exact file.
+
+    Keyed on the records file's byte length. Anything that appended, truncated or rewrote the file
+    without going through the sink changes the length, the key stops matching, and every reader
+    falls back to the full walk — so the cache can be stale, deleted or garbage without ever
+    producing a wrong answer. It is an optimisation that fails to *slow*, never to wrong.
+    """
+    try:
+        cached = json.loads(_head_path(path).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return _MISS
+    if not isinstance(cached, dict) or cached.get("bytes") != size:
+        return _MISS
+    digest = cached.get("digest")
+    return digest if isinstance(digest, str) or digest is None else _MISS
+
+
+def _write_head(path: Path, size: int, digest: str | None) -> None:
+    """Record the new head. Best effort: losing it costs a walk, never a correct answer."""
+    with contextlib.suppress(OSError):
+        _head_path(path).write_text(json.dumps({"bytes": size, "digest": digest}), encoding="utf-8")
+
+
 def chain_head(path: str | Path) -> str | None:
     """Digest of the last record in an existing file, or `None` if there is no file yet.
 
@@ -207,6 +255,16 @@ def chain_head(path: str | Path) -> str | None:
     with millions of records wants the head cached alongside, not a tail-seek that has to cope with
     partial final lines.
     """
+    target = Path(path)
+    try:
+        size = target.stat().st_size
+    except OSError:
+        return None
+
+    cached = _cached_head(target, size)
+    if not isinstance(cached, _Miss):
+        return cached
+
     try:
         last = None
         for record in read_records(path):

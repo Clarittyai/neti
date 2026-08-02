@@ -6,6 +6,8 @@ returned a milder verdict than the operator declared, or lost the evidence for o
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any
 
 from hypothesis import given
@@ -175,3 +177,112 @@ def test_chain_head_of_a_missing_file_is_none(tmp_path: Any) -> None:
     from neti.store.jsonl import chain_head
 
     assert chain_head(tmp_path / "nope.ndjson") is None
+
+
+# ---------------------------------------------------------------------------- the head sidecar
+#
+# `neti hook` is one process per tool call, and it read the *entire* record file twice on every
+# one — once to seed the chain and once under the append lock. Measured on a lean install: 133ms
+# on a fresh file, 273ms at ten thousand records, 816ms at fifty thousand. The README published a
+# flat "p50 172ms", and the product's own advice is to run a week in observe mode, which is how you
+# get to fifty thousand. A gate that becomes six times slower the longer you leave it on is a gate
+# people uninstall.
+#
+# The sidecar makes it O(1), and these two tests are the pair that keeps it *safe* rather than
+# merely fast: it must be used when it is current, and ignored the instant it is not.
+
+
+def test_the_head_is_read_from_the_sidecar_rather_than_by_walking(tmp_path: Path) -> None:
+    """Deterministic, not timed. `read_records` is the walk, so making it explode proves it is
+    not being called — a timing assertion would be flaky and would prove less."""
+    from neti.store import jsonl
+
+    records = tmp_path / "d.ndjson"
+    sink = jsonl.JsonlSink(records)
+    try:
+        written = sink.write(_a_record())
+    finally:
+        sink.close()
+
+    def explode(*_a: object, **_k: object) -> object:
+        raise AssertionError("chain_head walked the file instead of reading the sidecar")
+
+    original = jsonl.read_records
+    jsonl.read_records = explode  # type: ignore[assignment]
+    try:
+        assert jsonl.chain_head(records) == written.record_digest
+    finally:
+        jsonl.read_records = original  # type: ignore[assignment]
+
+
+def test_a_sidecar_that_no_longer_describes_the_file_is_ignored(tmp_path: Path) -> None:
+    """The half that makes the optimisation safe to have at all.
+
+    The cache is keyed on the records file's byte length, so anything that appended, truncated or
+    rewrote the file outside the sink stops it matching and every reader falls back to the walk. A
+    head cache that could go stale *and be believed* would seal the next record against the wrong
+    predecessor and fork the chain — which is the one failure this file exists to prevent.
+    """
+    from neti.core.record import verify_chain
+    from neti.store import jsonl
+
+    records = tmp_path / "d.ndjson"
+    sink = jsonl.JsonlSink(records)
+    try:
+        first = sink.write(_a_record())
+    finally:
+        sink.close()
+
+    # A plausible, wrong sidecar: right shape, stale digest, and a length that no longer matches.
+    (tmp_path / "d.ndjson.head").write_text(
+        json.dumps({"bytes": 1, "digest": "0" * 64}), encoding="utf-8"
+    )
+    assert jsonl.chain_head(records) == first.record_digest, "a stale sidecar was believed"
+
+    # And a second write still chains correctly off the real head rather than the bogus one.
+    sink = jsonl.JsonlSink(records)
+    try:
+        second = sink.write(_a_record())
+    finally:
+        sink.close()
+    assert second.prev_digest == first.record_digest
+
+    ok, bad = verify_chain(list(jsonl.read_records(records)))
+    assert ok, f"chain broke at {bad}"
+
+
+def test_a_corrupt_or_missing_sidecar_costs_a_walk_and_nothing_else(tmp_path: Path) -> None:
+    """It fails to *slow*, never to wrong. Garbage and absent take the same path."""
+    from neti.store import jsonl
+
+    records = tmp_path / "d.ndjson"
+    sink = jsonl.JsonlSink(records)
+    try:
+        written = sink.write(_a_record())
+    finally:
+        sink.close()
+
+    head = tmp_path / "d.ndjson.head"
+    for content in ("", "not json", "[]", '{"bytes": "x"}'):
+        head.write_text(content, encoding="utf-8")
+        assert jsonl.chain_head(records) == written.record_digest, f"broke on {content!r}"
+    head.unlink()
+    assert jsonl.chain_head(records) == written.record_digest
+
+
+def _a_record() -> Any:
+    from neti.core.record import DecisionRecord
+
+    return DecisionRecord.model_validate(
+        {
+            "decision_id": "d",
+            "decided_at": "2026-01-01T00:00:00+00:00",
+            "tool": "Read",
+            "args": {"file_path": "/tmp/x"},
+            "verdict": "allow",
+            "rule": "under_all_bands",
+            "mode": "observe",
+            "policy_digest": "p",
+            "code_version": "0.1.0",
+        }
+    )
