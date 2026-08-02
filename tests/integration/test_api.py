@@ -258,3 +258,27 @@ def test_the_scorecard_still_reports_its_misses(connected: Any) -> None:
     assert card["coverage"]["caught"] < card["coverage"]["total"]
     assert card["known_blind_spots"]
     assert card["not_yet_measured"]
+
+
+def test_the_decision_list_says_which_rows_are_synthetic(connected: Any) -> None:
+    """The console reads this endpoint, and it hand-picks its fields.
+
+    So a field added to the record does not appear here unless somebody adds it, and this is the one
+    that must not be missed: the console's whole job is showing an operator what their agents did,
+    and a `--demo` row rendering beside a measured one — same confident magnitude, nothing to tell
+    them apart — is exactly the defect `neti.decision.v2` exists to close, one layer up.
+    """
+    fire(connected, "remove_group_members", "g-eng-all")
+
+    rows = connected.get("/api/decisions").json()["decisions"]
+    assert rows, "the gate call recorded nothing"
+    assert all("synthetic" in row for row in rows), (
+        "the decision list dropped the synthetic marker; the console cannot distinguish invented "
+        "magnitudes from measured ones"
+    )
+    # And the value has to be right, not merely present. The console defaults to the synthetic
+    # tenant whenever there is no credential — which is most of the time anybody is looking at it —
+    # so `False` here would be the more dangerous of the two wrong answers.
+    assert all(row["synthetic"] is True for row in rows), (
+        "the console is running on the synthetic tenant and recorded its magnitudes as measured"
+    )

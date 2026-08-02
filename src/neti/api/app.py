@@ -175,6 +175,11 @@ def create_app(
                     "rule": r.rule,
                     "mode": r.mode,
                     "session_id": r.session_id,
+                    # The list hand-picks fields, so a new one has to be added here deliberately —
+                    # and this is the one that must never be dropped. A synthetic decision rendering
+                    # beside a measured one, with the same confident magnitude and nothing to tell
+                    # them apart, is the defect `neti.decision.v2` exists to close, one layer up.
+                    "synthetic": r.synthetic,
                     "magnitudes": [
                         {"pointer": c["pointer"], "magnitude": c["magnitude"], "unit": c["unit"]}
                         for c in r.causes

@@ -93,6 +93,10 @@ class ConsoleState:
             resolvers=self.engine.resolvers,
             ctx=self.engine.ctx,
             last_digest=self.engine.last_digest,
+            # Carried across the rebuild. Dropping it here would mark records synthetic until the
+            # first time somebody flipped the mode — which the console invites them to do, in the
+            # act that exists to show the gate deciding.
+            synthetic=self.engine.synthetic,
         )
 
     def close(self) -> None:
@@ -147,6 +151,11 @@ def build_state(
         resolvers=resolvers_for_client(client),
         ctx=ResolveContext(timeout_ms=timeout_ms),
         last_digest=chain_head(records_path),
+        # The console defaults to demo whenever there is no credential, which is most of the time
+        # somebody is looking at it. Without this it writes confident, invented magnitudes into an
+        # ordinary record chain with nothing saying so — the same defect as `--demo` on the CLI, in
+        # the surface built specifically for showing people numbers.
+        synthetic=demo,
     )
 
     return ConsoleState(
