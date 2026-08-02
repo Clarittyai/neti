@@ -1020,6 +1020,18 @@ def verify(
     if chain:
         typer.echo(f"head: {chain[-1].record_digest}")
 
+    # This is the command an auditor runs, so it is the last place a synthetic row could pass for a
+    # measured one. "Chain intact" is a statement about tampering and says nothing about provenance;
+    # a reader who takes it as a blessing on the numbers has been misled by us.
+    synthetic = sum(1 for record in chain if record.synthetic)
+    if synthetic:
+        typer.secho(
+            f"\n⚠  {synthetic:,} of these {len(chain):,} records are SYNTHETIC (`--demo`): "
+            "magnitudes from\n   the built-in tenant, not from any provider. The chain covers "
+            "that marker, so it\n   is evidence of provenance and not a label anyone can strip.",
+            fg=typer.colors.YELLOW,
+        )
+
     if config is None:
         if chain:
             typer.echo("\nPass --config to also replay each decision against the policy.")
