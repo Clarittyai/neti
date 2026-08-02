@@ -289,6 +289,24 @@ def test_hook_says_the_right_thing(workspace: Path, name: str, tool: str, args: 
 # nobody notices drifting.
 
 
+@pytest.fixture
+def bare_machine(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """No credentials, whatever the developer actually has.
+
+    Without this the transcript records *this laptop*: `gh auth token` succeeds and `~/.aws` exists,
+    so two layers read as listening here and dark in CI, and the golden fails on every machine but
+    one. The stack survey is deliberately environment-sensitive, which makes pinning its output a
+    question of pinning the environment.
+    """
+    import os
+
+    for name in list(os.environ):
+        if name.startswith(("NETI_", "AWS_", "GITHUB_")):
+            monkeypatch.delenv(name, raising=False)
+    monkeypatch.setattr("neti.eval.stack.shutil.which", lambda _: None)
+    monkeypatch.setattr("neti.eval.stack.Path.home", lambda: tmp_path / "no-home")
+
+
 def _fixture_repo(ws: Path) -> Path:
     """A tree with a known file count, so the transcript is a fixed number rather than whatever the
     machine happens to hold."""
@@ -300,7 +318,7 @@ def _fixture_repo(ws: Path) -> Path:
     return repo
 
 
-def test_demo_here_with_no_traffic(workspace: Path) -> None:
+def test_demo_here_with_no_traffic(workspace: Path, bare_machine: None) -> None:
     """The first run every evaluator gets.
 
     A measurement, and a plain statement of what is missing.
@@ -315,7 +333,7 @@ def test_demo_here_with_no_traffic(workspace: Path) -> None:
     )
 
 
-def test_demo_here_with_traffic(workspace: Path) -> None:
+def test_demo_here_with_traffic(workspace: Path, bare_machine: None) -> None:
     """All six acts. The act-3 caveat and the closing disclaimer are the lines that matter most."""
     repo = _fixture_repo(workspace)
     policy = Path(__file__).resolve().parents[2] / "examples" / "coding-agent.yaml"

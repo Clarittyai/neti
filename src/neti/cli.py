@@ -1023,7 +1023,6 @@ def _demo_here(*, config: str, repo: str | None, corpus: str | None) -> None:
     machine" and "a captured session's shape, re-run against your files" is the difference between
     a finding and an anecdote, and a reader who cannot tell them apart should not trust either.
     """
-    from neti.core.units import may_allow
     from neti.eval.corpus import Corpus, load_corpus
     from neti.eval.here import run_here
 
@@ -1079,30 +1078,37 @@ def _demo_here(*, config: str, repo: str | None, corpus: str | None) -> None:
         typer.echo(f"   already gated: {', '.join(result.already_gated)}")
 
     rule(2, "REACH", "MEASURED here, no traffic needed")
-    # Grouped by resolver rather than listed per parameter, because reachable-max *is* a property
-    # of the resolver and its root. One row per tool repeating the same number reads as "every one
-    # of these tools can touch 35,871 files in one call", which is false for any tool whose
-    # parameter names a single file.
-    by_resolver: dict[str, list[Any]] = {}
-    for row in result.reach:
-        by_resolver.setdefault(row.resolver, []).append(row)
-    for resolver, rows in sorted(
-        by_resolver.items(), key=lambda kv: -(kv[1][0].reachable.magnitude or 0)
-    ):
-        head = rows[0]
-        if head.reachable.magnitude is None:
-            reach = "?"
-        elif not may_allow(head.reachable.direction):
-            # Capped: the resolver stopped counting and reported a floor. Printing the bare number
-            # would present the cap as the answer.
-            reach = f"\u2265 {head.reachable.magnitude:,}"
+    # The whole stack, not just the layers this policy happens to gate. A table showing only what
+    # `neti` covers invites the reader to assume everything absent is safe, which is backwards —
+    # the layers with no resolver are the ones nothing is watching.
+    from neti.eval.stack import State
+
+    for row in result.stack:
+        layer = row.layer
+        if row.state is State.LISTENING and row.reach is not None:
+            amount = f"{'\u2265 ' if row.bounded else ''}{row.reach:,}"
+            typer.secho(
+                f"   {'listening':11} {layer.name:16} {amount:>12} {layer.unit}",
+                fg=typer.colors.GREEN,
+            )
+        elif row.state is State.LISTENING:
+            typer.echo(f"   {'listening':11} {layer.name:16} {'—':>12} {row.note}")
+        elif row.state is State.DARK:
+            typer.secho(
+                f"   {'dark':11} {layer.name:16} {'—':>12} {row.note}",
+                fg=typer.colors.YELLOW,
+            )
         else:
-            reach = f"{head.reachable.magnitude:,}"
-        typer.echo(f"   {resolver:24} {reach:>12} {head.reachable.unit.value}")
-        bound = ", ".join(sorted(f"{r.tool}{r.pointer}" for r in rows))
-        typer.echo(f"     bound by {len(rows)}: {bound[:88]}")
-    if not result.reach:
-        typer.echo("   nothing gated by this policy")
+            typer.secho(
+                f"   {'no resolver':11} {layer.name:16} {'—':>12} {layer.what}",
+                fg=typer.colors.BRIGHT_BLACK,
+            )
+
+    typer.echo("")
+    typer.echo(
+        f"   {result.listening} layer(s) listening · {result.dark} dark for want of a credential · "
+        f"{sum(1 for r in result.stack if r.state is State.UNCOVERED)} with no resolver at all"
+    )
 
     for finding in result.findings[:1]:
         typer.echo("")

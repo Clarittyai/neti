@@ -6,8 +6,17 @@ neti demo — measured on <path>
    no MCP servers configured on this machine
 
 ── 2. REACH ────────────────────────────────────────────  MEASURED here, no traffic needed
-   fs.paths                           32 objects
-     bound by 8: Edit/file_path, Glob/pattern, Grep/path, Read/file_path, Write/file_path, directory_tree
+   listening   filesystem                 32 objects
+   dark        source control              — export NETI_GITHUB_TOKEN
+   dark        database                    — export NETI_DATABASE_URL
+   dark        object storage              — export AWS_ACCESS_KEY_ID
+   dark        directory                   — export NETI_TENANT_ID
+   listening   infrastructure              — reachable_max_requires_terraform_state
+   no resolver shell                       — what a command would delete — a grammar, not a value (NC-09, NC-10)
+   no resolver messaging                   — Slack, Teams, outbound email outside a directory
+   no resolver SaaS records                — CRM objects, tickets, documents in a vendor's own store
+
+   2 layer(s) listening · 4 dark for want of a credential · 3 with no resolver at all
 
    An agent working here reaches 32 objects, across 8 gated parameter(s).
    It bounds what one credential can address here; it does not measure any single call. Nothing in a permission system reports either number — it answers whether, not how many.

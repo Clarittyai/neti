@@ -34,6 +34,7 @@ from neti.core.units import may_allow
 from neti.core.verdict import Mode
 from neti.engine import Engine
 from neti.eval.corpus import Corpus
+from neti.eval.stack import StackRow, State, survey
 from neti.insight.inventory import InventoryRow, build_inventory
 from neti.insight.propose import propose
 from neti.insight.replay import replay
@@ -89,8 +90,21 @@ class HereResult:
     chain_ok: bool = False
     replayed: int = 0
 
+    stack: list[StackRow] = field(default_factory=list)
+    """Every layer an agent can reach, listening or dark or uncovered — not only the ones this
+    policy happens to gate. A report on one layer that stays quiet about four others describes a
+    fraction of the blast radius as though it were the whole."""
+
     findings: list[Finding] = field(default_factory=list)
     next_steps: list[str] = field(default_factory=list)
+
+    @property
+    def listening(self) -> int:
+        return sum(1 for row in self.stack if row.state is State.LISTENING)
+
+    @property
+    def dark(self) -> int:
+        return sum(1 for row in self.stack if row.state is State.DARK)
 
     @property
     def has_traffic(self) -> bool:
@@ -126,6 +140,41 @@ def _discover(root: Path) -> tuple[list[dict[str, str]], list[str]]:
     ], gated
 
 
+def _survey_stack(root: Path, engine: Engine, policy: Policy) -> list[StackRow]:
+    """Which layers this machine can see, and how far each one reaches.
+
+    `survey` answers the first half from the environment. The reach comes from asking each layer's
+    resolver for its own `reachable_max` — the same call `neti inventory` makes, through the same
+    configured registry, so a number here cannot differ from a number there.
+    """
+    rows = survey(root)
+    for row in rows:
+        if row.state is not State.LISTENING:
+            continue
+        resolver = engine.resolvers.get(row.layer.resolver)
+        if resolver is None:
+            continue
+        try:
+            reachable = resolver.reachable_max(ResolveContext())
+        except Exception as exc:  # a provider that will not answer is dark, not zero
+            row.state = State.DARK
+            row.note = f"{type(exc).__name__}: {exc}"[:80]
+            continue
+        if reachable.magnitude is None:
+            # Reachable, but with nothing declared to bound it. A credential says the layer is
+            # *there*; it does not say how far it goes. Print the line to add rather than the
+            # resolver's reason code — `no_owner_declared` is accurate and useless.
+            row.note = (
+                f"add {row.layer.declare}"
+                if row.layer.declare
+                else str(reachable.evidence.get("reason") or "no bound declared")
+            )
+            continue
+        row.reach = reachable.magnitude
+        row.bounded = not may_allow(reachable.direction)
+    return rows
+
+
 # ---------------------------------------------------------------------------- the run
 
 
@@ -154,6 +203,7 @@ def run_here(
     # ---------------------------------------------------------------- act 2: reach
     observing = _engine(policy, Mode.OBSERVE)
     result.reach = build_inventory(policy, observing.resolvers, ResolveContext())
+    result.stack = _survey_stack(root, observing, policy)
     biggest = max(
         (r for r in result.reach if r.reachable.magnitude is not None),
         key=lambda r: r.reachable.magnitude or 0,
