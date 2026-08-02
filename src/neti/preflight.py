@@ -163,6 +163,8 @@ class Preflight:
             records,
             timeout_ms,
             ResolveContext,
+            # `Preflight.demo` is the synthetic tenant by definition.
+            synthetic=True,
         )
 
     @classmethod
@@ -173,8 +175,10 @@ class Preflight:
         records: str | Path | None,
         timeout_ms: int,
         resolve_context: Any,
+        synthetic: bool = False,
     ) -> Preflight:
         engine = Engine(
+            synthetic=synthetic,
             policy=policy,
             resolvers=resolvers,
             ctx=resolve_context(timeout_ms=timeout_ms),

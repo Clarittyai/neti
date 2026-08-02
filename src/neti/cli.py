@@ -512,6 +512,10 @@ def gate(
             # Continue the existing file's chain rather than starting a new one, or every restart
             # writes a mid-chain break that `neti verify` correctly reports.
             last_digest=chain_head(records),
+            # Marks every record this run seals. `--demo` resolves against the synthetic tenant, and
+            # its numbers are exact, confident and invented; the default records path is the same
+            # one a real run uses.
+            synthetic=demo,
         )
     except (PolicyError, OSError, ResolverError, ValueError) as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
@@ -681,6 +685,7 @@ def hook(
             resolvers=resolvers,
             ctx=ResolveContext(timeout_ms=timeout_ms),
             last_digest=head,
+            synthetic=demo,
         )
     except Exception as exc:
         # Deliberately every exception. A hook that cannot run must not take the session down with
@@ -743,11 +748,22 @@ def propose(
         str | None,
         typer.Option("--since", help="Only calls in this window: 90s, 30m, 12h, 7d, 2w."),
     ] = None,
+    allow_synthetic: Annotated[
+        bool,
+        typer.Option(
+            "--allow-synthetic",
+            help="Propose from `--demo` traffic anyway. The numbers describe the built-in tenant.",
+        ),
+    ] = False,
 ) -> None:
     """Suggest ceilings from your own observed traffic, for a human to review and commit.
 
     Output is text to edit into a policy file. Nothing here is applied automatically, and nothing
     computed here is ever read at decision time.
+
+    Refuses a window containing `--demo` decisions unless `--allow-synthetic` says otherwise: those
+    magnitudes come from the built-in tenant, and a ceiling fitted to a fixture is worse than no
+    ceiling because somebody will defend it.
     """
     from neti.insight.propose import format_proposals
     from neti.insight.propose import propose as build
@@ -763,6 +779,37 @@ def propose(
     except (OSError, ValueError) as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from exc
+
+    if summary.synthetic and not allow_synthetic:
+        # Refused by default rather than warned. Everything this command prints is a number an
+        # operator is about to paste into a policy and defend at 2am, and a ceiling fitted to the
+        # built-in tenant is fitted to nothing. A warning above a table of confident figures gets
+        # read as decoration; declining to print the table does not.
+        #
+        # Not refused outright, because `--demo` exists so the whole path can be walked with no
+        # credentials and this is the last step of that walk. `--allow-synthetic` is the operator
+        # saying they know which it is.
+        typer.secho(
+            f"error: {summary.synthetic:,} of {summary.decisions:,} decisions in this window are "
+            "synthetic (`--demo`).",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        typer.secho(
+            "Their magnitudes come from the built-in tenant, not from your traffic, so a\n"
+            "ceiling proposed from them is fitted to a fixture. Point --records at a file only\n"
+            "real traffic wrote, narrow the window with --since, or pass --allow-synthetic to\n"
+            "see the shape of the answer anyway.",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    if summary.synthetic:
+        typer.secho(
+            f"⚠  {summary.synthetic:,} of {summary.decisions:,} decisions below are SYNTHETIC. "
+            "These numbers describe the built-in tenant, not your agents.",
+            fg=typer.colors.YELLOW,
+        )
     typer.echo(format_proposals(build(summary)))
 
 

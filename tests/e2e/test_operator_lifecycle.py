@@ -158,7 +158,12 @@ def test_the_first_week_end_to_end(workdir: Path) -> None:
     assert f"n={len(CORPUS)}" in report.stdout
 
     # ---------------------------------------------------------------- 5. propose
-    proposed = run("propose", "--records", str(records), cwd=workdir)
+    # `--allow-synthetic`, because this whole lifecycle runs against the built-in tenant. `propose`
+    # refuses such a window by default now: a ceiling fitted to a fixture is worse than no ceiling,
+    # because it looks like it came from traffic and somebody will defend it. The flag is the
+    # operator saying they know which this is, and it is exactly what a reader walking the
+    # no-credential path would type.
+    proposed = run("propose", "--records", str(records), "--allow-synthetic", cwd=workdir)
     assert proposed.returncode == 0, proposed.stderr
     predicted = _predicted_impact(proposed.stdout)
     fragment = _yaml_fragment(proposed.stdout)
@@ -209,7 +214,12 @@ def test_the_proposed_ceilings_actually_bind(workdir: Path) -> None:
 
     gate_corpus(workdir, policy, records, CORPUS)
 
-    proposed = run("propose", "--records", str(records), cwd=workdir)
+    # `--allow-synthetic`, because this whole lifecycle runs against the built-in tenant. `propose`
+    # refuses such a window by default now: a ceiling fitted to a fixture is worse than no ceiling,
+    # because it looks like it came from traffic and somebody will defend it. The flag is the
+    # operator saying they know which this is, and it is exactly what a reader walking the
+    # no-credential path would type.
+    proposed = run("propose", "--records", str(records), "--allow-synthetic", cwd=workdir)
     predicted = _predicted_impact(proposed.stdout)
 
     assert predicted["block"] + predicted["confirm"] > 0, (

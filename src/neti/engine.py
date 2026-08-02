@@ -83,6 +83,12 @@ class Engine:
     strict: bool = True
     """Reject a policy whose session budgets can never fire. See `_check_budget_units`."""
 
+    synthetic: bool = False
+    """Set when the resolvers behind this engine answer from the synthetic tenant rather than a
+    provider — `--demo`. It is stamped into every record this engine seals, and it is inside the
+    digest, because a demo run writes to the ordinary records file by default and its numbers are
+    exact, confident and invented."""
+
     last_digest: str | None = None
     """Digest of the record this engine's chain continues from.
 
@@ -359,6 +365,7 @@ class Engine:
             args=call.args,
             session_id=call.session_id,
             prev_digest=self.last_digest,
+            synthetic=self.synthetic,
         )
         self.last_digest = record.record_digest
         emit(

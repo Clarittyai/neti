@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### A `--demo` record was indistinguishable from a measured one
+
+`--demo` resolves against the built-in tenant so somebody can watch the whole path work with no
+credentials. It produces numbers that are exact, confident and entirely invented — *41,203
+principals, `direction: exact`* — sealed into the same hash chain by the same code, and nothing in
+the record said so. The default records path is the one a real run writes to.
+
+So a demo interleaves fabricated traffic with measured traffic in one file. `neti report` averages
+the two. `neti propose` reads that summary and would have suggested a production ceiling fitted
+partly to a fixture. An auditor reading the chain had no way to tell which rows were which.
+
+`DecisionRecord` gains `synthetic`, and the record schema goes to **`neti.decision.v2`** — a version
+rather than an additive field, because `chained` is what `verify_chain` recomputes and adding a key
+to it unconditionally would make every record written before today report as tampered with. A v1
+record recomputes exactly the fields it was sealed over and still verifies; a v2 record covers the
+marker, so it cannot be stripped by anyone holding the file. `tests/property/test_record_schema.py`
+pins both halves.
+
+Downstream: `neti report` says how many decisions in the window are synthetic, above the numbers
+rather than under them. `neti propose` **refuses** such a window — everything it prints is a figure
+an operator is about to paste into a policy and defend at 2am — unless `--allow-synthetic` says they
+know which it is, which is what the no-credential walkthrough passes.
+
 ### A log file that could not be opened switched enforcement off
 
 The worst defect this project has had, and the sibling test that should have caught it had the right

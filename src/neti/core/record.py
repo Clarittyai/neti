@@ -23,9 +23,19 @@ from neti.core.canonical import canonical_bytes
 from neti.core.redact import redact_args
 from neti.core.types import Decision, Frozen
 
-__all__ = ["SCHEMA", "DecisionRecord", "chain_digest", "verify_chain"]
+__all__ = ["SCHEMA", "SCHEMA_V1", "DecisionRecord", "chain_digest", "verify_chain"]
 
-SCHEMA = "neti.decision.v1"
+SCHEMA = "neti.decision.v2"
+SCHEMA_V1 = "neti.decision.v1"
+"""The previous schema, still readable and still verifiable.
+
+v2 adds one field — `synthetic` — and the *only* reason this is a version rather than an additive
+field is that `chained` below is what `verify_chain` recomputes. Adding a key to it unconditionally
+would change the recomputed digest of every record ever written, so a chain produced last week would
+report as tampered with. A record's digest has to keep meaning what it meant on the day it was
+sealed, or the audit artefact is worth nothing.
+"""
+
 _DIGEST_BYTES = 32
 
 
@@ -64,6 +74,21 @@ class DecisionRecord(Frozen):
     budget: dict[str, Any] | None = None
     policy_digest: str
     code_version: str
+
+    synthetic: bool = False
+    """True when the magnitudes in this record came from the synthetic tenant, not a provider.
+
+    `--demo` exists so somebody can see the whole path work with no credentials, and it produces
+    numbers that are exact, confident and entirely invented: 41,203 principals, `direction: exact`,
+    sealed into the same hash chain by the same code. Nothing distinguished such a record from a
+    real one. Point a demo run at the ordinary records file — which is the default — and fabricated
+    traffic interleaves with measured traffic, `neti report` averages the two, `neti propose`
+    derives ceilings partly from fiction, and an auditor reading the chain cannot tell.
+
+    Inside the digest, so it cannot be stripped: a tamperer who removed the marker to pass synthetic
+    evidence off as measured would break the chain, which is the same reason `redacted` is in there.
+    """
+
     prev_digest: str | None = None
     record_digest: str = ""
 
@@ -79,7 +104,7 @@ class DecisionRecord(Frozen):
         `redacted` is in here too, and that placement is the point: a tamperer who stripped the
         marker to make a hidden field look like an absent one would break the digest.
         """
-        return {
+        base: dict[str, Any] = {
             "schema": self.schema_,
             "decision_id": self.decision_id,
             "session_id": self.session_id,
@@ -95,6 +120,12 @@ class DecisionRecord(Frozen):
             "policy_digest": self.policy_digest,
             "code_version": self.code_version,
         }
+        if self.schema_ != SCHEMA_V1:
+            # Version-conditional, and this is the whole compatibility story. A v1 record recomputes
+            # exactly the fields it was sealed over, so files written before v2 keep verifying; a v2
+            # record covers the marker too, so it cannot be stripped.
+            base["synthetic"] = self.synthetic
+        return base
 
     def sealed(self, prev_digest: str | None) -> DecisionRecord:
         """Return a copy with the chain links filled in."""
@@ -114,6 +145,7 @@ def build_record(
     args: dict[str, Any] | None = None,
     session_id: str | None = None,
     prev_digest: str | None = None,
+    synthetic: bool = False,
 ) -> DecisionRecord:
     """Assemble a sealed record from a decision.
 
@@ -182,6 +214,7 @@ def build_record(
         budget=budget,
         policy_digest=policy_digest,
         code_version=code_version,
+        synthetic=synthetic,
     ).sealed(prev_digest)
 
 

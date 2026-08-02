@@ -104,6 +104,15 @@ class ReportSummary:
     modes: set[str] = field(default_factory=set)
     policies: set[str] = field(default_factory=set)
 
+    synthetic: int = 0
+    """How many of these decisions came from `--demo` rather than from a provider.
+
+    Counted and surfaced because the numbers in a synthetic record are exact, confident and
+    invented, and the default records path is the one a real run writes to. A distribution built
+    partly from a demo is not a distribution of anything, and `neti propose` reads exactly this
+    summary to suggest ceilings — so a total that quietly blended the two would put fabricated
+    traffic behind a number an operator is about to commit."""
+
     @property
     def ordered(self) -> list[Distribution]:
         return sorted(self.distributions.values(), key=lambda d: (-len(d.over_ceiling), -d.maximum))
@@ -114,6 +123,7 @@ def build_report(records: Iterable[DecisionRecord]) -> ReportSummary:
 
     for record in records:
         summary.decisions += 1
+        summary.synthetic += 1 if record.synthetic else 0
         summary.verdicts[record.verdict] = summary.verdicts.get(record.verdict, 0) + 1
         summary.modes.add(record.mode)
         summary.policies.add(record.policy_digest)
@@ -167,6 +177,17 @@ def format_report(summary: ReportSummary, *, window: str = "all recorded") -> st
         out.append(
             f"⚠  {len(summary.policies)} different policy versions appear in this window. "
             "Re-run over a single policy before proposing ceilings."
+        )
+    if summary.synthetic:
+        # Loud, and above the numbers rather than under them. A reader who scrolls past this and
+        # then reads a p99 has been misled by us, not by their own carelessness.
+        out.append(
+            f"⚠  {summary.synthetic:,} of these {summary.decisions:,} decisions are SYNTHETIC "
+            "(`--demo`): magnitudes from the built-in tenant, not from any provider."
+        )
+        out.append(
+            "   They are exact, confident and invented. Do not propose ceilings from this window — "
+            "point --records at a file that only real traffic wrote."
         )
     verdicts = "  ".join(f"{k}={v:,}" for k, v in sorted(summary.verdicts.items()))
     out.append(f"   {verdicts}")
