@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### `pip install neti` could not `import neti`
+
+The package's base dependencies are pydantic and pyyaml. `resolvers/graph_client.py` imported
+`httpx` — which lives in the `graph` and `mcp` extras — at module scope, and that file is reached by
+`engine` -> `registry`, so a plain install raised `ModuleNotFoundError: httpx` on the first line of
+the README's own in-process example. The entire public surface, unusable, on the install instruction
+most people would try first.
+
+Nothing could have caught it for exactly the reason nothing caught `import fcntl` two releases ago:
+every environment the suite runs in installs the extras.
+
+The httpx client is now built on first *use* rather than at construction, so a policy that never
+reaches Graph never imports it — and `resolvers_for_client` can keep building a `GraphClient`
+unconditionally, which is what makes a mistyped entra resolver fail on its first call instead of at
+startup. `test_platform_imports.py` gains the general rule: every module a fresh `import neti`
+loads must be importable with the base dependencies alone, plus the other half — the README's
+filesystem example reaching a real verdict with no extras at all.
+
+Measured in a clean venv: `pip install neti`, `from neti import Preflight`, a real gated call.
+
 ### The published record size was ~50% optimistic
 
 `README.md` said **~700 bytes per call**, under a heading that says *measured, not modelled*. A

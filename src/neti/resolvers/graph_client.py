@@ -31,11 +31,31 @@ import threading
 import time
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
-import httpx
+if TYPE_CHECKING:  # pragma: no cover - annotations only; see the deferred import below
+    import httpx
 
 __all__ = ["ClientCredential", "CountOutcome", "GraphClient", "GraphError"]
+
+
+def _timeout_error() -> type[BaseException]:
+    """`httpx.TimeoutException`, resolved at the point of use.
+
+    An `except` clause evaluates its type expression when the exception is raised, so this costs one
+    attribute lookup on a path that has already made a network request — and it keeps the module
+    importable without httpx, which is the whole point.
+    """
+    import httpx
+
+    return httpx.TimeoutException
+
+
+def _http_error() -> type[BaseException]:
+    import httpx
+
+    return httpx.HTTPError
+
 
 GRAPH = "https://graph.microsoft.com/v1.0"
 LOGIN = "https://login.microsoftonline.com"
@@ -158,13 +178,38 @@ class GraphClient:
     ) -> None:
         self._base = base_url.rstrip("/")
         self._timeout_ms = timeout_ms
-        self._client = httpx.Client(
-            http2=transport is None,
-            timeout=timeout_ms / 1000,
-            transport=transport,
-            headers={"User-Agent": "neti/0.1 (preflight gate)"},
-        )
-        self._tokens = _TokenCache(credential, self._client)
+        self._transport = transport
+        self._credential = credential
+        self._built: httpx.Client | None = None
+        self._tokens_cache: _TokenCache | None = None
+
+    # `httpx` is not a base dependency, and this module sits under `engine` -> `registry`, so
+    # importing it at module scope made `import neti` raise on a plain `pip install neti`. The
+    # public example in the README — `Preflight.from_config` over a filesystem policy — needs no
+    # directory at all, and could not be run at all.
+    #
+    # Deferring the import is not enough on its own: the registry builds a `GraphClient`
+    # unconditionally so that a policy naming an entra resolver fails on its first call rather than
+    # at construction. So the client is built on first *use* instead. A policy that never reaches
+    # Graph never imports httpx, and one that does gets the same loud failure it always did.
+    @property
+    def _client(self) -> httpx.Client:
+        if self._built is None:
+            import httpx
+
+            self._built = httpx.Client(
+                http2=self._transport is None,
+                timeout=self._timeout_ms / 1000,
+                transport=self._transport,
+                headers={"User-Agent": "neti/0.1 (preflight gate)"},
+            )
+        return self._built
+
+    @property
+    def _tokens(self) -> _TokenCache:
+        if self._tokens_cache is None:
+            self._tokens_cache = _TokenCache(self._credential, self._client)
+        return self._tokens_cache
 
     def token_for_checks(self) -> str:
         """Expose the cached token to `neti check`.
@@ -176,7 +221,10 @@ class GraphClient:
         return self._tokens.token()
 
     def close(self) -> None:
-        self._client.close()
+        # Only if one was ever built. Closing would otherwise construct a client in order to shut
+        # it down, which would reintroduce the httpx requirement on the path that never used it.
+        if self._built is not None:
+            self._built.close()
 
     def __enter__(self) -> GraphClient:
         return self
@@ -237,9 +285,9 @@ class GraphClient:
                     "ConsistencyLevel": "eventual",
                 },
             )
-        except httpx.TimeoutException:
+        except _timeout_error():
             return CountOutcome(ok=False, reason="timeout", evidence={"url": url})
-        except httpx.HTTPError as exc:
+        except _http_error() as exc:
             return CountOutcome(ok=False, reason=f"transport: {exc}", evidence={"url": url})
 
         return self._read_count(resp, url)
