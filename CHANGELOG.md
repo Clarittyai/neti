@@ -64,6 +64,33 @@ There is now a second line reporting those separately, because no choice of ceil
             on_unbounded / on_unresolved verdict whatever ceiling you pick.
 ```
 
+### Credentials no longer reach the audit log
+
+The worst-shaped defect a security tool can have, and it was there from the first release: every
+gated call recorded its arguments verbatim, so a tool called with `{"api_key": "sk-live-…"}` wrote
+that key in plaintext into the file this product asks people to keep, verify and hand to an auditor.
+The file was also mode 0644 — on a shared host, an audit log of every agent's every tool call,
+readable by anyone.
+
+Both fixed. `core/redact.py` replaces credential-shaped values, tested against real formats (GitHub,
+OpenAI, Anthropic, Slack, AWS, JWTs, PEM keys, connection strings with inline passwords) by both key
+name and value shape, since either test alone is too weak. Records are `0600`.
+
+**The gated target is never redacted** — that is the rule everything else bends around. It is the
+evidence the verdict was measured from, `causes` carries it regardless, and redacting it would
+protect nothing while making the record useless. What was redacted is *named* in the record and is
+inside the hash digest, so a hidden field cannot be made to look like an absent one.
+
+### `neti install` — one command instead of hand-edited JSON
+
+Wiring the gate meant editing `.claude/settings.json` to a shape you had to copy correctly, in a
+file an agent depends on, with no feedback until the next session behaved oddly. Now it merges into
+whatever is already there, leaves other hooks and every other key untouched, is idempotent, prints
+the change before making it, and keeps a backup.
+
+It refuses in two places rather than guessing: settings that cannot be parsed are never overwritten,
+and a policy is *constructed* rather than merely parsed before being wired in.
+
 ### `neti demo --here` — a finding about your machine, not a fixture
 
 The existing demo is careful to say what it is: *"It demonstrates behaviour, not a finding."* True,

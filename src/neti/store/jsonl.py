@@ -87,12 +87,34 @@ def _exclusive(fh: IO[str]) -> Iterator[None]:
             fcntl.flock(fh.fileno(), fcntl.LOCK_UN)
 
 
+def _own_only(path: Path) -> None:
+    """Create the record file if needed and keep it readable only by its owner.
+
+    It defaulted to whatever the umask allowed, which on most machines is 0644 — world-readable.
+    That file holds every tool call every agent on the box has made, including the arguments, and
+    on a shared or multi-tenant host that is an audit log anyone can read.
+
+    Best-effort on purpose. A filesystem that cannot express the mode — a Windows share, a mounted
+    volume — must not stop the gate from recording, because refusing to write is refusing to gate.
+    The permission is a defence, not the defence: `core/redact.py` is what keeps credentials out of
+    the contents in the first place.
+    """
+    try:
+        if not path.exists():
+            path.touch(mode=0o600)
+        else:
+            path.chmod(0o600)
+    except OSError:
+        pass
+
+
 class JsonlSink:
     """Append decision records to a file, off the hot path."""
 
     def __init__(self, path: str | Path, *, batch: int = 64, buffered: bool = False) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
+        _own_only(self.path)
         self._buffered = buffered
         self._closed = False
         self._queue: queue.Queue[Any] = queue.Queue()

@@ -994,6 +994,100 @@ def demo(
 
 
 @app.command()
+def install(
+    config: Annotated[
+        str, typer.Option("--config", "-c", help="Policy to gate with.")
+    ] = "neti.yaml",
+    user: Annotated[
+        bool, typer.Option("--user", help="Gate every session, not just this project.")
+    ] = False,
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Do not ask.")] = False,
+) -> None:
+    """Wire the gate into Claude Code, without editing JSON by hand.
+
+    Adds a `PreToolUse` hook to `.claude/settings.json` — merged into whatever is already there,
+    idempotent, and backed up first. Prints the change and asks before writing, because this is a
+    file you own and an agent depends on.
+
+    Project-scoped by default: a policy's ceilings came from *this* repository's traffic and its
+    `providers.fs.root` names *this* tree. `--user` gates every session on the machine.
+    """
+    from neti.config.policy import PolicyError, load_policy
+    from neti.core.verdict import Mode
+    from neti.engine import Engine
+    from neti.insight.install import apply_install, plan_install
+    from neti.resolvers.base import ResolverError
+
+    policy = Path(config)
+    if not policy.exists():
+        typer.secho(f"error: no policy at {policy}", fg=typer.colors.RED, err=True)
+        typer.echo(
+            "\nWrite one first:\n"
+            "  neti init                       from the MCP servers already on this machine\n"
+            "  cp examples/coding-agent.yaml neti.yaml    for a coding agent",
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    try:
+        loaded = load_policy(policy)
+        # Constructed, not merely parsed. `load_policy` is YAML validation; the four guards that
+        # catch a misspelled resolver, an impossible breakdown band, a budget in an unproducible
+        # unit and an unread provider key all run at `Engine.__post_init__`. A policy that parses
+        # and cannot construct is the worst outcome to install: the hook catches the exception and
+        # exits 0 on every call, so the session works perfectly and nothing is ever gated.
+        resolvers, client = _build_resolvers(
+            demo=False,
+            timeout_ms=800,
+            needs_entra=_needs_entra(loaded),
+            providers=loaded.providers,
+        )
+        try:
+            Engine(policy=loaded, resolvers=resolvers)
+        finally:
+            client.close()
+    except (PolicyError, OSError, ValueError, ResolverError) as exc:
+        typer.secho(f"error: {policy} does not load: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2) from exc
+
+    try:
+        plan = plan_install(Path.cwd(), policy.resolve(), user=user)
+    except (ValueError, json.JSONDecodeError) as exc:
+        typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
+        typer.echo("Refusing to overwrite settings that cannot be parsed.", err=True)
+        raise typer.Exit(2) from exc
+
+    if plan.already_installed:
+        typer.secho(f"Already installed in {plan.path}", fg=typer.colors.GREEN)
+        typer.echo(f"  {plan.command}")
+        return
+
+    typer.secho(f"Will write {plan.path}:", bold=True)
+    typer.echo(f"\n{plan.diff()}\n")
+    if plan.other_hooks:
+        typer.echo(f"  ({plan.other_hooks} existing {plan.path.name} hook(s) left untouched)")
+    if loaded.mode is Mode.OBSERVE:
+        typer.secho(
+            "  Policy is in observe mode: nothing will be blocked, everything recorded.",
+            fg=typer.colors.BRIGHT_BLACK,
+        )
+
+    if not yes and not typer.confirm("Write it?", default=True):
+        typer.echo("Nothing written.")
+        raise typer.Exit(1)
+
+    backup = apply_install(plan)
+    typer.secho(f"Wrote {plan.path}", fg=typer.colors.GREEN, bold=True)
+    if backup:
+        typer.echo(f"  previous version saved as {backup.name}")
+    typer.echo(
+        "\nStart a new Claude Code session and work normally. Then:\n"
+        "  neti report      what your agent actually touched\n"
+        "  neti propose     ceilings from that traffic"
+    )
+
+
+@app.command()
 def version() -> None:
     from neti import __version__
 

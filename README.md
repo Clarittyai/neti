@@ -43,6 +43,20 @@ same command runs the rest: report, propose ceilings from what you actually did,
 against the same calls, and verify the chain. `neti demo` without `--here` runs the identical
 narrative against a synthetic tenant, and says so.
 
+## Installing it
+
+```console
+$ neti install
+Will write .claude/settings.json:   # merged into what is already there, and backed up
+  Policy is in observe mode: nothing will be blocked, everything recorded.
+```
+
+Idempotent, and it refuses rather than guessing: settings it cannot parse are left alone, and a
+policy that parses but cannot *construct* — a misspelled resolver, an unread provider key — is
+rejected before it is wired in. That last one matters more than it looks: the hook catches its own
+exceptions and exits 0, so a broken policy would leave every session working perfectly and nothing
+ever gated.
+
 ## The first hour
 
 Two commands, from a directory with nothing in it. No YAML to write, no traffic to wait for, and no

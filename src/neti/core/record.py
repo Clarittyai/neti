@@ -20,6 +20,7 @@ from typing import Any
 from pydantic import Field
 
 from neti.core.canonical import canonical_bytes
+from neti.core.redact import redact_args
 from neti.core.types import Decision, Frozen
 
 __all__ = ["SCHEMA", "DecisionRecord", "chain_digest", "verify_chain"]
@@ -49,6 +50,13 @@ class DecisionRecord(Frozen):
 
     tool: str
     args: dict[str, Any] = Field(default_factory=dict)
+    redacted: tuple[str, ...] = ()
+    """Pointers whose values were credential-shaped and were replaced before writing.
+
+    Named rather than silently dropped. A log that quietly removed a field would leave a reader
+    unable to tell "the agent sent no key" from "the agent sent a key and we hid it", and those are
+    very different facts about what happened."""
+
     verdict: str
     rule: str
     mode: str
@@ -64,9 +72,12 @@ class DecisionRecord(Frozen):
         """Exactly the fields the digest covers. Anything outside this is annotation, not evidence.
 
         `args` is deliberately included: the verdict is meaningless without the call it judged, and
-        redacting arguments is what makes competing audit formats unable to carry evidence at all.
-        Deployments that cannot store argument values should hash them at the edge and store the
-        hash here, rather than dropping the field.
+        audit formats that drop arguments cannot carry evidence at all. What they hold has already
+        been through `core/redact.py`, which replaces credential-shaped values while leaving every
+        gated target — the evidence itself — untouched.
+
+        `redacted` is in here too, and that placement is the point: a tamperer who stripped the
+        marker to make a hidden field look like an absent one would break the digest.
         """
         return {
             "schema": self.schema_,
@@ -75,6 +86,7 @@ class DecisionRecord(Frozen):
             "decided_at": self.decided_at,
             "tool": self.tool,
             "args": self.args,
+            "redacted": list(self.redacted),
             "verdict": self.verdict,
             "rule": self.rule,
             "mode": self.mode,
@@ -149,12 +161,20 @@ def build_record(
             "rule": decision.budget.rule,
         }
 
+    # Credential-shaped arguments never reach the file. The record is the artefact this product
+    # asks people to keep and hand to an auditor, so a token passed to a tool must not be written
+    # into it — see `core/redact.py`. The gated pointers are exempt: those are the evidence, they
+    # are already in `causes`, and redacting them would destroy what the record is for.
+    gated = {a.pointer for a in decision.args}
+    safe_args, redacted = redact_args(args or {}, keep=gated)
+
     return DecisionRecord(
         decision_id=decision_id,
         session_id=session_id,
         decided_at=decided_at,
         tool=decision.tool,
-        args=args or {},
+        args=safe_args,
+        redacted=tuple(redacted),
         verdict=decision.verdict.name.lower(),
         rule=decision.rule,
         mode=decision.mode_applied,
