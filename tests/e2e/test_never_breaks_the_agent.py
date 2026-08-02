@@ -473,3 +473,43 @@ def test_a_sink_that_raises_does_not_change_the_verdict(tmp_path: Path) -> None:
     assert decision.record_error and "No space left" in decision.record_error, (
         "the operator has to be able to find out the chain has a hole in it"
     )
+
+
+def test_the_tool_loop_adapter_returns_a_denial_rather_than_raising(tmp_path: Path) -> None:
+    """The seam with no framework behind it to catch anything.
+
+    An Anthropic or OpenAI loop takes the tool's return value and appends it to the messages. There
+    is no runtime in between to turn an exception into a tool result, so a gate that raised here
+    would end the run outright — the failure this whole file is about, in its purest form.
+    """
+    from neti.adapters.tool_loop import gate_tools
+
+    def remove_group_members(**kwargs: object) -> str:
+        raise AssertionError("the gate let the call through")
+
+    tools = gate_tools(preflight(tmp_path), {"remove_group_members": remove_group_members})
+    out = tools["remove_group_members"](group="g-eng-all")
+
+    assert isinstance(out, str)
+    assert "41,203" in out
+
+
+def test_wrapping_the_table_gates_every_tool_in_it(tmp_path: Path) -> None:
+    """The reason this seam exists at all.
+
+    `Preflight.dispatch` and `@pf.guard` gate one call and one function, and `preflight.py` is
+    explicit that an author who forgets one has no gate on it and nothing detects the omission.
+    Substituting the whole dispatch table makes that an all-or-nothing mistake rather than a
+    per-tool one, so this asserts the property that buys: nothing in the mapping comes back ungated.
+    """
+    from neti.adapters.tool_loop import gate_tools
+
+    def never(**kwargs: object) -> str:
+        raise AssertionError("the gate let the call through")
+
+    names = ["remove_group_members", "delete_group"]
+    tools = gate_tools(preflight(tmp_path), dict.fromkeys(names, never))
+
+    assert set(tools) == set(names), "wrapping dropped or added a tool"
+    for name in names:
+        assert "41,203" in str(tools[name](group="g-eng-all")), f"{name} was not gated"

@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### The shape most agents actually are
+
+Twelve seams now. The new one is not a framework at all: an Anthropic Messages loop or an OpenAI
+Chat Completions loop, where the model returns a tool call and your own code looks the function up
+by name and calls it. That is what "claude" and "openai" mean to most people, and the only thing
+covering it was `Preflight.dispatch` and `@pf.guard` — both correct, and both with the weakness
+`preflight.py` has always stated out loud: forget one tool and it has no gate, and nothing detects
+the omission.
+
+`gate_tools(pf, TOOLS)` wraps the whole dispatch table in one substitution, so the loop underneath is
+unchanged and cannot be *partially* gated. A tool added to the original dict afterwards is still
+ungated — that has not gone away — but the common failure, gating four of five and believing you
+gated five, has.
+
 ### The gate got six times slower the longer you left it on
 
 `neti hook` is one process per tool call, and it read the **entire record file twice** on every one —

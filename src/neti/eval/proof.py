@@ -60,6 +60,7 @@ _CHILD = (
 # `None` means the seam needs nothing beyond the wheel.
 NEEDS: dict[str, str | None] = {
     "preflight": None,
+    "tool-loop": None,
     "hook": None,
     "mcp-http": None,
     "mcp-stdio": None,
@@ -73,7 +74,8 @@ NEEDS: dict[str, str | None] = {
 }
 
 WHAT: dict[str, str] = {
-    "preflight": "a tool loop you wrote yourself",
+    "preflight": "Preflight.check, called directly",
+    "tool-loop": "a hand-written Anthropic or OpenAI tool loop",
     "hook": "Claude Code's PreToolUse hook",
     "mcp-http": "neti gate, in front of a remote MCP server",
     "mcp-stdio": "neti gate, in front of a local MCP server",
@@ -162,6 +164,17 @@ def _preflight(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
 
     verdict = Preflight(engine=engine, sink=sink).check(TOOL, dict(ARGS))
     return verdict.verdict, verdict.payload.get("resolved"), verdict.message
+
+
+def _tool_loop(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+    from neti.adapters.tool_loop import gate_tools
+    from neti.preflight import Preflight
+
+    def ran(**kwargs: Any) -> str:
+        raise AssertionError("the gate let the call through")
+
+    tools = gate_tools(Preflight(engine=engine, sink=sink), {TOOL: ran})
+    return _classify(str(tools[TOOL](**ARGS)))
 
 
 def _hook(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
@@ -401,6 +414,7 @@ def _classify(sentence: str) -> tuple[str, int | None, str]:
 
 DRIVERS: dict[str, Any] = {
     "preflight": _preflight,
+    "tool-loop": _tool_loop,
     "hook": _hook,
     "mcp-http": _mcp_http,
     "mcp-stdio": _mcp_stdio,

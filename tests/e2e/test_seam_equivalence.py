@@ -526,8 +526,28 @@ def via_autogen(world: worlds.World, tmp_path: Path, case: Case, approver: Any =
     return Outcome(_verdict_of(text), _magnitude_of(text), text)
 
 
+def via_tool_loop(world: worlds.World, tmp_path: Path, case: Case, approver: Any = None) -> Outcome:
+    """A hand-written Anthropic or OpenAI tool loop, with its dispatch table wrapped once.
+
+    No framework at all — this is the shape most agents in the world are, and the one seam whose
+    coverage depends on the author having substituted their own dict. Driven here as they would use
+    it: wrap the table, then call through it exactly as the loop does.
+    """
+    from neti.adapters.tool_loop import gate_tools
+
+    def ran(**kwargs: Any) -> str:
+        return "ran"
+
+    tools = gate_tools(build_preflight(world, tmp_path, approver), {case.tool: ran})
+    result = tools[case.tool](**case.args)
+    if result == "ran":
+        return Outcome("allow", None, "")
+    return Outcome(_verdict_of(str(result)), _magnitude_of(str(result)), str(result))
+
+
 SEAMS = {
     "preflight": via_preflight,
+    "tool-loop": via_tool_loop,
     "hook": via_hook,
     "mcp-http": via_mcp_http,
     "mcp-stdio": via_mcp_stdio,
@@ -656,6 +676,7 @@ def test_the_seam_table_covers_every_shipped_adapter() -> None:
     shipped = {name for _, name, _ in pkgutil.iter_modules(neti.adapters.__path__)}
     covered = {
         "claude_code",
+        "tool_loop",
         "anthropic_tools",
         "openai_agents",
         "langchain_tools",

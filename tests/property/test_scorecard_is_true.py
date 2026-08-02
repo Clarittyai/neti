@@ -118,6 +118,7 @@ def test_every_shipped_adapter_appears_on_the_card() -> None:
     # Adapter module -> the key it goes under on the card.
     by_module = {
         "claude_code": "hook",
+        "tool_loop": "tool-loop",
         "anthropic_tools": "anthropic",
         "openai_agents": "openai-agents",
         "langchain_tools": "langchain",

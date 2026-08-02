@@ -178,17 +178,24 @@ the same denial sentence byte for byte. A verdict that depends on which door a c
 a bug in the product, not in the adapter.
 
 **A tool loop you wrote yourself** — an Anthropic or OpenAI function-calling loop, anything that
-speaks neither MCP nor a hook protocol:
+speaks neither MCP nor a hook protocol. One substitution gates every tool in your dispatch table:
 
 ```python
 from neti import Preflight
+from neti.adapters.tool_loop import gate_tools
 
 pf = Preflight.from_config("neti.yaml")
+TOOLS = gate_tools(pf, TOOLS)  # once, at the top. The loop below is unchanged.
 
 for block in message.content:
     if block.type == "tool_use":
-        out = pf.dispatch(block.name, block.input, lambda: TOOLS[block.name](**block.input))
+        out = TOOLS[block.name](**block.input)
 ```
+
+Wrapping the whole table rather than each call is the point: it makes forgetting an all-or-nothing
+mistake instead of a per-tool one. `pf.dispatch(...)` gates a single call and `@pf.guard` a single
+function, and both are still there — but both can be forgotten for one tool out of five, and
+nothing would say so.
 
 `dispatch` returns the tool's own return value when the call fits and the denial *sentence* when it
 does not, because your next line hands that string back to the model — and reading a specific number
