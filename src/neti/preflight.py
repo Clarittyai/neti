@@ -1,7 +1,7 @@
 """The in-process seam, for agents that speak neither MCP nor a hook protocol.
 
 A great deal of agent work today is a plain tool-calling loop: functions registered with the
-Anthropic or OpenAI SDK, a LangChain `@tool`, a CrewAI action. There is no proxy anywhere near those
+Anthropic or OpenAI SDK, or a framework with no adapter here yet. There is no proxy near those
 calls and no hook to install, so the only place a gate can sit is in the dispatch the author already
 writes. Three lines, in the loop they already have:
 

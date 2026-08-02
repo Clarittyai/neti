@@ -297,3 +297,110 @@ def test_unreadable_arguments_never_become_a_pass(args: str, tmp_path: Path) -> 
     assert verdict_for(preflight(tmp_path), data).behavior["type"] == "reject_content", (
         f"arguments {args!r} were treated as an empty, allowable call"
     )
+
+
+# ---------------------------------------------------------------------------- the other four
+#
+# Same contract, four more runtimes. Each of these signals a refusal in its own vocabulary, and the
+# only thing that matters here is that none of them signals it by ending the run: an exception
+# escaping the gate turns "this call was too big" into "the agent stopped working", which is a
+# strictly worse outcome than not having installed a gate at all.
+
+
+def test_the_google_adk_plugin_returns_a_response_rather_than_raising(tmp_path: Path) -> None:
+    """ADK skips the tool when the callback returns a dict. A raise would abort the invocation."""
+    pytest.importorskip("google.adk", reason="the sdks-extended extra is not installed")
+    import asyncio
+    from types import SimpleNamespace
+
+    from neti.adapters.google_adk import neti_plugin
+
+    plugin = neti_plugin(preflight(tmp_path))
+    out = asyncio.run(
+        plugin.before_tool_callback(
+            tool=SimpleNamespace(name="remove_group_members"),
+            tool_args={"group": "g-eng-all"},
+            tool_context=None,
+        )
+    )
+    assert isinstance(out, dict) and out, "an empty dict falls through and runs the tool"
+    assert "41,203" in out["error"]
+
+
+def test_the_pydantic_ai_hook_raises_only_the_exception_the_run_survives(tmp_path: Path) -> None:
+    """The one adapter that signals by raising, which is safe *only* because of which exception.
+
+    `ToolFailed` is caught by the framework and becomes a failed tool result; anything else ends the
+    run. So this asserts the type, not merely that something was raised — the distinction is the
+    whole reason this adapter is allowed to raise at all.
+    """
+    pytest.importorskip("pydantic_ai", reason="the sdks-extended extra is not installed")
+    import asyncio
+
+    from pydantic_ai.exceptions import ToolFailed
+    from pydantic_ai.messages import ToolCallPart
+    from pydantic_ai.tools import ToolDefinition
+
+    from neti.adapters.pydantic_ai import neti_hooks
+
+    hooks = neti_hooks(preflight(tmp_path))
+    args = {"group": "g-eng-all"}
+
+    async def run() -> None:
+        await hooks.before_tool_execute(
+            None,
+            call=ToolCallPart(tool_name="remove_group_members", args=args, tool_call_id="c1"),
+            tool_def=ToolDefinition(name="remove_group_members"),
+            args=args,
+        )
+
+    with pytest.raises(ToolFailed) as raised:
+        asyncio.run(run())
+    assert "41,203" in str(raised.value.message)
+
+
+def test_the_autogen_workbench_returns_an_error_result_rather_than_raising(tmp_path: Path) -> None:
+    """`is_error=True` is what makes the model read this as a refusal.
+
+    Returning the sentence as an ordinary result would have it read as a tool that succeeded and
+    happened to return that text, which is the failure this asserts against rather than assumes.
+    """
+    pytest.importorskip("autogen_core", reason="the sdks-extended extra is not installed")
+    import asyncio
+
+    from autogen_core.tools import StaticWorkbench
+
+    from neti.adapters.autogen_tools import gate_workbench
+
+    bench = gate_workbench(preflight(tmp_path), StaticWorkbench(tools=[]))
+    result = asyncio.run(bench.call_tool("remove_group_members", {"group": "g-eng-all"}))
+    assert result.is_error
+    assert "41,203" in str(result.result[0].content)
+
+
+def test_the_crewai_hooks_must_be_synchronous(tmp_path: Path) -> None:
+    """The failure mode that would look installed and gate nothing.
+
+    CrewAI's dispatcher calls the hook and inspects its return value. An `async def` hook returns a
+    coroutine — which is truthy and is not `False` — so it would allow every call while appearing
+    correctly registered. That is the worst outcome available to a gate, so the shape is asserted
+    rather than trusted.
+    """
+    pytest.importorskip("crewai", reason="the sdks-extended extra is not installed")
+    import inspect
+
+    from crewai.hooks import clear_all_tool_call_hooks, get_before_tool_call_hooks
+
+    from neti.adapters.crewai_hooks import install
+
+    clear_all_tool_call_hooks()
+    try:
+        install(preflight(tmp_path))
+        hooks = get_before_tool_call_hooks()
+        assert hooks, "the gate registered nothing"
+        for hook in hooks:
+            assert not inspect.iscoroutinefunction(hook), (
+                "an async before-hook returns a coroutine, which CrewAI reads as 'not blocked'"
+            )
+    finally:
+        clear_all_tool_call_hooks()

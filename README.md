@@ -141,23 +141,41 @@ already configured keep working exactly as they were. In `.claude/settings.json`
   "hooks": [{"type": "command", "command": "neti hook"}]}]}}
 ```
 
-**An agent SDK.** Each of the three has one place where a request becomes an execution, and each
-adapter wraps that place — so a blocked call comes back to the model as a tool *result* with the
-number in it, never as an exception that kills the run:
+**An agent SDK.** Each has one place where a request becomes an execution, and each adapter sits at
+that place — so a blocked call comes back to the model as a tool *result* with the number in it,
+never as an exception that kills the run:
 
 ```python
 from neti.adapters.anthropic_tools import gate_tools     # Anthropic tool_runner
 from neti.adapters.openai_agents  import neti_guardrail  # OpenAI Agents SDK
 from neti.adapters.langchain_tools import gate_tools     # LangChain + LangGraph
+from neti.adapters.pydantic_ai    import neti_hooks      # Pydantic AI
+from neti.adapters.google_adk     import neti_plugin     # Google ADK
+from neti.adapters.autogen_tools  import gate_workbench  # AutoGen
+from neti.adapters.crewai_hooks   import install         # CrewAI
 
 runner = client.beta.messages.tool_runner(tools=gate_tools(pf, TOOLS), ...)
 agent  = create_react_agent(model, gate_tools(pf, TOOLS))          # LangGraph
+agent  = Agent("anthropic:claude-opus-4-5", capabilities=[neti_hooks(pf)])   # Pydantic AI
+app    = App(name="ops", root_agent=agent, plugins=[neti_plugin(pf)])        # ADK
 ```
 
-The tools keep their names, schemas and descriptions exactly as they were: an agent must not be able
-to tell a gated tool from an ungated one by looking at it, or the gate leaks into the prompt and into
-what the model believes it may attempt. One `neti.yaml` governs a tool whichever runtime it arrives
-through, because names are normalised the same way everywhere.
+Four of the seven need nothing wrapped: ADK, Pydantic AI, CrewAI and OpenAI Agents each have a
+before-tool callback the gate attaches to. The other three wrap the one method that executes, and
+copy name, description and schema across verbatim — an agent must not be able to tell a gated tool
+from an ungated one by looking at it, or the gate leaks into the prompt and into what the model
+believes it may attempt. One `neti.yaml` governs a tool whichever runtime it arrives through,
+because names are normalised the same way everywhere.
+
+Two of these are less obvious than they look, and the adapters say so where they live. CrewAI's
+`before_tool_call` can block a call but substitutes a fixed "blocked by hook" string for the reason,
+so the gate is a *pair* of hooks — the second one puts the number back. AutoGen has no before-tool
+callback at all, so it is the workbench that gets wrapped.
+
+They agree. `tests/e2e/test_seam_equivalence.py` drives all eleven seams — including `neti gate` and
+the hook — across all five resolver families, and asserts the same verdict, the same magnitude and
+the same denial sentence byte for byte. A verdict that depends on which door a call came through is
+a bug in the product, not in the adapter.
 
 **A tool loop you wrote yourself** — an Anthropic or OpenAI function-calling loop, anything that
 speaks neither MCP nor a hook protocol:

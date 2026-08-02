@@ -5,7 +5,7 @@ default:
 
 install:
     uv venv --python 3.12
-    uv pip install -e '.[dev,cli,graph,mcp,console,sdks,storage,database]'
+    uv pip install -e '.[dev,cli,graph,mcp,console,sdks,sdks-extended,storage,database]'
 
 test:
     uv run pytest -q

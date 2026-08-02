@@ -30,6 +30,13 @@ REQUIRED = {
     "agents": "the OpenAI Agents SDK adapter",
     "langchain_core": "the LangChain adapter",
     "langgraph": "the LangGraph ToolNode path — the only thing that caught the ToolMessage defect",
+    # The four runtimes added after the first three, and the reason they are a separate extra: their
+    # closure is ~200 packages, mostly arriving via CrewAI. Listed here anyway, because an extra CI
+    # does not install is an extra whose seams do not run, which is the whole subject of this file.
+    "crewai": "the CrewAI hook pair — the only adapter whose denial sentence needs two hooks",
+    "pydantic_ai": "the Pydantic AI capability hooks",
+    "autogen_core": "the AutoGen workbench wrapper — the one runtime with no before-tool callback",
+    "google.adk": "the Google ADK plugin callback",
     "httpx": "the MCP gateway and every Graph resolver",
     "fastapi": "the console API",
     "typer": "every CLI command",
@@ -60,7 +67,7 @@ def test_every_optional_dependency_is_actually_installed(module: str) -> None:
     except ImportError as exc:  # pragma: no cover - the failure path is the point
         pytest.fail(
             f"`{module}` is missing, so {REQUIRED[module]} is not being tested. "
-            "Install `.[dev,cli,graph,mcp,console,sdks,storage,database]`."
+            "Install `.[dev,cli,graph,mcp,console,sdks,sdks-extended,storage,database]`."
         )
         raise AssertionError from exc
 
@@ -128,7 +135,7 @@ def test_the_ci_workflow_installs_what_the_tests_import() -> None:
         "no CI install line includes the `sdks` extra, so the Anthropic, OpenAI Agents, LangChain "
         "and LangGraph adapters are not being tested in CI"
     )
-    for extra in ("sdks", "storage", "database", "console"):
+    for extra in ("sdks", "sdks-extended", "storage", "database", "console"):
         assert any(extra in ln for ln in suite_installs), f"CI never installs the `{extra}` extra"
 
     assert "NETI_REQUIRE_SDKS" in workflow, (

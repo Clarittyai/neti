@@ -64,6 +64,25 @@ sdks = [
     # never reveals that. Without this the one test that caught the defect silently skips.
     "langgraph>=0.6",
 ]
+# The other four runtimes, kept out of `sdks` on purpose. These four resolve and install cleanly
+# alongside everything above — measured, not assumed — but their closure is ~200 packages including
+# chromadb, numpy, kubernetes and a full OpenTelemetry stack, almost all of it arriving via CrewAI.
+# `just install` should not hand somebody gating a coding agent a vector database, so this is a
+# separate line. CI installs both, and `tests/e2e/test_no_silent_skips.py` requires all four to
+# import under NETI_REQUIRE_SDKS — otherwise four seams skip silently, which is the exact failure
+# that file exists to prevent.
+sdks-extended = [
+    # 1.5.0 is where `crewai.hooks` first exists. Below that the only seam is wrapping
+    # `CrewStructuredTool`, which is a pydantic model and a different adapter entirely.
+    "crewai>=1.5.0",
+    # 2.16 is where `ToolFailed` arrives — the exception that becomes a failed tool *result* rather
+    # than a retry prompt, which is the shape this product needs.
+    "pydantic-ai>=2.16",
+    "autogen-agentchat>=0.5.5",
+    "autogen-core>=0.5.5",
+    # 1.7 is where plugin-level `before_tool_callback` arrives; `App(plugins=...)` needs 1.14.
+    "google-adk>=1.14",
+]
 dev = [
     "pytest>=8.3",
     "types-pyyaml>=6.0",

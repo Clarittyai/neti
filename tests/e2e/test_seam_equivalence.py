@@ -1,17 +1,22 @@
-"""One policy, one call, seven seams — and they must agree exactly.
+"""One policy, one call, eleven seams — and they must agree exactly.
 
 `neti` sits in front of an agent through whichever door that agent already has: MCP over stdio or
 HTTP, Claude Code's `PreToolUse` hook, the Anthropic tool runner, the OpenAI Agents SDK, LangChain
-and LangGraph, or a loop somebody wrote themselves. Each of those has its own adapter, its own
-argument shape, and its own idea of what "refuse" looks like — a JSON-RPC result, a hook decision, a
-`ToolMessage`, a guardrail rejection, a returned string.
+and LangGraph, CrewAI, Pydantic AI, AutoGen, Google ADK, or a loop somebody wrote themselves. Each
+has its own adapter, its own argument shape, and its own idea of what "refuse" looks like — a
+JSON-RPC result, a hook decision, a `ToolMessage`, a guardrail rejection, a `ToolResult` with
+`is_error`, a raised `ToolFailed`, a dict that replaces the call, a returned string.
 
 **A verdict that depends on which door the call came through is a bug in the product, not in the
 adapter.** The codebase already believed this — `test_hook_denial_reads_the_same_as_the_mcp_denial`
 and `test_the_denial_is_word_for_word_the_hook_denial` compare two seams each — but those were
-written before the three SDK adapters existed, so three of the seven sat outside any such check.
-This is those tests generalised into one table: every seam is a row, every scenario is a column, and
-adding a seam means adding a row rather than remembering to write a comparison.
+written before the SDK adapters existed, so most of the seams sat outside any such check. This is
+those tests generalised into one table: every seam is a row, every scenario is a column, and adding
+a seam means adding a row rather than remembering to write a comparison — enforced, because
+`test_the_seam_table_covers_every_shipped_adapter` fails the build on an adapter with no row.
+
+The other axis is `tests/e2e/worlds.py`. Every case runs against one of five worlds, so each seam is
+driven across every resolver family rather than against Entra alone.
 
 What is asserted is deliberately strict: the same **verdict**, the same **magnitude**, and the same
 **sentence**, byte for byte. Wording is included because the sentence is the product's actual
@@ -21,12 +26,14 @@ quietly rephrases it has changed the thing the agent acts on.
 
 from __future__ import annotations
 
+import asyncio
 import io
 import itertools
 import json
 import sys
 from dataclasses import dataclass, replace
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -374,6 +381,144 @@ def _magnitude_of(sentence: str) -> int | None:
     return int(match.group(1).replace(",", "")) if match else None
 
 
+def via_google_adk(
+    world: worlds.World, tmp_path: Path, case: Case, approver: Any = None
+) -> Outcome:
+    """ADK's plugin callback: `None` proceeds, a non-empty dict replaces the call."""
+    from neti.adapters.google_adk import neti_plugin
+
+    plugin = neti_plugin(build_preflight(world, tmp_path, approver))
+    tool = SimpleNamespace(name=case.tool)
+    out = asyncio.run(
+        plugin.before_tool_callback(tool=tool, tool_args=dict(case.args), tool_context=None)
+    )
+    if out is None:
+        return Outcome("allow", None, "")
+    payload = out["neti"]
+    return Outcome(payload["verdict"], payload.get("resolved"), out["error"])
+
+
+def via_pydantic_ai(
+    world: worlds.World, tmp_path: Path, case: Case, approver: Any = None
+) -> Outcome:
+    """`before_tool_execute`, which signals a refusal by raising `ToolFailed` — caught by the
+    framework, so the run continues and the model reads the sentence."""
+    from pydantic_ai.exceptions import ToolFailed
+    from pydantic_ai.messages import ToolCallPart
+    from pydantic_ai.tools import ToolDefinition
+
+    from neti.adapters.pydantic_ai import neti_hooks
+
+    hooks = neti_hooks(build_preflight(world, tmp_path, approver))
+    call = ToolCallPart(tool_name=case.tool, args=dict(case.args), tool_call_id="call_1")
+
+    async def run() -> Outcome:
+        try:
+            await hooks.before_tool_execute(
+                None,
+                call=call,
+                tool_def=ToolDefinition(name=case.tool),
+                args=dict(case.args),
+            )
+        except ToolFailed as failed:
+            text = str(failed.message)
+            return Outcome(_verdict_of(text), _magnitude_of(text), text)
+        return Outcome("allow", None, "")
+
+    return asyncio.run(run())
+
+
+def via_crewai(world: worlds.World, tmp_path: Path, case: Case, approver: Any = None) -> Outcome:
+    """The hook *pair*, driven the way `crew_agent_executor` drives it.
+
+    CrewAI substitutes a fixed "Tool execution blocked by hook" string when a before-hook returns
+    `False`, so the after-hook is what puts the sentence back. Reproducing both halves here is the
+    point: a driver that only called the before-hook would report a verdict and never notice that
+    the model was being handed no number at all.
+    """
+    from crewai.hooks import (
+        ToolCallHookContext,
+        clear_all_tool_call_hooks,
+        get_after_tool_call_hooks,
+        get_before_tool_call_hooks,
+    )
+
+    from neti.adapters.crewai_hooks import install
+
+    clear_all_tool_call_hooks()
+    try:
+        install(build_preflight(world, tmp_path, approver))
+
+        blocked = False
+        for hook in get_before_tool_call_hooks():
+            context = ToolCallHookContext(
+                tool_name=case.tool, tool_input=dict(case.args), tool=None, agent=None, task=None
+            )
+            if hook(context) is False:
+                blocked = True
+        if not blocked:
+            return Outcome("allow", None, "")
+
+        text = f"Tool execution blocked by hook. Tool: {case.tool}"
+        for hook in get_after_tool_call_hooks():
+            context = ToolCallHookContext(
+                tool_name=case.tool,
+                tool_input=dict(case.args),
+                tool=None,
+                agent=None,
+                task=None,
+                tool_result=text,
+            )
+            replaced = hook(context)
+            if isinstance(replaced, str):
+                text = replaced
+        return Outcome(_verdict_of(text), _magnitude_of(text), text)
+    finally:
+        clear_all_tool_call_hooks()
+
+
+def via_autogen(world: worlds.World, tmp_path: Path, case: Case, approver: Any = None) -> Outcome:
+    """The wrapped workbench. A denial is a `ToolResult` with `is_error=True`.
+
+    The wrapped workbench answers anything it is asked, for the same reason the stdio driver spawns
+    a child process that replies to everything: a seam that forwards a call it should have blocked
+    is then caught by the *downstream* answering, rather than by an assertion somebody remembered to
+    write. `StaticWorkbench` would return `is_error=True` for a tool it does not know, which reads
+    identically to a denial and would have made every allow look like a block.
+    """
+    from autogen_core.tools import TextResultContent, ToolResult, Workbench
+
+    from neti.adapters.autogen_tools import gate_workbench
+
+    class AnyTool(Workbench):  # type: ignore[misc]
+        async def list_tools(self) -> Any:
+            return []
+
+        async def call_tool(
+            self,
+            name: str,
+            arguments: Any = None,
+            cancellation_token: Any = None,
+            call_id: Any = None,
+        ) -> Any:
+            return ToolResult(name=name, result=[TextResultContent(content="ran")], is_error=False)
+
+        async def start(self) -> None: ...
+        async def stop(self) -> None: ...
+        async def reset(self) -> None: ...
+        async def save_state(self) -> Any:
+            return {}
+
+        async def load_state(self, state: Any) -> None: ...
+
+    bench = gate_workbench(build_preflight(world, tmp_path, approver), AnyTool())
+    result = asyncio.run(bench.call_tool(case.tool, dict(case.args)))
+    if not result.is_error:
+        return Outcome("allow", None, "")
+    text = str(result.result[0].content)
+    return Outcome(_verdict_of(text), _magnitude_of(text), text)
+
+
 SEAMS = {
     "preflight": via_preflight,
     "hook": via_hook,
@@ -382,9 +527,21 @@ SEAMS = {
     "anthropic": via_anthropic,
     "openai-agents": via_openai_agents,
     "langchain": via_langchain,
+    "google-adk": via_google_adk,
+    "pydantic-ai": via_pydantic_ai,
+    "crewai": via_crewai,
+    "autogen": via_autogen,
 }
 
-NEEDS_SDK = {"anthropic": "anthropic", "openai-agents": "agents", "langchain": "langchain_core"}
+NEEDS_SDK = {
+    "anthropic": "anthropic",
+    "openai-agents": "agents",
+    "langchain": "langchain_core",
+    "google-adk": "google.adk",
+    "pydantic-ai": "pydantic_ai",
+    "crewai": "crewai",
+    "autogen": "autogen_core",
+}
 
 
 def outcome(
@@ -490,7 +647,16 @@ def test_the_seam_table_covers_every_shipped_adapter() -> None:
     import neti.adapters
 
     shipped = {name for _, name, _ in pkgutil.iter_modules(neti.adapters.__path__)}
-    covered = {"claude_code", "anthropic_tools", "openai_agents", "langchain_tools"}
+    covered = {
+        "claude_code",
+        "anthropic_tools",
+        "openai_agents",
+        "langchain_tools",
+        "google_adk",
+        "pydantic_ai",
+        "crewai_hooks",
+        "autogen_tools",
+    }
     assert shipped == covered, (
         f"adapters with no seam-equivalence row: {sorted(shipped - covered)}. "
         "Add a driver above so it cannot drift from the others."
