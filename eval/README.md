@@ -28,6 +28,20 @@ different directory.
 | `surveys/mcp_coverage.py` | **M10** — of the MCP servers people actually install, how many tools can `neti` size? |
 | `results/` | one JSON per survey or trial run. This is the evidence, and it is committed. |
 
+## The offline half
+
+`tests/corpus/` is derived from `results/mcp_coverage.json` and runs in CI. That is the division of
+labour: this directory produces evidence by launching real servers, and the test tier consumes it,
+so a coverage claim becomes a build failure instead of a number nobody recomputes.
+
+```console
+just corpus-refresh    # re-run the survey, then re-derive the corpus. Read the diff.
+```
+
+`tests/corpus/decisions.json` is the half worth reading. Every line is a judgement `neti init` makes
+about a real tool — gate this, decline that, and why — and a change to the matcher shows up there as
+a diff somebody has to agree with.
+
 More arrives with later phases: `harness/` (the real-agent driver and the M7 denial-response
 taxonomy), `scenarios/`, `fixtures/`.
 

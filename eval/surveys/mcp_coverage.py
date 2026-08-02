@@ -71,6 +71,14 @@ RESULTS = Path(__file__).resolve().parents[1] / "results" / "mcp_coverage.json"
 @dataclass
 class ToolResult:
     name: str
+    description: str
+    schema: dict[str, Any]
+    """The tool's `inputSchema`, verbatim.
+
+    Kept so `tests/corpus/` can be *derived* from this file rather than hand-copied. All four agent
+    frameworks carry JSON Schema underneath, so one captured schema serves the detection corpus and
+    every per-framework conversion check."""
+
     params: list[str]
     gated: list[dict[str, str]]
     ungated: list[str]
@@ -249,6 +257,8 @@ def _probe(spec: ServerSpec, candidate: Candidate, timeout_s: float) -> ServerRe
         result.tools.append(
             ToolResult(
                 name=spec_.name,
+                description=spec_.description,
+                schema=tool.get("inputSchema") or {},
                 params=list(spec_.params),
                 gated=[{"pointer": g.pointer, "resolver": g.resolver} for g in spec_.gated],
                 ungated=list(spec_.ungated),

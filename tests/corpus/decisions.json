@@ -1,0 +1,3416 @@
+{
+  "decisions": {
+    "claude-code:builtin:Bash": {
+      "declined": [
+        {
+          "param": "command",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "description",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "run_in_background",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "timeout",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "claude-code:builtin:Edit": {
+      "declined": [
+        {
+          "param": "new_string",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "old_string",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "replace_all",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/file_path",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "claude-code:builtin:Glob": {
+      "declined": [],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/path",
+          "resolver": "fs.paths",
+          "unit": null
+        },
+        {
+          "pointer": "/pattern",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "claude-code:builtin:Grep": {
+      "declined": [
+        {
+          "param": "glob",
+          "why": "a search pattern rather than a set of paths; the tool's path parameter is what bounds this call",
+          "would_be": "fs.paths"
+        },
+        {
+          "param": "head_limit",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "output_mode",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "pattern",
+          "why": "a search pattern rather than a set of paths; the tool's path parameter is what bounds this call",
+          "would_be": "fs.paths"
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/path",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "claude-code:builtin:NotebookEdit": {
+      "declined": [
+        {
+          "param": "cell_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "cell_type",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "edit_mode",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "new_source",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/notebook_path",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "claude-code:builtin:Read": {
+      "declined": [
+        {
+          "param": "limit",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "offset",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/file_path",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "claude-code:builtin:Task": {
+      "declined": [
+        {
+          "param": "description",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "prompt",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "subagent_type",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "claude-code:builtin:WebFetch": {
+      "declined": [
+        {
+          "param": "prompt",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "url",
+          "why": "a URL, and nothing here says it addresses an object store",
+          "would_be": "storage.objects"
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "claude-code:builtin:WebSearch": {
+      "declined": [
+        {
+          "param": "query",
+          "why": "a search string on this tool, not a SQL statement",
+          "would_be": "db.rows"
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "claude-code:builtin:Write": {
+      "declined": [
+        {
+          "param": "content",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/file_path",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:brave-search:brave_local_search": {
+      "declined": [
+        {
+          "param": "count",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "query",
+          "why": "a search string on this tool, not a SQL statement",
+          "would_be": "db.rows"
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:brave-search:brave_web_search": {
+      "declined": [
+        {
+          "param": "count",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "offset",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "query",
+          "why": "a search string on this tool, not a SQL statement",
+          "would_be": "db.rows"
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:click": {
+      "declined": [
+        {
+          "param": "dblClick",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "includeSnapshot",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "uid",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:close_page": {
+      "declined": [
+        {
+          "param": "pageId",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:drag": {
+      "declined": [
+        {
+          "param": "from_uid",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "includeSnapshot",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "to_uid",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:emulate": {
+      "declined": [
+        {
+          "param": "colorScheme",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "cpuThrottlingRate",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "extraHttpHeaders",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "geolocation",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "networkConditions",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "userAgent",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "viewport",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:evaluate_script": {
+      "declined": [
+        {
+          "param": "args",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "dialogAction",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "function",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/filePath",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:chrome-devtools:fill": {
+      "declined": [
+        {
+          "param": "includeSnapshot",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "uid",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "value",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:fill_form": {
+      "declined": [
+        {
+          "param": "elements",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "includeSnapshot",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:get_console_message": {
+      "declined": [
+        {
+          "param": "msgid",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:get_network_request": {
+      "declined": [
+        {
+          "param": "reqid",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/requestFilePath",
+          "resolver": "fs.paths",
+          "unit": null
+        },
+        {
+          "pointer": "/responseFilePath",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:chrome-devtools:handle_dialog": {
+      "declined": [
+        {
+          "param": "action",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "promptText",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:hover": {
+      "declined": [
+        {
+          "param": "includeSnapshot",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "uid",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:lighthouse_audit": {
+      "declined": [
+        {
+          "param": "device",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "mode",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/outputDirPath",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:chrome-devtools:list_console_messages": {
+      "declined": [
+        {
+          "param": "includePreservedMessages",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "pageIdx",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "pageSize",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "serviceWorkerId",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "types",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:list_network_requests": {
+      "declined": [
+        {
+          "param": "includePreservedRequests",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "pageIdx",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "pageSize",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "resourceTypes",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:list_pages": {
+      "declined": [],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:navigate_page": {
+      "declined": [
+        {
+          "param": "handleBeforeUnload",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "ignoreCache",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "initScript",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "timeout",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "type",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "url",
+          "why": "a URL, and nothing here says it addresses an object store",
+          "would_be": "storage.objects"
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:new_page": {
+      "declined": [
+        {
+          "param": "background",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "isolatedContext",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "timeout",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "url",
+          "why": "a URL, and nothing here says it addresses an object store",
+          "would_be": "storage.objects"
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:performance_analyze_insight": {
+      "declined": [
+        {
+          "param": "insightName",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "insightSetId",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:performance_start_trace": {
+      "declined": [
+        {
+          "param": "autoStop",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "reload",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/filePath",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:chrome-devtools:performance_stop_trace": {
+      "declined": [],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/filePath",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:chrome-devtools:press_key": {
+      "declined": [
+        {
+          "param": "includeSnapshot",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "key",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:resize_page": {
+      "declined": [
+        {
+          "param": "height",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "width",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:select_page": {
+      "declined": [
+        {
+          "param": "bringToFront",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "pageId",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:take_heapsnapshot": {
+      "declined": [],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/filePath",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:chrome-devtools:take_screenshot": {
+      "declined": [
+        {
+          "param": "format",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "fullPage",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "quality",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "uid",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/filePath",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:chrome-devtools:take_snapshot": {
+      "declined": [
+        {
+          "param": "verbose",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/filePath",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:chrome-devtools:type_text": {
+      "declined": [
+        {
+          "param": "submitKey",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "text",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:chrome-devtools:upload_file": {
+      "declined": [
+        {
+          "param": "includeSnapshot",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "uid",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/filePath",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:chrome-devtools:wait_for": {
+      "declined": [
+        {
+          "param": "text",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "timeout",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:context7:query-docs": {
+      "declined": [
+        {
+          "param": "libraryId",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "query",
+          "why": "a search string on this tool, not a SQL statement",
+          "would_be": "db.rows"
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:context7:resolve-library-id": {
+      "declined": [
+        {
+          "param": "libraryName",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "query",
+          "why": "a search string on this tool, not a SQL statement",
+          "would_be": "db.rows"
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:everything:echo": {
+      "declined": [
+        {
+          "param": "message",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:everything:get-annotated-message": {
+      "declined": [
+        {
+          "param": "includeImage",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "messageType",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:everything:get-env": {
+      "declined": [],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:everything:get-resource-links": {
+      "declined": [
+        {
+          "param": "count",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:everything:get-resource-reference": {
+      "declined": [
+        {
+          "param": "resourceId",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "resourceType",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:everything:get-structured-content": {
+      "declined": [
+        {
+          "param": "location",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:everything:get-sum": {
+      "declined": [
+        {
+          "param": "a",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "b",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:everything:get-tiny-image": {
+      "declined": [],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:everything:gzip-file-as-resource": {
+      "declined": [
+        {
+          "param": "data",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "name",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "outputType",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:everything:simulate-research-query": {
+      "declined": [
+        {
+          "param": "ambiguous",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "topic",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:everything:toggle-simulated-logging": {
+      "declined": [],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:everything:toggle-subscriber-updates": {
+      "declined": [],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:everything:trigger-long-running-operation": {
+      "declined": [
+        {
+          "param": "duration",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "steps",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:filesystem:create_directory": {
+      "declined": [],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/path",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:filesystem:directory_tree": {
+      "declined": [
+        {
+          "param": "excludePatterns",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/path",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:filesystem:edit_file": {
+      "declined": [
+        {
+          "param": "dryRun",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "edits",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/path",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:filesystem:get_file_info": {
+      "declined": [],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/path",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:filesystem:list_allowed_directories": {
+      "declined": [],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:filesystem:list_directory": {
+      "declined": [],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/path",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:filesystem:list_directory_with_sizes": {
+      "declined": [
+        {
+          "param": "sortBy",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/path",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:filesystem:move_file": {
+      "declined": [],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/destination",
+          "resolver": "fs.paths",
+          "unit": null
+        },
+        {
+          "pointer": "/source",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:filesystem:read_file": {
+      "declined": [
+        {
+          "param": "head",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "tail",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/path",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:filesystem:read_media_file": {
+      "declined": [],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/path",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:filesystem:read_multiple_files": {
+      "declined": [],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/paths",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:filesystem:read_text_file": {
+      "declined": [
+        {
+          "param": "head",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "tail",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/path",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:filesystem:search_files": {
+      "declined": [
+        {
+          "param": "excludePatterns",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "pattern",
+          "why": "a search pattern rather than a set of paths; the tool's path parameter is what bounds this call",
+          "would_be": "fs.paths"
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/path",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:filesystem:write_file": {
+      "declined": [
+        {
+          "param": "content",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/path",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:github:add_issue_comment": {
+      "declined": [
+        {
+          "param": "body",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "issue_number",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:create_branch": {
+      "declined": [
+        {
+          "param": "branch",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "from_branch",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:create_issue": {
+      "declined": [
+        {
+          "param": "assignees",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "body",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "labels",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "milestone",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "title",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:create_or_update_file": {
+      "declined": [
+        {
+          "param": "branch",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "content",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "message",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "path",
+          "why": "a path inside a repository, not on this disk \u2014 fs.paths would count the wrong tree",
+          "would_be": "fs.paths"
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "sha",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:create_pull_request": {
+      "declined": [
+        {
+          "param": "base",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "body",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "draft",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "head",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "maintainer_can_modify",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "title",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:create_pull_request_review": {
+      "declined": [
+        {
+          "param": "body",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "comments",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "commit_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "event",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "pull_number",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:create_repository": {
+      "declined": [
+        {
+          "param": "autoInit",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "description",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "name",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "private",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:fork_repository": {
+      "declined": [
+        {
+          "param": "organization",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:get_file_contents": {
+      "declined": [
+        {
+          "param": "branch",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "path",
+          "why": "a path inside a repository, not on this disk \u2014 fs.paths would count the wrong tree",
+          "would_be": "fs.paths"
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:get_issue": {
+      "declined": [
+        {
+          "param": "issue_number",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:get_pull_request": {
+      "declined": [
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "pull_number",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:get_pull_request_comments": {
+      "declined": [
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "pull_number",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:get_pull_request_files": {
+      "declined": [
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "pull_number",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:get_pull_request_reviews": {
+      "declined": [
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "pull_number",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:get_pull_request_status": {
+      "declined": [
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "pull_number",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:list_commits": {
+      "declined": [
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "page",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "perPage",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "sha",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:list_issues": {
+      "declined": [
+        {
+          "param": "direction",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "labels",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "page",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "per_page",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "since",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "sort",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "state",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:list_pull_requests": {
+      "declined": [
+        {
+          "param": "base",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "direction",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "head",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "page",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "per_page",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "sort",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "state",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:merge_pull_request": {
+      "declined": [
+        {
+          "param": "commit_message",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "commit_title",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "merge_method",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "pull_number",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:push_files": {
+      "declined": [
+        {
+          "param": "branch",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "files",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "message",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:search_code": {
+      "declined": [
+        {
+          "param": "order",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "page",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "per_page",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "q",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:search_issues": {
+      "declined": [
+        {
+          "param": "order",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "page",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "per_page",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "q",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "sort",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:search_repositories": {
+      "declined": [
+        {
+          "param": "page",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "perPage",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "query",
+          "why": "a search string on this tool, not a SQL statement",
+          "would_be": "db.rows"
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:search_users": {
+      "declined": [
+        {
+          "param": "order",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "page",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "per_page",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "q",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "sort",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:update_issue": {
+      "declined": [
+        {
+          "param": "assignees",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "body",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "issue_number",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "labels",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "milestone",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "state",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "title",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:github:update_pull_request_branch": {
+      "declined": [
+        {
+          "param": "expected_head_sha",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "owner",
+          "why": "the call names a repository, so the owner is an address and not the target",
+          "would_be": "github.repos"
+        },
+        {
+          "param": "pull_number",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "repo",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:memory:add_observations": {
+      "declined": [
+        {
+          "param": "observations",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:memory:create_entities": {
+      "declined": [
+        {
+          "param": "entities",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:memory:create_relations": {
+      "declined": [
+        {
+          "param": "relations",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:memory:delete_entities": {
+      "declined": [
+        {
+          "param": "entityNames",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": true,
+      "gated": []
+    },
+    "mcp:memory:delete_observations": {
+      "declined": [
+        {
+          "param": "deletions",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": true,
+      "gated": []
+    },
+    "mcp:memory:delete_relations": {
+      "declined": [
+        {
+          "param": "relations",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": true,
+      "gated": []
+    },
+    "mcp:memory:open_nodes": {
+      "declined": [
+        {
+          "param": "names",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:memory:read_graph": {
+      "declined": [],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:memory:search_nodes": {
+      "declined": [
+        {
+          "param": "query",
+          "why": "a search string on this tool, not a SQL statement",
+          "would_be": "db.rows"
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-create-a-comment": {
+      "declined": [
+        {
+          "param": "parent",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "rich_text",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-create-a-data-source": {
+      "declined": [
+        {
+          "param": "parent",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "properties",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "title",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-delete-a-block": {
+      "declined": [
+        {
+          "param": "block_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": true,
+      "gated": []
+    },
+    "mcp:notion:API-get-block-children": {
+      "declined": [
+        {
+          "param": "block_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "page_size",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "start_cursor",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-get-self": {
+      "declined": [],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-get-user": {
+      "declined": [
+        {
+          "param": "user_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-get-users": {
+      "declined": [
+        {
+          "param": "page_size",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "start_cursor",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-list-data-source-templates": {
+      "declined": [
+        {
+          "param": "data_source_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "page_size",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "start_cursor",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-move-page": {
+      "declined": [
+        {
+          "param": "page_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "parent",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-patch-block-children": {
+      "declined": [
+        {
+          "param": "after",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "block_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "children",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-patch-page": {
+      "declined": [
+        {
+          "param": "archived",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "cover",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "icon",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "in_trash",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "page_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "properties",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-post-page": {
+      "declined": [
+        {
+          "param": "children",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "cover",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "icon",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "parent",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "properties",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-post-search": {
+      "declined": [
+        {
+          "param": "filter",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "page_size",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "query",
+          "why": "a search string on this tool, not a SQL statement",
+          "would_be": "db.rows"
+        },
+        {
+          "param": "sort",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "start_cursor",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-query-data-source": {
+      "declined": [
+        {
+          "param": "archived",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "data_source_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "filter",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "filter_properties",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "in_trash",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "page_size",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "sorts",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "start_cursor",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-retrieve-a-block": {
+      "declined": [
+        {
+          "param": "block_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-retrieve-a-comment": {
+      "declined": [
+        {
+          "param": "block_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "page_size",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "start_cursor",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-retrieve-a-data-source": {
+      "declined": [
+        {
+          "param": "data_source_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-retrieve-a-database": {
+      "declined": [
+        {
+          "param": "database_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-retrieve-a-page": {
+      "declined": [
+        {
+          "param": "filter_properties",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "page_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-retrieve-a-page-property": {
+      "declined": [
+        {
+          "param": "page_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "page_size",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "property_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "start_cursor",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-retrieve-page-markdown": {
+      "declined": [
+        {
+          "param": "include_transcript",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "page_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-update-a-block": {
+      "declined": [
+        {
+          "param": "archived",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "block_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "type",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-update-a-data-source": {
+      "declined": [
+        {
+          "param": "data_source_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "description",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "properties",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "title",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:notion:API-update-page-markdown": {
+      "declined": [
+        {
+          "param": "insert_content",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "page_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "replace_content",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "replace_content_range",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "type",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "update_content",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_click": {
+      "declined": [
+        {
+          "param": "button",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "doubleClick",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "element",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "modifiers",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "target",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_close": {
+      "declined": [],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_console_messages": {
+      "declined": [
+        {
+          "param": "all",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "filename",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "level",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_drag": {
+      "declined": [
+        {
+          "param": "endElement",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "endTarget",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "startElement",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "startTarget",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_drop": {
+      "declined": [
+        {
+          "param": "data",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "element",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "target",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/paths",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:playwright:browser_evaluate": {
+      "declined": [
+        {
+          "param": "element",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "filename",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "function",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "target",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_file_upload": {
+      "declined": [],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/paths",
+          "resolver": "fs.paths",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:playwright:browser_fill_form": {
+      "declined": [
+        {
+          "param": "fields",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_find": {
+      "declined": [
+        {
+          "param": "regex",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "text",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_handle_dialog": {
+      "declined": [
+        {
+          "param": "accept",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "promptText",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_hover": {
+      "declined": [
+        {
+          "param": "element",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "target",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_navigate": {
+      "declined": [
+        {
+          "param": "url",
+          "why": "a URL, and nothing here says it addresses an object store",
+          "would_be": "storage.objects"
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_navigate_back": {
+      "declined": [],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_network_request": {
+      "declined": [
+        {
+          "param": "filename",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "index",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "part",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_network_requests": {
+      "declined": [
+        {
+          "param": "filename",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "filter",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "static",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_press_key": {
+      "declined": [
+        {
+          "param": "key",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_resize": {
+      "declined": [
+        {
+          "param": "height",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "width",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_run_code_unsafe": {
+      "declined": [
+        {
+          "param": "code",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "filename",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_select_option": {
+      "declined": [
+        {
+          "param": "element",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "target",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "values",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_snapshot": {
+      "declined": [
+        {
+          "param": "boxes",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "depth",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "filename",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "target",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_tabs": {
+      "declined": [
+        {
+          "param": "action",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "index",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "url",
+          "why": "a URL, and nothing here says it addresses an object store",
+          "would_be": "storage.objects"
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_take_screenshot": {
+      "declined": [
+        {
+          "param": "element",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "filename",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "fullPage",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "scale",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "target",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "type",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_type": {
+      "declined": [
+        {
+          "param": "element",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "slowly",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "submit",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "target",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "text",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:playwright:browser_wait_for": {
+      "declined": [
+        {
+          "param": "text",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "textGone",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "time",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:postgres:query": {
+      "declined": [],
+      "destructive": false,
+      "gated": [
+        {
+          "pointer": "/sql",
+          "resolver": "db.rows",
+          "unit": null
+        }
+      ]
+    },
+    "mcp:puppeteer:puppeteer_click": {
+      "declined": [
+        {
+          "param": "selector",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:puppeteer:puppeteer_evaluate": {
+      "declined": [
+        {
+          "param": "script",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:puppeteer:puppeteer_fill": {
+      "declined": [
+        {
+          "param": "selector",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "value",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:puppeteer:puppeteer_hover": {
+      "declined": [
+        {
+          "param": "selector",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:puppeteer:puppeteer_navigate": {
+      "declined": [
+        {
+          "param": "allowDangerous",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "launchOptions",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "url",
+          "why": "a URL, and nothing here says it addresses an object store",
+          "would_be": "storage.objects"
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:puppeteer:puppeteer_screenshot": {
+      "declined": [
+        {
+          "param": "encoded",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "height",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "name",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "selector",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "width",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:puppeteer:puppeteer_select": {
+      "declined": [
+        {
+          "param": "selector",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "value",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:sequentialthinking:sequentialthinking": {
+      "declined": [
+        {
+          "param": "branchFromThought",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "branchId",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "isRevision",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "needsMoreThoughts",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "nextThoughtNeeded",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "revisesThought",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "thought",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "thoughtNumber",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "totalThoughts",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:slack:slack_add_reaction": {
+      "declined": [
+        {
+          "param": "channel_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "reaction",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "timestamp",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:slack:slack_get_channel_history": {
+      "declined": [
+        {
+          "param": "channel_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "limit",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:slack:slack_get_thread_replies": {
+      "declined": [
+        {
+          "param": "channel_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "thread_ts",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:slack:slack_get_user_profile": {
+      "declined": [
+        {
+          "param": "user_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:slack:slack_get_users": {
+      "declined": [
+        {
+          "param": "cursor",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "limit",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:slack:slack_list_channels": {
+      "declined": [
+        {
+          "param": "cursor",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "limit",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:slack:slack_post_message": {
+      "declined": [
+        {
+          "param": "channel_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "text",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    },
+    "mcp:slack:slack_reply_to_thread": {
+      "declined": [
+        {
+          "param": "channel_id",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "text",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        },
+        {
+          "param": "thread_ts",
+          "why": "no resolver claims this parameter",
+          "would_be": null
+        }
+      ],
+      "destructive": false,
+      "gated": []
+    }
+  },
+  "note": "What `insight.discover` decides about every tool in tools.json. Regenerated by `python -m tests.corpus.refresh`; every line is a judgement, so read the diff.",
+  "version": 1
+}

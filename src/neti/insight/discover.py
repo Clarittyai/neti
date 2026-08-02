@@ -367,7 +367,12 @@ RULES: tuple[Rule, ...] = (
     # ---------------------------------------------------------------- the filesystem
     Rule(
         resolver="fs.paths",
-        param=re.compile(r"^(path|paths|file_?path|filepath|directory|dir)$", re.I),
+        # Anything ending in `path` or `paths`. Enumerating the spellings missed `notebook_path`
+        # on Claude Code's own `NotebookEdit` — a plain local file, on the runtime this product
+        # gates most often. Every path-ish parameter across 170 real tool schemas is a genuine
+        # local path (`filePath`, `outputDirPath`, `requestFilePath`, `notebook_path`), so the
+        # suffix is the honest rule and the list was an accident of which ones got written down.
+        param=re.compile(r"^[A-Za-z]*_?paths?$|^(directory|dir)$", re.I),
         why="a path on this machine, which a capped local walk can count",
         # GitHub's file tools take `path` too, and there it means a path inside a repository — a
         # local walk would count something else entirely and report it with a straight face.

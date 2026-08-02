@@ -94,6 +94,13 @@ live:
 field:
     uv run python -m eval.surveys.mcp_coverage --markdown
 
+# Re-derive the offline detection corpus from whatever `just field` last measured. The corpus is
+# what makes coverage a build failure rather than a number nobody recomputes, so run this after
+# every field survey and read the diff — every line of decisions.json is a judgement.
+corpus-refresh:
+    uv run python -m eval.surveys.mcp_coverage
+    uv run python -m tests.corpus.refresh
+
 # Requires a live tenant. This is the measurement every latency figure in the plan is waiting on.
 measure GROUP_SMALL GROUP_LARGE:
     uv run neti measure -g {{GROUP_SMALL}} -g {{GROUP_LARGE}}
