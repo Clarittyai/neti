@@ -63,6 +63,14 @@ class Decision:
     result: GateResult
     escalation: Escalation = field(default_factory=Escalation)
 
+    record_error: str | None = None
+    """Set when the decision was reached but could not be filed.
+
+    The verdict is unaffected — that is the entire point of carrying this rather than raising. A
+    caller surfaces it to the operator, loudly, because an audit trail with a hole in it is a
+    serious condition; but a disk that will not accept a record is not a reason to stop deciding.
+    """
+
     @property
     def proceeds(self) -> bool:
         """Whether the upstream call is made.
@@ -96,12 +104,26 @@ class Gatekeeper:
     def decide(self, call: ProposedCall, **kw: Any) -> Decision:
         result = self.engine.gate(call, **kw)
         escalation = self._escalate(call, result)
+        record_error: str | None = None
         if self.sink is not None:
-            # Carry the stored record forward, not the one the engine produced: under concurrency
-            # the sink re-seals against the true head, and reporting the pre-seal digest would name
-            # a record that is not in the file.
-            result = GateResult(decision=result.decision, record=self.sink.write(result.record))
-        return Decision(result=result, escalation=escalation)
+            try:
+                # Carry the stored record forward, not the one the engine produced: under
+                # concurrency the sink re-seals against the true head, and reporting the pre-seal
+                # digest would name a record that is not in the file.
+                result = GateResult(decision=result.decision, record=self.sink.write(result.record))
+            except Exception as exc:
+                # **The decision survives the record.** Recording is evidence; it is not the
+                # verdict, and a full disk or a records path pointing at a directory must not be
+                # able to turn enforcement off. It could: the hook computes the chain head before
+                # deciding, so an unwritable path aborted the whole command, which exits 0 with no
+                # stdout — and no stdout is how the hook protocol spells *no opinion*. Every gated
+                # call proceeded, with the reason on stderr where nothing reads it.
+                #
+                # `test_an_unwritable_records_path_still_lets_the_session_run` had said "recording
+                # is evidence, not the decision" since before this was true; it only ever checked
+                # that the process survived, so it never noticed the answer had gone with the file.
+                record_error = f"{type(exc).__name__}: {exc}"
+        return Decision(result=result, escalation=escalation, record_error=record_error)
 
     # ------------------------------------------------------------------ internals
 

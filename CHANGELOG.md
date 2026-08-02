@@ -2,6 +2,41 @@
 
 ## Unreleased
 
+### A log file that could not be opened switched enforcement off
+
+The worst defect this project has had, and the sibling test that should have caught it had the right
+sentence in its docstring the whole time.
+
+`neti hook` reads the record chain's head before it decides, so a records path that is not writable —
+a full disk, a permissions change, a path pointing at a directory — raised out of that read and hit
+the catch-all handler. That handler exits 0 with nothing on stdout, and **no stdout is how the
+`PreToolUse` protocol spells "no opinion"**. Every gated call in the session proceeded. The reason
+went to stderr, which in a hook nobody reads.
+
+`test_an_unwritable_records_path_still_lets_the_session_run` said *"Recording is evidence, not the
+decision. Losing the ability to write must not become an inability to answer"* — and only ever
+checked that the process survived, so it never noticed the answer had gone with the file. For a
+product whose claim is "blocks calls whose resolved magnitude exceeds a ceiling you declared", that
+is the claim silently retracting itself.
+
+Now: the chain-head read degrades to a fresh chain, `Gatekeeper.decide` catches a failing sink and
+carries `record_error` instead of raising, the call is still gated, and the operator is told on
+stderr that the audit chain has a gap. `neti verify` reports the break. Pinned at the shared layer —
+one test on `Gatekeeper`, which is where all eleven doors write — and end to end through the hook.
+
+**SCOPE.md gains NC-13** for it, because a chain that can have gaps is a thing a customer is entitled
+to know before they rely on the record rather than after.
+
+### `ProposedCall.call_id` is gone
+
+Set by the MCP gateway, read by nothing — the same dead-field shape as `providers:` and
+`ServerSpec.env`, both of which shipped looking configured and doing nothing. Correlating a decision
+to the agent's own tool call is worth having and is not free: the record's digest covers an explicit
+field list, so a field outside it is annotation a tamperer can rewrite, and a field inside it changes
+what `verify_chain` recomputes — every record written before the change would fail verification.
+That is a `neti.decision.v2` with a migration, decided on its own merits. Removed rather than kept
+warm.
+
 ### Coverage, on both axes, and the four defects that were hiding behind it
 
 Two claims this product rests on were being made by tests that could not check them. The seam table

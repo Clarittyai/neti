@@ -15,8 +15,8 @@ those tests generalised into one table: every seam is a row, every scenario is a
 a seam means adding a row rather than remembering to write a comparison — enforced, because
 `test_the_seam_table_covers_every_shipped_adapter` fails the build on an adapter with no row.
 
-The other axis is `tests/e2e/worlds.py`. Every case runs against one of five worlds, so each seam is
-driven across every resolver family rather than against Entra alone.
+The other axis is `tests/e2e/worlds.py`. Every case names a world, so each seam is driven across
+every resolver family rather than against Entra alone.
 
 What is asserted is deliberately strict: the same **verdict**, the same **magnitude**, and the same
 **sentence**, byte for byte. Wording is included because the sentence is the product's actual
@@ -108,6 +108,13 @@ ENTRA_CASES = [
     # The same tool arriving with an MCP server prefix, which is how Claude Code names tools from
     # an MCP server. It must hit the same policy entry rather than falling through as unknown.
     Case("mcp-prefixed", "mcp__entra__remove_group_members", {"group": "g-eng-all"}, "block"),
+    # A gated tool called with the gated argument missing, and with it explicitly null. Both are
+    # the failure mode that looks most like success: nothing for the policy to point at, so a gate
+    # that reasoned "no target, no problem" would pass the call. The declared `on_unresolved` owns
+    # this, and it has to own it on every seam — an adapter that reduces a malformed call to an
+    # empty one reaches the same place only by accident.
+    Case("no-args", "remove_group_members", {}, "block"),
+    Case("null-arg", "remove_group_members", {"group": None}, "block"),
 ]
 
 # The four resolver families that had never crossed a seam boundary. Placeholders in the arguments
@@ -179,7 +186,7 @@ def build_engine(world: worlds.World) -> Engine:
 def build_preflight(world: worlds.World, tmp_path: Path, approver: Any = None) -> Preflight:
     """The in-process gate, optionally with a control plane behind it.
 
-    The three SDK adapters reach approvals only through here, so an approver that did not arrive
+    Every SDK adapter reaches approvals only through here, so an approver that did not arrive
     would make `CONFIRM` a flat denial on those runtimes while the other four asked a human — the
     paid tier silently worth less depending on which framework somebody chose.
     """
@@ -550,8 +557,8 @@ def outcome(
     """Build this case's world, fill in its paths, and drive one seam with it.
 
     The world is built per call rather than shared, which matters: `Engine` holds the session
-    tallies, so one engine across seven seams would have the seventh seam see seven times the
-    session total and reach a different verdict for that reason alone.
+    tallies, so one engine shared across the seams would have the last of them see every other
+    seam's traffic in the session total and reach a different verdict for that reason alone.
     """
     case = replace(case, args=worlds.render(case.args, fixtures))
     return drive(seam, world_for(case, fixtures), tmp_path, case, approver)
@@ -639,8 +646,8 @@ def test_an_allowed_call_says_nothing_at_all(
 def test_the_seam_table_covers_every_shipped_adapter() -> None:
     """The table is only an invariant while it is complete.
 
-    A new adapter added to `neti.adapters` without a row here would be the same hole the three SDK
-    adapters sat in: individually tested, never compared, free to drift.
+    A new adapter added to `neti.adapters` without a row here would be the same hole the first
+    three SDK adapters sat in: individually tested, never compared, free to drift.
     """
     import pkgutil
 
@@ -722,7 +729,7 @@ def test_a_confirm_stops_the_call_on_every_seam_when_nobody_can_be_asked(
     """The free tier, and the behaviour every paid install degrades to.
 
     With no control plane a `CONFIRM` means "this does not proceed without a human" and there is no
-    human, so it stops. That has to be true on all seven seams or the tier boundary is not a
+    human, so it stops. That has to be true on every seam or the tier boundary is not a
     boundary — an install would be quietly more permissive on whichever runtime forgot.
     """
     assert outcome(seam, fixtures, tmp_path, NEEDS_A_HUMAN).verdict == "confirm"

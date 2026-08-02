@@ -70,6 +70,11 @@ def hook_response(engine: Engine, decision: Decision) -> dict[str, Any]:
     # and the copy had drifted: it told the model an approval was pending and not that retrying the
     # identical call is what finds the grant.
     reason, payload = explain_decision(decision, engine.denial_payload(result))
+    if decision.record_error is not None:
+        # Carried in the payload so the CLI can say it out loud on stderr. Never in the sentence:
+        # that is the model's to read, and "your operator's disk is full" is not something an agent
+        # can act on by narrowing its scope.
+        payload = {**payload, "record_error": decision.record_error}
 
     return {
         "hookSpecificOutput": {

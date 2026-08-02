@@ -164,8 +164,17 @@ class ProposedCall(Frozen):
 
     tool: str
     args: dict[str, Any] = Field(default_factory=dict)
-    call_id: str | None = None
     session_id: str | None = None
+
+    # **There is no `call_id`.** There was one, set by the MCP gateway from the JSON-RPC id and read
+    # by nothing — the same dead-field shape as `providers:` and `ServerSpec.env`, both of which
+    # shipped looking configured and doing nothing.
+    #
+    # Correlating a decision to the agent's own tool call is worth having, and it is not free: the
+    # record's digest covers an explicit field list, so a field outside it is annotation a tamperer
+    # can rewrite, and a field inside it changes what `verify_chain` recomputes — every record
+    # written before the change would then fail verification. That is a `neti.decision.v2` with a
+    # migration, decided on its own merits, not a field kept warm in the hope somebody finishes it.
 
 
 UNREADABLE = "__neti_unparseable__"

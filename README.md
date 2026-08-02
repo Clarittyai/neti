@@ -341,7 +341,7 @@ The suite has four tiers:
 |---|---|
 | `tests/property/` | executable invariants over the whole codebase — determinism, purity, direction soundness, the docs being true |
 | `tests/integration/` | each component against its own seam |
-| `tests/e2e/` | the product: all seven seams agreeing, the operator's first week as one flow, every resolver through record and report, and `neti gate --stdio` in front of a real MCP server |
+| `tests/e2e/` | the product: all eleven seams agreeing across every resolver family, the operator's first week as one flow, every resolver through record and report, and `neti gate --stdio` in front of a real MCP server |
 | `tests/live/` | real providers, opt-in |
 
 `tests/live/` is skipped unless you give it something real to talk to. It is worth running: every

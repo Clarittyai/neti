@@ -179,6 +179,43 @@ def test_an_unwritable_records_path_still_lets_the_session_run(
     assert_survivable(run_hook_process(event, config, blocked), "unwritable records path")
 
 
+def test_an_unwritable_records_path_does_not_turn_enforcement_off(tmp_path: Path) -> None:
+    """The half the test above could not see, and the most serious defect this suite has found.
+
+    "Recording is evidence, not the decision" was the stated intent for two releases and was not
+    what the code did. The hook reads the chain head *before* deciding, so a records path pointing
+    at a directory — a full disk, a permissions change, a typo — raised out of that read and hit the
+    catch-all handler, which exits 0 with no stdout. **No stdout is how the hook protocol spells
+    "no opinion".** Every gated call in the session proceeded, with the reason on stderr where
+    nothing reads it, and the sibling test above passed the whole time because it only ever checked
+    that the process survived.
+
+    For a product whose claim is "blocks calls whose resolved magnitude exceeds a ceiling you
+    declared", a log file that cannot be opened silently retracting that claim is the worst failure
+    available. So this asserts the verdict, and asserts the operator is told the record was lost.
+    """
+    policy = tmp_path / "neti.yaml"
+    policy.write_text(EXAMPLE.read_text().replace("mode: observe", "mode: enforce"))
+    blocked = tmp_path / "records-dir"
+    blocked.mkdir()
+
+    event = json.dumps({"tool_name": "remove_group_members", "tool_input": {"group": "g-eng-all"}})
+    out = run_hook_process(event, policy, blocked)
+
+    assert out.returncode == 0, out.stderr[-800:]
+    assert out.stdout.strip(), (
+        "the hook said nothing, which the protocol reads as a pass — enforcement was switched off "
+        "by an unwritable log file"
+    )
+    decision = json.loads(out.stdout)["hookSpecificOutput"]
+    assert decision["permissionDecision"] == "deny"
+    assert "41,203" in decision["permissionDecisionReason"]
+
+    # And the operator has to be told, loudly and on stderr, that the chain now has a hole.
+    assert decision["neti"]["record_error"]
+    assert "NOT recorded" in out.stderr, out.stderr[-800:]
+
+
 def test_a_resolver_that_raises_stops_one_call_and_not_the_process(tmp_path: Path) -> None:
     """A provider can fail in ways nobody anticipated. The declared `on_unresolved` owns that."""
     from neti.config.policy import Policy
@@ -404,3 +441,35 @@ def test_the_crewai_hooks_must_be_synchronous(tmp_path: Path) -> None:
             )
     finally:
         clear_all_tool_call_hooks()
+
+
+def test_a_sink_that_raises_does_not_change_the_verdict(tmp_path: Path) -> None:
+    """The invariant underneath the two tests above, asserted where every seam shares it.
+
+    `Gatekeeper.decide` is the one place all eleven doors write their record, so proving the
+    verdict survives a failing sink here proves it for the hook, both MCP transports and every SDK
+    adapter at once — rather than eleven times, badly.
+
+    The failure is induced rather than simulated: a sink whose `write` raises is exactly what a full
+    disk looks like from here.
+    """
+    from neti.core.record import DecisionRecord
+    from neti.core.types import ProposedCall
+    from neti.gatekeeper import Gatekeeper
+
+    class FullDisk:
+        def write(self, record: DecisionRecord) -> DecisionRecord:
+            raise OSError(28, "No space left on device")
+
+        def close(self) -> None: ...
+
+    pf = Preflight.demo(EXAMPLE, mode="enforce", records=None)
+    decision = Gatekeeper(engine=pf.engine, sink=FullDisk()).decide(  # type: ignore[arg-type]
+        ProposedCall(tool="remove_group_members", args={"group": "g-eng-all"})
+    )
+
+    assert decision.verdict.name == "BLOCK", "a full disk must not turn a block into a pass"
+    assert not decision.proceeds
+    assert decision.record_error and "No space left" in decision.record_error, (
+        "the operator has to be able to find out the chain has a hole in it"
+    )

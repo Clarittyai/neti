@@ -153,8 +153,25 @@ def test_the_card_and_the_seam_table_agree_on_what_is_covered() -> None:
 
 
 def test_the_card_and_the_worlds_agree_on_the_resolver_families() -> None:
-    """Same again for the other axis of the same table."""
+    """Same again for the other axis of the same table.
+
+    Against `RESOLVER_WORLDS` specifically. `WORLDS` also carries `budget`, which exists for a
+    *shape* — one file, resolving to 1, called twice — rather than for a resolver family, and
+    counting it would inflate the coverage figure the card prints. The two lists had already
+    drifted apart once by the time this was written.
+    """
     from neti.eval.scorecard import _RESOLVER_FAMILIES
     from tests.e2e import worlds
 
-    assert set(_RESOLVER_FAMILIES) == set(worlds.WORLDS)
+    assert set(_RESOLVER_FAMILIES) == set(worlds.RESOLVER_WORLDS)
+
+
+def test_every_world_is_accounted_for_as_one_kind_or_the_other() -> None:
+    """No world may exist without being classified, or the count above silently stops being true."""
+    from tests.e2e import worlds
+
+    declared = set(worlds.POLICIES) | {"entra"}
+    assert declared == set(worlds.WORLDS), (
+        f"worlds with no classification: {sorted(declared ^ set(worlds.WORLDS))}"
+    )
+    assert not set(worlds.RESOLVER_WORLDS) & set(worlds.SHAPE_WORLDS)

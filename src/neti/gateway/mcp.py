@@ -73,10 +73,11 @@ class McpGateway:
             # server will reject it with a proper error, and inventing our own would mask theirs.
             return self.upstream.send(message, session_id)
 
+        # The JSON-RPC id is not carried onto the call. It used to be, as `call_id`, and nothing
+        # anywhere read it — see the note in `core/types.ProposedCall`.
         call = ProposedCall(
             tool=tool,
             args=params.get("arguments") or {},
-            call_id=str(message.get("id")) if message.get("id") is not None else None,
             session_id=session_id,
         )
 
@@ -131,7 +132,7 @@ def explain_decision(decision: Decision, payload: dict[str, Any]) -> tuple[str, 
     gateway each had their own copy, and they had already drifted — the gateway told the model to
     *retry this exact call once it is granted*, which is the whole point of naming an approval id,
     and the hook stopped at "is pending for this call" and left the agent with nothing to do about
-    it. `Preflight` had no copy at all, so the three SDK adapters that reach approvals through it
+    it. `Preflight` had no copy at all, so every SDK adapter that reaches approvals through it
     reported a pending approval as a flat "needs confirmation": no id, no indication a human had
     been asked, nothing to retry against. A paying customer on LangChain got strictly less than one
     on MCP, and the seam table could not see it because it had granted and denied rows and no

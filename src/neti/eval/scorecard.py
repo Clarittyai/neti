@@ -131,6 +131,10 @@ NON_COVERAGE = {
     ),
     "NC-11": "containment and rollback",
     "NC-12": "reads that are individually small but collectively large",
+    "NC-13": (
+        "a record chain with a gap: an unwritable records path loses the evidence, not the "
+        "verdict — the call is still gated, and `neti verify` reports the break"
+    ),
 }
 
 

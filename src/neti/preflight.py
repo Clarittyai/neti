@@ -241,7 +241,7 @@ class Preflight:
     def _verdict(self, decision: Decision) -> Verdict:
         result = decision.result
         approval = decision.escalation.approval
-        # `explain_decision`, not `explain_denial`. This seam is where the three SDK adapters get
+        # `explain_decision`, not `explain_denial`. This seam is where every SDK adapter gets
         # their sentence, and it used to reach for the ceiling-shaped one only — so a pending
         # approval arrived at the model as a flat "needs confirmation" with no id and nothing to
         # retry against, while the same call through the hook or MCP named the approval and said to

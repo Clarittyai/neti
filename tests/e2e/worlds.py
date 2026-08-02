@@ -1,6 +1,6 @@
 """One policy and one set of resolvers per kind of thing an agent touches.
 
-`tests/e2e/test_seam_equivalence.py` proves that seven runtimes reach the same verdict about the
+`tests/e2e/test_seam_equivalence.py` proves that every runtime reaches the same verdict about the
 same call. It proved it only about Entra: every case in it used `examples/entra.yaml` and the
 synthetic tenant, so four of the ten shipped resolvers — `fs.paths`, `db.rows`, `storage.objects`,
 `terraform.destroy` — had never crossed a seam boundary at all. The tools a coding agent actually
@@ -11,7 +11,7 @@ seam drivers take one instead of building `examples/entra.yaml` for themselves. 
 family means adding a world, and every seam then gets driven against it for free.
 
 **Everything here is offline and deterministic**, which is what lets it live in `tests/` rather than
-in `eval/`. Only one of the five worlds stands anything in:
+in `eval/`. Exactly one resolver is stood in for:
 
 - `fs` and `terraform` read real artefacts on disk through the shipped resolvers, unchanged.
 - `db` reaches a real sqlite file through the shipped `EnvCountRunner` and `NETI_DATABASE_URL`, so
@@ -20,7 +20,7 @@ in `eval/`. Only one of the five worlds stands anything in:
 - `storage` is the sole substitution: the registry binds `S3Lister`, which needs boto3 and an AWS
   account, so it gets a lister with declared prefix sizes instead.
 
-A separate module and not `conftest.py` on purpose. The seven drivers are what a reader comes to
+A separate module and not `conftest.py` on purpose. The seam drivers are what a reader comes to
 `test_seam_equivalence.py` for, and burying them under sqlite seeding and plan JSON would hide the
 thing the file exists to say.
 """
@@ -42,11 +42,31 @@ from neti.resolvers.graph_client import ClientCredential, GraphClient
 from neti.resolvers.registry import resolvers_for_client
 from neti.resolvers.storage import Listing, ObjectStoreResolver
 
-__all__ = ["WORLDS", "Fixtures", "World", "build_fixtures", "build_world", "render"]
+__all__ = [
+    "RESOLVER_WORLDS",
+    "SHAPE_WORLDS",
+    "WORLDS",
+    "Fixtures",
+    "World",
+    "build_fixtures",
+    "build_world",
+    "render",
+]
 
 CRED = ClientCredential(tenant_id="demo", client_id="demo", client_secret="demo")
 
-WORLDS = ("entra", "fs", "db", "storage", "terraform")
+RESOLVER_WORLDS = ("entra", "fs", "db", "storage", "terraform")
+"""One per family of thing an agent touches. This is the axis `neti score` reports as M8 coverage.
+
+`entra` is loaded from `examples/entra.yaml` rather than from `POLICIES` below, because the seam
+table's five original rows are pinned against that file byte for byte.
+"""
+
+SHAPE_WORLDS = ("budget",)
+"""Worlds that exist for a *shape* rather than a resolver — `budget` is one file, resolving to 1,
+called twice. Kept separate so the coverage number above counts resolver families and not rows."""
+
+WORLDS = (*RESOLVER_WORLDS, *SHAPE_WORLDS)
 
 
 # ---------------------------------------------------------------------------- artefacts on disk
@@ -56,8 +76,8 @@ WORLDS = ("entra", "fs", "db", "storage", "terraform")
 class Fixtures:
     """The real files the local resolvers read.
 
-    Built once and treated as read-only. The expanded seam table drives five worlds through seven
-    seams, and rebuilding a file tree per parametrised invocation would be thousands of writes for
+    Built once and treated as read-only. The expanded seam table drives every world through every
+    seam, and rebuilding a file tree per parametrised invocation would be thousands of writes for
     no added assurance.
     """
 

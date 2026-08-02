@@ -663,11 +663,24 @@ def hook(
         # wide. The Engine refuses a policy that can never work; if that exception escaped here it
         # would crash the hook, and a crashed PreToolUse hook takes out *every tool call in the
         # session*. A typo in a resolver name must not be able to do that.
+        # Reading the chain head can fail on its own — an unreadable records path, a directory
+        # where a file belongs — and that must not reach the handler below. It would exit 0 with
+        # no stdout, which the hook protocol reads as *no opinion*: every gated call in the session
+        # proceeding because a log file could not be opened. A chain that restarts is a visible
+        # `neti verify` break; a gate that stopped gating is not visible at all.
+        try:
+            head = chain_head(records)
+        except Exception as exc:
+            print(
+                f"neti hook: cannot read the record chain ({exc}); starting a new one",
+                file=sys.stderr,
+            )
+            head = None
         engine = Engine(
             policy=policy,
             resolvers=resolvers,
             ctx=ResolveContext(timeout_ms=timeout_ms),
-            last_digest=chain_head(records),
+            last_digest=head,
         )
     except Exception as exc:
         # Deliberately every exception. A hook that cannot run must not take the session down with
@@ -678,9 +691,22 @@ def hook(
     sink = JsonlSink(records)
     try:
         response = run_hook(engine, event, sink)
+    except Exception as exc:
+        print(f"neti hook: {exc}", file=sys.stderr)
+        raise typer.Exit(0) from exc
     finally:
         sink.close()
         client.close()
+
+    # A decision that could not be filed still stands, and the operator has to hear about it. On
+    # stderr because stdout is the decision protocol — anything else there corrupts it.
+    if response and response.get("hookSpecificOutput", {}).get("neti", {}).get("record_error"):
+        print(
+            "neti hook: the decision was enforced but NOT recorded "
+            f"({response['hookSpecificOutput']['neti']['record_error']}). "
+            "The audit chain has a gap; `neti verify` will show it.",
+            file=sys.stderr,
+        )
 
     if response:
         typer.echo(json.dumps(response))
