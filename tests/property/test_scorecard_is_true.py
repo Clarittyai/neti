@@ -95,3 +95,66 @@ def test_an_unverified_resolver_is_not_quietly_dropped() -> None:
         "an Entra resolver is claimed live-verified. No tenant has ever been available: see "
         "scorecard outstanding items M2 and R2."
     )
+
+
+# ---------------------------------------------------------------------------- M8, the seams
+
+
+def test_every_shipped_adapter_appears_on_the_card() -> None:
+    """The same anti-staleness mechanism as `RESOLVERS`, one axis over.
+
+    `SEAMS` is a hand-written list on a card that claims eleven runtimes are covered, and a card is
+    exactly where such a list rots — an adapter lands, the docstring is not updated, and the number
+    reads high for a release. Every module under `neti.adapters` must have a row, and the four seams
+    that are not adapters (both MCP transports and the in-process gate) are named explicitly rather
+    than being an unexplained arithmetic difference.
+    """
+    import pkgutil
+
+    import neti.adapters
+    from neti.eval.scorecard import SEAMS
+
+    shipped = {name for _, name, _ in pkgutil.iter_modules(neti.adapters.__path__)}
+    # Adapter module -> the key it goes under on the card.
+    by_module = {
+        "claude_code": "hook",
+        "anthropic_tools": "anthropic",
+        "openai_agents": "openai-agents",
+        "langchain_tools": "langchain",
+        "crewai_hooks": "crewai",
+        "pydantic_ai": "pydantic-ai",
+        "autogen_tools": "autogen",
+        "google_adk": "google-adk",
+    }
+    assert shipped == set(by_module), (
+        f"adapters with no scorecard row: {sorted(shipped - set(by_module))}. `neti score` would "
+        "under-report which runtimes this can sit in front of."
+    )
+    assert set(by_module.values()) <= set(SEAMS)
+    # The seams that are not adapter modules: the gate's two transports and the in-process gate.
+    assert set(SEAMS) - set(by_module.values()) == {"mcp-stdio", "mcp-http", "preflight"}
+
+
+def test_the_card_and_the_seam_table_agree_on_what_is_covered() -> None:
+    """M8's claim is that the seams *agree*, and the thing that establishes it is one test table.
+
+    So the card must not list a seam the table never drives. Read out of the table rather than
+    restated, because a card claiming a runtime nothing exercises is the precise failure this
+    metric exists to retire.
+    """
+    from neti.eval.scorecard import SEAMS
+    from tests.e2e.test_seam_equivalence import SEAMS as DRIVEN
+
+    assert set(SEAMS) == set(DRIVEN), (
+        "the scorecard and the seam-equivalence table disagree about which doors are covered: "
+        f"card only {sorted(set(SEAMS) - set(DRIVEN))}, "
+        f"table only {sorted(set(DRIVEN) - set(SEAMS))}"
+    )
+
+
+def test_the_card_and_the_worlds_agree_on_the_resolver_families() -> None:
+    """Same again for the other axis of the same table."""
+    from neti.eval.scorecard import _RESOLVER_FAMILIES
+    from tests.e2e import worlds
+
+    assert set(_RESOLVER_FAMILIES) == set(worlds.WORLDS)

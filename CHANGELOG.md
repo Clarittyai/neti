@@ -2,6 +2,80 @@
 
 ## Unreleased
 
+### Coverage, on both axes, and the four defects that were hiding behind it
+
+Two claims this product rests on were being made by tests that could not check them. The seam table
+proved eleven runtimes agree — about Entra, because every case in it used `examples/entra.yaml`. And
+`neti init` gated **0 of 160** tools across the MCP servers people actually install, which no fixture
+could see because every fixture was a tool somebody here wrote to be gateable.
+
+Fixing the tests found four defects. Every one of them was a thing that had never been pointed at
+something it did not already agree with.
+
+- **`Preflight.from_config` demanded Entra credentials for every policy.** The shipped
+  `examples/coding-agent.yaml` — every gate `fs.paths`, no credential needed anywhere in it — raised
+  `missing credentials: NETI_TENANT_ID…` on the one seam the README hands you for a tool loop you
+  wrote yourself. The CLI had already been fixed for exactly this; the predicate was private to
+  whichever door noticed first, so it moves onto `Policy`.
+- **A pending approval read three different ways across eleven seams.** The hook and the MCP gateway
+  each carried their own copy of the sentence and had drifted — the gateway told the model to *retry
+  this exact call once it is granted*, which is the entire reason for naming an approval id, and the
+  hook did not. `Preflight` had no copy at all, so on the SDK seams a pending approval arrived as a
+  flat "needs confirmation": no id, no sign a human had been asked, nothing to retry against. A
+  paying customer on LangChain got strictly less than one on MCP. The table had granted and denied
+  rows and no pending row.
+- **Session budgets could never accumulate on the OpenAI Agents seam.** The adapter passed the SDK's
+  `tool_call_id` as `session_id`, and that identifies one invocation, so every call opened its own
+  tally and the session total was permanently 1. SCOPE.md NC-01 says only a declared budget sees four
+  thousand small calls; on that runtime the budget was inert. Invisible until the test driver stopped
+  pinning `tool_call_id` to a constant — a fixture tidier than reality hides the bug reality has.
+- **`explain_denial` phrased a CONFIRM-on-unresolved as itself**: "Preflight confirm: /to could not
+  be sized". Not cosmetic — four seams hand the model a sentence and no structured payload, so on
+  those runtimes the sentence *is* the verdict, and a CONFIRM opening with "confirm" was
+  indistinguishable from a block.
+
+### Measured
+
+- **M8 is now a section rather than an outstanding item.** Eleven seams — the hook, both MCP
+  transports, the in-process gate, and adapters for Anthropic, OpenAI Agents, LangChain/LangGraph,
+  CrewAI, Pydantic AI, AutoGen and Google ADK — driven across five resolver families by one table,
+  asserting the same verdict, the same magnitude and the same denial sentence byte for byte. It was
+  63 rows; it is 301.
+- **M10 moves off zero: 23 of 160 gated, then 25 after the corpus found another rule.** The more
+  interesting half is what the matcher now refuses. The hand-written map in `eval/surveys/` claimed
+  43 of those tools were sizeable and was wrong about roughly two thirds, always the same way — it
+  matched a parameter *name* and asked nothing else. 21 hits on an `owner` belonging to a call that
+  touches one issue; 21 on a `repo` that `github.files` structurally cannot take, since a JSON
+  pointer resolves one value and `/repo` arrives as `api` and is read as an owner; 7 on a `query`
+  that is a web search. Those are declines now, each with its reason written into the generated
+  policy, because an operator cannot overrule a judgement they cannot see. Every registered resolver
+  is either proposable or has a stated reason it is not, so `never_proposed` is empty.
+
+### Added
+
+- `tests/e2e/worlds.py` — a policy and its resolvers per kind of thing an agent touches. `db.rows`
+  reaches a real sqlite file through the shipped `EnvCountRunner`, so the `sqlite:///` parsing and
+  the read-only open run for real rather than being bypassed by an injected runner.
+- `tests/corpus/` — 170 real tool schemas and the judgement on each, derived from the field survey
+  and from Claude Code's own built-ins, which no `tools/list` anywhere reports. `NotebookEdit` fell
+  out of it immediately: `notebook_path` is a plain local file on the runtime this gates most often,
+  and the rule was an enumeration of the spellings that happened to get written down.
+- `just conformance` and `just corpus-refresh`.
+- The `sdks-extended` extra. The four new SDKs install cleanly alongside the existing three —
+  measured with a real resolve — but their closure is ~200 packages including chromadb and numpy,
+  almost all of it via CrewAI, so `just install` does not hand somebody gating a coding agent a
+  vector database. CI installs both.
+
+### Known, and deliberately not fixed here
+
+- `ProposedCall.call_id` is set only by the MCP gateway and read by nothing — neither `Engine` nor
+  `DecisionRecord`. The same dead-field shape as `providers:` and `ServerSpec.env`. Plumbing it into
+  the record changes the record schema and therefore the chain digest, which touches `verify`,
+  `replay` and the golden transcripts; it is not being bundled into a coverage change.
+- Claude Code's built-in schemas in `tests/corpus/builtins.py` are authored from documentation
+  rather than captured from a live session. It is the one part of the corpus with no live source,
+  and a parameter renamed upstream would not fail anything until somebody noticed.
+
 ### Field trials: what happens when the tests stop writing their own fixtures
 
 Everything in `tests/` drives an agent somebody here wrote. `test_real_mcp_server.py` uses a real

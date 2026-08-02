@@ -26,6 +26,7 @@ from neti.insight.report import ReportSummary
 __all__ = [
     "LIVE_VERIFIED",
     "RESOLVERS",
+    "SEAMS",
     "Scorecard",
     "Wild",
     "build_scorecard",
@@ -56,6 +57,41 @@ A second copy of a list that already exists, which is normally how NC-10 went st
 pinned by `tests/property/test_scorecard_is_true.py` rather than by good intentions. It is copied
 here deliberately: building the real registry needs `httpx`, and `neti score` must not require the
 `graph` extra to print a coverage number about resolvers that need no credential at all.
+"""
+
+SEAMS: dict[str, str] = {
+    "hook": "Claude Code `PreToolUse` — the harness's own built-ins, which no proxy can see",
+    "mcp-stdio": "`neti gate --stdio` in front of a local MCP server",
+    "mcp-http": "`neti gate --upstream` in front of a remote one",
+    "preflight": "`Preflight.check` / `.dispatch` / `@guard`, in a loop you wrote",
+    "anthropic": "the Anthropic `tool_runner`",
+    "openai-agents": "the OpenAI Agents SDK, via `tool_input_guardrails`",
+    "langchain": "LangChain and LangGraph",
+    "crewai": "CrewAI, via a `before_tool_call` / `after_tool_call` pair",
+    "pydantic-ai": "Pydantic AI, via `before_tool_execute`",
+    "autogen": "AutoGen, by wrapping the workbench",
+    "google-adk": "Google ADK, via a plugin `before_tool_callback`",
+}
+"""M8 — every door a call can arrive through, and therefore every place a verdict could diverge.
+
+The claim is not that eleven adapters exist. It is that they *agree*: one table in
+`tests/e2e/test_seam_equivalence.py` drives all of them across all five resolver families and
+asserts the same verdict, the same magnitude and the same denial sentence byte for byte. A verdict
+that depends on which door a call came through is a bug in the product, not in the adapter.
+
+Listed here rather than counted, because the number on its own would say nothing about which
+runtimes an operator can actually install in front of. Pinned by
+`tests/property/test_scorecard_is_true.py` against `neti.adapters`, so a shipped adapter missing
+from this list fails the build — which is the same mechanism `RESOLVERS` below uses, and for the
+same reason: a second copy of a list is how a coverage claim goes stale.
+"""
+
+_RESOLVER_FAMILIES = ("entra", "fs", "db", "storage", "terraform")
+"""The worlds `tests/e2e/worlds.py` drives every seam against.
+
+Named rather than counted for the same reason as `SEAMS`, and pinned by the same property test.
+Until these existed, the seam table proved agreement about Entra and nothing else — four of the ten
+resolvers had never crossed a seam boundary at all.
 """
 
 LIVE_VERIFIED: dict[str, str] = {
@@ -175,8 +211,6 @@ def build_scorecard(
         "M7 denial response — UNMEASURED. What a real model does after a denial (narrows, stops, "
         "loops, or routes around the gate through an ungated tool) has never been observed. No "
         "LLM has been in the loop in this repository.",
-        "M8 harness compatibility — PARTIAL. Claude Code and a real MCP filesystem server were "
-        "driven by hand once before release; nothing is repeatable and no other harness has run.",
     ]
     if card.wild is None:
         card.outstanding.append(
@@ -276,6 +310,19 @@ def format_scorecard(card: Scorecard) -> str:
             "    An ungated tool is out of scope, not denied (NC-09). This number is printed "
             "because a coverage claim nobody can check is marketing."
         )
+    out.append("")
+
+    out.append("M8 HARNESS COMPATIBILITY (every door a call can arrive through)")
+    for name, what in SEAMS.items():
+        out.append(f"    {name:<16} {what}")
+    out.append(
+        f"    All {len(SEAMS)} are driven across all {len(_RESOLVER_FAMILIES)} resolver families "
+        "by one table, and must agree on the verdict, the magnitude and"
+    )
+    out.append(
+        "    denial sentence byte for byte. A verdict that depends on which door a call came "
+        "through is a bug in the product."
+    )
     out.append("")
 
     out.append("M11 LIVE PROVIDER VERIFICATION (resolvers run against something real)")

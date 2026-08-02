@@ -37,6 +37,18 @@ fmt:
 
 check: lint types test
 
+# The two coverage questions, in one command, offline.
+#
+#   Does every door reach the same verdict?   eleven seams x five resolver families, one table.
+#   Do we detect what an agent actually runs?  170 real tool schemas, and the judgement on each.
+#
+# Both used to be answerable only by reading the code and believing it. `neti init` gated 0 of 160
+# real MCP tools for the life of the project and nothing said so, because every fixture in the suite
+# was a tool somebody here wrote to be gateable.
+conformance:
+    NETI_REQUIRE_SDKS=1 uv run pytest -q tests/e2e/test_seam_equivalence.py tests/corpus
+    uv run neti score -c examples/entra.yaml --field eval/results/mcp_coverage.json
+
 # Byte-equality of the record across fresh interpreters with different hash seeds. This is the
 # determinism claim; one process proves nothing.
 determinism:
