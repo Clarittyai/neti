@@ -30,6 +30,7 @@ from typing import Any
 from neti.config.policy import Policy, load_policy
 from neti.core.record import verify_chain
 from neti.core.types import ProposedCall
+from neti.core.units import may_allow
 from neti.core.verdict import Mode
 from neti.engine import Engine
 from neti.eval.corpus import Corpus
@@ -134,6 +135,7 @@ def run_here(
     *,
     corpus: Corpus | None = None,
     records_dir: Path | None = None,
+    policy_override: Policy | None = None,
 ) -> HereResult:
     """The whole lifecycle against `root`, returning what to print.
 
@@ -142,7 +144,7 @@ def run_here(
     policy happened to name rather than the one it was pointed at would be measuring nothing.
     """
     root = root.resolve()
-    base = load_policy(policy_path)
+    base = policy_override if policy_override is not None else load_policy(policy_path)
     providers = {**base.providers, "fs": {**(base.providers.get("fs") or {}), "root": str(root)}}
     policy = base.model_copy(update={"providers": providers})
 
@@ -163,10 +165,21 @@ def run_here(
             for r in result.reach
             if r.resolver == biggest.resolver and r.reachable.magnitude is not None
         )
+        # "at least", when the walk stopped at its cap. Measured on a 712,359-file tree this said
+        # "reaches 200,000 objects" — the cap, presented as the answer, understating the truth by
+        # 3.5x. A capped count is a floor and the sentence has to carry that, both because it is
+        # what the resolver reported and because the floor is the more alarming number anyway:
+        # "at least 200,000, and we stopped counting" is the honest version and the stronger one.
+        floor = not may_allow(biggest.reachable.direction)
+        amount = (
+            f"at least {biggest.reachable.magnitude:,}"
+            if floor
+            else f"{biggest.reachable.magnitude:,}"
+        )
         result.findings.append(
             Finding(
                 headline=(
-                    f"An agent working here reaches {biggest.reachable.magnitude:,} "
+                    f"An agent working here reaches {amount} "
                     f"{biggest.reachable.unit.value}, across {binding} gated parameter(s)."
                 ),
                 # Deliberately *not* "in a single X call". Reachable-max is a property of the
@@ -175,8 +188,13 @@ def run_here(
                 # touches one file. The tool that happened to sort first was being credited with
                 # the whole tree. An overstated headline discredits every honest number beneath it.
                 detail=(
-                    "That is the bound on what one credential can address here, not a measurement "
-                    "of any single call. Nothing in a permission system reports either number — it "
+                    (
+                        "The walk stopped at its cap, so that is a floor rather than a total. "
+                        if floor
+                        else ""
+                    )
+                    + "It bounds what one credential can address here; it does not measure any "
+                    "single call. Nothing in a permission system reports either number — it "
                     "answers whether, not how many."
                 ),
             )

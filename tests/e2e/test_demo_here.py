@@ -23,6 +23,7 @@ from pathlib import Path
 
 import pytest
 
+from neti.config.policy import load_policy
 from neti.eval.corpus import Corpus, capture, load_corpus, write_corpus
 from neti.eval.here import HERE_DISCLAIMER, run_here
 from neti.preflight import Preflight
@@ -109,7 +110,8 @@ def test_the_headline_does_not_credit_one_tool_with_the_whole_tree(repo: Path) -
 def test_the_finding_says_what_kind_of_number_it_is(repo: Path) -> None:
     """A bound on capability, said in the sentence rather than in a footnote nobody reads."""
     detail = run_here(repo, EXAMPLE).findings[0].detail
-    assert "not a measurement of any single call" in detail
+    assert "does not measure any single call" in detail
+    assert "bounds what one credential can address" in detail
 
 
 # ---------------------------------------------------------------------------- with traffic
@@ -242,3 +244,29 @@ def test_a_missing_corpus_file_is_an_error_not_a_silent_empty_run(repo: Path) ->
 
     assert out.returncode == 2
     assert "cannot read corpus" in out.stderr
+
+
+def test_a_capped_walk_is_reported_as_a_floor_not_a_total(repo: Path) -> None:
+    """Found by running the demo on a 712,359-file tree, where it said "reaches 200,000 objects".
+
+    200,000 is the cap, not the answer — the real figure was three and a half times larger. A
+    capped count is a `LOWER_BOUND` and the sentence has to carry that, both because it is what the
+    resolver reported and because the floor is the more alarming number anyway: "at least 200,000,
+    and we stopped counting" is the honest version *and* the stronger one.
+    """
+    policy = load_policy(EXAMPLE).model_copy(
+        update={"providers": {"fs": {"root": str(repo), "cap": 5}}}
+    )
+    result = run_here(repo, EXAMPLE, policy_override=policy)
+
+    assert result.reach[0].reachable.magnitude == 5
+    assert "at least 5" in result.findings[0].headline
+    assert "floor rather than a total" in result.findings[0].detail
+
+
+def test_an_uncapped_walk_says_no_such_thing(repo: Path) -> None:
+    """The other direction: an exact count must not be hedged into uselessness."""
+    finding = run_here(repo, EXAMPLE).findings[0]
+
+    assert "at least" not in finding.headline
+    assert "floor" not in finding.detail

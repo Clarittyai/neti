@@ -1,0 +1,30 @@
+$ neti demo --here --repo <path> -c <path> --corpus <path>
+[exit 0]
+neti demo — measured on <path>
+
+── 1. DISCOVER ─────────────────────────────────────────  read from this machine
+   no MCP servers configured on this machine
+
+── 2. REACH ────────────────────────────────────────────  MEASURED here, no traffic needed
+   fs.paths                           32 objects
+     bound by 8: Edit/file_path, Glob/pattern, Grep/path, Read/file_path, Write/file_path, directory_tree
+
+   An agent working here reaches 32 objects, across 8 gated parameter(s).
+   It bounds what one credential can address here; it does not measure any single call. Nothing in a permission system reports either number — it answers whether, not how many.
+
+── 3. OBSERVE ──────────────────────────────────────────  YOUR files, a captured session's shape
+   40 calls re-run · 40 allowed, nothing blocked (observe mode)
+
+── 4. REPORT & PROPOSE ─────────────────────────────────  from the traffic above
+   Grep /path  n=40  p95=24  max=24
+     proposed  confirm above 50   block above 500
+
+── 5. ENFORCE ──────────────────────────────────────────  the same calls, ceilings on
+   blocked 0 · asked about 0 · allowed 40
+   Nothing in this traffic exceeded the block ceiling — these numbers came from it,
+   so they bind on what has not happened yet rather than on what has.
+
+── 6. AUDIT ────────────────────────────────────────────  offline, forever
+   40 records, chain intact · 40 decisions re-derive to the same verdict
+
+Measured on this machine. The magnitudes are yours — every one was produced by walking these files, through the same decision path the gate uses in production. The *sequence* of calls in act 3 is a captured session's, not yours: the numbers are real, the story is borrowed.

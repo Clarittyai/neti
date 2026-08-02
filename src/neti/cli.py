@@ -1023,6 +1023,7 @@ def _demo_here(*, config: str, repo: str | None, corpus: str | None) -> None:
     machine" and "a captured session's shape, re-run against your files" is the difference between
     a finding and an anecdote, and a reader who cannot tell them apart should not trust either.
     """
+    from neti.core.units import may_allow
     from neti.eval.corpus import Corpus, load_corpus
     from neti.eval.here import run_here
 
@@ -1089,7 +1090,14 @@ def _demo_here(*, config: str, repo: str | None, corpus: str | None) -> None:
         by_resolver.items(), key=lambda kv: -(kv[1][0].reachable.magnitude or 0)
     ):
         head = rows[0]
-        reach = "?" if head.reachable.magnitude is None else f"{head.reachable.magnitude:,}"
+        if head.reachable.magnitude is None:
+            reach = "?"
+        elif not may_allow(head.reachable.direction):
+            # Capped: the resolver stopped counting and reported a floor. Printing the bare number
+            # would present the cap as the answer.
+            reach = f"\u2265 {head.reachable.magnitude:,}"
+        else:
+            reach = f"{head.reachable.magnitude:,}"
         typer.echo(f"   {resolver:24} {reach:>12} {head.reachable.unit.value}")
         bound = ", ".join(sorted(f"{r.tool}{r.pointer}" for r in rows))
         typer.echo(f"     bound by {len(rows)}: {bound[:88]}")

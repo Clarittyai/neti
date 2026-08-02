@@ -1,0 +1,21 @@
+$ neti demo --here --repo <path> -c <path>
+[exit 0]
+neti demo — measured on <path>
+
+── 1. DISCOVER ─────────────────────────────────────────  read from this machine
+   no MCP servers configured on this machine
+
+── 2. REACH ────────────────────────────────────────────  MEASURED here, no traffic needed
+   fs.paths                           32 objects
+     bound by 8: Edit/file_path, Glob/pattern, Grep/path, Read/file_path, Write/file_path, directory_tree
+
+   An agent working here reaches 32 objects, across 8 gated parameter(s).
+   It bounds what one credential can address here; it does not measure any single call. Nothing in a permission system reports either number — it answers whether, not how many.
+
+Acts 3-6 need traffic, and you have none yet.
+   Install the hook and work normally for an afternoon:
+     {"hooks": {"PreToolUse": [{"matcher": "*",
+       "hooks": [{"type": "command", "command": "neti hook -c neti.yaml"}]}]}}
+   Then run this again — acts 3 to 6 need traffic, and that is how you get it.
+
+Measured on this machine. Every number above was produced by walking these files, through the same decision path the gate uses in production.

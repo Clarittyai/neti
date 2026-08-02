@@ -279,3 +279,70 @@ def test_hook_says_the_right_thing(workspace: Path, name: str, tool: str, args: 
         workspace=workspace,
         stdin=f'{{"hook_event_name": "PreToolUse", "tool_name": "{tool}", "tool_input": {args}}}',
     )
+
+
+# ---------------------------------------------------------------------------- demo --here
+#
+# The demo is the output most likely to be read by a stranger and least likely to be re-read by us,
+# which is exactly the combination the golden mechanism exists for. Its wording carries claims —
+# what is measured, what is borrowed, what a number means — and a claim that drifts is a claim
+# nobody notices drifting.
+
+
+def _fixture_repo(ws: Path) -> Path:
+    """A tree with a known file count, so the transcript is a fixed number rather than whatever the
+    machine happens to hold."""
+    repo = ws / "subject"
+    for name, count in (("src", 8), ("vendor", 24)):
+        (repo / name).mkdir(parents=True)
+        for i in range(count):
+            (repo / name / f"f{i}.py").write_text("x")
+    return repo
+
+
+def test_demo_here_with_no_traffic(workspace: Path) -> None:
+    """The first run every evaluator gets.
+
+    A measurement, and a plain statement of what is missing.
+    """
+    repo = _fixture_repo(workspace)
+    policy = Path(__file__).resolve().parents[2] / "examples" / "coding-agent.yaml"
+
+    check(
+        "demo_here_no_traffic",
+        ["demo", "--here", "--repo", str(repo), "-c", str(policy)],
+        workspace=workspace,
+    )
+
+
+def test_demo_here_with_traffic(workspace: Path) -> None:
+    """All six acts. The act-3 caveat and the closing disclaimer are the lines that matter most."""
+    repo = _fixture_repo(workspace)
+    policy = Path(__file__).resolve().parents[2] / "examples" / "coding-agent.yaml"
+
+    def setup(ws: Path) -> None:
+        from neti.eval.corpus import capture, write_corpus
+        from neti.preflight import Preflight
+        from neti.store.jsonl import read_records
+
+        records = ws / "captured.ndjson"
+        pf = Preflight.demo(policy, mode="observe", records=records)
+        for i in range(40):
+            pf.check("Grep", {"path": str(repo / ("vendor" if i % 10 == 0 else "src"))})
+        write_corpus(capture(read_records(records), repo, source="a fixture"), ws / "corpus.jsonl")
+
+    check(
+        "demo_here_full",
+        [
+            "demo",
+            "--here",
+            "--repo",
+            str(repo),
+            "-c",
+            str(policy),
+            "--corpus",
+            str(workspace / "corpus.jsonl"),
+        ],
+        setup=setup,
+        workspace=workspace,
+    )
