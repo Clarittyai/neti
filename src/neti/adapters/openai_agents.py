@@ -23,33 +23,15 @@ governs a tool whichever runtime it arrives through.
 
 from __future__ import annotations
 
-import json
 from typing import TYPE_CHECKING, Any
 
+from neti.core.types import unreadable_arguments
 from neti.preflight import Preflight
 
 if TYPE_CHECKING:  # pragma: no cover - import only for types
     from agents import ToolInputGuardrailData
 
 __all__ = ["neti_guardrail", "verdict_for"]
-
-
-def _arguments(raw: Any) -> dict[str, Any]:
-    """The SDK hands arguments over as a JSON string. A malformed one is not an empty call.
-
-    Returning `{}` would let a policy see no gated parameter and pass the call through — a parse
-    failure turning into a permissive verdict. The sentinel below is unresolvable by every resolver,
-    so the declared `on_unresolved` decides instead.
-    """
-    if isinstance(raw, dict):
-        return raw
-    if not raw:
-        return {}
-    try:
-        parsed = json.loads(raw)
-    except (TypeError, ValueError):
-        return {"__neti_unparseable__": str(raw)[:200]}
-    return parsed if isinstance(parsed, dict) else {"__neti_unparseable__": str(raw)[:200]}
 
 
 def verdict_for(preflight: Preflight, data: ToolInputGuardrailData) -> Any:
@@ -61,8 +43,18 @@ def verdict_for(preflight: Preflight, data: ToolInputGuardrailData) -> Any:
     context = data.context
     verdict = preflight.check(
         normalise_tool(str(context.tool_name)),
-        _arguments(getattr(context, "tool_arguments", None)),
-        session_id=str(getattr(context, "tool_call_id", "") or "") or None,
+        unreadable_arguments(getattr(context, "tool_arguments", None)),
+        # **No `session_id`**, which is a fix rather than an omission. This passed the SDK's
+        # `tool_call_id`, and that identifies one invocation — so every call opened its own tally
+        # and a declared `session_budget` could never accumulate past the first call. SCOPE.md
+        # NC-01 says per-call resolution is structurally blind to four thousand small calls and
+        # that only a declared budget sees them; on this runtime that budget was silently inert.
+        #
+        # There is no run-scoped id at this seam to put here instead: `ToolContext` carries the
+        # caller's own context object, a usage tally and the tool call, and nothing identifying the
+        # run. So this falls back to the engine's per-process session, which is exactly what the
+        # Anthropic and LangChain adapters already do, and what the shipped examples already
+        # describe as the release's behaviour.
     )
     if verdict.proceeds:
         return ToolGuardrailFunctionOutput.allow(output_info={"neti": verdict.payload})

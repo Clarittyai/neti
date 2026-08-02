@@ -35,6 +35,7 @@ from typing import Any, ClassVar
 
 from neti.config.policy import Policy
 from neti.core.verdict import Mode
+from neti.engine import Engine
 from neti.eval.synthetic import default_tenant
 from neti.resolvers.base import Resolver
 from neti.resolvers.graph_client import ClientCredential, GraphClient
@@ -261,6 +262,24 @@ POLICIES: dict[str, dict[str, Any]] = {
             }
         },
     },
+    # Not a resolver family — a *shape*. One file resolves to 1 object, which passes every per-call
+    # ceiling there could be, and two of them exceed a declared session total. SCOPE.md NC-01 says
+    # per-call resolution is structurally blind to this and that only a declared budget sees it, so
+    # a budget that silently fails to accumulate is that mitigation switched off.
+    "budget": {
+        "version": 1,
+        "tools": {
+            "Read": {"gate": {"/file_path": {"resolver": "fs.paths", "on_unresolved": "allow"}}}
+        },
+        "session_budgets": [
+            {
+                "tools": ["Read"],
+                "unit": "objects",
+                "window": "session",
+                "bands": [{"above": 1, "verdict": "block"}],
+            }
+        ],
+    },
     "terraform": {
         "version": 1,
         "tools": {
@@ -279,7 +298,7 @@ POLICIES: dict[str, dict[str, Any]] = {
 }
 
 
-@dataclass(frozen=True)
+@dataclass
 class World:
     """A policy and the resolvers it binds — everything a seam driver needs to build a gate.
 
@@ -290,6 +309,21 @@ class World:
     name: str
     policy: Policy
     resolvers: dict[str, Resolver]
+    _engine: Engine | None = None
+
+    def engine(self) -> Engine:
+        """One engine per world, built on first use.
+
+        `Engine` is where the session tallies live, so this is the knob that decides whether two
+        calls share a session. The table wants a *fresh* world per `outcome()` — otherwise the
+        seventh seam would see six other seams' traffic in the session total and reach a different
+        verdict for that reason alone — and the budget row wants *one* world driven twice. Both are
+        expressed by how many worlds a test builds, rather than by a flag nobody would remember to
+        pass.
+        """
+        if self._engine is None:
+            self._engine = Engine(policy=self.policy, resolvers=self.resolvers)
+        return self._engine
 
 
 def build_world(name: str, fixtures: Fixtures, *, config: str | None = None) -> World:
@@ -306,7 +340,9 @@ def build_world(name: str, fixtures: Fixtures, *, config: str | None = None) -> 
 
     client = GraphClient(CRED, transport=default_tenant().transport())
     resolvers = resolvers_for_client(client, policy.providers)
-    if name == "fs":
+    if any(
+        gate.resolver == "fs.paths" for tool in policy.tools.values() for gate in tool.gate.values()
+    ):
         # The root has to be the fixture tree, not the repository: `providers.fs.root` is what
         # bounds the walk, and a root of `.` would make the magnitude depend on the checkout.
         resolvers["fs.paths"] = _fs_resolver(fixtures)

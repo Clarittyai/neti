@@ -22,6 +22,7 @@ quietly rephrases it has changed the thing the agent acts on.
 from __future__ import annotations
 
 import io
+import itertools
 import json
 import sys
 from dataclasses import dataclass, replace
@@ -30,6 +31,7 @@ from typing import Any
 
 import pytest
 
+from neti.core.types import UNREADABLE
 from neti.engine import Engine
 from neti.gateway.mcp import McpGateway
 from neti.gateway.stdio import StdioUpstream, serve_stdio
@@ -39,6 +41,8 @@ from tests.e2e import worlds
 from tests.integration.test_inventory import EXAMPLE
 
 DELETE = "DELETE FROM users WHERE org = 'acme'"
+
+_CALL_IDS = itertools.count(1)
 
 # A child process that answers anything it is asked. Reused from the stdio transport tests: the
 # point of driving a real subprocess is that a seam which forwards when it should block is caught by
@@ -161,7 +165,8 @@ def world_for(case: Case, fixtures: worlds.Fixtures) -> worlds.World:
 
 
 def build_engine(world: worlds.World) -> Engine:
-    return Engine(policy=world.policy, resolvers=world.resolvers)
+    """The world's engine, not a new one — see `World.engine`, where the session tally lives."""
+    return world.engine()
 
 
 def build_preflight(world: worlds.World, tmp_path: Path, approver: Any = None) -> Preflight:
@@ -172,7 +177,7 @@ def build_preflight(world: worlds.World, tmp_path: Path, approver: Any = None) -
     paid tier silently worth less depending on which framework somebody chose.
     """
     return Preflight(
-        engine=build_engine(world),
+        engine=world.engine(),
         sink=JsonlSink(tmp_path / "records.ndjson"),
         approver=approver,
     )
@@ -307,7 +312,11 @@ def via_openai_agents(
         context=ToolContext(
             context=None,
             tool_name=case.tool,
-            tool_call_id="call_1",
+            # A fresh id per call, because that is what the SDK does — `tool_call_id` identifies one
+            # invocation. It was pinned to `"call_1"` here, which made every driver invocation look
+            # like the same call to anything downstream keyed on it, and hid the fact that the
+            # adapter was passing this as the *session* id.
+            tool_call_id=f"call_{next(_CALL_IDS)}",
             tool_arguments=json.dumps(case.args),
         ),
         agent=Agent(name="test"),
@@ -387,11 +396,22 @@ def outcome(
     tallies, so one engine across seven seams would have the seventh seam see seven times the
     session total and reach a different verdict for that reason alone.
     """
+    case = replace(case, args=worlds.render(case.args, fixtures))
+    return drive(seam, world_for(case, fixtures), tmp_path, case, approver)
+
+
+def drive(
+    seam: str, world: worlds.World, tmp_path: Path, case: Case, approver: Any = None
+) -> Outcome:
+    """One seam, against a world the caller owns.
+
+    Split out from `outcome` for the one test that has to drive the *same* world twice: a session
+    budget lives on the engine, so two calls only share a session if they share a world.
+    """
     module = NEEDS_SDK.get(seam)
     if module:
         pytest.importorskip(module, reason=f"{seam} needs the sdks extra")
-    case = replace(case, args=worlds.render(case.args, fixtures))
-    return SEAMS[seam](world_for(case, fixtures), tmp_path, case, approver)
+    return SEAMS[seam](world, tmp_path, case, approver)
 
 
 # ---------------------------------------------------------------------------- the invariant
@@ -581,6 +601,114 @@ def test_an_approver_can_never_make_a_block_proceed_on_any_seam(
     """
     blocked = next(c for c in CASES if c.name == "blocked")
     assert outcome(seam, fixtures, tmp_path, blocked, approver("granted")).verdict == "block"
+
+
+# ---------------------------------------------------------------------------- unreadable arguments
+
+
+@pytest.mark.parametrize("seam", ["anthropic", "openai-agents"])
+def test_an_unreadable_payload_is_preserved_not_erased(
+    seam: str, fixtures: worlds.Fixtures, tmp_path: Path
+) -> None:
+    """The two seams that can be handed something which is not a dict at all.
+
+    Both already reached the right *verdict*, and that is exactly why this drifted unnoticed for so
+    long: an absent gated argument and an unreadable one both resolve to `None` and take the
+    declared `on_unresolved`, so no verdict assertion anywhere could tell the two adapters apart.
+
+    The record could. The OpenAI adapter kept a truncated copy of what arrived; the Anthropic one
+    substituted `{}`, which states that a call was made carrying no arguments. That is not what
+    happened, and of the two situations it is the less alarming one — an auditor reading the chain
+    had no way to see that a payload the gate could not parse had turned up at all.
+    """
+    case = Case("unreadable", "remove_group_members", {}, "block")
+    world = world_for(case, fixtures)
+    # A bare string where the runtime's contract promises an object.
+    raw: Any = "g-eng-all"
+
+    if seam == "anthropic":
+        pytest.importorskip("anthropic", reason="the sdks extra is not installed")
+        from anthropic.lib.tools import beta_tool
+
+        from neti.adapters.anthropic_tools import gate_tool
+
+        @beta_tool
+        def tool(**kwargs: Any) -> str:
+            """Do the thing."""
+            raise AssertionError("the gate let an unreadable call through")
+
+        tool.name = case.tool
+        preflight = build_preflight(world, tmp_path)
+        gate_tool(preflight, tool).call(raw)
+    else:
+        pytest.importorskip("agents", reason="the sdks extra is not installed")
+        from agents import Agent
+        from agents.tool_context import ToolContext
+        from agents.tool_guardrails import ToolInputGuardrailData
+
+        from neti.adapters.openai_agents import verdict_for
+
+        preflight = build_preflight(world, tmp_path)
+        verdict_for(
+            preflight,
+            ToolInputGuardrailData(
+                context=ToolContext(
+                    context=None,
+                    tool_name=case.tool,
+                    tool_call_id=f"call_{next(_CALL_IDS)}",
+                    tool_arguments=raw,
+                ),
+                agent=Agent(name="test"),
+            ),
+        )
+
+    preflight.close()
+    written = (tmp_path / "records.ndjson").read_text(encoding="utf-8")
+    assert UNREADABLE in written, (
+        f"{seam} erased the payload it could not read; the record cannot distinguish it from a "
+        "call that carried no arguments at all"
+    )
+
+
+# ---------------------------------------------------------------------------- session budgets
+
+
+# One file. Resolves to 1 object, passes any per-call ceiling that could be written, and two of them
+# exceed a declared session total of 1.
+BUDGETED = Case("budgeted", "Read", {"file_path": "{tree}/f0.txt"}, "allow", "budget")
+
+
+@pytest.mark.parametrize("seam", sorted(SEAMS))
+def test_a_session_budget_accumulates_across_calls_on_every_seam(
+    seam: str, fixtures: worlds.Fixtures, tmp_path: Path
+) -> None:
+    """SCOPE.md NC-01, and whether its only mitigation is actually wired on each runtime.
+
+    Per-call resolution is structurally blind to four thousand small calls — each resolves to 1 and
+    passes every ceiling — and the document is explicit that *only a declared session budget* sees
+    it. A budget that fails to accumulate is therefore not a degraded feature; it is the single
+    countermeasure to the product's largest declared blind spot, switched off.
+
+    Whether two calls share a session is decided by what each adapter passes as `session_id`, and
+    that is per-adapter code with nothing comparing it. The OpenAI Agents adapter passed the SDK's
+    `tool_call_id` — which is unique to one call — so every call opened a fresh tally and the total
+    was permanently 1. Ten thousand deletions would each have been counted as the first.
+    """
+    world = world_for(BUDGETED, fixtures)
+    case = replace(BUDGETED, args=worlds.render(BUDGETED.args, fixtures))
+
+    assert drive(seam, world, tmp_path, case).verdict == "allow", (
+        "the first call is under the budget and must pass"
+    )
+    second = drive(seam, world, tmp_path, case)
+    assert second.verdict == "block", (
+        f"{seam} did not accumulate: the session total is not carrying across calls, so a declared "
+        "budget cannot fire on this runtime"
+    )
+    assert "session" in second.sentence, (
+        "a budget denial must say the session total is the problem, not the call — the remedies "
+        f"are different: {second.sentence!r}"
+    )
 
 
 def test_a_pending_approval_reads_the_same_on_every_seam(

@@ -168,6 +168,43 @@ class ProposedCall(Frozen):
     session_id: str | None = None
 
 
+UNREADABLE = "__neti_unparseable__"
+"""Key under which an argument payload we could not read is preserved.
+
+Every runtime hands arguments over in its own shape — a dict, a JSON string, whatever the model
+emitted — and each adapter has to reduce that to a dict before a policy can point at it. What to do
+when it will not reduce is the interesting case, and the adapters had answered it differently: the
+OpenAI one kept a truncated copy under this key, the Anthropic one substituted `{}`.
+
+Both reach the *same verdict*, which is why this went unnoticed: an absent gated argument and an
+unreadable one both resolve to `None` and take the declared `on_unresolved`. The difference is in
+the record, which is the artefact an auditor reads — `{}` says a call arrived with no arguments,
+and that is not what happened. A gate that cannot tell "nothing was sent" from "something arrived
+that we could not read" has lost the more alarming of the two.
+"""
+
+
+def unreadable_arguments(raw: object) -> dict[str, Any]:
+    """Reduce whatever a runtime handed over to arguments a policy can be pointed at.
+
+    A malformed payload is never `{}`. Returning an empty dict would let a policy see no gated
+    parameter and pass the call through — a parse failure quietly becoming a permissive verdict.
+    The sentinel below is unresolvable by every resolver, so the declared `on_unresolved` decides,
+    and the payload survives into the record.
+    """
+    import json
+
+    if isinstance(raw, dict):
+        return raw
+    if not raw:
+        return {}
+    try:
+        parsed = json.loads(raw)  # type: ignore[arg-type]
+    except (TypeError, ValueError):
+        return {UNREADABLE: str(raw)[:200]}
+    return parsed if isinstance(parsed, dict) else {UNREADABLE: str(raw)[:200]}
+
+
 # --------------------------------------------------------------------------- decisions
 
 

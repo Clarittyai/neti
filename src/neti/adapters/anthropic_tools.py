@@ -28,6 +28,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from neti.core.types import unreadable_arguments
 from neti.preflight import Preflight
 
 __all__ = ["gate_tool", "gate_tools"]
@@ -48,8 +49,13 @@ def gate_tool(preflight: Preflight, tool: Any) -> Any:
     name = normalise_tool(str(getattr(tool, "name", "") or original.__name__))
 
     def gated(input: object) -> Any:
-        args = input if isinstance(input, dict) else {}
-        verdict = preflight.check(name, args)
+        # `unreadable_arguments`, not `input if isinstance(input, dict) else {}`. Both reach the
+        # same verdict — an absent gated argument and an unreadable one each resolve to `None` and
+        # take the declared `on_unresolved` — which is why the two adapters could disagree here for
+        # so long without a test noticing. What differed is the record: `{}` states that a call
+        # arrived carrying no arguments, and an auditor reading that cannot tell it from a payload
+        # the gate could not parse. The more alarming of the two was the one being erased.
+        verdict = preflight.check(name, unreadable_arguments(input))
         if verdict.proceeds:
             return original(input)
         # Handed back as the tool result. The model reads the magnitude and the ceiling, which is
