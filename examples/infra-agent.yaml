@@ -1,0 +1,107 @@
+# An agent that runs Terraform — the one that produced the incident this project cites.
+#
+# Read this top to bottom before copying it. The numbers below are ILLUSTRATIVE and every one of
+# them is commented out on purpose. Run a week in observe mode, then `neti report` and
+# `neti propose`, and declare numbers that came from your own traffic. A ceiling nobody chose is a
+# ceiling nobody will defend at 2am when it fires.
+#
+# **No credential at all.** `terraform.destroy` reads a local artifact — the JSON `terraform show
+# -json` produces — so this policy works on a laptop with nothing configured, and under `--demo`.
+#
+# ---------------------------------------------------------------- read the units before you trust
+#
+# On 2026-02-26 a Claude Code session ran `terraform destroy` against production state and removed
+# 1,943,200 database rows. `src/neti/eval/incidents.py` marks it *caught*, and the arithmetic there
+# is the thing to understand before deploying this:
+#
+#   the harm was 1,943,200 ROWS. What this gate sees is roughly five RESOURCES in a plan.
+#
+# Five resources is a sufficient signal to have stopped it, and it is not the same quantity. A
+# ceiling of 10 resources here does not mean "no more than 10 rows"; it means "no more than 10
+# things in a plan", and one of those things can be an entire database. Band low.
+#
+# This is also a coverage win rather than a novel one, and the file says so: `conftest` with
+# `max_auto_apply_changes` already does exactly this in the IaC world. What is new is that the same
+# ceiling now sits in the same policy as the identity and filesystem ones, and produces the same
+# record.
+
+version: 1
+mode: observe # observe | enforce. Observe cannot block anything; start here.
+
+tools:
+  # ---------------------------------------------------------------- the plan gate
+  # The target is either the plan JSON itself or a path to a file holding it, and both shapes are
+  # verified against real `terraform show -json` output in `tests/live/test_terraform_live.py`.
+  #
+  # What is counted is `destroy + replace`. Creates and updates are counted into the breakdown and
+  # excluded from the magnitude, because they are reversible — and a `delete,create` replacement
+  # destroys the old resource just as surely as a bare delete does, so it counts.
+
+  terraform_apply:
+    gate:
+      /plan:
+        resolver: terraform.destroy
+        # bands:
+        #   - { above: 0, verdict: confirm }  # any destroy at all is worth a human
+        #   - { above: 10, verdict: block }
+        # breakdown_bands:
+        #   # Replacements separately, because a plan of twenty replaces and no deletes reads as
+        #   # routine and is not.
+        #   replace:
+        #     - { above: 5, verdict: confirm }
+        on_unresolved: block
+        # ^ The load-bearing line in this file, for a reason worth spelling out.
+        #
+        # `terraform show -json` with no plan file prints STATE, not a plan. Same command, same
+        # shape of JSON, no `resource_changes` key. The resolver refuses to read it — a document it
+        # does not certainly recognise is UNRESOLVED, never 0 — because reporting 0 there would be
+        # the single worst wrong answer available: it says "this apply destroys nothing".
+        #
+        # `on_unresolved: allow` would convert that refusal straight back into the failure it
+        # exists to prevent.
+        on_unbounded: confirm
+        # A plan carrying unknown values — anything not knowable until apply — resolves as a floor
+        # rather than a count, because unknowns are how a plan's own expansion becomes uncertain.
+        # That is the common case for any plan that creates something, so expect this branch.
+
+  # The same gate under the name an IaC MCP server is likely to expose.
+  apply_plan:
+    gate:
+      /plan:
+        resolver: terraform.destroy
+        on_unresolved: block
+        on_unbounded: confirm
+
+# ---------------------------------------------------------------- cumulative budgets
+# NC-01 applies here too, though less sharply than elsewhere: an agent that applies eleven one-
+# resource plans has destroyed eleven resources, and every call passed a ceiling of ten.
+#
+# Per-process in this release: a restart resets the total.
+#
+# session_budgets:
+#   - tools: [terraform_apply, apply_plan]
+#     unit: resources
+#     window: session
+#     bands:
+#       - { above: 20, verdict: confirm }
+
+defaults:
+  unknown_tool: allow # out of scope, not denied (NC-09)
+
+# ---------------------------------------------------------------- what is deliberately NOT here
+#
+# **`Bash`, and therefore `terraform destroy` typed directly.** This gate reads a plan. An agent
+# that runs `terraform destroy -auto-approve` in a shell never produces one, and sizing the shell
+# command instead would mean parsing a grammar rather than reading a value (NC-09, NC-10). The
+# honest consequence: this policy covers an agent that plans and then applies, and does not cover
+# one that destroys in a single shell call. If that is unacceptable, take `Bash` away in
+# `.claude/settings.json` — a permissions decision, made where permissions live — or require the
+# agent to produce a plan file first, which is a workflow you probably want anyway.
+#
+# **Everything a plan does not mention.** `ON DELETE CASCADE` inside a destroyed database, objects
+# inside a destroyed bucket, DNS that stops resolving. One hop only: the plan names resources, and
+# what those resources contain is not in it (NC-07).
+#
+# **Kubernetes, Pulumi, CloudFormation, CDK.** No resolver ships. `kubectl delete -n prod --all` is
+# the same "one short string addresses everything" shape and would be ~80 lines against
+# RESOLVER_CONTRACT.md.

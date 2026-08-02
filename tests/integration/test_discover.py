@@ -137,6 +137,90 @@ def test_lists_tools_from_a_real_server(server: ServerSpec) -> None:
     assert names == {"remove_group_members", "send_email", "read_group", "get_weather"}
 
 
+def test_a_server_that_needs_a_credential_is_launched_with_it(tmp_path: Path) -> None:
+    """`ServerSpec.env` was parsed out of the client config and read by nothing.
+
+    The same dead-field failure as `providers:`, one directory over, and with a wider blast radius:
+    almost every credentialed MCP server reads its token from the environment at startup and exits
+    if it is absent. Slack, GitHub, Notion, Stripe and Drive all did exactly that, so `neti init`
+    reported them as un-introspectable — while the operator's own config had the token in it the
+    whole time, and `find_clients` had already parsed it.
+
+    Found by running discovery against a config that looked like somebody's machine
+    (`eval/surveys/mcp_coverage.py`), which is the only way it could have been found: every offline
+    fixture launched a server that needed no credential.
+
+    The gate path never had this bug — there the client launches `neti gate -- …` and applies the
+    `env` block to the gate, which the child inherits. Only discovery launches servers itself.
+    """
+    needs_a_token = textwrap.dedent(
+        """
+        import json, os, sys
+        if os.environ.get("ACME_TOKEN") != "sekrit":
+            print("Please set ACME_TOKEN", file=sys.stderr, flush=True)
+            raise SystemExit(1)
+        for line in sys.stdin:
+            m = json.loads(line)
+            if "id" not in m: continue
+            result = {"tools": [{"name": "send_email",
+                     "inputSchema": {"type": "object", "properties": {"to": {"type": "string"}}}}]}
+            print(json.dumps({"jsonrpc": "2.0", "id": m["id"], "result": result}), flush=True)
+        """
+    )
+    cwd, home = tmp_path / "proj", tmp_path / "home"
+    cwd.mkdir(parents=True)
+    home.mkdir()
+    (cwd / ".mcp.json").write_text(
+        json.dumps(
+            {
+                "mcpServers": {
+                    "acme": {
+                        "command": sys.executable,
+                        "args": ["-c", needs_a_token],
+                        "env": {"ACME_TOKEN": "sekrit"},
+                    }
+                }
+            }
+        )
+    )
+
+    (found,) = find_clients(cwd=cwd, home=home)
+    assert found.env == {"ACME_TOKEN": "sekrit"}, "the config's env must survive parsing"
+    assert [t["name"] for t in list_tools(found)] == ["send_email"], (
+        "the env must also reach the child, or discovery can only ever see free servers"
+    )
+
+
+def test_the_config_env_does_not_replace_the_inherited_one(tmp_path: Path) -> None:
+    """Merged over `os.environ`, never substituted for it.
+
+    An `env` block names the two or three variables that server needs. The child still needs PATH to
+    find `node` and HOME to find a credential cache, so replacing the environment would break every
+    server that declares any `env` at all — a worse bug than the one being fixed.
+    """
+    reports_path = textwrap.dedent(
+        """
+        import json, os, sys
+        for line in sys.stdin:
+            m = json.loads(line)
+            if "id" not in m: continue
+            ok = bool(os.environ.get("PATH")) and os.environ.get("ACME_TOKEN") == "sekrit"
+            result = {"tools": [{"name": "inherited" if ok else "lost",
+                                 "inputSchema": {"type": "object", "properties": {}}}]}
+            print(json.dumps({"jsonrpc": "2.0", "id": m["id"], "result": result}), flush=True)
+        """
+    )
+    spec = ServerSpec(
+        client="test",
+        path=Path("x"),
+        name="acme",
+        command=sys.executable,
+        args=["-c", reports_path],
+        env={"ACME_TOKEN": "sekrit"},
+    )
+    assert [t["name"] for t in list_tools(spec)] == ["inherited"]
+
+
 def test_a_broken_server_does_not_end_the_scan(tmp_path: Path, server: ServerSpec) -> None:
     broken = ServerSpec(
         client="test", path=Path("x"), name="broken", command=sys.executable, args=["-c", "exit(1)"]

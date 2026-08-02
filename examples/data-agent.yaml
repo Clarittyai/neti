@@ -1,0 +1,152 @@
+# An agent with a database and an object store — the analytics or cleanup agent.
+#
+# Read this top to bottom before copying it. The numbers below are ILLUSTRATIVE and every one of
+# them is commented out on purpose. Run a week in observe mode, then `neti report` and
+# `neti propose`, and declare numbers that came from your own traffic. A ceiling nobody chose is a
+# ceiling nobody will defend at 2am when it fires.
+#
+#   neti inventory -c examples/data-agent.yaml     what this agent can reach, right now
+#
+# Two credentials, both read-only and both optional — a policy that binds only one resolver never
+# needs the other:
+#
+#   NETI_DATABASE_URL=postgresql://readonly@host/db   # or sqlite:///path/to.db
+#   AWS_PROFILE=... (or the usual AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY)
+#
+# Both resolvers are verified against real providers — `tests/live/test_postgres_live.py` and
+# `tests/live/test_s3_live.py`, which `just live-up && just live` runs against Postgres and MinIO in
+# Docker. That matters here more than in the other examples: neither of these resolvers is O(1), and
+# both of them lie in a specific, documented direction.
+
+version: 1
+mode: observe # observe | enforce. Observe cannot block anything; start here.
+
+providers:
+  # Both left empty on purpose, and both must stay `{}` rather than blank — a key with nothing under
+  # it parses as null and the policy is refused at load.
+  db: {}
+  # What `neti inventory` reports as reachable. There is no cheap way to compute "every row this
+  # credential can read" — it means counting every table — so it is declared or it is left as `?`.
+  # An approximate figure is fine: this bounds capability, it does not decide any call.
+  # db: { reachable_rows: 40000000 }
+
+  storage: {}
+  # Same shape, same reason: a bucket-wide count is not something to pay for on a report.
+  # storage: { reachable_objects: 12000000 }
+
+tools:
+  # ---------------------------------------------------------------- the database
+  # `db.rows` counts with `select count(*)` against the statement's own table. It never runs
+  # `EXPLAIN`, so the low bias of planner estimates never applies — but read NC-10 before you trust
+  # a number from it, because two things are true at once:
+  #
+  #   1. Every result is a LOWER_BOUND. `ON DELETE CASCADE` fan-out is invisible to a count against
+  #      one table, and a live Postgres fixture makes that concrete: `DELETE FROM parents` counts
+  #      100 and really removes 600 rows. Sound to block on, never sound to allow on — so a
+  #      three-row delete does not get to claim it is small.
+  #   2. It declines far more than it accepts. `DELETE FROM t [WHERE p]` and
+  #      `UPDATE t SET ... [WHERE p]` are the only forms it certainly recognises. Multi-table
+  #      deletes, comments, multiple statements and anything ambiguous resolve UNRESOLVED, because a
+  #      mis-parsed statement produces a confident count of the wrong predicate.
+  #
+  # So `on_unresolved` is doing most of the work in this file. Reading a statement is a syntactic
+  # gate and a weaker claim than reading a value; declaring `block` here is what makes it safe.
+
+  execute_sql:
+    gate:
+      /sql:
+        resolver: db.rows
+        # bands:
+        #   - { above: 1000, verdict: confirm }
+        #   - { above: 100000, verdict: block }
+        on_unresolved: block # a statement we cannot certainly read is one we will not run
+        on_unbounded: confirm # every count here is a floor, so this branch is the normal one
+
+  # The same resolver under the name an MCP database server exposes. `Policy.match_tool` tries the
+  # exact name first and then the name with an `mcp__<server>__` prefix stripped, so one entry
+  # covers a federating proxy too.
+  query:
+    gate:
+      /sql:
+        resolver: db.rows
+        on_unresolved: block
+        on_unbounded: confirm
+
+  # ---------------------------------------------------------------- the object store
+  # `storage.objects` is the one resolver here that is *not* O(1), and the difference is worth
+  # understanding before you deploy it. Graph has `$count` and a Terraform plan is a file; object
+  # stores have no count at prefix granularity, so `ListObjectsV2` returns a thousand keys a page
+  # and counting two million objects is two thousand requests.
+  #
+  # It is therefore capped at 50,000 by default, and past the cap the answer is a LOWER_BOUND: we
+  # enumerated at least this many and stopped. That is the only reason a cap this aggressive is
+  # safe — the expensive case and the dangerous case are the same case, so a prefix too large to
+  # count is a prefix that cannot quietly pass.
+  #
+  # `bytes` rides along as a breakdown, so a policy can band on it too: ten objects can be a larger
+  # loss than ten thousand.
+
+  delete_objects:
+    gate:
+      /uri:
+        resolver: storage.objects
+        # bands:
+        #   - { above: 100, verdict: confirm }
+        #   - { above: 10000, verdict: block }
+        # breakdown_bands:
+        #   bytes:
+        #     - { above: 10000000000, verdict: confirm }
+        on_unresolved: block # an unreachable prefix and an empty one are opposite situations
+        on_unbounded: confirm # past the cap we only know it is *at least* this big
+
+  sync:
+    gate:
+      /source:
+        resolver: storage.objects
+        on_unresolved: block
+        on_unbounded: confirm
+
+# ---------------------------------------------------------------- cumulative budgets
+# SCOPE.md NC-01 and NC-12. This is the shape that actually happens to a data agent: nothing is ever
+# "too big", there is just a great deal of it. Ten thousand single-row deletes each resolve to 1 and
+# pass every per-call ceiling above.
+#
+# Budgets aggregate by UNIT, not by tool, which is why these are two rules and not one — `db.rows`
+# is measured in rows and `storage.objects` in objects, and a budget declared in the wrong unit
+# never fires. The engine refuses such a policy at construction rather than letting it sit there
+# looking configured.
+#
+# Per-process in this release: a restart resets the total, and the mitigation stops applying until
+# the next call. Stated rather than discovered.
+#
+# session_budgets:
+#   - tools: [execute_sql, query]
+#     unit: rows
+#     window: session
+#     bands:
+#       - { above: 1000000, verdict: confirm }
+#
+#   - tools: [delete_objects, sync]
+#     unit: objects
+#     window: session
+#     bands:
+#       - { above: 50000, verdict: confirm }
+
+defaults:
+  # An ungated tool is out of scope, not denied (NC-09). Failing closed on everything undeclared
+  # would make the gate unusable on its first day, and it would simply be switched off.
+  unknown_tool: allow
+
+# ---------------------------------------------------------------- what is deliberately NOT here
+#
+# **`gs://` targets.** `storage.objects` parses them and there is no Google Cloud Storage lister, so
+# they resolve UNRESOLVED and route through `on_unresolved` above. Only S3 ships.
+#
+# **Snowflake, BigQuery, and anything that is not sqlite or Postgres.** `db.rows` connects through
+# DBAPI from `NETI_DATABASE_URL` and speaks those two. A warehouse needs its own resolver, and
+# BigQuery already ships `maximum_bytes_billed`, which is the same idea in a different unit.
+#
+# **Railway volumes, and block storage generally.** A volume is addressed by ID through its
+# provider's own API; there is no prefix to enumerate, so `ListObjectsV2` has nothing to count. That
+# is why the `pocketos-railway` entry on the scorecard stays a MISS even though this file gates an
+# object store — see `src/neti/eval/incidents.py`.

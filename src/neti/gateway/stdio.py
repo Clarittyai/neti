@@ -31,6 +31,7 @@ from __future__ import annotations
 
 import contextlib
 import json
+import os
 import subprocess
 import sys
 import threading
@@ -75,6 +76,7 @@ class StdioUpstream:
         on_unsolicited: Callable[[dict[str, Any]], None] | None = None,
         timeout_s: float = 120.0,
         echo_stderr: bool = True,
+        env: dict[str, str] | None = None,
     ) -> None:
         if not argv:
             raise ValueError("no command given to launch")
@@ -98,6 +100,11 @@ class StdioUpstream:
             text=True,
             bufsize=1,
             encoding="utf-8",
+            # Merged over the inherited environment, never replacing it. An MCP client config's
+            # `env` block names the two or three variables that server needs; the child still needs
+            # PATH to find `node`, and HOME to find a credential cache. Replacing would break every
+            # server that declares any `env` at all.
+            env={**os.environ, **env} if env else None,
         )
         assert self._proc.stdin and self._proc.stdout and self._proc.stderr
 

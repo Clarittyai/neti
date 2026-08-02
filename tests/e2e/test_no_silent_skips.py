@@ -33,6 +33,16 @@ REQUIRED = {
     "httpx": "the MCP gateway and every Graph resolver",
     "fastapi": "the console API",
     "typer": "every CLI command",
+    # These two were the same hole one tier down, and it was open for longer. CI installed the
+    # `storage` and `database` extras and `test_the_ci_workflow_installs_what_the_tests_import`
+    # asserted that it did — but nothing asserted the packages actually *import*, and no offline
+    # test needs them: `test_storage_resolver.py` drives a mock lister and
+    # `test_database_resolver.py` drives stdlib sqlite. So both drivers could be absent, as they
+    # were in a working
+    # checkout, with every storage and database test still passing. The extras being listed is not
+    # the same claim as the extras being installed.
+    "boto3": "the only path `storage.objects` has to a real object store",
+    "psycopg": "the Postgres half of `db.rows` — sqlite goes through the stdlib and proves nothing",
 }
 
 requires_full_install = pytest.mark.skipif(

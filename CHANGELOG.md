@@ -2,6 +2,58 @@
 
 ## Unreleased
 
+### Field trials: what happens when the tests stop writing their own fixtures
+
+Everything in `tests/` drives an agent somebody here wrote. `test_real_mcp_server.py` uses a real
+server over a real pipe, but the client is a list of JSON-RPC strings, and the seam-equivalence
+table drives the three SDK adapters with synthetic inputs. `eval/` is the tier above that: real
+servers, real providers, run by hand rather than by CI. See [eval/README.md](eval/README.md).
+
+The first pass measured coverage and stood up three live provider tiers. It found four defects, all
+of them the same shape — a thing that had never been pointed at anything real.
+
+- **`neti init` could not introspect any server that needs a credential.** `find_clients` parsed the
+  `env` block out of the client config into `ServerSpec.env`, and nothing ever read it, so every
+  credentialed server — Slack, GitHub, Notion, Stripe, Drive — exited at startup naming the variable
+  it wanted and was reported as un-introspectable. That is most of the SaaS surface, and the
+  operator's own config had the token in it the whole time. The same dead-field failure as
+  `providers:`, one directory over. `StdioUpstream` now takes an `env` merged over the inherited one
+  — merged, never substituted, or every server that declares any `env` loses `PATH`.
+- **`db.rows` never closed its connection.** Deliberate to hold one open — the gate is a long-lived
+  process — but nothing closed it, and psycopg's own `__del__` warns about that. Under
+  `filterwarnings = error` the warning surfaced on whichever unrelated test happened to trigger the
+  collection. Invisible to thirty-nine offline tests because sqlite does not warn.
+- **`boto3` and `psycopg` were not installed in a working checkout**, despite both extras being in
+  `just install` *and* in the CI line, with a test asserting CI installs them. Nothing asserted they
+  *import*, and no offline test needs them: the storage tests drive a mock lister and the database
+  tests drive stdlib sqlite. Both are now in `test_no_silent_skips.py`.
+- **`uv run mypy` passed or failed depending on which extras were in the venv**, because the two
+  deferred provider imports carried inline `type: ignore[import-not-found]` comments that mypy calls
+  unused once the package is present. Moved to a `[[tool.mypy.overrides]]` block.
+
+### Measured
+
+- **M10, coverage in the wild.** Against a config carrying the MCP servers people actually install,
+  `neti init` gates **0 of 160 discovered tools** across the 13 servers that launch. Forty-three
+  carry a parameter a *shipped* resolver could size, so the gap is a matcher defect rather than a
+  missing resolver: `insight/discover.match` only knows `entra.principals` and `entra.apps`, and can
+  therefore only ever propose 2 of the 10 resolvers that exist. It is the least comfortable number
+  in the project and it is now on `neti score`.
+- **M11, live provider verification.** `db.rows`, `storage.objects` and `terraform.destroy` all
+  shipped without ever touching a real provider. All three now have a live tier that needs no cloud
+  account — Postgres and MinIO in Docker, and Terraform's `null` provider — behind `just live-up`.
+  The Entra family stays unverified and stays printed as unverified.
+- **M7 (what a real model does after a denial) and M8 (harness compatibility) are now listed as
+  outstanding** rather than being absent from the card. No LLM has been in the loop in this
+  repository, and the claim that a denial makes an agent narrow its scope has never been observed.
+
+### Added
+
+- `examples/data-agent.yaml` and `examples/infra-agent.yaml`. `db.rows`, `storage.objects` and
+  `terraform.destroy` all shipped with no example; `test_shipped_examples.py` globs the directory,
+  so both are load-and-construct tested.
+- `just live-up` / `just live` / `just live-down`, and `just field`.
+
 Coverage of what agents actually run: four more resolvers and a fourth runtime. 0.1.0 could size an
 Entra group and a Terraform plan, which meant that pointing it at a coding agent produced a page of
 `allow` — the seams worked and there was nothing behind them.

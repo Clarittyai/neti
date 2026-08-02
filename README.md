@@ -326,15 +326,43 @@ The suite has four tiers:
 | `tests/e2e/` | the product: all seven seams agreeing, the operator's first week as one flow, every resolver through record and report, and `neti gate --stdio` in front of a real MCP server |
 | `tests/live/` | real providers, opt-in |
 
-`tests/live/` is skipped unless you give it credentials. It is
-worth running: every defect it has ever found was invisible to the offline suite, because an offline
-test asserts what happens *given* a shape and only a live one tells you the shape is real.
+`tests/live/` is skipped unless you give it something real to talk to. It is worth running: every
+defect it has ever found was invisible to the offline suite, because an offline test asserts what
+happens *given* a shape and only a live one tells you the shape is real. Most of it needs no cloud
+account at all — Postgres and MinIO in Docker, and Terraform's `null` provider:
 
 ```console
-NETI_GITHUB_TOKEN=$(gh auth token) uv run pytest tests/live -q     # read-only
+just live-up && just live      # Postgres, S3 via MinIO, Terraform, and GitHub if `gh` has a token
+just live-down                 # removes both containers
+```
+
+`neti check` is the Entra half, and the one thing here that still needs a tenant. It answers the
+tenant-side questions the scorecard lists as unverified, needs an app registration with
+`GroupMember.Read.All` (application permission, admin-consented), and is read-only throughout.
+
+```console
 NETI_TENANT_ID=… NETI_CLIENT_ID=… NETI_CLIENT_SECRET=… uv run neti check
 ```
 
-`neti check` is the Entra half: it answers the tenant-side questions the scorecard still lists as
-unverified. It needs an app registration with `GroupMember.Read.All` (application permission,
-admin-consented) and is read-only throughout.
+Two of those tiers exist because this pass added them, and both found defects immediately:
+`db.rows` had never once run through `psycopg` — thirty-nine tests, all against stdlib sqlite — and
+was holding a connection it never closed; `storage.objects`'s pagination loop had never seen a
+server that paginates. `boto3` and `psycopg` were not even installed in a working checkout, because
+nothing needed them.
+
+### Field trials
+
+`eval/` is the tier above `tests/live/`: real agents and real servers, run by hand rather than by
+CI, because it is non-deterministic and costs tokens. See [eval/README.md](eval/README.md).
+
+```console
+uv run python -m eval.surveys.mcp_coverage --markdown
+```
+
+That one is **M10**, and it is the least comfortable number in the project. Run against a config
+carrying the MCP servers people actually install, `neti init` gates **0 of 160 discovered tools**
+across the 13 that launch. Forty-three of them carry a parameter a *shipped* resolver could size —
+`fs.paths` on the filesystem server's `path`, `github.repos` on GitHub's `owner` — which makes that
+gap a defect in the matcher rather than a missing resolver: `neti init` can only ever propose 2 of
+the 10 resolvers that exist. `neti score` prints it, and prints it as absent when the survey has not
+been run.

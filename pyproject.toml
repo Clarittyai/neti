@@ -116,6 +116,15 @@ module = "neti.core.*"
 strict = true
 disallow_any_explicit = false   # Resolution.evidence is deliberately dict[str, Any]
 
+# The two deferred provider imports. Declared here rather than as inline `type: ignore` comments,
+# because an inline ignore is only correct when the package is *absent*: install `neti[database]`
+# and mypy starts reporting the ignore itself as unused, so `uv run mypy` passes or fails depending
+# on which optional extras happen to be in the venv. That is the same failure `test_no_silent_skips`
+# exists to prevent, one layer up — a gate whose result depends on the machine it ran on.
+[[tool.mypy.overrides]]
+module = ["psycopg.*", "boto3.*", "botocore.*"]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 filterwarnings = ["error"]

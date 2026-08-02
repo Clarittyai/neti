@@ -75,7 +75,7 @@ class S3Lister:
         client = self.client
         if client is None:
             try:
-                import boto3  # type: ignore[import-not-found]
+                import boto3
             except ImportError as exc:  # surfaced as UNRESOLVED, so say what to install
                 raise RuntimeError("storage.objects needs boto3; install `neti[storage]`") from exc
 

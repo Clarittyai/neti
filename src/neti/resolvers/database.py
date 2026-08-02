@@ -27,6 +27,7 @@ worse than no answer at all; the only defence is to decline everything not certa
 
 from __future__ import annotations
 
+import contextlib
 import re
 from dataclasses import dataclass
 from datetime import UTC, datetime
@@ -222,6 +223,14 @@ class EnvCountRunner:
     **Point it at a read-only user.** This composes SQL from an agent's own statement, and while the
     recogniser refuses anything that could escape the `SELECT`, a read-only grant is the check that
     does not depend on the recogniser being right.
+
+    The connection is held open deliberately — `neti gate` is one long-lived process and a fresh
+    connection per gated call would put a TCP handshake and an authentication round trip in front of
+    a decision that is meant to be one query. It is closed when this object is finalised, which
+    matters more than it looks: psycopg's own `__del__` warns about a connection dropped without
+    being closed, and under `filterwarnings = error` that surfaced as three unrelated tests failing
+    on whichever one happened to trigger the collection. sqlite3 does not warn, so thirty-nine
+    offline tests could not have found it — it took one run against a real Postgres.
     """
 
     _connection: object | None = None
@@ -230,6 +239,17 @@ class EnvCountRunner:
         if self._connection is None:
             self._connection = _connect_from_env()
         return DbapiCountRunner(self._connection).count(table, predicate)
+
+    def close(self) -> None:
+        """Idempotent, and never raises. A gate must not die of a failed disconnect."""
+        connection, self._connection = self._connection, None
+        if connection is None:
+            return
+        with contextlib.suppress(Exception):
+            connection.close()  # type: ignore[attr-defined]
+
+    def __del__(self) -> None:
+        self.close()
 
 
 def _connect_from_env() -> object:
@@ -259,7 +279,7 @@ def _connect_from_env() -> object:
         return sqlite3.connect(f"file:{path}?mode=ro", uri=True)
     if dsn.startswith(("postgres://", "postgresql://")):
         try:
-            import psycopg  # type: ignore[import-not-found]
+            import psycopg
         except ImportError as exc:
             raise RuntimeError(
                 "db.rows needs psycopg for postgres; install `neti[database]`"

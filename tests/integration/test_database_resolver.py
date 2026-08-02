@@ -296,3 +296,52 @@ def test_no_dsn_says_what_to_export() -> None:
     finally:
         if previous is not None:
             os.environ["NETI_DATABASE_URL"] = previous
+
+
+def test_the_cached_connection_is_closed_when_the_runner_is_finalised() -> None:
+    """A held-open connection is deliberate; never closing it is not.
+
+    `neti gate` is one long-lived process, so `EnvCountRunner` keeps its connection rather than
+    paying a handshake per gated call. What it was missing was the other end of that: nothing ever
+    closed it. Against sqlite that is invisible — the stdlib driver does not complain — so
+    thirty-nine tests in this file passed. Against a real Postgres, psycopg's own `__del__` warns
+    about a connection dropped without being closed, and with `filterwarnings = error` the warning
+    landed on whichever unrelated test happened to trigger the collection.
+
+    Asserted here against a stand-in rather than a driver, so the invariant is guarded offline while
+    `tests/live/test_postgres_live.py` keeps checking it against the thing that found it.
+    """
+    from neti.resolvers.database import EnvCountRunner
+
+    class Recording:
+        closed = False
+
+        def close(self) -> None:
+            self.closed = True
+
+    connection = Recording()
+    runner = EnvCountRunner(_connection=connection)
+
+    runner.close()
+    assert connection.closed
+    assert runner._connection is None, "closing must clear it, or a reconnect reuses a dead handle"
+
+    runner.close()  # idempotent: a gate must not die of a second disconnect
+
+
+def test_a_failing_disconnect_is_swallowed() -> None:
+    """The asymmetry from `test_never_breaks_the_agent`, applied to teardown.
+
+    A database that has already gone away raises on `close()`. That must not propagate: it happens
+    during finalisation, where an exception becomes an unraisable warning at best and takes down an
+    interpreter shutdown at worst — and the call it belonged to has long since been decided.
+    """
+    from neti.resolvers.database import EnvCountRunner
+
+    class Hostile:
+        def close(self) -> None:
+            raise RuntimeError("server closed the connection unexpectedly")
+
+    runner = EnvCountRunner(_connection=Hostile())
+    runner.close()
+    assert runner._connection is None

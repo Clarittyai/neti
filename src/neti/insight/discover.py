@@ -209,12 +209,25 @@ def list_tools(server: ServerSpec, *, timeout_s: float = 20.0) -> list[dict[str,
 
     Uses the same `StdioUpstream` the gate runs on, so a server that cannot be introspected here is
     one the gate could not have wrapped either — better to find that out now than at install time.
+
+    **`server.env` is passed.** It was parsed out of the client config and then read by nothing, so
+    every credentialed server — Slack, GitHub, Notion, Stripe, Drive — exited at startup saying
+    which variable it wanted, and `neti init` reported it as un-introspectable. That is most of the
+    SaaS surface, and the operator's own config had the token in it the whole time. The same dead
+    field as `providers:`, one directory over; found by running discovery against a config that
+    looked like somebody's machine.
+
+    The gate path never had this bug: there the *client* launches `neti gate -- …` and applies the
+    `env` block to the gate process, which the child inherits. Only discovery, which launches
+    servers itself, had to carry the environment by hand.
     """
     from concurrent.futures import TimeoutError as FutureTimeout
 
     from neti.gateway.stdio import StdioUpstream
 
-    upstream = StdioUpstream(server.argv, timeout_s=timeout_s, echo_stderr=False)
+    upstream = StdioUpstream(
+        server.argv, timeout_s=timeout_s, echo_stderr=False, env=server.env or None
+    )
     try:
         try:
             upstream.send(_INIT, None)

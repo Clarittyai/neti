@@ -864,14 +864,25 @@ def score(
     records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
     config: Annotated[str, typer.Option("--config", "-c")] = "neti.yaml",
     as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable output.")] = False,
+    field_results: Annotated[
+        str,
+        typer.Option(
+            "--field",
+            help="A field-trial result to fold in, from `eval/surveys/`. Absent is normal.",
+        ),
+    ] = "eval/results/mcp_coverage.json",
 ) -> None:
     """The scorecard: incident replay, friction, blind spots, and what is not yet measured.
 
     Runs entirely offline. Records and policy are optional — without them you still get the
     incident replay and the non-coverage list, which is most of what an audience asks about.
+
+    Field-trial results are optional in the same way and for a stronger reason: M10 cannot be
+    derived, only measured, so an installed wheel with no `eval/` directory prints it as outstanding
+    rather than printing a number it made up. That is the rule the whole card runs on.
     """
     from neti.config.policy import PolicyError, load_policy
-    from neti.eval.scorecard import build_scorecard, format_scorecard, scorecard_json
+    from neti.eval.scorecard import Wild, build_scorecard, format_scorecard, scorecard_json
     from neti.insight.report import build_report
     from neti.store.jsonl import read_records
 
@@ -885,7 +896,18 @@ def score(
     with contextlib.suppress(PolicyError, OSError):
         policy = load_policy(config)
 
-    card = build_scorecard(summary, policy)
+    wild = None
+    with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
+        totals = json.loads(Path(field_results).read_text())["totals"]
+        wild = Wild(
+            servers_launched=int(totals["servers_launched"]),
+            servers_in_catalogue=int(totals["servers_in_catalogue"]),
+            tools_discovered=int(totals["tools_discovered"]),
+            tools_gated=int(totals["tools_gated"]),
+            tools_sizable_in_principle=int(totals["tools_sizable_in_principle"]),
+        )
+
+    card = build_scorecard(summary, policy, wild=wild)
     typer.echo(scorecard_json(card) if as_json else format_scorecard(card))
 
 

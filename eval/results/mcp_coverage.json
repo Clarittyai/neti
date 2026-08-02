@@ -1,0 +1,2981 @@
+{
+  "metric": "M10",
+  "platform": "Darwin arm64",
+  "servers": [
+    {
+      "name": "filesystem",
+      "argv": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/var/folders/b4/vnsjgs6d06bdy5vw77cwycsm0000gn/T/neti-m10-2prylyz1/workspace"
+      ],
+      "layer": "filesystem",
+      "transport": "stdio",
+      "note": "the server `examples/coding-agent.yaml` is written against",
+      "archived": false,
+      "placeholder_credential": false,
+      "launched": true,
+      "error": null,
+      "tools": [
+        {
+          "name": "read_file",
+          "params": [
+            "head",
+            "path",
+            "tail"
+          ],
+          "gated": [],
+          "ungated": [
+            "head",
+            "path",
+            "tail"
+          ],
+          "sizable_in_principle": {
+            "path": "fs.paths"
+          },
+          "destructive": false
+        },
+        {
+          "name": "read_text_file",
+          "params": [
+            "head",
+            "path",
+            "tail"
+          ],
+          "gated": [],
+          "ungated": [
+            "head",
+            "path",
+            "tail"
+          ],
+          "sizable_in_principle": {
+            "path": "fs.paths"
+          },
+          "destructive": false
+        },
+        {
+          "name": "read_media_file",
+          "params": [
+            "path"
+          ],
+          "gated": [],
+          "ungated": [
+            "path"
+          ],
+          "sizable_in_principle": {
+            "path": "fs.paths"
+          },
+          "destructive": false
+        },
+        {
+          "name": "read_multiple_files",
+          "params": [
+            "paths"
+          ],
+          "gated": [],
+          "ungated": [
+            "paths"
+          ],
+          "sizable_in_principle": {
+            "paths": "fs.paths"
+          },
+          "destructive": false
+        },
+        {
+          "name": "write_file",
+          "params": [
+            "content",
+            "path"
+          ],
+          "gated": [],
+          "ungated": [
+            "content",
+            "path"
+          ],
+          "sizable_in_principle": {
+            "path": "fs.paths"
+          },
+          "destructive": false
+        },
+        {
+          "name": "edit_file",
+          "params": [
+            "dryRun",
+            "edits",
+            "path"
+          ],
+          "gated": [],
+          "ungated": [
+            "dryRun",
+            "edits",
+            "path"
+          ],
+          "sizable_in_principle": {
+            "path": "fs.paths"
+          },
+          "destructive": false
+        },
+        {
+          "name": "create_directory",
+          "params": [
+            "path"
+          ],
+          "gated": [],
+          "ungated": [
+            "path"
+          ],
+          "sizable_in_principle": {
+            "path": "fs.paths"
+          },
+          "destructive": false
+        },
+        {
+          "name": "list_directory",
+          "params": [
+            "path"
+          ],
+          "gated": [],
+          "ungated": [
+            "path"
+          ],
+          "sizable_in_principle": {
+            "path": "fs.paths"
+          },
+          "destructive": false
+        },
+        {
+          "name": "list_directory_with_sizes",
+          "params": [
+            "path",
+            "sortBy"
+          ],
+          "gated": [],
+          "ungated": [
+            "path",
+            "sortBy"
+          ],
+          "sizable_in_principle": {
+            "path": "fs.paths"
+          },
+          "destructive": false
+        },
+        {
+          "name": "directory_tree",
+          "params": [
+            "excludePatterns",
+            "path"
+          ],
+          "gated": [],
+          "ungated": [
+            "excludePatterns",
+            "path"
+          ],
+          "sizable_in_principle": {
+            "path": "fs.paths"
+          },
+          "destructive": false
+        },
+        {
+          "name": "move_file",
+          "params": [
+            "destination",
+            "source"
+          ],
+          "gated": [],
+          "ungated": [
+            "destination",
+            "source"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "search_files",
+          "params": [
+            "excludePatterns",
+            "path",
+            "pattern"
+          ],
+          "gated": [],
+          "ungated": [
+            "excludePatterns",
+            "path",
+            "pattern"
+          ],
+          "sizable_in_principle": {
+            "path": "fs.paths",
+            "pattern": "fs.paths"
+          },
+          "destructive": false
+        },
+        {
+          "name": "get_file_info",
+          "params": [
+            "path"
+          ],
+          "gated": [],
+          "ungated": [
+            "path"
+          ],
+          "sizable_in_principle": {
+            "path": "fs.paths"
+          },
+          "destructive": false
+        },
+        {
+          "name": "list_allowed_directories",
+          "params": [],
+          "gated": [],
+          "ungated": [],
+          "sizable_in_principle": {},
+          "destructive": false
+        }
+      ]
+    },
+    {
+      "name": "memory",
+      "argv": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-memory"
+      ],
+      "layer": "filesystem",
+      "transport": "stdio",
+      "note": "a knowledge graph in a local JSON file",
+      "archived": false,
+      "placeholder_credential": false,
+      "launched": true,
+      "error": null,
+      "tools": [
+        {
+          "name": "create_entities",
+          "params": [
+            "entities"
+          ],
+          "gated": [],
+          "ungated": [
+            "entities"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "create_relations",
+          "params": [
+            "relations"
+          ],
+          "gated": [],
+          "ungated": [
+            "relations"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "add_observations",
+          "params": [
+            "observations"
+          ],
+          "gated": [],
+          "ungated": [
+            "observations"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "delete_entities",
+          "params": [
+            "entityNames"
+          ],
+          "gated": [],
+          "ungated": [
+            "entityNames"
+          ],
+          "sizable_in_principle": {},
+          "destructive": true
+        },
+        {
+          "name": "delete_observations",
+          "params": [
+            "deletions"
+          ],
+          "gated": [],
+          "ungated": [
+            "deletions"
+          ],
+          "sizable_in_principle": {},
+          "destructive": true
+        },
+        {
+          "name": "delete_relations",
+          "params": [
+            "relations"
+          ],
+          "gated": [],
+          "ungated": [
+            "relations"
+          ],
+          "sizable_in_principle": {},
+          "destructive": true
+        },
+        {
+          "name": "read_graph",
+          "params": [],
+          "gated": [],
+          "ungated": [],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "search_nodes",
+          "params": [
+            "query"
+          ],
+          "gated": [],
+          "ungated": [
+            "query"
+          ],
+          "sizable_in_principle": {
+            "query": "db.rows"
+          },
+          "destructive": false
+        },
+        {
+          "name": "open_nodes",
+          "params": [
+            "names"
+          ],
+          "gated": [],
+          "ungated": [
+            "names"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        }
+      ]
+    },
+    {
+      "name": "sequentialthinking",
+      "argv": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-sequential-thinking"
+      ],
+      "layer": "none",
+      "transport": "stdio",
+      "note": "pure reasoning scaffold; touches nothing, so nothing to size",
+      "archived": false,
+      "placeholder_credential": false,
+      "launched": true,
+      "error": null,
+      "tools": [
+        {
+          "name": "sequentialthinking",
+          "params": [
+            "branchFromThought",
+            "branchId",
+            "isRevision",
+            "needsMoreThoughts",
+            "nextThoughtNeeded",
+            "revisesThought",
+            "thought",
+            "thoughtNumber",
+            "totalThoughts"
+          ],
+          "gated": [],
+          "ungated": [
+            "branchFromThought",
+            "branchId",
+            "isRevision",
+            "needsMoreThoughts",
+            "nextThoughtNeeded",
+            "revisesThought",
+            "thought",
+            "thoughtNumber",
+            "totalThoughts"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        }
+      ]
+    },
+    {
+      "name": "everything",
+      "argv": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-everything"
+      ],
+      "layer": "none",
+      "transport": "stdio",
+      "note": "the protocol test server \u2014 every feature, no real target",
+      "archived": false,
+      "placeholder_credential": false,
+      "launched": true,
+      "error": null,
+      "tools": [
+        {
+          "name": "echo",
+          "params": [
+            "message"
+          ],
+          "gated": [],
+          "ungated": [
+            "message"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "get-annotated-message",
+          "params": [
+            "includeImage",
+            "messageType"
+          ],
+          "gated": [],
+          "ungated": [
+            "includeImage",
+            "messageType"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "get-env",
+          "params": [],
+          "gated": [],
+          "ungated": [],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "get-resource-links",
+          "params": [
+            "count"
+          ],
+          "gated": [],
+          "ungated": [
+            "count"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "get-resource-reference",
+          "params": [
+            "resourceId",
+            "resourceType"
+          ],
+          "gated": [],
+          "ungated": [
+            "resourceId",
+            "resourceType"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "get-structured-content",
+          "params": [
+            "location"
+          ],
+          "gated": [],
+          "ungated": [
+            "location"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "get-sum",
+          "params": [
+            "a",
+            "b"
+          ],
+          "gated": [],
+          "ungated": [
+            "a",
+            "b"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "get-tiny-image",
+          "params": [],
+          "gated": [],
+          "ungated": [],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "gzip-file-as-resource",
+          "params": [
+            "data",
+            "name",
+            "outputType"
+          ],
+          "gated": [],
+          "ungated": [
+            "data",
+            "name",
+            "outputType"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "toggle-simulated-logging",
+          "params": [],
+          "gated": [],
+          "ungated": [],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "toggle-subscriber-updates",
+          "params": [],
+          "gated": [],
+          "ungated": [],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "trigger-long-running-operation",
+          "params": [
+            "duration",
+            "steps"
+          ],
+          "gated": [],
+          "ungated": [
+            "duration",
+            "steps"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "simulate-research-query",
+          "params": [
+            "ambiguous",
+            "topic"
+          ],
+          "gated": [],
+          "ungated": [
+            "ambiguous",
+            "topic"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        }
+      ]
+    },
+    {
+      "name": "git",
+      "argv": [
+        "uvx",
+        "mcp-server-git",
+        "--repository",
+        "/var/folders/b4/vnsjgs6d06bdy5vw77cwycsm0000gn/T/neti-m10-2prylyz1/workspace"
+      ],
+      "layer": "source control",
+      "transport": "stdio",
+      "note": "local git operations, including resets and checkouts",
+      "archived": false,
+      "placeholder_credential": false,
+      "launched": false,
+      "error": "DiscoveryError: the MCP server behind the gate closed its output \u2014 it said: @server.list_tools() |      ^^^^^^^^^^^^^^^^^ | AttributeError: 'Server' object has no attribute 'list_tools'",
+      "tools": []
+    },
+    {
+      "name": "fetch",
+      "argv": [
+        "uvx",
+        "mcp-server-fetch"
+      ],
+      "layer": "none",
+      "transport": "stdio",
+      "note": "reads one URL at a time",
+      "archived": false,
+      "placeholder_credential": false,
+      "launched": false,
+      "error": "DiscoveryError: the MCP server behind the gate closed its output \u2014 it said: File \"/Users/shaharcohen/.cache/uv/archive-v0/A7Ql_4LHoVOGuXwZ21QAU/lib/python3.12/site-packages/mcp_server_fetch/server.py\", line 6, in <module> |     from mcp.shared.exceptions import McpError | ImportError: cannot import name 'McpError' from 'mcp.shared.exceptions' (/Users/shaharcohen/.cache/uv/archive-v0/A7Ql_4LHoVOGuXwZ21QAU/lib/python3.12/site-packages/mcp/shared/exceptions.py). Did you mean: 'MCPError'?",
+      "tools": []
+    },
+    {
+      "name": "time",
+      "argv": [
+        "uvx",
+        "mcp-server-time"
+      ],
+      "layer": "none",
+      "transport": "stdio",
+      "note": "carried as a control: nothing here should ever be gated",
+      "archived": false,
+      "placeholder_credential": false,
+      "launched": false,
+      "error": "DiscoveryError: the MCP server behind the gate closed its output \u2014 it said: File \"/Users/shaharcohen/.cache/uv/archive-v0/svcws2JxGQSJfX7o7Fk6b/lib/python3.12/site-packages/mcp_server_time/server.py\", line 12, in <module> |     from mcp.shared.exceptions import McpError | ImportError: cannot import name 'McpError' from 'mcp.shared.exceptions' (/Users/shaharcohen/.cache/uv/archive-v0/svcws2JxGQSJfX7o7Fk6b/lib/python3.12/site-packages/mcp/shared/exceptions.py). Did you mean: 'MCPError'?",
+      "tools": []
+    },
+    {
+      "name": "github",
+      "argv": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "layer": "source control",
+      "transport": "stdio",
+      "note": "`github.repos` and `github.files` ship and are live-verified against this surface",
+      "archived": true,
+      "placeholder_credential": true,
+      "launched": true,
+      "error": null,
+      "tools": [
+        {
+          "name": "create_or_update_file",
+          "params": [
+            "branch",
+            "content",
+            "message",
+            "owner",
+            "path",
+            "repo",
+            "sha"
+          ],
+          "gated": [],
+          "ungated": [
+            "branch",
+            "content",
+            "message",
+            "owner",
+            "path",
+            "repo",
+            "sha"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "path": "fs.paths",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "search_repositories",
+          "params": [
+            "page",
+            "perPage",
+            "query"
+          ],
+          "gated": [],
+          "ungated": [
+            "page",
+            "perPage",
+            "query"
+          ],
+          "sizable_in_principle": {
+            "query": "db.rows"
+          },
+          "destructive": false
+        },
+        {
+          "name": "create_repository",
+          "params": [
+            "autoInit",
+            "description",
+            "name",
+            "private"
+          ],
+          "gated": [],
+          "ungated": [
+            "autoInit",
+            "description",
+            "name",
+            "private"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "get_file_contents",
+          "params": [
+            "branch",
+            "owner",
+            "path",
+            "repo"
+          ],
+          "gated": [],
+          "ungated": [
+            "branch",
+            "owner",
+            "path",
+            "repo"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "path": "fs.paths",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "push_files",
+          "params": [
+            "branch",
+            "files",
+            "message",
+            "owner",
+            "repo"
+          ],
+          "gated": [],
+          "ungated": [
+            "branch",
+            "files",
+            "message",
+            "owner",
+            "repo"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "create_issue",
+          "params": [
+            "assignees",
+            "body",
+            "labels",
+            "milestone",
+            "owner",
+            "repo",
+            "title"
+          ],
+          "gated": [],
+          "ungated": [
+            "assignees",
+            "body",
+            "labels",
+            "milestone",
+            "owner",
+            "repo",
+            "title"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "create_pull_request",
+          "params": [
+            "base",
+            "body",
+            "draft",
+            "head",
+            "maintainer_can_modify",
+            "owner",
+            "repo",
+            "title"
+          ],
+          "gated": [],
+          "ungated": [
+            "base",
+            "body",
+            "draft",
+            "head",
+            "maintainer_can_modify",
+            "owner",
+            "repo",
+            "title"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "fork_repository",
+          "params": [
+            "organization",
+            "owner",
+            "repo"
+          ],
+          "gated": [],
+          "ungated": [
+            "organization",
+            "owner",
+            "repo"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "create_branch",
+          "params": [
+            "branch",
+            "from_branch",
+            "owner",
+            "repo"
+          ],
+          "gated": [],
+          "ungated": [
+            "branch",
+            "from_branch",
+            "owner",
+            "repo"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "list_commits",
+          "params": [
+            "owner",
+            "page",
+            "perPage",
+            "repo",
+            "sha"
+          ],
+          "gated": [],
+          "ungated": [
+            "owner",
+            "page",
+            "perPage",
+            "repo",
+            "sha"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "list_issues",
+          "params": [
+            "direction",
+            "labels",
+            "owner",
+            "page",
+            "per_page",
+            "repo",
+            "since",
+            "sort",
+            "state"
+          ],
+          "gated": [],
+          "ungated": [
+            "direction",
+            "labels",
+            "owner",
+            "page",
+            "per_page",
+            "repo",
+            "since",
+            "sort",
+            "state"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "update_issue",
+          "params": [
+            "assignees",
+            "body",
+            "issue_number",
+            "labels",
+            "milestone",
+            "owner",
+            "repo",
+            "state",
+            "title"
+          ],
+          "gated": [],
+          "ungated": [
+            "assignees",
+            "body",
+            "issue_number",
+            "labels",
+            "milestone",
+            "owner",
+            "repo",
+            "state",
+            "title"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "add_issue_comment",
+          "params": [
+            "body",
+            "issue_number",
+            "owner",
+            "repo"
+          ],
+          "gated": [],
+          "ungated": [
+            "body",
+            "issue_number",
+            "owner",
+            "repo"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "search_code",
+          "params": [
+            "order",
+            "page",
+            "per_page",
+            "q"
+          ],
+          "gated": [],
+          "ungated": [
+            "order",
+            "page",
+            "per_page",
+            "q"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "search_issues",
+          "params": [
+            "order",
+            "page",
+            "per_page",
+            "q",
+            "sort"
+          ],
+          "gated": [],
+          "ungated": [
+            "order",
+            "page",
+            "per_page",
+            "q",
+            "sort"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "search_users",
+          "params": [
+            "order",
+            "page",
+            "per_page",
+            "q",
+            "sort"
+          ],
+          "gated": [],
+          "ungated": [
+            "order",
+            "page",
+            "per_page",
+            "q",
+            "sort"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "get_issue",
+          "params": [
+            "issue_number",
+            "owner",
+            "repo"
+          ],
+          "gated": [],
+          "ungated": [
+            "issue_number",
+            "owner",
+            "repo"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "get_pull_request",
+          "params": [
+            "owner",
+            "pull_number",
+            "repo"
+          ],
+          "gated": [],
+          "ungated": [
+            "owner",
+            "pull_number",
+            "repo"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "list_pull_requests",
+          "params": [
+            "base",
+            "direction",
+            "head",
+            "owner",
+            "page",
+            "per_page",
+            "repo",
+            "sort",
+            "state"
+          ],
+          "gated": [],
+          "ungated": [
+            "base",
+            "direction",
+            "head",
+            "owner",
+            "page",
+            "per_page",
+            "repo",
+            "sort",
+            "state"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "create_pull_request_review",
+          "params": [
+            "body",
+            "comments",
+            "commit_id",
+            "event",
+            "owner",
+            "pull_number",
+            "repo"
+          ],
+          "gated": [],
+          "ungated": [
+            "body",
+            "comments",
+            "commit_id",
+            "event",
+            "owner",
+            "pull_number",
+            "repo"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "merge_pull_request",
+          "params": [
+            "commit_message",
+            "commit_title",
+            "merge_method",
+            "owner",
+            "pull_number",
+            "repo"
+          ],
+          "gated": [],
+          "ungated": [
+            "commit_message",
+            "commit_title",
+            "merge_method",
+            "owner",
+            "pull_number",
+            "repo"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "get_pull_request_files",
+          "params": [
+            "owner",
+            "pull_number",
+            "repo"
+          ],
+          "gated": [],
+          "ungated": [
+            "owner",
+            "pull_number",
+            "repo"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "get_pull_request_status",
+          "params": [
+            "owner",
+            "pull_number",
+            "repo"
+          ],
+          "gated": [],
+          "ungated": [
+            "owner",
+            "pull_number",
+            "repo"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "update_pull_request_branch",
+          "params": [
+            "expected_head_sha",
+            "owner",
+            "pull_number",
+            "repo"
+          ],
+          "gated": [],
+          "ungated": [
+            "expected_head_sha",
+            "owner",
+            "pull_number",
+            "repo"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "get_pull_request_comments",
+          "params": [
+            "owner",
+            "pull_number",
+            "repo"
+          ],
+          "gated": [],
+          "ungated": [
+            "owner",
+            "pull_number",
+            "repo"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        },
+        {
+          "name": "get_pull_request_reviews",
+          "params": [
+            "owner",
+            "pull_number",
+            "repo"
+          ],
+          "gated": [],
+          "ungated": [
+            "owner",
+            "pull_number",
+            "repo"
+          ],
+          "sizable_in_principle": {
+            "owner": "github.repos",
+            "repo": "github.files"
+          },
+          "destructive": false
+        }
+      ]
+    },
+    {
+      "name": "postgres",
+      "argv": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-postgres",
+        "postgresql://placeholder@127.0.0.1:5432/placeholder"
+      ],
+      "layer": "database",
+      "transport": "stdio",
+      "note": "`db.rows` ships for exactly this",
+      "archived": true,
+      "placeholder_credential": false,
+      "launched": true,
+      "error": null,
+      "tools": [
+        {
+          "name": "query",
+          "params": [
+            "sql"
+          ],
+          "gated": [],
+          "ungated": [
+            "sql"
+          ],
+          "sizable_in_principle": {
+            "sql": "db.rows"
+          },
+          "destructive": false
+        }
+      ]
+    },
+    {
+      "name": "sqlite",
+      "argv": [
+        "uvx",
+        "mcp-server-sqlite",
+        "--db-path",
+        "/var/folders/b4/vnsjgs6d06bdy5vw77cwycsm0000gn/T/neti-m10-2prylyz1/fixture.sqlite"
+      ],
+      "layer": "database",
+      "transport": "stdio",
+      "note": "`db.rows` speaks sqlite through the stdlib, no extra needed",
+      "archived": true,
+      "placeholder_credential": false,
+      "launched": false,
+      "error": "DiscoveryError: the MCP server behind the gate closed its output \u2014 it said: @server.list_resources() |      ^^^^^^^^^^^^^^^^^^^^^ | AttributeError: 'Server' object has no attribute 'list_resources'",
+      "tools": []
+    },
+    {
+      "name": "slack",
+      "argv": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-slack"
+      ],
+      "layer": "messaging",
+      "transport": "stdio",
+      "note": "`stack.py` calls messaging uncovered; this is the server that makes that concrete",
+      "archived": true,
+      "placeholder_credential": true,
+      "launched": true,
+      "error": null,
+      "tools": [
+        {
+          "name": "slack_list_channels",
+          "params": [
+            "cursor",
+            "limit"
+          ],
+          "gated": [],
+          "ungated": [
+            "cursor",
+            "limit"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "slack_post_message",
+          "params": [
+            "channel_id",
+            "text"
+          ],
+          "gated": [],
+          "ungated": [
+            "channel_id",
+            "text"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "slack_reply_to_thread",
+          "params": [
+            "channel_id",
+            "text",
+            "thread_ts"
+          ],
+          "gated": [],
+          "ungated": [
+            "channel_id",
+            "text",
+            "thread_ts"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "slack_add_reaction",
+          "params": [
+            "channel_id",
+            "reaction",
+            "timestamp"
+          ],
+          "gated": [],
+          "ungated": [
+            "channel_id",
+            "reaction",
+            "timestamp"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "slack_get_channel_history",
+          "params": [
+            "channel_id",
+            "limit"
+          ],
+          "gated": [],
+          "ungated": [
+            "channel_id",
+            "limit"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "slack_get_thread_replies",
+          "params": [
+            "channel_id",
+            "thread_ts"
+          ],
+          "gated": [],
+          "ungated": [
+            "channel_id",
+            "thread_ts"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "slack_get_users",
+          "params": [
+            "cursor",
+            "limit"
+          ],
+          "gated": [],
+          "ungated": [
+            "cursor",
+            "limit"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "slack_get_user_profile",
+          "params": [
+            "user_id"
+          ],
+          "gated": [],
+          "ungated": [
+            "user_id"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        }
+      ]
+    },
+    {
+      "name": "gdrive",
+      "argv": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-gdrive"
+      ],
+      "layer": "SaaS records",
+      "transport": "stdio",
+      "note": "RESOLVER_CONTRACT cites Drive's `incompleteSearch` as the canonical PARTIAL case",
+      "archived": true,
+      "placeholder_credential": true,
+      "launched": false,
+      "error": "DiscoveryError: the MCP server behind the gate closed its output \u2014 it said: Credentials not found. Please run with 'auth' argument first.",
+      "tools": []
+    },
+    {
+      "name": "puppeteer",
+      "argv": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-puppeteer"
+      ],
+      "layer": "none",
+      "transport": "stdio",
+      "note": "browser control \u2014 a grammar, not a value",
+      "archived": true,
+      "placeholder_credential": false,
+      "launched": true,
+      "error": null,
+      "tools": [
+        {
+          "name": "puppeteer_navigate",
+          "params": [
+            "allowDangerous",
+            "launchOptions",
+            "url"
+          ],
+          "gated": [],
+          "ungated": [
+            "allowDangerous",
+            "launchOptions",
+            "url"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "puppeteer_screenshot",
+          "params": [
+            "encoded",
+            "height",
+            "name",
+            "selector",
+            "width"
+          ],
+          "gated": [],
+          "ungated": [
+            "encoded",
+            "height",
+            "name",
+            "selector",
+            "width"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "puppeteer_click",
+          "params": [
+            "selector"
+          ],
+          "gated": [],
+          "ungated": [
+            "selector"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "puppeteer_fill",
+          "params": [
+            "selector",
+            "value"
+          ],
+          "gated": [],
+          "ungated": [
+            "selector",
+            "value"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "puppeteer_select",
+          "params": [
+            "selector",
+            "value"
+          ],
+          "gated": [],
+          "ungated": [
+            "selector",
+            "value"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "puppeteer_hover",
+          "params": [
+            "selector"
+          ],
+          "gated": [],
+          "ungated": [
+            "selector"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "puppeteer_evaluate",
+          "params": [
+            "script"
+          ],
+          "gated": [],
+          "ungated": [
+            "script"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        }
+      ]
+    },
+    {
+      "name": "brave-search",
+      "argv": [
+        "npx",
+        "-y",
+        "@modelcontextprotocol/server-brave-search"
+      ],
+      "layer": "none",
+      "transport": "stdio",
+      "note": "read-only search",
+      "archived": true,
+      "placeholder_credential": true,
+      "launched": true,
+      "error": null,
+      "tools": [
+        {
+          "name": "brave_web_search",
+          "params": [
+            "count",
+            "offset",
+            "query"
+          ],
+          "gated": [],
+          "ungated": [
+            "count",
+            "offset",
+            "query"
+          ],
+          "sizable_in_principle": {
+            "query": "db.rows"
+          },
+          "destructive": false
+        },
+        {
+          "name": "brave_local_search",
+          "params": [
+            "count",
+            "query"
+          ],
+          "gated": [],
+          "ungated": [
+            "count",
+            "query"
+          ],
+          "sizable_in_principle": {
+            "query": "db.rows"
+          },
+          "destructive": false
+        }
+      ]
+    },
+    {
+      "name": "playwright",
+      "argv": [
+        "npx",
+        "-y",
+        "@playwright/mcp@latest"
+      ],
+      "layer": "none",
+      "transport": "stdio",
+      "note": "the maintained browser server most configs now carry",
+      "archived": false,
+      "placeholder_credential": false,
+      "launched": true,
+      "error": null,
+      "tools": [
+        {
+          "name": "browser_close",
+          "params": [],
+          "gated": [],
+          "ungated": [],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_resize",
+          "params": [
+            "height",
+            "width"
+          ],
+          "gated": [],
+          "ungated": [
+            "height",
+            "width"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_console_messages",
+          "params": [
+            "all",
+            "filename",
+            "level"
+          ],
+          "gated": [],
+          "ungated": [
+            "all",
+            "filename",
+            "level"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_handle_dialog",
+          "params": [
+            "accept",
+            "promptText"
+          ],
+          "gated": [],
+          "ungated": [
+            "accept",
+            "promptText"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_evaluate",
+          "params": [
+            "element",
+            "filename",
+            "function",
+            "target"
+          ],
+          "gated": [],
+          "ungated": [
+            "element",
+            "filename",
+            "function",
+            "target"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_file_upload",
+          "params": [
+            "paths"
+          ],
+          "gated": [],
+          "ungated": [
+            "paths"
+          ],
+          "sizable_in_principle": {
+            "paths": "fs.paths"
+          },
+          "destructive": false
+        },
+        {
+          "name": "browser_drop",
+          "params": [
+            "data",
+            "element",
+            "paths",
+            "target"
+          ],
+          "gated": [],
+          "ungated": [
+            "data",
+            "element",
+            "paths",
+            "target"
+          ],
+          "sizable_in_principle": {
+            "paths": "fs.paths"
+          },
+          "destructive": false
+        },
+        {
+          "name": "browser_find",
+          "params": [
+            "regex",
+            "text"
+          ],
+          "gated": [],
+          "ungated": [
+            "regex",
+            "text"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_fill_form",
+          "params": [
+            "fields"
+          ],
+          "gated": [],
+          "ungated": [
+            "fields"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_press_key",
+          "params": [
+            "key"
+          ],
+          "gated": [],
+          "ungated": [
+            "key"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_type",
+          "params": [
+            "element",
+            "slowly",
+            "submit",
+            "target",
+            "text"
+          ],
+          "gated": [],
+          "ungated": [
+            "element",
+            "slowly",
+            "submit",
+            "target",
+            "text"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_navigate",
+          "params": [
+            "url"
+          ],
+          "gated": [],
+          "ungated": [
+            "url"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_navigate_back",
+          "params": [],
+          "gated": [],
+          "ungated": [],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_network_requests",
+          "params": [
+            "filename",
+            "filter",
+            "static"
+          ],
+          "gated": [],
+          "ungated": [
+            "filename",
+            "filter",
+            "static"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_network_request",
+          "params": [
+            "filename",
+            "index",
+            "part"
+          ],
+          "gated": [],
+          "ungated": [
+            "filename",
+            "index",
+            "part"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_run_code_unsafe",
+          "params": [
+            "code",
+            "filename"
+          ],
+          "gated": [],
+          "ungated": [
+            "code",
+            "filename"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_take_screenshot",
+          "params": [
+            "element",
+            "filename",
+            "fullPage",
+            "scale",
+            "target",
+            "type"
+          ],
+          "gated": [],
+          "ungated": [
+            "element",
+            "filename",
+            "fullPage",
+            "scale",
+            "target",
+            "type"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_snapshot",
+          "params": [
+            "boxes",
+            "depth",
+            "filename",
+            "target"
+          ],
+          "gated": [],
+          "ungated": [
+            "boxes",
+            "depth",
+            "filename",
+            "target"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_click",
+          "params": [
+            "button",
+            "doubleClick",
+            "element",
+            "modifiers",
+            "target"
+          ],
+          "gated": [],
+          "ungated": [
+            "button",
+            "doubleClick",
+            "element",
+            "modifiers",
+            "target"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_drag",
+          "params": [
+            "endElement",
+            "endTarget",
+            "startElement",
+            "startTarget"
+          ],
+          "gated": [],
+          "ungated": [
+            "endElement",
+            "endTarget",
+            "startElement",
+            "startTarget"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_hover",
+          "params": [
+            "element",
+            "target"
+          ],
+          "gated": [],
+          "ungated": [
+            "element",
+            "target"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_select_option",
+          "params": [
+            "element",
+            "target",
+            "values"
+          ],
+          "gated": [],
+          "ungated": [
+            "element",
+            "target",
+            "values"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_tabs",
+          "params": [
+            "action",
+            "index",
+            "url"
+          ],
+          "gated": [],
+          "ungated": [
+            "action",
+            "index",
+            "url"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "browser_wait_for",
+          "params": [
+            "text",
+            "textGone",
+            "time"
+          ],
+          "gated": [],
+          "ungated": [
+            "text",
+            "textGone",
+            "time"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        }
+      ]
+    },
+    {
+      "name": "notion",
+      "argv": [
+        "npx",
+        "-y",
+        "@notionhq/notion-mcp-server"
+      ],
+      "layer": "SaaS records",
+      "transport": "stdio",
+      "note": "pages and databases \u2014 the `records` unit nothing ships a resolver for",
+      "archived": false,
+      "placeholder_credential": true,
+      "launched": true,
+      "error": null,
+      "tools": [
+        {
+          "name": "API-get-user",
+          "params": [
+            "user_id"
+          ],
+          "gated": [],
+          "ungated": [
+            "user_id"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-get-users",
+          "params": [
+            "page_size",
+            "start_cursor"
+          ],
+          "gated": [],
+          "ungated": [
+            "page_size",
+            "start_cursor"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-get-self",
+          "params": [],
+          "gated": [],
+          "ungated": [],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-post-search",
+          "params": [
+            "filter",
+            "page_size",
+            "query",
+            "sort",
+            "start_cursor"
+          ],
+          "gated": [],
+          "ungated": [
+            "filter",
+            "page_size",
+            "query",
+            "sort",
+            "start_cursor"
+          ],
+          "sizable_in_principle": {
+            "query": "db.rows"
+          },
+          "destructive": false
+        },
+        {
+          "name": "API-get-block-children",
+          "params": [
+            "block_id",
+            "page_size",
+            "start_cursor"
+          ],
+          "gated": [],
+          "ungated": [
+            "block_id",
+            "page_size",
+            "start_cursor"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-patch-block-children",
+          "params": [
+            "after",
+            "block_id",
+            "children"
+          ],
+          "gated": [],
+          "ungated": [
+            "after",
+            "block_id",
+            "children"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-retrieve-a-block",
+          "params": [
+            "block_id"
+          ],
+          "gated": [],
+          "ungated": [
+            "block_id"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-update-a-block",
+          "params": [
+            "archived",
+            "block_id",
+            "type"
+          ],
+          "gated": [],
+          "ungated": [
+            "archived",
+            "block_id",
+            "type"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-delete-a-block",
+          "params": [
+            "block_id"
+          ],
+          "gated": [],
+          "ungated": [
+            "block_id"
+          ],
+          "sizable_in_principle": {},
+          "destructive": true
+        },
+        {
+          "name": "API-retrieve-a-page",
+          "params": [
+            "filter_properties",
+            "page_id"
+          ],
+          "gated": [],
+          "ungated": [
+            "filter_properties",
+            "page_id"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-patch-page",
+          "params": [
+            "archived",
+            "cover",
+            "icon",
+            "in_trash",
+            "page_id",
+            "properties"
+          ],
+          "gated": [],
+          "ungated": [
+            "archived",
+            "cover",
+            "icon",
+            "in_trash",
+            "page_id",
+            "properties"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-post-page",
+          "params": [
+            "children",
+            "cover",
+            "icon",
+            "parent",
+            "properties"
+          ],
+          "gated": [],
+          "ungated": [
+            "children",
+            "cover",
+            "icon",
+            "parent",
+            "properties"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-retrieve-a-page-property",
+          "params": [
+            "page_id",
+            "page_size",
+            "property_id",
+            "start_cursor"
+          ],
+          "gated": [],
+          "ungated": [
+            "page_id",
+            "page_size",
+            "property_id",
+            "start_cursor"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-retrieve-a-comment",
+          "params": [
+            "block_id",
+            "page_size",
+            "start_cursor"
+          ],
+          "gated": [],
+          "ungated": [
+            "block_id",
+            "page_size",
+            "start_cursor"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-create-a-comment",
+          "params": [
+            "parent",
+            "rich_text"
+          ],
+          "gated": [],
+          "ungated": [
+            "parent",
+            "rich_text"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-query-data-source",
+          "params": [
+            "archived",
+            "data_source_id",
+            "filter",
+            "filter_properties",
+            "in_trash",
+            "page_size",
+            "sorts",
+            "start_cursor"
+          ],
+          "gated": [],
+          "ungated": [
+            "archived",
+            "data_source_id",
+            "filter",
+            "filter_properties",
+            "in_trash",
+            "page_size",
+            "sorts",
+            "start_cursor"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-retrieve-a-data-source",
+          "params": [
+            "data_source_id"
+          ],
+          "gated": [],
+          "ungated": [
+            "data_source_id"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-update-a-data-source",
+          "params": [
+            "data_source_id",
+            "description",
+            "properties",
+            "title"
+          ],
+          "gated": [],
+          "ungated": [
+            "data_source_id",
+            "description",
+            "properties",
+            "title"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-create-a-data-source",
+          "params": [
+            "parent",
+            "properties",
+            "title"
+          ],
+          "gated": [],
+          "ungated": [
+            "parent",
+            "properties",
+            "title"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-list-data-source-templates",
+          "params": [
+            "data_source_id",
+            "page_size",
+            "start_cursor"
+          ],
+          "gated": [],
+          "ungated": [
+            "data_source_id",
+            "page_size",
+            "start_cursor"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-retrieve-a-database",
+          "params": [
+            "database_id"
+          ],
+          "gated": [],
+          "ungated": [
+            "database_id"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-move-page",
+          "params": [
+            "page_id",
+            "parent"
+          ],
+          "gated": [],
+          "ungated": [
+            "page_id",
+            "parent"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-retrieve-page-markdown",
+          "params": [
+            "include_transcript",
+            "page_id"
+          ],
+          "gated": [],
+          "ungated": [
+            "include_transcript",
+            "page_id"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "API-update-page-markdown",
+          "params": [
+            "insert_content",
+            "page_id",
+            "replace_content",
+            "replace_content_range",
+            "type",
+            "update_content"
+          ],
+          "gated": [],
+          "ungated": [
+            "insert_content",
+            "page_id",
+            "replace_content",
+            "replace_content_range",
+            "type",
+            "update_content"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        }
+      ]
+    },
+    {
+      "name": "stripe",
+      "argv": [
+        "npx",
+        "-y",
+        "@stripe/mcp",
+        "--tools=all",
+        "--api-key=sk_test_placeholder"
+      ],
+      "layer": "SaaS records",
+      "transport": "stdio",
+      "note": "refunds and subscription cancellations are countable and irreversible",
+      "archived": false,
+      "placeholder_credential": true,
+      "launched": false,
+      "error": "DiscoveryError:  \u2014 it said: at async stdioTransport.onmessage (/Users/shaharcohen/.npm/_npx/bce731a0395adf49/node_modules/@stripe/mcp/dist/index.js:61:13) { |   code: 401 | }",
+      "tools": []
+    },
+    {
+      "name": "context7",
+      "argv": [
+        "npx",
+        "-y",
+        "@upstash/context7-mcp"
+      ],
+      "layer": "none",
+      "transport": "stdio",
+      "note": "documentation lookup",
+      "archived": false,
+      "placeholder_credential": false,
+      "launched": true,
+      "error": null,
+      "tools": [
+        {
+          "name": "resolve-library-id",
+          "params": [
+            "libraryName",
+            "query"
+          ],
+          "gated": [],
+          "ungated": [
+            "libraryName",
+            "query"
+          ],
+          "sizable_in_principle": {
+            "query": "db.rows"
+          },
+          "destructive": false
+        },
+        {
+          "name": "query-docs",
+          "params": [
+            "libraryId",
+            "query"
+          ],
+          "gated": [],
+          "ungated": [
+            "libraryId",
+            "query"
+          ],
+          "sizable_in_principle": {
+            "query": "db.rows"
+          },
+          "destructive": false
+        }
+      ]
+    },
+    {
+      "name": "chrome-devtools",
+      "argv": [
+        "npx",
+        "-y",
+        "chrome-devtools-mcp@latest"
+      ],
+      "layer": "none",
+      "transport": "stdio",
+      "note": "browser automation and tracing",
+      "archived": false,
+      "placeholder_credential": false,
+      "launched": true,
+      "error": null,
+      "tools": [
+        {
+          "name": "click",
+          "params": [
+            "dblClick",
+            "includeSnapshot",
+            "uid"
+          ],
+          "gated": [],
+          "ungated": [
+            "dblClick",
+            "includeSnapshot",
+            "uid"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "close_page",
+          "params": [
+            "pageId"
+          ],
+          "gated": [],
+          "ungated": [
+            "pageId"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "drag",
+          "params": [
+            "from_uid",
+            "includeSnapshot",
+            "to_uid"
+          ],
+          "gated": [],
+          "ungated": [
+            "from_uid",
+            "includeSnapshot",
+            "to_uid"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "emulate",
+          "params": [
+            "colorScheme",
+            "cpuThrottlingRate",
+            "extraHttpHeaders",
+            "geolocation",
+            "networkConditions",
+            "userAgent",
+            "viewport"
+          ],
+          "gated": [],
+          "ungated": [
+            "colorScheme",
+            "cpuThrottlingRate",
+            "extraHttpHeaders",
+            "geolocation",
+            "networkConditions",
+            "userAgent",
+            "viewport"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "evaluate_script",
+          "params": [
+            "args",
+            "dialogAction",
+            "filePath",
+            "function"
+          ],
+          "gated": [],
+          "ungated": [
+            "args",
+            "dialogAction",
+            "filePath",
+            "function"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "fill",
+          "params": [
+            "includeSnapshot",
+            "uid",
+            "value"
+          ],
+          "gated": [],
+          "ungated": [
+            "includeSnapshot",
+            "uid",
+            "value"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "fill_form",
+          "params": [
+            "elements",
+            "includeSnapshot"
+          ],
+          "gated": [],
+          "ungated": [
+            "elements",
+            "includeSnapshot"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "get_console_message",
+          "params": [
+            "msgid"
+          ],
+          "gated": [],
+          "ungated": [
+            "msgid"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "get_network_request",
+          "params": [
+            "reqid",
+            "requestFilePath",
+            "responseFilePath"
+          ],
+          "gated": [],
+          "ungated": [
+            "reqid",
+            "requestFilePath",
+            "responseFilePath"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "handle_dialog",
+          "params": [
+            "action",
+            "promptText"
+          ],
+          "gated": [],
+          "ungated": [
+            "action",
+            "promptText"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "hover",
+          "params": [
+            "includeSnapshot",
+            "uid"
+          ],
+          "gated": [],
+          "ungated": [
+            "includeSnapshot",
+            "uid"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "lighthouse_audit",
+          "params": [
+            "device",
+            "mode",
+            "outputDirPath"
+          ],
+          "gated": [],
+          "ungated": [
+            "device",
+            "mode",
+            "outputDirPath"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "list_console_messages",
+          "params": [
+            "includePreservedMessages",
+            "pageIdx",
+            "pageSize",
+            "serviceWorkerId",
+            "types"
+          ],
+          "gated": [],
+          "ungated": [
+            "includePreservedMessages",
+            "pageIdx",
+            "pageSize",
+            "serviceWorkerId",
+            "types"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "list_network_requests",
+          "params": [
+            "includePreservedRequests",
+            "pageIdx",
+            "pageSize",
+            "resourceTypes"
+          ],
+          "gated": [],
+          "ungated": [
+            "includePreservedRequests",
+            "pageIdx",
+            "pageSize",
+            "resourceTypes"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "list_pages",
+          "params": [],
+          "gated": [],
+          "ungated": [],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "navigate_page",
+          "params": [
+            "handleBeforeUnload",
+            "ignoreCache",
+            "initScript",
+            "timeout",
+            "type",
+            "url"
+          ],
+          "gated": [],
+          "ungated": [
+            "handleBeforeUnload",
+            "ignoreCache",
+            "initScript",
+            "timeout",
+            "type",
+            "url"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "new_page",
+          "params": [
+            "background",
+            "isolatedContext",
+            "timeout",
+            "url"
+          ],
+          "gated": [],
+          "ungated": [
+            "background",
+            "isolatedContext",
+            "timeout",
+            "url"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "performance_analyze_insight",
+          "params": [
+            "insightName",
+            "insightSetId"
+          ],
+          "gated": [],
+          "ungated": [
+            "insightName",
+            "insightSetId"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "performance_start_trace",
+          "params": [
+            "autoStop",
+            "filePath",
+            "reload"
+          ],
+          "gated": [],
+          "ungated": [
+            "autoStop",
+            "filePath",
+            "reload"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "performance_stop_trace",
+          "params": [
+            "filePath"
+          ],
+          "gated": [],
+          "ungated": [
+            "filePath"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "press_key",
+          "params": [
+            "includeSnapshot",
+            "key"
+          ],
+          "gated": [],
+          "ungated": [
+            "includeSnapshot",
+            "key"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "resize_page",
+          "params": [
+            "height",
+            "width"
+          ],
+          "gated": [],
+          "ungated": [
+            "height",
+            "width"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "select_page",
+          "params": [
+            "bringToFront",
+            "pageId"
+          ],
+          "gated": [],
+          "ungated": [
+            "bringToFront",
+            "pageId"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "take_heapsnapshot",
+          "params": [
+            "filePath"
+          ],
+          "gated": [],
+          "ungated": [
+            "filePath"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "take_screenshot",
+          "params": [
+            "filePath",
+            "format",
+            "fullPage",
+            "quality",
+            "uid"
+          ],
+          "gated": [],
+          "ungated": [
+            "filePath",
+            "format",
+            "fullPage",
+            "quality",
+            "uid"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "take_snapshot",
+          "params": [
+            "filePath",
+            "verbose"
+          ],
+          "gated": [],
+          "ungated": [
+            "filePath",
+            "verbose"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "type_text",
+          "params": [
+            "submitKey",
+            "text"
+          ],
+          "gated": [],
+          "ungated": [
+            "submitKey",
+            "text"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "upload_file",
+          "params": [
+            "filePath",
+            "includeSnapshot",
+            "uid"
+          ],
+          "gated": [],
+          "ungated": [
+            "filePath",
+            "includeSnapshot",
+            "uid"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        },
+        {
+          "name": "wait_for",
+          "params": [
+            "text",
+            "timeout"
+          ],
+          "gated": [],
+          "ungated": [
+            "text",
+            "timeout"
+          ],
+          "sizable_in_principle": {},
+          "destructive": false
+        }
+      ]
+    },
+    {
+      "name": "linear",
+      "argv": [],
+      "layer": "SaaS records",
+      "transport": "remote",
+      "note": "https://mcp.linear.app/sse \u2014 `find_clients` skips it: no `command` to run",
+      "archived": false,
+      "placeholder_credential": false,
+      "launched": false,
+      "error": "remote transport: no command for `neti init` to launch",
+      "tools": []
+    },
+    {
+      "name": "sentry",
+      "argv": [],
+      "layer": "SaaS records",
+      "transport": "remote",
+      "note": "https://mcp.sentry.dev/mcp \u2014 same",
+      "archived": false,
+      "placeholder_credential": false,
+      "launched": false,
+      "error": "remote transport: no command for `neti init` to launch",
+      "tools": []
+    },
+    {
+      "name": "atlassian",
+      "argv": [],
+      "layer": "SaaS records",
+      "transport": "remote",
+      "note": "https://mcp.atlassian.com/v1/sse \u2014 same",
+      "archived": false,
+      "placeholder_credential": false,
+      "launched": false,
+      "error": "remote transport: no command for `neti init` to launch",
+      "tools": []
+    }
+  ],
+  "registry": {
+    "registered": [
+      "db.rows",
+      "entra.apps",
+      "entra.guests",
+      "entra.principals",
+      "entra.principals_with_guests",
+      "fs.paths",
+      "github.files",
+      "github.repos",
+      "storage.objects",
+      "terraform.destroy"
+    ],
+    "init_can_propose": [
+      "entra.apps",
+      "entra.principals"
+    ],
+    "never_proposed": [
+      "db.rows",
+      "entra.guests",
+      "entra.principals_with_guests",
+      "fs.paths",
+      "github.files",
+      "github.repos",
+      "storage.objects",
+      "terraform.destroy"
+    ]
+  },
+  "totals": {
+    "servers_in_catalogue": 22,
+    "servers_launched": 13,
+    "servers_remote": 3,
+    "servers_failed": 6,
+    "tools_discovered": 160,
+    "tools_gated": 0,
+    "tools_sizable_in_principle": 43,
+    "tools_ungated": 160
+  }
+}

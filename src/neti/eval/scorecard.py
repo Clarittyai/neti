@@ -23,10 +23,61 @@ from neti.core.units import Unit
 from neti.eval.incidents import Coverage, Incident, replay
 from neti.insight.report import ReportSummary
 
-__all__ = ["Scorecard", "build_scorecard", "format_scorecard", "scorecard_json"]
+__all__ = [
+    "LIVE_VERIFIED",
+    "RESOLVERS",
+    "Scorecard",
+    "Wild",
+    "build_scorecard",
+    "format_scorecard",
+    "scorecard_json",
+]
 
 # Units a shipped resolver can size today. Everything else is an honest gap.
 SHIPPED_UNITS = frozenset({Unit.PRINCIPALS, Unit.APPS, Unit.RECIPIENTS, Unit.RESOURCES})
+
+RESOLVERS = frozenset(
+    {
+        "entra.principals",
+        "entra.apps",
+        "entra.guests",
+        "entra.principals_with_guests",
+        "fs.paths",
+        "db.rows",
+        "storage.objects",
+        "github.repos",
+        "github.files",
+        "terraform.destroy",
+    }
+)
+"""Every resolver `resolvers_for_client` registers.
+
+A second copy of a list that already exists, which is normally how NC-10 went stale — so it is
+pinned by `tests/property/test_scorecard_is_true.py` rather than by good intentions. It is copied
+here deliberately: building the real registry needs `httpx`, and `neti score` must not require the
+`graph` extra to print a coverage number about resolvers that need no credential at all.
+"""
+
+LIVE_VERIFIED: dict[str, str] = {
+    "github.repos": "api.github.com",
+    "github.files": "api.github.com",
+    "db.rows": "Postgres 16, in Docker",
+    "storage.objects": "the S3 API, via MinIO in Docker",
+    "terraform.destroy": "plans from a real terraform, via the null provider",
+    # No provider to be live against — it walks a directory. Listed as verified rather than as a
+    # gap, because the real thing it could get wrong is scale, and it has met scale: a 712,359-file
+    # tree, which is where the capped `≥` floor came from.
+    "fs.paths": "real filesystems, including a 712,359-file tree",
+}
+"""M11 — which resolvers have been run against a real provider, and which one.
+
+Not a quality ranking: an unverified resolver is not a broken one, it is one whose *shape* has only
+ever been asserted against a fixture we wrote. Every defect the live tier has found was invisible to
+the offline suite, including a wrong `EXACT` from GitHub and a connection `db.rows` never closed, so
+the distinction is worth printing. The Entra half stays absent until somebody has a tenant.
+
+Each entry names a module under `tests/live/`; the same property test checks they exist.
+"""
 
 NON_COVERAGE = {
     "NC-01": "cumulative effect across calls (only declared session budgets see it)",
@@ -63,9 +114,30 @@ class Friction:
 
 
 @dataclass
+class Wild:
+    """M10. What `neti init` gates on a machine that looks like somebody's, not like a fixture.
+
+    Produced by `eval/surveys/mcp_coverage.py` — it launches real MCP servers and asks each one
+    `tools/list`. Absent unless that survey has been run, which is the point: this number cannot be
+    derived, only measured.
+    """
+
+    servers_launched: int = 0
+    servers_in_catalogue: int = 0
+    tools_discovered: int = 0
+    tools_gated: int = 0
+    tools_sizable_in_principle: int = 0
+
+    @property
+    def gated_rate(self) -> float:
+        return 0.0 if not self.tools_discovered else self.tools_gated / self.tools_discovered
+
+
+@dataclass
 class Scorecard:
     incidents: dict[str, list[Incident]] = field(default_factory=dict)
     friction: Friction = field(default_factory=Friction)
+    wild: Wild | None = None
     policy_digest: str | None = None
     gated_tools: int = 0
     gated_params: int = 0
@@ -87,19 +159,30 @@ def build_scorecard(
     policy: Policy | None = None,
     *,
     shipped_units: frozenset[Unit] = SHIPPED_UNITS,
+    wild: Wild | None = None,
 ) -> Scorecard:
-    card = Scorecard(incidents=replay(shipped_units))
+    card = Scorecard(incidents=replay(shipped_units), wild=wild)
 
     card.outstanding = [
         "M1 resolution correctness — covered by the offline suite against the synthetic tenant",
         "M2 latency — REQUIRES A LIVE TENANT. Run `neti measure`. Every figure in the plan is "
         "modelled and no published Graph p50/p99 exists.",
         "M3 failure-mode matrix — covered by the offline suite",
-        "M6 time to first value — REQUIRES A CLEAN MACHINE AND A TENANT. Time the install to the "
-        "first `neti inventory` finding.",
+        "M6 time to first value — the Entra half REQUIRES A TENANT. The coding-agent half needs "
+        "only a clean machine: time `neti install` to the first `neti inventory` finding.",
         "Guest breakdown (risk R2) — UNVERIFIED. That `$filter=userType eq 'Guest'` works on the "
         "cast transitiveMembers collection with `$count` has not been confirmed against Graph.",
+        "M7 denial response — UNMEASURED. What a real model does after a denial (narrows, stops, "
+        "loops, or routes around the gate through an ungated tool) has never been observed. No "
+        "LLM has been in the loop in this repository.",
+        "M8 harness compatibility — PARTIAL. Claude Code and a real MCP filesystem server were "
+        "driven by hand once before release; nothing is repeatable and no other harness has run.",
     ]
+    if card.wild is None:
+        card.outstanding.append(
+            "M10 coverage in the wild — NOT RUN here. `uv run python -m eval.surveys.mcp_coverage` "
+            "launches real MCP servers and counts what `neti init` gates."
+        )
 
     if policy is not None:
         card.policy_digest = policy.digest()
@@ -171,6 +254,38 @@ def format_scorecard(card: Scorecard) -> str:
             )
     out.append("")
 
+    out.append("M10 COVERAGE IN THE WILD (what `neti init` gates on a real machine)")
+    if card.wild is None:
+        out.append("    not measured here — run `python -m eval.surveys.mcp_coverage`")
+    else:
+        w = card.wild
+        out.append(
+            f"    {w.servers_launched} of {w.servers_in_catalogue} catalogued MCP servers "
+            f"launched   {w.tools_gated:,} of {w.tools_discovered:,} discovered tools gated "
+            f"({w.gated_rate:.1%})"
+        )
+        out.append(
+            f"    {w.tools_sizable_in_principle:,} further tool(s) carry a parameter a SHIPPED "
+            "resolver could size — that gap is a matcher defect, not a missing resolver."
+        )
+        out.append(
+            "    An ungated tool is out of scope, not denied (NC-09). This number is printed "
+            "because a coverage claim nobody can check is marketing."
+        )
+    out.append("")
+
+    out.append("M11 LIVE PROVIDER VERIFICATION (resolvers run against something real)")
+    for name in sorted(RESOLVERS):
+        against = LIVE_VERIFIED.get(name)
+        mark = "verified" if against else "  —     "
+        detail = f"against {against}" if against else "never run against a real provider"
+        out.append(f"    [{mark}] {name:<30} {detail}")
+    out.append(
+        "    An unverified resolver is not a broken one. It is one whose shape has only ever been "
+        "checked against a fixture we wrote."
+    )
+    out.append("")
+
     if card.policy_digest:
         out.append("POLICY")
         out.append(
@@ -217,6 +332,10 @@ def scorecard_json(card: Scorecard) -> str:
             "params_without_ceiling": card.params_without_ceiling,
         },
         "unresolved_parameters": card.unresolved,
+        "wild": (
+            None if card.wild is None else asdict(card.wild) | {"gated_rate": card.wild.gated_rate}
+        ),
+        "live_verified": {name: LIVE_VERIFIED.get(name) for name in sorted(RESOLVERS)},
         "known_blind_spots": NON_COVERAGE,
         "not_yet_measured": card.outstanding,
     }
