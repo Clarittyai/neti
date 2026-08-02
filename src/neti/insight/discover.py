@@ -76,12 +76,38 @@ class GatedParam:
 
 
 @dataclass(frozen=True)
+class DeclinedParam:
+    """A parameter this did *not* gate, and why not.
+
+    The generated policy used to say `# not sized: count, offset, query` and stop there, which reads
+    as "no resolver exists for these" — true for `count` and `offset`, and misleading for `query`,
+    where a resolver exists and the tool's context argues against using it. An operator cannot
+    review a judgement they cannot see.
+    """
+
+    param: str
+    why: str
+
+    would_be: str | None = None
+    """The resolver whose name-rule matched and whose context test failed.
+
+    This is the field `eval/surveys/mcp_coverage.py` was maintaining by hand, one directory over,
+    as `_SIZABLE_IN_PRINCIPLE` — a flat parameter-name-to-resolver map with no context test at all.
+    Against the servers people actually install it claimed 43 tools were sizeable, of which roughly
+    two thirds were wrong: every `owner` on a per-issue GitHub call, every `repo` (the resolver
+    needs `owner/repo` and a JSON pointer resolves one value), and every `query` on a *search*
+    server. Derived here instead, so the survey and the matcher cannot disagree.
+    """
+
+
+@dataclass(frozen=True)
 class ToolSpec:
     name: str
     description: str
     params: tuple[str, ...]
     gated: tuple[GatedParam, ...]
     destructive: bool
+    declined: tuple[DeclinedParam, ...] = ()
 
     @property
     def ungated(self) -> tuple[str, ...]:
@@ -253,59 +279,261 @@ def list_tools(server: ServerSpec, *, timeout_s: float = 20.0) -> list[dict[str,
 
 
 # ---------------------------------------------------------------------------- matching
+#
+# A parameter is worth gating when a resolver can turn it into a count. This was two regexes naming
+# the two Entra resolvers, which meant `neti init` could only ever propose 2 of the 10 resolvers
+# that ship — and against the MCP servers people actually install it gated **0 of 160** discovered
+# tools, 43 of which carried a parameter some shipped resolver could size.
+#
+# The reason it is a table and not more branches is that `eval/surveys/mcp_coverage.py` derives
+# "which resolvers can `init` ever propose" by *running* the matcher. A table makes that number
+# reviewable; an if/elif chain makes it something nobody can count.
+#
+# **A parameter name alone is not evidence.** The hand-written map this replaces claimed 43 tools
+# were sizeable and was wrong about roughly two thirds of them, always in the same direction — it
+# matched a name and asked nothing else. `query` is a SQL statement on a database server and a
+# search string on six other servers. `path` is a path on this disk on a filesystem server and a
+# path *inside a repository* on GitHub. `owner` names a whole organisation, which is the right
+# thing to size when the org is the target and irrelevant when the call touches one issue in it.
+# So every rule that needs context carries a test for it, and a rule whose test fails declines with
+# its reason written down rather than falling silently through.
 
-# A parameter is worth gating when a resolver can turn it into a count. These are the two Entra
-# resolvers that exist; the table grows as resolvers do, and anything unmatched is reported rather
-# than quietly dropped.
-_GROUPISH = re.compile(r"^(group|group_?id|groupId|team|distribution_?list|dl|list)$", re.I)
-_RECIPIENTS = re.compile(r"^(to|recipients?|cc|bcc|audience)$", re.I)
 _DESTRUCTIVE = re.compile(r"(remove|delete|revoke|purge|disable|deprovision|offboard|wipe)", re.I)
+
+
+@dataclass(frozen=True)
+class Rule:
+    """One reason to believe a parameter names a set some shipped resolver can size."""
+
+    resolver: str
+    param: re.Pattern[str]
+    """Anchored. A rule that fires on `output_path` because it contains `path` is precisely the
+    over-claim this file exists not to make."""
+
+    why: str
+    """Written into the generated policy for a human to read, so it states the assumption rather
+    than the resolver — `neti init` is inferring, and it should say what it inferred."""
+
+    tool: re.Pattern[str] | None = None
+    not_tool: re.Pattern[str] | None = None
+    needs_siblings: frozenset[str] = frozenset()
+    forbids_siblings: frozenset[str] = frozenset()
+    """The discriminator a tool name cannot supply. GitHub's `create_or_update_file` takes `path`,
+    and the only evidence that it means a path inside a repository is the company it keeps."""
+
+    destructive_only: bool = False
+    unit: str | None = None
+
+    also: tuple[tuple[str, str, str], ...] = ()
+    """Further `(suffix, resolver, why)` units off the same target, when the tool is destructive.
+
+    A tuple rather than a boolean flag because `eval/surveys/mcp_coverage.py` derives "which
+    resolvers can `init` ever propose" from this table, and a resolver reachable only through a
+    hard-coded branch inside the matcher is one that derivation cannot see — `entra.apps` was
+    reported as never-proposed while being proposed on every destructive group call."""
+
+    declined_why: str = ""
+    """What to tell the operator when the name matched and the context test did not."""
+
+    needs_env: tuple[str, ...] = ()
+    """What the resolver needs before it can answer at all. Surfaced next to the gate, because a
+    destructive tool bound to a resolver with no credential becomes a hard denial the day somebody
+    turns on enforce."""
+
+
+RULES: tuple[Rule, ...] = (
+    # ---------------------------------------------------------------- Entra
+    # Unchanged, and first in the table on purpose: `neti init`'s existing output is pinned by
+    # `tests/integration/test_discover.py` and by the golden transcripts, down to pointer order and
+    # the wording of each `why`. Widening the matcher must not move any of it.
+    Rule(
+        resolver="entra.principals",
+        param=re.compile(r"^(group|group_?id|groupId|team|distribution_?list|dl|list)$", re.I),
+        why="names a directory group, so its transitive membership is one $count away",
+        # The second unit from the same target. Losing access to 37 applications is a different harm
+        # from 41,203 people losing it, and only one of them is measured in people. Emitted for
+        # anything destructive pointed at a group, not just membership changes: deleting a group
+        # destroys its app assignments every bit as much as emptying it does.
+        also=(("#apps", "entra.apps", "the applications that same group grants access to"),),
+    ),
+    Rule(
+        resolver="entra.principals",
+        param=re.compile(r"^(to|recipients?|cc|bcc|audience)$", re.I),
+        # Units belong to the parameter's role, not the resolver, and session_budgets aggregate by
+        # unit — this line is what makes a recipients budget apply at all.
+        unit="recipients",
+        why="a delivery target: the resolver counts principals, here recipients",
+    ),
+    # ---------------------------------------------------------------- the filesystem
+    Rule(
+        resolver="fs.paths",
+        param=re.compile(r"^(path|paths|file_?path|filepath|directory|dir)$", re.I),
+        why="a path on this machine, which a capped local walk can count",
+        # GitHub's file tools take `path` too, and there it means a path inside a repository — a
+        # local walk would count something else entirely and report it with a straight face.
+        forbids_siblings=frozenset({"owner", "repo", "repository"}),
+        declined_why="a path inside a repository, not on this disk — fs.paths would count the "
+        "wrong tree",
+    ),
+    Rule(
+        resolver="fs.paths",
+        param=re.compile(r"^(source|destination|src|dest)$", re.I),
+        why="a path on this machine, which a capped local walk can count",
+        # A move or a copy names two paths and either can be a directory. The object-store rule
+        # below claims the same names, so this one declines wherever the tool says it is addressing
+        # a bucket — the two are disjoint by construction rather than by ordering luck.
+        not_tool=re.compile(r"(s3|bucket|object|blob|storage|sync)", re.I),
+        forbids_siblings=frozenset({"owner", "repo", "repository"}),
+        declined_why="a path inside a repository, not on this disk — fs.paths would count the "
+        "wrong tree",
+    ),
+    Rule(
+        resolver="fs.paths",
+        param=re.compile(r"^(pattern|glob|globs)$", re.I),
+        why="a glob, and one short glob is the whole tree",
+        # Only where the tool says it globs. `search_files` and `Grep` also take `pattern` and there
+        # it is a *content* pattern — matching text, not naming files — so gating it would size a
+        # set the parameter does not describe. Their `path` is gated by the rule above, which is the
+        # parameter that actually bounds the call.
+        tool=re.compile(r"glob", re.I),
+        declined_why="a search pattern rather than a set of paths; the tool's path parameter is "
+        "what bounds this call",
+    ),
+    # ---------------------------------------------------------------- databases
+    Rule(
+        resolver="db.rows",
+        param=re.compile(r"^(sql|statement)$", re.I),
+        why="a statement whose predicate `select count(*)` can size before it runs",
+        needs_env=("NETI_DATABASE_URL",),
+    ),
+    Rule(
+        resolver="db.rows",
+        param=re.compile(r"^query$", re.I),
+        why="a statement whose predicate `select count(*)` can size before it runs",
+        # `query` is the most over-claimed parameter name there is. On the servers people install it
+        # is a web search, a knowledge-graph lookup, a documentation lookup and a repository search
+        # far more often than it is SQL — and `db.rows` would decline every one of those, but only
+        # after an operator had committed a gate to it and read `UNRESOLVED` on every call.
+        tool=re.compile(r"(sql|query|db|database|postgres|sqlite|mysql|warehouse)", re.I),
+        not_tool=re.compile(r"(search|find|browse|fetch|resolve|docs|web|node|repositor)", re.I),
+        declined_why="a search string on this tool, not a SQL statement",
+        needs_env=("NETI_DATABASE_URL",),
+    ),
+    # ---------------------------------------------------------------- object stores
+    Rule(
+        resolver="storage.objects",
+        param=re.compile(r"^(bucket|prefix)$", re.I),
+        why="an object-store prefix, counted by listing it up to a cap",
+        needs_env=("AWS_ACCESS_KEY_ID",),
+    ),
+    Rule(
+        resolver="storage.objects",
+        param=re.compile(r"^(uri|url|source|destination|src|dest)$", re.I),
+        why="an `s3://bucket/prefix` target, counted by listing it up to a cap",
+        tool=re.compile(r"(s3|bucket|object|blob|storage)", re.I),
+        declined_why="a URL, and nothing here says it addresses an object store",
+        needs_env=("AWS_ACCESS_KEY_ID",),
+    ),
+    # ---------------------------------------------------------------- infrastructure
+    Rule(
+        resolver="terraform.destroy",
+        param=re.compile(r"^(plan|plan_?json|plan_?file)$", re.I),
+        why="a Terraform plan, whose destroy and replace counts are in the document",
+        tool=re.compile(r"(terraform|tofu|tf_|apply|plan)", re.I),
+        declined_why="nothing here says this is a Terraform plan",
+    ),
+    # ---------------------------------------------------------------- source control
+    Rule(
+        resolver="github.repos",
+        param=re.compile(r"^(owner|org|organisation|organization)$", re.I),
+        why="a bare owner, which addresses every repository under it",
+        # Only when the owner *is* the target. `create_issue(owner, repo, …)` takes an owner too
+        # and touches one issue in one repository; sizing the organisation there produces a large,
+        # confident number about something the call does not do.
+        forbids_siblings=frozenset({"repo", "repository"}),
+        destructive_only=True,
+        declined_why="the call names a repository, so the owner is an address and not the target",
+        needs_env=("NETI_GITHUB_TOKEN",),
+    ),
+)
+
+
+# Resolvers that ship and that `neti init` will never propose, each with the reason. An empty
+# `never_proposed` is the honest way this metric finishes: every resolver is either proposable or
+# has a written reason it is not, rather than a silent gap.
+NEVER_PROPOSED: dict[str, str] = {
+    "entra.guests": (
+        "a sub-count of entra.principals. Propose the total and band the guest share as a "
+        "breakdown, rather than gating the same target twice"
+    ),
+    "entra.principals_with_guests": (
+        "two Graph requests, not one. `entra.principals` staying a single O(1) count is the "
+        "latency claim the design rests on, so the operator opts into paying for the split"
+    ),
+    "github.files": (
+        "needs `owner/repo`, and a JSON pointer resolves one value. `/repo` alone yields `api`, "
+        "which the resolver would read as an *owner* and answer with that organisation's "
+        "repository count — a confident number about the wrong thing. There is no way to express "
+        "the join in the pointer language today"
+    ),
+}
+
+
+def _applies(rule: Rule, tool: str, params: set[str], destructive: bool) -> bool:
+    if rule.tool is not None and not rule.tool.search(tool):
+        return False
+    if rule.not_tool is not None and rule.not_tool.search(tool):
+        return False
+    if rule.destructive_only and not destructive:
+        return False
+    if rule.needs_siblings and not rule.needs_siblings <= params:
+        return False
+    return not (rule.forbids_siblings & params)
 
 
 def match(tool: str, params: list[str]) -> tuple[GatedParam, ...]:
     """Which of a tool's parameters name a set whose size a resolver can produce."""
+    return _adjudicate(tool, params)[0]
+
+
+def _adjudicate(
+    tool: str, params: list[str]
+) -> tuple[tuple[GatedParam, ...], tuple[DeclinedParam, ...]]:
+    """Every parameter, sorted into gated-with-a-reason or declined-with-a-reason.
+
+    Nothing falls through unremarked. A parameter is either something we will size, or something we
+    looked at and decided against, and the operator reading the generated policy gets to see which.
+    """
     destructive = bool(_DESTRUCTIVE.search(tool))
+    present = set(params)
     gated: list[GatedParam] = []
+    declined: list[DeclinedParam] = []
 
     for param in params:
-        if _GROUPISH.match(param):
-            gated.append(
-                GatedParam(
-                    pointer=f"/{param}",
-                    resolver="entra.principals",
-                    unit=None,
-                    why="names a directory group, so its transitive membership is one $count away",
-                )
-            )
-            # The second unit from the same target. Losing access to 37 applications is a different
-            # harm from 41,203 people losing it, and only one of them is measured in people.
-            #
-            # Emitted for anything destructive pointed at a group, not just membership changes:
-            # deleting a group destroys its app assignments every bit as much as emptying it does.
-            # In observe mode with no ceiling this costs one extra O(1) read and buys the operator a
-            # number they would otherwise never see.
-            if destructive:
-                gated.append(
-                    GatedParam(
-                        pointer=f"/{param}#apps",
-                        resolver="entra.apps",
-                        unit=None,
-                        why="the applications that same group grants access to",
-                    )
-                )
-        elif _RECIPIENTS.match(param):
-            gated.append(
-                GatedParam(
-                    pointer=f"/{param}",
-                    resolver="entra.principals",
-                    unit="recipients",
-                    # Units belong to the parameter's role, not the resolver, and session_budgets
-                    # aggregate by unit — this line is what makes a recipients budget apply at all.
-                    why="a delivery target: the resolver counts principals, here recipients",
-                )
-            )
+        named = [rule for rule in RULES if rule.param.match(param)]
+        taken = next((r for r in named if _applies(r, tool, present, destructive)), None)
 
-    return tuple(gated)
+        if taken is None:
+            near = next((r for r in named if r.declined_why), None)
+            declined.append(
+                DeclinedParam(
+                    param=param,
+                    why=near.declined_why if near else "no resolver claims this parameter",
+                    would_be=near.resolver if near else None,
+                )
+            )
+            continue
+
+        gated.append(
+            GatedParam(pointer=f"/{param}", resolver=taken.resolver, unit=taken.unit, why=taken.why)
+        )
+        if destructive:
+            gated += [
+                GatedParam(pointer=f"/{param}{suffix}", resolver=resolver, unit=None, why=why)
+                for suffix, resolver, why in taken.also
+            ]
+
+    return tuple(gated), tuple(declined)
 
 
 def classify(raw: dict[str, Any]) -> ToolSpec:
@@ -313,14 +541,16 @@ def classify(raw: dict[str, Any]) -> ToolSpec:
     schema = raw.get("inputSchema") or {}
     props = schema.get("properties") if isinstance(schema, dict) else None
     params = sorted(props) if isinstance(props, dict) else []
+    gated, declined = _adjudicate(name, params)
     return ToolSpec(
         name=name,
         description=str(raw.get("description", "")).strip().splitlines()[0][:100]
         if raw.get("description")
         else "",
         params=tuple(params),
-        gated=match(name, params),
+        gated=gated,
         destructive=bool(_DESTRUCTIVE.search(name)),
+        declined=declined,
     )
 
 
@@ -339,6 +569,48 @@ def discover(servers: list[ServerSpec], *, probe: bool = True) -> Discovery:
 
 
 # ---------------------------------------------------------------------------- the file
+
+
+def _providers_block(found: Discovery, tenant_env: str) -> list[str]:
+    """Only the provider blocks the proposed resolvers actually use.
+
+    This emitted `providers.entra` unconditionally, which was harmless while the matcher could only
+    ever propose Entra resolvers and is not any more. A machine whose every gate is `fs.paths` would
+    otherwise be handed a policy demanding `NETI_TENANT_ID` for a directory it does not have, to
+    feed resolvers nothing in the file binds — and the first thing an operator does with a generated
+    file is try to run it.
+    """
+    proposed = {g.resolver for tool in found.gated for g in tool.gated}
+    lines = ["providers:"]
+
+    if any(name.startswith("entra.") for name in proposed):
+        lines += [
+            "  entra:",
+            f"    tenant_id: {tenant_env}",
+            "    auth: client_credentials # GroupMember.Read.All, admin-consented. Read-only.",
+            "    timeout_ms: 800",
+            "    consistency: eventual",
+        ]
+    if "fs.paths" in proposed:
+        lines += [
+            "  fs:",
+            "    # The tree the agent is allowed into. Without it `fs.paths` still sizes every",
+            "    # call; this is what lets `neti inventory` report reach rather than `?`.",
+            "    root: .",
+            "    cap: 200000 # a latency control: past this the answer is a floor, never a total",
+        ]
+    if "github.repos" in proposed or "github.files" in proposed:
+        lines += ["  github: {} # set `owner:` to have `neti inventory` report reachable repos"]
+    if "db.rows" in proposed:
+        lines += ["  db: {} # needs NETI_DATABASE_URL, pointed at a read-only user"]
+    if "storage.objects" in proposed:
+        lines += ["  storage: {} # needs the usual AWS credentials, read-only"]
+
+    if len(lines) == 1:
+        # `providers: {}` rather than a bare `providers:`, which parses as null and is refused at
+        # load — the failure mode this whole file exists to avoid handing somebody.
+        lines = ["providers: {}"]
+    return [*lines, ""]
 
 
 def render_policy(found: Discovery, *, tenant_env: str = "${NETI_TENANT_ID}") -> str:
@@ -360,13 +632,7 @@ def render_policy(found: Discovery, *, tenant_env: str = "${NETI_TENANT_ID}") ->
         "version: 1",
         "mode: observe # observe cannot block. Move to enforce once the numbers below are yours.",
         "",
-        "providers:",
-        "  entra:",
-        f"    tenant_id: {tenant_env}",
-        "    auth: client_credentials # GroupMember.Read.All, admin-consented. Read-only.",
-        "    timeout_ms: 800",
-        "    consistency: eventual",
-        "",
+        *_providers_block(found, tenant_env),
     ]
 
     gated = found.gated
@@ -396,10 +662,20 @@ def render_policy(found: Discovery, *, tenant_env: str = "${NETI_TENANT_ID}") ->
                     f"        on_unresolved: {'block' if tool.destructive else 'confirm'}"
                     " # a failed lookup is never read as zero"
                 )
-            if tool.ungated:
+            # The judgement calls first, one line each. A parameter some resolver's name-rule
+            # matched and whose context argued against it is the thing an operator most needs to be
+            # able to overrule, and it used to be indistinguishable from `count` and `offset` in a
+            # single comma-separated list that read as "no resolver exists for any of these".
+            for declined in tool.declined:
+                if declined.would_be:
+                    lines.append(
+                        f"      # not sized: {declined.param} — {declined.why}"
+                        f" (would have been {declined.would_be})"
+                    )
+            plain = [d.param for d in tool.declined if not d.would_be]
+            if plain:
                 lines.append(
-                    f"      # not sized: {', '.join(tool.ungated)}"
-                    " — no resolver claims these parameters"
+                    f"      # not sized: {', '.join(plain)} — no resolver claims these parameters"
                 )
             lines.append("")
 

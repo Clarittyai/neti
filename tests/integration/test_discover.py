@@ -457,3 +457,185 @@ def load_policy_from_text(text: str) -> Any:
         fh.write(text)
         path = fh.name
     return load_policy(path)
+
+
+# ---------------------------------------------------------------------------- the wider matcher
+#
+# `match` knew two parameter shapes, both Entra, so `neti init` could only ever propose 2 of the 10
+# resolvers that ship. Against the MCP servers people actually install it gated **0 of 160**
+# discovered tools — the least comfortable number in the project, and a matcher defect rather than a
+# missing resolver, since 43 of those tools carried a parameter some shipped resolver could size.
+
+
+def spec_for(tool: str, params: list[str]) -> Any:
+    """`classify`, from a tool name and its parameter names."""
+    from neti.insight.discover import classify
+
+    return classify({"name": tool, "inputSchema": {"properties": {p: {} for p in params}}})
+
+
+@pytest.mark.parametrize(
+    ("tool", "params", "expected"),
+    [
+        # --- the filesystem, which is what makes a coding agent gateable at all
+        ("delete_files", ["path", "recursive"], [("/path", "fs.paths")]),
+        ("read_multiple_files", ["paths"], [("/paths", "fs.paths")]),
+        ("Read", ["file_path"], [("/file_path", "fs.paths")]),
+        (
+            "move_file",
+            ["source", "destination"],
+            [("/source", "fs.paths"), ("/destination", "fs.paths")],
+        ),
+        ("Glob", ["pattern"], [("/pattern", "fs.paths")]),
+        # --- a database
+        ("query", ["sql"], [("/sql", "db.rows")]),
+        ("execute_sql", ["sql"], [("/sql", "db.rows")]),
+        # --- an object store
+        (
+            "delete_objects",
+            ["bucket", "prefix"],
+            [("/bucket", "storage.objects"), ("/prefix", "storage.objects")],
+        ),
+        ("s3_sync", ["source"], [("/source", "storage.objects")]),
+        # --- infrastructure
+        ("terraform_apply", ["plan"], [("/plan", "terraform.destroy")]),
+        # --- source control, where the owner really is the target
+        ("delete_repositories", ["owner"], [("/owner", "github.repos")]),
+    ],
+)
+def test_the_matcher_proposes_the_resolvers_that_ship(
+    tool: str, params: list[str], expected: list[tuple[str, str]]
+) -> None:
+    assert [(g.pointer, g.resolver) for g in match(tool, params)] == expected
+
+
+@pytest.mark.parametrize(
+    ("tool", "params", "param", "would_be"),
+    [
+        # Every one of these is a case the hand-written map in `eval/surveys/mcp_coverage.py`
+        # claimed as sizeable, and every one of them is wrong in the same direction: it matched a
+        # parameter *name* and asked nothing else.
+        #
+        # 21 of its 43 hits were an `owner` on a call touching one issue or one file. Sizing the
+        # organisation there is a large, confident number about something the call does not do.
+        ("create_issue", ["owner", "repo", "title"], "owner", "github.repos"),
+        # 21 more were `repo`, which is not even expressible: `github.files` takes `owner/repo` and
+        # a pointer resolves one value, so `/repo` arrives as `api` and is read as an *owner*.
+        ("get_file_contents", ["owner", "repo", "path"], "repo", None),
+        # And `path` on a GitHub call is a path inside a repository. A local walk would count a
+        # different tree entirely and report the number without hesitating.
+        ("get_file_contents", ["owner", "repo", "path"], "path", "fs.paths"),
+        # All seven `query` hits were a web search, a knowledge-graph lookup or a docs lookup.
+        ("brave_web_search", ["query", "count"], "query", "db.rows"),
+        ("search_nodes", ["query"], "query", "db.rows"),
+        ("query-docs", ["query"], "query", "db.rows"),
+        # A URL is not an object-store prefix unless something says it is.
+        ("puppeteer_navigate", ["url"], "url", "storage.objects"),
+        # Grep's pattern matches content; its `path` is the parameter that bounds the call.
+        ("search_files", ["path", "pattern"], "pattern", "fs.paths"),
+    ],
+)
+def test_a_name_alone_is_not_evidence(
+    tool: str, params: list[str], param: str, would_be: str | None
+) -> None:
+    """The over-claims, each declined with the reason written down.
+
+    A gate that guesses makes a weaker claim than one that measures, and a weak claim in a security
+    tool is worse than an absent one because somebody will rely on it. So these are not merely
+    ungated: `neti init` writes why it decided against each one into the policy, because an operator
+    cannot overrule a judgement they cannot see.
+    """
+    spec = spec_for(tool, params)
+    assert param not in {g.pointer.lstrip("/") for g in spec.gated}
+    declined = next(d for d in spec.declined if d.param == param)
+    assert declined.would_be == would_be
+    assert declined.why
+
+
+def test_every_parameter_is_gated_or_has_a_stated_reason() -> None:
+    """Nothing falls through unremarked.
+
+    The generated file used to say `# not sized: count, offset, query`, which reads as "no resolver
+    exists for any of these" — true of `count` and `offset`, and false of `query`, where one exists
+    and the tool's context argued against it.
+    """
+    spec = spec_for("brave_web_search", ["query", "count", "offset"])
+    accounted = {g.pointer.lstrip("/").split("#")[0] for g in spec.gated} | {
+        d.param for d in spec.declined
+    }
+    assert accounted == set(spec.params)
+
+
+def test_the_entra_proposals_are_byte_identical_to_what_shipped() -> None:
+    """Widening the matcher must not move the two resolvers it could already propose.
+
+    Pointer order, unit and the exact `why` string all reach the generated file, and an operator's
+    existing `neti.yaml` was written from them.
+    """
+    assert [
+        (g.pointer, g.resolver, g.unit, g.why) for g in match("remove_group_members", ["group"])
+    ] == [
+        (
+            "/group",
+            "entra.principals",
+            None,
+            "names a directory group, so its transitive membership is one $count away",
+        ),
+        ("/group#apps", "entra.apps", None, "the applications that same group grants access to"),
+    ]
+    assert [(g.pointer, g.resolver, g.unit, g.why) for g in match("send_email", ["to"])] == [
+        (
+            "/to",
+            "entra.principals",
+            "recipients",
+            "a delivery target: the resolver counts principals, here recipients",
+        )
+    ]
+
+
+def test_a_filesystem_only_machine_is_not_asked_for_a_directory_tenant() -> None:
+    """The generated file must carry the providers its own proposals need, and no others.
+
+    `providers.entra` was emitted unconditionally, which was harmless while Entra was all the
+    matcher could propose. Now that a coding agent's machine gets a policy full of `fs.paths`, that
+    block would demand `NETI_TENANT_ID` for a directory the operator does not have, to feed
+    resolvers nothing in the file binds — and the first thing anyone does with a generated policy is
+    try to run it.
+    """
+    from neti.insight.discover import Discovery
+
+    found = Discovery(servers=(), tools=(spec_for("delete_files", ["path", "recursive"]),))
+    yaml = render_policy(found)
+
+    assert "entra:" not in yaml
+    assert "NETI_TENANT_ID" not in yaml
+    assert "fs:" in yaml and "root: ." in yaml
+
+    policy = load_policy_from_text(yaml)
+    assert policy.tools["delete_files"].gate["/path"].resolver == "fs.paths"
+    assert not policy.binds_entra()
+
+
+def test_the_generated_policy_still_constructs_without_any_credential() -> None:
+    """Loading is not the claim; constructing is.
+
+    A policy that parses but cannot build an `Engine` is the failure `neti install` already refuses
+    to wire in, and a generated file is exactly where it would come from.
+    """
+    from neti.engine import Engine
+    from neti.insight.discover import Discovery
+    from neti.resolvers.graph_client import ClientCredential, GraphClient
+    from neti.resolvers.registry import resolvers_for_client
+
+    found = Discovery(
+        servers=(),
+        tools=(
+            spec_for("delete_files", ["path"]),
+            spec_for("execute_sql", ["sql"]),
+            spec_for("delete_objects", ["bucket"]),
+            spec_for("terraform_apply", ["plan"]),
+        ),
+    )
+    policy = load_policy_from_text(render_policy(found))
+    blank = GraphClient(ClientCredential(tenant_id="", client_id="", client_secret=""))
+    Engine(policy=policy, resolvers=resolvers_for_client(blank, policy.providers))

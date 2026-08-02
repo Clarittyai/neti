@@ -265,8 +265,12 @@ def format_scorecard(card: Scorecard) -> str:
             f"({w.gated_rate:.1%})"
         )
         out.append(
-            f"    {w.tools_sizable_in_principle:,} further tool(s) carry a parameter a SHIPPED "
-            "resolver could size — that gap is a matcher defect, not a missing resolver."
+            f"    {w.tools_sizable_in_principle:,} further tool(s) carry a parameter some shipped "
+            "resolver's name-rule matched and `neti init` then declined on context —"
+        )
+        out.append(
+            "    an `owner` on a call that touches one issue, a `query` that is a web search. Each "
+            "is written into the generated policy with its reason, to be overruled or left alone."
         )
         out.append(
             "    An ungated tool is out of scope, not denied (NC-09). This number is printed "

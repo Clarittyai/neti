@@ -8,7 +8,7 @@
         "npx",
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "/var/folders/b4/vnsjgs6d06bdy5vw77cwycsm0000gn/T/neti-m10-2prylyz1/workspace"
+        "/var/folders/b4/vnsjgs6d06bdy5vw77cwycsm0000gn/T/neti-m10-blcv_2kb/workspace"
       ],
       "layer": "filesystem",
       "transport": "stdio",
@@ -25,15 +25,17 @@
             "path",
             "tail"
           ],
-          "gated": [],
+          "gated": [
+            {
+              "pointer": "/path",
+              "resolver": "fs.paths"
+            }
+          ],
           "ungated": [
             "head",
-            "path",
             "tail"
           ],
-          "sizable_in_principle": {
-            "path": "fs.paths"
-          },
+          "sizable_in_principle": {},
           "destructive": false
         },
         {
@@ -43,15 +45,17 @@
             "path",
             "tail"
           ],
-          "gated": [],
+          "gated": [
+            {
+              "pointer": "/path",
+              "resolver": "fs.paths"
+            }
+          ],
           "ungated": [
             "head",
-            "path",
             "tail"
           ],
-          "sizable_in_principle": {
-            "path": "fs.paths"
-          },
+          "sizable_in_principle": {},
           "destructive": false
         },
         {
@@ -59,13 +63,14 @@
           "params": [
             "path"
           ],
-          "gated": [],
-          "ungated": [
-            "path"
+          "gated": [
+            {
+              "pointer": "/path",
+              "resolver": "fs.paths"
+            }
           ],
-          "sizable_in_principle": {
-            "path": "fs.paths"
-          },
+          "ungated": [],
+          "sizable_in_principle": {},
           "destructive": false
         },
         {
@@ -73,13 +78,14 @@
           "params": [
             "paths"
           ],
-          "gated": [],
-          "ungated": [
-            "paths"
+          "gated": [
+            {
+              "pointer": "/paths",
+              "resolver": "fs.paths"
+            }
           ],
-          "sizable_in_principle": {
-            "paths": "fs.paths"
-          },
+          "ungated": [],
+          "sizable_in_principle": {},
           "destructive": false
         },
         {
@@ -88,14 +94,16 @@
             "content",
             "path"
           ],
-          "gated": [],
-          "ungated": [
-            "content",
-            "path"
+          "gated": [
+            {
+              "pointer": "/path",
+              "resolver": "fs.paths"
+            }
           ],
-          "sizable_in_principle": {
-            "path": "fs.paths"
-          },
+          "ungated": [
+            "content"
+          ],
+          "sizable_in_principle": {},
           "destructive": false
         },
         {
@@ -105,15 +113,17 @@
             "edits",
             "path"
           ],
-          "gated": [],
+          "gated": [
+            {
+              "pointer": "/path",
+              "resolver": "fs.paths"
+            }
+          ],
           "ungated": [
             "dryRun",
-            "edits",
-            "path"
+            "edits"
           ],
-          "sizable_in_principle": {
-            "path": "fs.paths"
-          },
+          "sizable_in_principle": {},
           "destructive": false
         },
         {
@@ -121,13 +131,14 @@
           "params": [
             "path"
           ],
-          "gated": [],
-          "ungated": [
-            "path"
+          "gated": [
+            {
+              "pointer": "/path",
+              "resolver": "fs.paths"
+            }
           ],
-          "sizable_in_principle": {
-            "path": "fs.paths"
-          },
+          "ungated": [],
+          "sizable_in_principle": {},
           "destructive": false
         },
         {
@@ -135,13 +146,14 @@
           "params": [
             "path"
           ],
-          "gated": [],
-          "ungated": [
-            "path"
+          "gated": [
+            {
+              "pointer": "/path",
+              "resolver": "fs.paths"
+            }
           ],
-          "sizable_in_principle": {
-            "path": "fs.paths"
-          },
+          "ungated": [],
+          "sizable_in_principle": {},
           "destructive": false
         },
         {
@@ -150,14 +162,16 @@
             "path",
             "sortBy"
           ],
-          "gated": [],
+          "gated": [
+            {
+              "pointer": "/path",
+              "resolver": "fs.paths"
+            }
+          ],
           "ungated": [
-            "path",
             "sortBy"
           ],
-          "sizable_in_principle": {
-            "path": "fs.paths"
-          },
+          "sizable_in_principle": {},
           "destructive": false
         },
         {
@@ -166,14 +180,16 @@
             "excludePatterns",
             "path"
           ],
-          "gated": [],
-          "ungated": [
-            "excludePatterns",
-            "path"
+          "gated": [
+            {
+              "pointer": "/path",
+              "resolver": "fs.paths"
+            }
           ],
-          "sizable_in_principle": {
-            "path": "fs.paths"
-          },
+          "ungated": [
+            "excludePatterns"
+          ],
+          "sizable_in_principle": {},
           "destructive": false
         },
         {
@@ -182,11 +198,17 @@
             "destination",
             "source"
           ],
-          "gated": [],
-          "ungated": [
-            "destination",
-            "source"
+          "gated": [
+            {
+              "pointer": "/destination",
+              "resolver": "fs.paths"
+            },
+            {
+              "pointer": "/source",
+              "resolver": "fs.paths"
+            }
           ],
+          "ungated": [],
           "sizable_in_principle": {},
           "destructive": false
         },
@@ -197,14 +219,17 @@
             "path",
             "pattern"
           ],
-          "gated": [],
+          "gated": [
+            {
+              "pointer": "/path",
+              "resolver": "fs.paths"
+            }
+          ],
           "ungated": [
             "excludePatterns",
-            "path",
             "pattern"
           ],
           "sizable_in_principle": {
-            "path": "fs.paths",
             "pattern": "fs.paths"
           },
           "destructive": false
@@ -214,13 +239,14 @@
           "params": [
             "path"
           ],
-          "gated": [],
-          "ungated": [
-            "path"
+          "gated": [
+            {
+              "pointer": "/path",
+              "resolver": "fs.paths"
+            }
           ],
-          "sizable_in_principle": {
-            "path": "fs.paths"
-          },
+          "ungated": [],
+          "sizable_in_principle": {},
           "destructive": false
         },
         {
@@ -578,7 +604,7 @@
         "uvx",
         "mcp-server-git",
         "--repository",
-        "/var/folders/b4/vnsjgs6d06bdy5vw77cwycsm0000gn/T/neti-m10-2prylyz1/workspace"
+        "/var/folders/b4/vnsjgs6d06bdy5vw77cwycsm0000gn/T/neti-m10-blcv_2kb/workspace"
       ],
       "layer": "source control",
       "transport": "stdio",
@@ -657,8 +683,7 @@
           ],
           "sizable_in_principle": {
             "owner": "github.repos",
-            "path": "fs.paths",
-            "repo": "github.files"
+            "path": "fs.paths"
           },
           "destructive": false
         },
@@ -715,8 +740,7 @@
           ],
           "sizable_in_principle": {
             "owner": "github.repos",
-            "path": "fs.paths",
-            "repo": "github.files"
+            "path": "fs.paths"
           },
           "destructive": false
         },
@@ -738,8 +762,7 @@
             "repo"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -765,8 +788,7 @@
             "title"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -794,8 +816,7 @@
             "title"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -813,8 +834,8 @@
             "repo"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "organization": "github.repos",
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -834,8 +855,7 @@
             "repo"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -857,8 +877,7 @@
             "sha"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -888,8 +907,7 @@
             "state"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -919,8 +937,7 @@
             "title"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -940,8 +957,7 @@
             "repo"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -1017,8 +1033,7 @@
             "repo"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -1036,8 +1051,7 @@
             "repo"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -1067,8 +1081,7 @@
             "state"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -1094,8 +1107,7 @@
             "repo"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -1119,8 +1131,7 @@
             "repo"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -1138,8 +1149,7 @@
             "repo"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -1157,8 +1167,7 @@
             "repo"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -1178,8 +1187,7 @@
             "repo"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -1197,8 +1205,7 @@
             "repo"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         },
@@ -1216,8 +1223,7 @@
             "repo"
           ],
           "sizable_in_principle": {
-            "owner": "github.repos",
-            "repo": "github.files"
+            "owner": "github.repos"
           },
           "destructive": false
         }
@@ -1244,13 +1250,14 @@
           "params": [
             "sql"
           ],
-          "gated": [],
-          "ungated": [
-            "sql"
+          "gated": [
+            {
+              "pointer": "/sql",
+              "resolver": "db.rows"
+            }
           ],
-          "sizable_in_principle": {
-            "sql": "db.rows"
-          },
+          "ungated": [],
+          "sizable_in_principle": {},
           "destructive": false
         }
       ]
@@ -1261,7 +1268,7 @@
         "uvx",
         "mcp-server-sqlite",
         "--db-path",
-        "/var/folders/b4/vnsjgs6d06bdy5vw77cwycsm0000gn/T/neti-m10-2prylyz1/fixture.sqlite"
+        "/var/folders/b4/vnsjgs6d06bdy5vw77cwycsm0000gn/T/neti-m10-blcv_2kb/fixture.sqlite"
       ],
       "layer": "database",
       "transport": "stdio",
@@ -1447,7 +1454,9 @@
             "launchOptions",
             "url"
           ],
-          "sizable_in_principle": {},
+          "sizable_in_principle": {
+            "url": "storage.objects"
+          },
           "destructive": false
         },
         {
@@ -1677,13 +1686,14 @@
           "params": [
             "paths"
           ],
-          "gated": [],
-          "ungated": [
-            "paths"
+          "gated": [
+            {
+              "pointer": "/paths",
+              "resolver": "fs.paths"
+            }
           ],
-          "sizable_in_principle": {
-            "paths": "fs.paths"
-          },
+          "ungated": [],
+          "sizable_in_principle": {},
           "destructive": false
         },
         {
@@ -1694,16 +1704,18 @@
             "paths",
             "target"
           ],
-          "gated": [],
+          "gated": [
+            {
+              "pointer": "/paths",
+              "resolver": "fs.paths"
+            }
+          ],
           "ungated": [
             "data",
             "element",
-            "paths",
             "target"
           ],
-          "sizable_in_principle": {
-            "paths": "fs.paths"
-          },
+          "sizable_in_principle": {},
           "destructive": false
         },
         {
@@ -1773,7 +1785,9 @@
           "ungated": [
             "url"
           ],
-          "sizable_in_principle": {},
+          "sizable_in_principle": {
+            "url": "storage.objects"
+          },
           "destructive": false
         },
         {
@@ -1951,7 +1965,9 @@
             "index",
             "url"
           ],
-          "sizable_in_principle": {},
+          "sizable_in_principle": {
+            "url": "storage.objects"
+          },
           "destructive": false
         },
         {
@@ -2529,11 +2545,15 @@
             "filePath",
             "function"
           ],
-          "gated": [],
+          "gated": [
+            {
+              "pointer": "/filePath",
+              "resolver": "fs.paths"
+            }
+          ],
           "ungated": [
             "args",
             "dialogAction",
-            "filePath",
             "function"
           ],
           "sizable_in_principle": {},
@@ -2706,7 +2726,9 @@
             "type",
             "url"
           ],
-          "sizable_in_principle": {},
+          "sizable_in_principle": {
+            "url": "storage.objects"
+          },
           "destructive": false
         },
         {
@@ -2724,7 +2746,9 @@
             "timeout",
             "url"
           ],
-          "sizable_in_principle": {},
+          "sizable_in_principle": {
+            "url": "storage.objects"
+          },
           "destructive": false
         },
         {
@@ -2748,10 +2772,14 @@
             "filePath",
             "reload"
           ],
-          "gated": [],
+          "gated": [
+            {
+              "pointer": "/filePath",
+              "resolver": "fs.paths"
+            }
+          ],
           "ungated": [
             "autoStop",
-            "filePath",
             "reload"
           ],
           "sizable_in_principle": {},
@@ -2762,10 +2790,13 @@
           "params": [
             "filePath"
           ],
-          "gated": [],
-          "ungated": [
-            "filePath"
+          "gated": [
+            {
+              "pointer": "/filePath",
+              "resolver": "fs.paths"
+            }
           ],
+          "ungated": [],
           "sizable_in_principle": {},
           "destructive": false
         },
@@ -2816,10 +2847,13 @@
           "params": [
             "filePath"
           ],
-          "gated": [],
-          "ungated": [
-            "filePath"
+          "gated": [
+            {
+              "pointer": "/filePath",
+              "resolver": "fs.paths"
+            }
           ],
+          "ungated": [],
           "sizable_in_principle": {},
           "destructive": false
         },
@@ -2832,9 +2866,13 @@
             "quality",
             "uid"
           ],
-          "gated": [],
+          "gated": [
+            {
+              "pointer": "/filePath",
+              "resolver": "fs.paths"
+            }
+          ],
           "ungated": [
-            "filePath",
             "format",
             "fullPage",
             "quality",
@@ -2849,9 +2887,13 @@
             "filePath",
             "verbose"
           ],
-          "gated": [],
+          "gated": [
+            {
+              "pointer": "/filePath",
+              "resolver": "fs.paths"
+            }
+          ],
           "ungated": [
-            "filePath",
             "verbose"
           ],
           "sizable_in_principle": {},
@@ -2878,9 +2920,13 @@
             "includeSnapshot",
             "uid"
           ],
-          "gated": [],
+          "gated": [
+            {
+              "pointer": "/filePath",
+              "resolver": "fs.paths"
+            }
+          ],
           "ungated": [
-            "filePath",
             "includeSnapshot",
             "uid"
           ],
@@ -2954,19 +3000,20 @@
       "terraform.destroy"
     ],
     "init_can_propose": [
-      "entra.apps",
-      "entra.principals"
-    ],
-    "never_proposed": [
       "db.rows",
-      "entra.guests",
-      "entra.principals_with_guests",
+      "entra.apps",
+      "entra.principals",
       "fs.paths",
-      "github.files",
       "github.repos",
       "storage.objects",
       "terraform.destroy"
-    ]
+    ],
+    "deliberately_never_proposed": {
+      "entra.guests": "a sub-count of entra.principals. Propose the total and band the guest share as a breakdown, rather than gating the same target twice",
+      "entra.principals_with_guests": "two Graph requests, not one. `entra.principals` staying a single O(1) count is the latency claim the design rests on, so the operator opts into paying for the split",
+      "github.files": "needs `owner/repo`, and a JSON pointer resolves one value. `/repo` alone yields `api`, which the resolver would read as an *owner* and answer with that organisation's repository count \u2014 a confident number about the wrong thing. There is no way to express the join in the pointer language today"
+    },
+    "never_proposed": []
   },
   "totals": {
     "servers_in_catalogue": 22,
@@ -2974,8 +3021,8 @@
     "servers_remote": 3,
     "servers_failed": 6,
     "tools_discovered": 160,
-    "tools_gated": 0,
-    "tools_sizable_in_principle": 43,
-    "tools_ungated": 160
+    "tools_gated": 23,
+    "tools_sizable_in_principle": 34,
+    "tools_ungated": 137
   }
 }

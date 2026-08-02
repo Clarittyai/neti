@@ -14,9 +14,14 @@ first would let a reader infer that everything absent is safe, which is backward
 Two counts are reported and they are not the same question:
 
 - **gated** — parameters `neti init`'s matcher claims today.
-- **sizable in principle** — parameters some *shipped* resolver could size if the matcher knew about
-  it. The gap between these two is a defect in `insight/discover.py`, not a missing resolver, and
-  keeping them apart is what makes the difference legible instead of being averaged into one number.
+- **sizable in principle** — parameters where some shipped resolver's name-rule matched and the
+  matcher then declined on context: `owner` on a call that touches one issue, `query` on a web
+  search. These are judgements `neti init` made and wrote into the policy, not gaps. Keeping the two
+  counts apart is what makes the difference legible instead of averaging it into one number.
+
+Both are read off `insight/discover` rather than restated here. This file used to carry its own
+hand-written {parameter: resolver} map, which claimed 43 of 160 tools were sizeable and was wrong
+about roughly two thirds of them — a second opinion nobody was reconciling with the first.
 
 Everything here is read-only: servers are launched, asked `tools/list`, and killed.
 """
@@ -42,7 +47,6 @@ from neti.insight.discover import (
     ServerSpec,
     classify,
     find_clients,
-    match,
 )
 
 __all__ = ["ServerResult", "Survey", "run"]
@@ -51,31 +55,17 @@ RESULTS = Path(__file__).resolve().parents[1] / "results" / "mcp_coverage.json"
 
 
 # ---------------------------------------------------------------------------- what a shipped
-# resolver could size, if the matcher knew to propose it.
+# resolver could size, if the matcher had proposed it.
 #
-# Deliberately a *hand-written* mapping from parameter name to resolver rather than anything clever.
-# The claim it supports is narrow — "a resolver that ships could produce a count for this parameter"
-# — and a heuristic that guessed would turn a measurement into an opinion. Each entry names the
-# resolver in `resolvers_for_client()` that would take it.
-_SIZABLE_IN_PRINCIPLE: dict[str, str] = {
-    "path": "fs.paths",
-    "paths": "fs.paths",
-    "file_path": "fs.paths",
-    "directory": "fs.paths",
-    "dir": "fs.paths",
-    "root": "fs.paths",
-    "pattern": "fs.paths",
-    "repository": "fs.paths",
-    "repo": "github.files",
-    "owner": "github.repos",
-    "org": "github.repos",
-    "sql": "db.rows",
-    "query": "db.rows",
-    "statement": "db.rows",
-    "bucket": "storage.objects",
-    "prefix": "storage.objects",
-    "plan": "terraform.destroy",
-}
+# This used to be a hand-written {parameter name: resolver} map right here, and it was wrong about
+# roughly two thirds of what it claimed — 21 hits on an `owner` belonging to a call that touches one
+# issue, 21 on a `repo` the resolver cannot even take, 7 on a `query` that is a web search. It had
+# no way to be right: a parameter name alone is not evidence, and a flat map cannot look at the tool
+# the parameter belongs to.
+#
+# `insight.discover` now records that judgement itself, as `DeclinedParam.would_be`, so this reads
+# it instead of keeping a second opinion. The survey and the matcher cannot disagree about what
+# `neti init` should have proposed, because there is only one of them.
 
 
 @dataclass
@@ -143,23 +133,29 @@ class Survey:
 def _registry() -> dict[str, Any]:
     """Which resolvers ship, and which of them `neti init` is capable of ever proposing.
 
-    Derived rather than asserted: the proposable set is read out of `insight/discover.match` by
-    running it over the parameter names its own regexes are built from, so this cannot go stale the
+    Derived rather than asserted: the proposable set is read out of `insight/discover.RULES` by
+    running each rule against a parameter name it was built to match, so this cannot go stale the
     way a hand-maintained list would.
+
+    `never_proposed` reaching empty is how this metric finishes honestly — every shipped resolver is
+    either something `neti init` can propose, or something it deliberately will not, with the reason
+    recorded next to it. A resolver in neither bucket is a gap nobody has looked at.
     """
-    from neti.eval.synthetic import default_tenant
+    from neti.insight.discover import NEVER_PROPOSED, RULES
     from neti.resolvers.graph_client import ClientCredential, GraphClient
     from neti.resolvers.registry import resolvers_for_client
 
-    cred = ClientCredential(tenant_id="demo", client_id="demo", client_secret="demo")
-    client = GraphClient(cred, transport=default_tenant().transport())
-    registered = sorted(resolvers_for_client(client))
-    probe = ["group", "team", "to", "recipients", "cc", "bcc", "distribution_list", "list"]
-    proposable = sorted({g.resolver for g in match("delete_group", probe)})
+    blank = GraphClient(ClientCredential(tenant_id="", client_id="", client_secret=""))
+    registered = sorted(resolvers_for_client(blank))
+    proposable = sorted(
+        {rule.resolver for rule in RULES}
+        | {resolver for rule in RULES for _, resolver, _ in rule.also}
+    )
     return {
         "registered": registered,
         "init_can_propose": proposable,
-        "never_proposed": sorted(set(registered) - set(proposable)),
+        "deliberately_never_proposed": dict(sorted(NEVER_PROPOSED.items())),
+        "never_proposed": sorted(set(registered) - set(proposable) - set(NEVER_PROPOSED)),
     }
 
 
@@ -257,9 +253,7 @@ def _probe(spec: ServerSpec, candidate: Candidate, timeout_s: float) -> ServerRe
                 gated=[{"pointer": g.pointer, "resolver": g.resolver} for g in spec_.gated],
                 ungated=list(spec_.ungated),
                 sizable_in_principle={
-                    p: _SIZABLE_IN_PRINCIPLE[p.lower()]
-                    for p in spec_.ungated
-                    if p.lower() in _SIZABLE_IN_PRINCIPLE
+                    d.param: d.would_be for d in spec_.declined if d.would_be is not None
                 },
                 destructive=spec_.destructive,
             )
@@ -351,12 +345,24 @@ def as_markdown(survey: Survey) -> str:
             f"{s.sizable_tools} | {s.note} |"
         )
     reg = survey.registry
+    deliberate = reg.get("deliberately_never_proposed", {})
     out += [
         "",
-        f"`neti init` can only ever propose **{len(reg['init_can_propose'])} of "
+        f"`neti init` can propose **{len(reg['init_can_propose'])} of "
         f"{len(reg['registered'])}** registered resolvers "
-        f"({', '.join(reg['init_can_propose'])}). Never proposed: "
-        f"{', '.join(f'`{r}`' for r in reg['never_proposed'])}.",
+        f"({', '.join(f'`{r}`' for r in reg['init_can_propose'])}).",
+    ]
+    # Every resolver is either proposable or deliberately not, with the reason. A resolver in
+    # neither bucket is a gap nobody has looked at, and that is the list worth printing loudly.
+    if deliberate:
+        out += ["", "Deliberately never proposed:"]
+        out += [f"- `{name}` — {why}" for name, why in deliberate.items()]
+    unexamined = reg.get("never_proposed", [])
+    out += [
+        "",
+        f"Neither proposable nor explained: {', '.join(f'`{r}`' for r in unexamined)}."
+        if unexamined
+        else "Every registered resolver is either proposable or has a written reason it is not.",
     ]
     return "\n".join(out)
 
