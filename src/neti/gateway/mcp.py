@@ -35,7 +35,7 @@ from neti.engine import Engine, GateResult
 from neti.gatekeeper import Decision, Gatekeeper
 from neti.store.jsonl import JsonlSink
 
-__all__ = ["McpGateway", "Upstream", "explain_denial"]
+__all__ = ["McpGateway", "Upstream", "explain_decision", "explain_denial"]
 
 TOOLS_CALL = "tools/call"
 
@@ -105,31 +105,7 @@ class McpGateway:
 
     def _denial(self, message: dict[str, Any], decision: Decision) -> dict[str, Any]:
         """A tool result the model can read and re-plan around."""
-        result = decision.result
-        payload = self.engine.denial_payload(result)
-        text = explain_denial(result, payload)
-
-        approval = decision.escalation.approval
-        if approval is not None and approval.state is ApprovalState.PENDING:
-            # The half of wait-then-retry the *model* has to understand. Naming the id and asking
-            # for the identical call is what makes a two-minute human decision fit inside a
-            # thirty-second tool call: the retry finds the grant instead of raising a new request.
-            text = (
-                f"Preflight is waiting on a human: approval {approval.id} is pending for this "
-                "call. Retry this exact call once it is granted, or continue without this step."
-            )
-            payload = {**payload, "approval_id": approval.id, "approval_state": str(approval.state)}
-        elif approval is not None and approval.state is ApprovalState.DENIED:
-            who = f" by {approval.decided_by}" if approval.decided_by else ""
-            text = f"Preflight denied{who}: a human reviewed this call and declined it."
-            payload = {**payload, "approval_id": approval.id, "approval_state": str(approval.state)}
-        elif decision.escalation.error:
-            # Never dressed up as a denial. An operator debugging this has to be able to tell
-            # "a person said no" from "no person was reachable".
-            text = (
-                f"{text} (An approver was configured but could not be reached: "
-                f"{decision.escalation.error}.)"
-            )
+        text, payload = explain_decision(decision, self.engine.denial_payload(decision.result))
 
         return {
             "jsonrpc": "2.0",
@@ -142,6 +118,51 @@ class McpGateway:
                 "_meta": {"neti": payload},
             },
         }
+
+
+def explain_decision(decision: Decision, payload: dict[str, Any]) -> tuple[str, dict[str, Any]]:
+    """The sentence and the payload for a call that did not proceed — approvals included.
+
+    `explain_denial` below answers "why was this too big". This answers the question one layer out:
+    *what happened to this call*, which for an install with a control plane behind it may be "a
+    person is looking at it" or "a person said no" rather than anything about a ceiling.
+
+    It exists because that layer had been written three times and agreed twice. The hook and the MCP
+    gateway each had their own copy, and they had already drifted — the gateway told the model to
+    *retry this exact call once it is granted*, which is the whole point of naming an approval id,
+    and the hook stopped at "is pending for this call" and left the agent with nothing to do about
+    it. `Preflight` had no copy at all, so the three SDK adapters that reach approvals through it
+    reported a pending approval as a flat "needs confirmation": no id, no indication a human had
+    been asked, nothing to retry against. A paying customer on LangChain got strictly less than one
+    on MCP, and the seam table could not see it because it had granted and denied rows and no
+    pending row.
+    """
+    result = decision.result
+    text = explain_denial(result, payload)
+    approval = decision.escalation.approval
+
+    if approval is not None and approval.state is ApprovalState.PENDING:
+        # The half of wait-then-retry the *model* has to understand. Naming the id and asking for
+        # the identical call is what makes a two-minute human decision fit inside a thirty-second
+        # tool call: the retry finds the grant instead of raising a new request.
+        text = (
+            f"Preflight is waiting on a human: approval {approval.id} is pending for this "
+            "call. Retry this exact call once it is granted, or continue without this step."
+        )
+    elif approval is not None and approval.state is ApprovalState.DENIED:
+        who = f" by {approval.decided_by}" if approval.decided_by else ""
+        text = f"Preflight denied{who}: a human reviewed this call and declined it."
+    elif decision.escalation.error:
+        # Never dressed up as a denial. An operator debugging this has to be able to tell "a person
+        # said no" from "no person was reachable".
+        text = (
+            f"{text} (An approver was configured but could not be reached: "
+            f"{decision.escalation.error}.)"
+        )
+
+    if approval is not None:
+        payload = {**payload, "approval_id": approval.id, "approval_state": str(approval.state)}
+    return text, payload
 
 
 def explain_denial(result: GateResult, payload: dict[str, Any]) -> str:

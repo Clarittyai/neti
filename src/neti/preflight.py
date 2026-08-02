@@ -38,7 +38,7 @@ from neti.core.types import ProposedCall
 from neti.core.verdict import Mode
 from neti.engine import Engine
 from neti.gatekeeper import Decision, Gatekeeper
-from neti.gateway.mcp import explain_denial
+from neti.gateway.mcp import explain_decision
 from neti.store.jsonl import JsonlSink, chain_head
 
 __all__ = ["Blocked", "Preflight", "Verdict"]
@@ -240,15 +240,22 @@ class Preflight:
 
     def _verdict(self, decision: Decision) -> Verdict:
         result = decision.result
-        payload = self.engine.denial_payload(result)
         approval = decision.escalation.approval
+        # `explain_decision`, not `explain_denial`. This seam is where the three SDK adapters get
+        # their sentence, and it used to reach for the ceiling-shaped one only — so a pending
+        # approval arrived at the model as a flat "needs confirmation" with no id and nothing to
+        # retry against, while the same call through the hook or MCP named the approval and said to
+        # retry it. The paid tier was quietly worth less depending on which framework somebody had
+        # chosen, and no test could see it because approvals were only ever asserted as granted or
+        # denied, never as pending.
+        message, payload = explain_decision(decision, self.engine.denial_payload(result))
         return Verdict(
             proceeds=decision.proceeds,
             verdict=result.decision.verdict.name.lower(),
             # A call a human approved is not a denial, so it carries no denial sentence — the
             # verdict stays `confirm` because that is what the policy said, and `proceeds` is what
             # changed. Conflating the two would erase the fact that a person was asked.
-            message="" if decision.proceeds else explain_denial(result, payload),
+            message="" if decision.proceeds else message,
             rule=result.decision.rule,
             payload=payload,
             decision_id=result.record.decision_id,

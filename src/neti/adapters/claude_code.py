@@ -24,14 +24,14 @@ from __future__ import annotations
 import json
 from typing import Any, Protocol
 
-from neti.approvals import ApprovalState, Approver
+from neti.approvals import Approver
 from neti.config.policy import strip_mcp_prefix
 from neti.core.record import DecisionRecord
 from neti.core.types import ProposedCall
 from neti.core.verdict import Verdict
 from neti.engine import Engine
 from neti.gatekeeper import Decision, Gatekeeper
-from neti.gateway.mcp import explain_denial
+from neti.gateway.mcp import explain_decision
 
 
 class RecordSink(Protocol):
@@ -65,22 +65,11 @@ def hook_response(engine: Engine, decision: Decision) -> dict[str, Any]:
     if decision.proceeds:
         return {}
 
-    payload = engine.denial_payload(result)
-    approval = decision.escalation.approval
-    if approval is not None:
-        payload = {**payload, "approval_id": approval.id, "approval_state": str(approval.state)}
-
-    if approval is not None and approval.state is ApprovalState.DENIED:
-        who = f" by {approval.decided_by}" if approval.decided_by else ""
-        reason = f"Preflight denied{who}: a human reviewed this call and declined it."
-    elif approval is not None and approval.state is ApprovalState.PENDING:
-        reason = (
-            f"Preflight is waiting on a human: approval {approval.id} is pending for this call."
-        )
-    else:
-        # The same sentence the MCP path returns. One denial, one owner — an agent should not be
-        # able to tell which transport it was stopped on.
-        reason = explain_denial(result, payload)
+    # The same sentence every other seam returns. One denial, one owner — an agent must not be able
+    # to tell which door it was stopped at. This used to be its own copy of the approval branches,
+    # and the copy had drifted: it told the model an approval was pending and not that retrying the
+    # identical call is what finds the grant.
+    reason, payload = explain_decision(decision, engine.denial_payload(result))
 
     return {
         "hookSpecificOutput": {
