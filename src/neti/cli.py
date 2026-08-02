@@ -386,12 +386,11 @@ def _needs_entra(policy: Any) -> bool:
     Asked because it was not, and the result was that gating a coding agent on `fs.paths` and
     `db.rows` refused to start without `NETI_TENANT_ID`. Demanding an Entra app registration from
     somebody whose policy never mentions Entra is a wall in front of the cheapest install there is.
+
+    The predicate moved onto `Policy` once `Preflight.from_config` turned out to need the same
+    answer and not to have it. This stays as the name the CLI's four call sites already use.
     """
-    return any(
-        gate.resolver.startswith("entra.")
-        for tool in policy.tools.values()
-        for gate in tool.gate.values()
-    )
+    return bool(policy.binds_entra())
 
 
 def _build_resolvers(

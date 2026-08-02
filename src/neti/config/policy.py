@@ -130,6 +130,26 @@ class Policy(Frozen):
                     )
         return self
 
+    def binds_entra(self) -> bool:
+        """Does this policy actually bind a resolver that needs a directory credential?
+
+        Lives on the model rather than next to one of its callers because it had to be asked in two
+        places and was only ever answered in one. `neti hook`, `neti gate` and `neti inventory` all
+        route through `cli._needs_entra` and correctly start without `NETI_TENANT_ID` when nothing
+        in the policy mentions Entra — but `Preflight.from_config`, which is the seam the README
+        tells you to use from your own tool loop, called `build_entra_resolvers` unconditionally. So
+        the shipped `examples/coding-agent.yaml`, whose every gate is `fs.paths` and which needs no
+        credential at all, could not be loaded that way on a machine with no Entra app.
+
+        The same dead-end one door over, which is why the predicate is now somewhere both doors can
+        reach rather than private to whichever one noticed first.
+        """
+        return any(
+            gate.resolver.startswith("entra.")
+            for tool in self.tools.values()
+            for gate in tool.gate.values()
+        )
+
     def match_tool(self, tool: str) -> str | None:
         """The policy key governing this call, or `None` if it is ungated.
 

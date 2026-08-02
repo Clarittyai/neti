@@ -177,10 +177,16 @@ def explain_denial(result: GateResult, payload: dict[str, Any]) -> str:
 
     if resolved is None:
         reason = payload.get("reason", "the target could not be resolved")
+        # The same lead as every other branch, rather than `verdict.name.lower()`. That produced
+        # "Preflight confirm: …" — the one denial in the product that does not read as English, and
+        # the only branch whose opening words do not say which of the two things happened. It is
+        # also load-bearing: the seams that hand back a sentence and no structured payload are
+        # classified by reading it, so a `CONFIRM` phrased as "confirm" was indistinguishable from
+        # a block on exactly those runtimes.
         return (
-            f"Preflight {verdict.name.lower()}: {param} could not be sized ({reason}), "
-            "so the call was not made. Supply a target this gate can resolve, or ask an operator "
-            "to run it."
+            f"Preflight {'blocked this call' if verdict is Verdict.BLOCK else 'needs confirmation'}"
+            f": {param} could not be sized ({reason}), so the call was not made. Supply a target "
+            "this gate can resolve, or ask an operator to run it."
         )
 
     lead = (

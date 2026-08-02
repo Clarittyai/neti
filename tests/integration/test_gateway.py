@@ -181,6 +181,30 @@ def test_unresolvable_target_explains_itself(tenant: SyntheticTenant) -> None:
     assert response["result"]["_meta"]["neti"]["resolved"] is None
 
 
+def test_an_unresolvable_confirm_opens_the_way_every_other_denial_does(
+    tenant: SyntheticTenant,
+) -> None:
+    """`send_email`'s `on_unresolved` is `confirm`, and this branch used to phrase it as itself.
+
+    It read "Preflight confirm: /to could not be sized" — the one sentence in the product that is
+    not English, and the only denial whose opening words do not say which of the two things
+    happened. That is not cosmetic. Four of the seams hand the model a sentence and no structured
+    payload, so the sentence *is* how the verdict is read on those runtimes; a CONFIRM that opened
+    with "confirm" was indistinguishable from a block on exactly the runtimes with nothing else to
+    go on.
+    """
+    gate, _upstream, client = build(tenant, Mode.ENFORCE)
+    try:
+        response = gate.handle(call("send_email", {"to": "g-ddg"}))
+    finally:
+        client.close()
+    assert response is not None
+    text = response["result"]["content"][0]["text"]
+    assert response["result"]["_meta"]["neti"]["verdict"] == "confirm"
+    assert text.startswith("Preflight needs confirmation:"), text
+    assert "Preflight confirm" not in text
+
+
 # --------------------------------------------------------------- observe mode
 
 

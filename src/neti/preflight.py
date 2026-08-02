@@ -103,17 +103,35 @@ class Preflight:
         mode: str | None = None,
         timeout_ms: int = 800,
     ) -> Preflight:
-        """Build from a policy file and the environment's Entra credentials."""
+        """Build from a policy file, and from the environment's Entra credentials if it needs them.
+
+        **Only if it needs them.** This asked for `NETI_TENANT_ID`, `NETI_CLIENT_ID` and
+        `NETI_CLIENT_SECRET` unconditionally, so the shipped `examples/coding-agent.yaml` — every
+        gate `fs.paths`, no credential required anywhere in it — raised `ResolverError` on the one
+        seam the README tells you to call from your own tool loop. The CLI had already been fixed
+        for exactly this and this had not, because the two build their resolvers by different
+        routes and only one of them was looked at.
+        """
         from neti.config.policy import load_policy
         from neti.resolvers.base import ResolveContext
-        from neti.resolvers.registry import build_entra_resolvers
+        from neti.resolvers.graph_client import ClientCredential, GraphClient
+        from neti.resolvers.registry import build_entra_resolvers, resolvers_for_client
 
         policy = load_policy(str(config))
         if mode is not None:
             policy = policy.model_copy(update={"mode": Mode[mode.upper()]})
-        resolvers, _client = build_entra_resolvers(
-            timeout_ms=timeout_ms, providers=policy.providers
-        )
+        if policy.binds_entra():
+            resolvers, _client = build_entra_resolvers(
+                timeout_ms=timeout_ms, providers=policy.providers
+            )
+        else:
+            # The registry is still built whole: the entra resolvers are present but hold a blank
+            # credential, so a policy that somehow named one fails loudly on its first token fetch
+            # rather than being absent and tripping `_check_resolvers_exist` at construction.
+            # Nothing here touches the network — `GraphClient` acquires its token lazily.
+            blank = ClientCredential(tenant_id="", client_id="", client_secret="")
+            client = GraphClient(blank, timeout_ms=timeout_ms)
+            resolvers = resolvers_for_client(client, policy.providers)
         return cls._assemble(policy, resolvers, records, timeout_ms, ResolveContext)
 
     @classmethod
