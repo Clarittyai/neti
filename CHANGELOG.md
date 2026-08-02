@@ -64,6 +64,25 @@ There is now a second line reporting those separately, because no choice of ceil
             on_unbounded / on_unresolved verdict whatever ceiling you pick.
 ```
 
+### `neti verify --config` replays the log against the decision procedure
+
+The command has always said *"Replay every decision and verify the hash chain"* and only ever did
+the second half. They answer different questions, and the second is the one the architecture is
+arranged around — resolvers do the I/O, `decide` is pure, and a record keeps the resolutions
+precisely so the decision can be re-run:
+
+- **the chain** answers "has this record been altered?"
+- **replay** answers "does this verdict still follow from this evidence?"
+
+Give `verify` a policy and it re-derives every recorded verdict from the stored magnitudes,
+directions and ceilings. Concretely: upgrade `neti`, replay a year of audit log, and find out
+whether anything would now be decided differently. Records written under a different policy digest
+are reported rather than silently skipped. Without `--config` the command behaves exactly as before.
+
+The distinction is sharp enough to test: **tampering breaks the chain, and a decision-procedure
+regression does not.** A change to `decide` leaves every digest valid and every verdict wrong, which
+is the failure an auditor is relying on this tool to notice.
+
 ### End-to-end coverage, and the four defects it found
 
 A new `tests/e2e/` tier tests the product rather than its parts: one invariant over all seven

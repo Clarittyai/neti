@@ -214,7 +214,7 @@ human — so nothing about paying adds availability risk to enforcement. That is
 |---|---|
 | the engine, all three seams, **observe and enforce** | a second human approving a `confirm` |
 | `init` · `inventory` · `report` · `propose` · `verify` · `score` | org policy, one version across the fleet |
-| the record chain and `neti verify` | session budgets that survive a restart |
+| the record chain, and replaying it with `neti verify --config` | session budgets that survive a restart |
 | the console, every screen | audit across every agent |
 
 The rule is *"can one machine do this?"* — which is why enforcement is free and why every paid

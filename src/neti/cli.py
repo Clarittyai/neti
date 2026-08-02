@@ -873,8 +873,22 @@ def score(
 @app.command()
 def verify(
     records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
+    config: Annotated[
+        str | None,
+        typer.Option("--config", "-c", help="Also replay every decision against this policy."),
+    ] = None,
 ) -> None:
-    """Replay every decision and verify the hash chain."""
+    """Verify the hash chain, and with `--config` re-derive every verdict from its evidence.
+
+    Two different claims, and the second is the one the architecture exists for. The chain proves
+    nothing has been altered since it was written. Replay proves each verdict *follows from the
+    evidence in the record* — that these magnitudes and these declared ceilings still produce this
+    answer under today's code. Upgrade `neti`, replay a year of log, and find out whether anything
+    would now be decided differently.
+
+    Replay needs the policy because a record stores the resolutions but not the ceilings they were
+    compared against. Records written under a different policy are reported, not silently skipped.
+    """
     from neti.core.record import verify_chain
     from neti.store.jsonl import read_records
 
@@ -885,13 +899,37 @@ def verify(
         raise typer.Exit(2) from exc
 
     ok, bad = verify_chain(chain)
-    if ok:
-        typer.secho(f"{len(chain):,} records, chain intact", fg=typer.colors.GREEN)
+    if not ok:
+        typer.secho(f"CHAIN BROKEN at decision {bad}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(1)
+
+    typer.secho(f"{len(chain):,} records, chain intact", fg=typer.colors.GREEN)
+    if chain:
+        typer.echo(f"head: {chain[-1].record_digest}")
+
+    if config is None:
         if chain:
-            typer.echo(f"head: {chain[-1].record_digest}")
+            typer.echo("\nPass --config to also replay each decision against the policy.")
         return
-    typer.secho(f"CHAIN BROKEN at decision {bad}", fg=typer.colors.RED, err=True)
-    raise typer.Exit(1)
+
+    from neti.config.policy import PolicyError, load_policy
+    from neti.insight.replay import format_replay, replay
+
+    try:
+        policy = load_policy(config)
+    except (PolicyError, OSError) as exc:
+        typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2) from exc
+
+    result = replay(chain, policy)
+    typer.echo("")
+    typer.secho(
+        format_replay(result),
+        fg=typer.colors.GREEN if result.ok else typer.colors.RED,
+        err=not result.ok,
+    )
+    if not result.ok:
+        raise typer.Exit(1)
 
 
 @app.command()

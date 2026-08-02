@@ -31,9 +31,12 @@ import pytest
 
 SERVER_PACKAGE = "@modelcontextprotocol/server-filesystem"
 
-pytestmark = pytest.mark.skipif(
-    shutil.which("npx") is None, reason="needs Node/npx to run a real MCP server"
-)
+# Resolved to an absolute path rather than passed as the bare name. On Windows `npx` is
+# `npx.cmd`, and `subprocess` with a bare "npx" raises FileNotFoundError — CI runs windows-latest,
+# so a test written the obvious way would have gone red there and nowhere else.
+NPX = shutil.which("npx")
+
+pytestmark = pytest.mark.skipif(NPX is None, reason="needs Node/npx to run a real MCP server")
 
 POLICY = """\
 version: 1
@@ -103,7 +106,7 @@ def gate(tree: Path, policy: Path, lines: list[str], timeout: int = 300) -> dict
             str(policy),
             "--demo",
             "--",
-            "npx",
+            str(NPX),
             "-y",
             SERVER_PACKAGE,
             str(tree),
