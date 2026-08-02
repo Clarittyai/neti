@@ -146,4 +146,18 @@ ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-filterwarnings = ["error"]
+# Warnings are errors. That is what turned a `psycopg` connection nobody closed into a test
+# failure, and it stays.
+#
+# The two exemptions below are CrewAI's own import-time noise, narrowed to the exact message so
+# nothing of ours can hide behind them. They were not caught for a
+# while because the suite only imported `crewai` after some earlier test had already done so, and a
+# warning fires once — so whether the suite passed depended on collection order. `tests/e2e/
+# test_proof.py` imports it first and made that visible.
+filterwarnings = [
+    "error",
+    # Matched on the message alone: CrewAI re-raises this through its own warning shim, so by the
+    # time it surfaces the module attribution is pydantic's rather than crewai's.
+    "default:BaseAgentConfig is deprecated:DeprecationWarning",
+    "default:Cannot set an attribute on 'crewai.rag':ImportWarning",
+]

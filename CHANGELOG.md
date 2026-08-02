@@ -2,6 +2,43 @@
 
 ## Unreleased
 
+### `neti prove` — every door, one call, and a chain you can re-check
+
+Eleven adapters is a number in a README. This runs the same call through every seam the machine it
+is on can actually reach, prints the verdict, the magnitude and the sentence each one produced, and
+verifies the hash chain they wrote into.
+
+Two rules make it worth reading rather than worth skipping.
+
+**Driven and cited are never mixed.** The SDK adapters need SDKs the wheel deliberately does not
+ship, so on a bare install some doors cannot be opened. Those seams still appear — silence would
+let a reader infer coverage that is not there — but as *not driven here*, naming the import that is
+missing and the test that does drive them. A row that looks measured for a door nobody opened is the
+one output this command must not be able to produce, and
+`test_a_missing_sdk_is_never_rendered_as_a_measurement` is the guard.
+
+**The proof is the chain, not the table.** Any program can print eleven identical lines. Every
+decision goes into one real file, and the command prints the `neti verify` invocation that re-checks
+it — including `--mode enforce`, because observe and enforce are different policies with different
+digests and the obvious form of that command reports every record as "decided under a different
+policy". An instruction that does not work is worse than none. `neti verify` grew `--mode` for it,
+which an operator whose policy has since moved to enforce needed anyway.
+
+Four doors open with no extras installed, so the demo has a floor on a machine with nothing
+configured — which matters, because `neti demo --here` with no traffic yet stops after two of six
+acts, and this is the half that needs nothing.
+
+### Every section of the scorecard names its evidence
+
+`eval/README.md` already says *a trial that does not end as a number on `neti score` does not count*.
+This is the converse, made mechanical: a number on `neti score` that nothing produced does not count
+either. Each section prints the artefact behind it, every cited path must exist, and a section with
+no `EVIDENCE` entry fails the build.
+
+It caught one immediately. `NOT YET MEASURED` had no evidence — which is exactly what that section
+*is*, so it now says so out loud rather than being the one heading that quietly sits outside the
+rule.
+
 ### A `--demo` record was indistinguishable from a measured one
 
 `--demo` resolves against the built-in tenant so somebody can watch the whole path work with no

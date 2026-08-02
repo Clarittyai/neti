@@ -932,6 +932,47 @@ def console(
 
 
 @app.command()
+def prove(
+    config: Annotated[str, typer.Option("--config", "-c")] = "examples/entra.yaml",
+    records: Annotated[
+        str, typer.Option("--records", "-r", help="Where to write the chain it produces.")
+    ] = "out/proof.ndjson",
+    as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable output.")] = False,
+) -> None:
+    """Run one call through every door installed here, and seal the evidence.
+
+    Eleven adapters is a number in a README. This drives the same call through each seam this
+    machine can actually reach, prints the verdict, the magnitude and the sentence each one
+    produced, and verifies the hash chain they wrote — which you can re-check yourself with
+    `neti verify -r` against the same file.
+
+    A seam whose SDK is not installed is reported as *not driven here*, naming the test that does
+    drive it. It is never shown as though it had been measured.
+    """
+    from neti.eval.proof import format_proof, run_proof
+
+    path = Path(records)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    resolved = _packaged_example(config) if not Path(config).exists() else Path(config)
+    if resolved is None:
+        typer.secho(f"error: no policy at {config}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2)
+
+    proof = run_proof(str(resolved), path)
+
+    if as_json:
+        from dataclasses import asdict
+
+        typer.echo(json.dumps({**asdict(proof), "records_path": str(path)}, indent=2, default=str))
+    else:
+        typer.echo(format_proof(proof))
+
+    # A disagreement between doors is a defect in the product, not a note in a demo.
+    if not proof.chain_ok or not proof.agreed:
+        raise typer.Exit(1)
+
+
+@app.command()
 def score(
     records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
     config: Annotated[str, typer.Option("--config", "-c")] = "neti.yaml",
@@ -990,6 +1031,10 @@ def verify(
         str | None,
         typer.Option("--config", "-c", help="Also replay every decision against this policy."),
     ] = None,
+    mode_override: Annotated[
+        str | None,
+        typer.Option("--mode", help="Replay as if the policy were in this mode: observe|enforce."),
+    ] = None,
 ) -> None:
     """Verify the hash chain, and with `--config` re-derive every verdict from its evidence.
 
@@ -1001,6 +1046,11 @@ def verify(
 
     Replay needs the policy because a record stores the resolutions but not the ceilings they were
     compared against. Records written under a different policy are reported, not silently skipped.
+
+    `--mode` exists because observe and enforce are *different policies* with different digests, so
+    records written while enforcing do not replay against the same file read as observe. That is
+    correct and it is not obvious, and without a way to say which mode produced them the honest
+    "decided under a different policy" line is a dead end rather than an instruction.
     """
     from neti.core.record import verify_chain
     from neti.store.jsonl import read_records
@@ -1041,8 +1091,8 @@ def verify(
     from neti.insight.replay import format_replay, replay
 
     try:
-        policy = load_policy(config)
-    except (PolicyError, OSError) as exc:
+        policy = _apply_mode(load_policy(config), mode_override)
+    except (PolicyError, OSError, KeyError) as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from exc
 
@@ -1326,6 +1376,16 @@ def _demo_here(*, config: str, repo: str | None, corpus: str | None) -> None:
             "through the same decision path the gate uses in production.",
             fg=typer.colors.BRIGHT_BLACK,
         )
+        # The likeliest first run there is ends here, with four of six acts waiting on traffic
+        # somebody has not generated yet. `neti prove` needs none: it is the one thing that can be
+        # shown in full, right now, on a machine with nothing configured.
+        typer.echo("")
+        typer.secho(
+            "Nothing to wait for on the other half: `neti prove` runs one call through every door\n"
+            "this machine has and shows they all reach the same verdict, with a chain you can\n"
+            "re-check yourself.",
+            fg=typer.colors.BRIGHT_BLACK,
+        )
         return
 
     rule(3, "OBSERVE", "YOUR files, a captured session's shape")
@@ -1385,6 +1445,13 @@ def _demo_here(*, config: str, repo: str | None, corpus: str | None) -> None:
 
     typer.echo("")
     typer.secho(result.disclaimer, fg=typer.colors.BRIGHT_BLACK)
+    typer.echo("")
+    typer.secho(
+        "Six acts about one runtime. `neti prove` runs one call through every door this machine\n"
+        "has — the hook, both MCP transports, and whichever agent SDKs are installed — and shows\n"
+        "they reach the same verdict, the same magnitude and the same sentence.",
+        fg=typer.colors.BRIGHT_BLACK,
+    )
 
 
 def main() -> int:

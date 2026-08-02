@@ -24,6 +24,7 @@ from neti.eval.incidents import Coverage, Incident, replay
 from neti.insight.report import ReportSummary
 
 __all__ = [
+    "EVIDENCE",
     "LIVE_VERIFIED",
     "RESOLVERS",
     "SEAMS",
@@ -113,6 +114,31 @@ the offline suite, including a wrong `EXACT` from GitHub and a connection `db.ro
 the distinction is worth printing. The Entra half stays absent until somebody has a tenant.
 
 Each entry names a module under `tests/live/`; the same property test checks they exist.
+"""
+
+EVIDENCE: dict[str, str] = {
+    "M4": "src/neti/eval/incidents.py",
+    "M5": "the record chain named by --records",
+    "M8": "tests/e2e/test_seam_equivalence.py",
+    "M10": "eval/surveys/mcp_coverage.py + tests/corpus/",
+    "M11": "tests/live/",
+    "POLICY": "the policy named by --config",
+    "BLIND SPOTS": "SCOPE.md",
+    # The one section whose honest answer is "none", and it is not a gap in the rule — it is the
+    # rule working. This is the list of things nothing has produced yet, so citing evidence for it
+    # would be the exact inversion the card exists to prevent.
+    "NOT YET MEASURED": "nothing yet — that is what this section is",
+}
+"""Which artefact backs each section of this card.
+
+The rule the project already applies to itself, made mechanical: *a trial that does not end as a
+number on `neti score` does not count*, and its converse — a number on `neti score` that nothing
+produced does not count either. Every section prints the thing a reader can go and check, and
+`tests/property/test_scorecard_is_true.py` fails when a cited path does not exist.
+
+It is cheap and it is the difference between a card and a claim. A section added here without
+evidence fails the build; a section added to the card without an entry here fails it too. That is
+the only mechanism that survives somebody adding a metric in a hurry six months from now.
 """
 
 NON_COVERAGE = {
@@ -249,6 +275,7 @@ def format_scorecard(card: Scorecard) -> str:
     out: list[str] = ["neti scorecard", "=" * 72, ""]
 
     out.append("M4  INCIDENT REPLAY")
+    out.append(f"    evidence: {EVIDENCE['M4']}")
     out.append(
         f"    {card.covered} of {card.total_incidents} corpus entries are sized by a shipped "
         "resolver. The rest are listed because they are the questions you will be asked."
@@ -277,6 +304,7 @@ def format_scorecard(card: Scorecard) -> str:
         out.append("")
 
     out.append("M5  FRICTION (what the policy costs the people using it)")
+    out.append(f"    evidence: {EVIDENCE['M5']}")
     f = card.friction
     if not f.calls:
         out.append("    no recorded traffic — run observe mode, then re-run with --records")
@@ -293,6 +321,7 @@ def format_scorecard(card: Scorecard) -> str:
     out.append("")
 
     out.append("M10 COVERAGE IN THE WILD (what `neti init` gates on a real machine)")
+    out.append(f"    evidence: {EVIDENCE['M10']}")
     if card.wild is None:
         out.append("    not measured here — run `python -m eval.surveys.mcp_coverage`")
     else:
@@ -317,6 +346,7 @@ def format_scorecard(card: Scorecard) -> str:
     out.append("")
 
     out.append("M8 HARNESS COMPATIBILITY (every door a call can arrive through)")
+    out.append(f"    evidence: {EVIDENCE['M8']}")
     for name, what in SEAMS.items():
         out.append(f"    {name:<16} {what}")
     out.append(
@@ -330,6 +360,7 @@ def format_scorecard(card: Scorecard) -> str:
     out.append("")
 
     out.append("M11 LIVE PROVIDER VERIFICATION (resolvers run against something real)")
+    out.append(f"    evidence: {EVIDENCE['M11']}")
     for name in sorted(RESOLVERS):
         against = LIVE_VERIFIED.get(name)
         mark = "verified" if against else "  —     "
@@ -343,6 +374,7 @@ def format_scorecard(card: Scorecard) -> str:
 
     if card.policy_digest:
         out.append("POLICY")
+        out.append(f"    evidence: {EVIDENCE['POLICY']}")
         out.append(
             f"    digest {card.policy_digest[:16]}   {card.gated_tools} tool(s), "
             f"{card.gated_params} gated parameter(s)"
@@ -355,11 +387,13 @@ def format_scorecard(card: Scorecard) -> str:
         out.append("")
 
     out.append("KNOWN BLIND SPOTS (SCOPE.md)")
+    out.append(f"    evidence: {EVIDENCE['BLIND SPOTS']}")
     for nc, text in NON_COVERAGE.items():
         out.append(f"    {nc}  {text}")
     out.append("")
 
     out.append("NOT YET MEASURED")
+    out.append(f"    evidence: {EVIDENCE['NOT YET MEASURED']}")
     for item in card.outstanding:
         out.append(f"    - {item}")
     return "\n".join(out)

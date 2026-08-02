@@ -37,3 +37,7 @@ neti demo — measured on <path>
    40 records, chain intact · 40 decisions re-derive to the same verdict
 
 Measured on this machine. The magnitudes are yours — every one was produced by walking these files, through the same decision path the gate uses in production. The *sequence* of calls in act 3 is a captured session's, not yours: the numbers are real, the story is borrowed.
+
+Six acts about one runtime. `neti prove` runs one call through every door this machine
+has — the hook, both MCP transports, and whichever agent SDKs are installed — and shows
+they reach the same verdict, the same magnitude and the same sentence.

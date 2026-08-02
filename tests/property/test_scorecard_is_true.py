@@ -175,3 +175,84 @@ def test_every_world_is_accounted_for_as_one_kind_or_the_other() -> None:
         f"worlds with no classification: {sorted(declared ^ set(worlds.WORLDS))}"
     )
     assert not set(worlds.RESOLVER_WORLDS) & set(worlds.SHAPE_WORLDS)
+
+
+# ---------------------------------------------------------------------------- the evidence rule
+
+
+def test_every_section_of_the_card_names_evidence_a_reader_can_check() -> None:
+    """`eval/README.md`'s rule, and its converse.
+
+    *A trial that does not end as a number on `neti score` does not count* — and a number on
+    `neti score` that nothing produced does not count either. A card is exactly where a claim
+    outlives the thing that justified it: the metric stays, the survey stops being run, and nobody
+    notices because the section still prints.
+
+    So every heading the card emits must have an `EVIDENCE` entry, and every entry that names a path
+    must name one that is there. Two directions, because either alone is a hole: an unbacked section
+    is a claim with nothing behind it, and an orphaned entry is a rule nothing is applying.
+    """
+    import re
+
+    from neti.eval.scorecard import EVIDENCE
+
+    rendered = _full_card()
+    # Headings are the unindented, upper-case lines the formatter emits.
+    headings = [
+        line
+        for line in rendered.splitlines()
+        if line and line[0].isalnum() and line == line.upper()
+    ]
+    assert headings, "no headings found — has the card's shape changed?"
+
+    for heading in headings:
+        key = next((k for k in EVIDENCE if heading.startswith(k)), None)
+        assert key is not None, (
+            f"the card prints {heading!r} and `EVIDENCE` says nothing backs it. Either name the "
+            "artefact or stop printing the section."
+        )
+
+    for key, artefact in EVIDENCE.items():
+        # Some evidence is a runtime input rather than a file in the tree — the record chain, the
+        # policy — and those name themselves rather than a path.
+        for path in re.findall(r"[\w./-]+\.(?:py|md)|(?:tests|eval|src)/[\w./-]+", artefact):
+            assert (REPO / path).exists(), f"{key} cites {path}, which does not exist"
+
+
+def test_the_card_says_evidence_for_each_section_out_loud() -> None:
+    """It is only worth anything if a reader sees it.
+
+    An `EVIDENCE` dict nobody prints is a convention; a line under every heading is a standing
+    invitation to go and check, which is the whole posture this card is written in.
+    """
+    from neti.eval.scorecard import EVIDENCE
+
+    rendered = _full_card()
+    for artefact in EVIDENCE.values():
+        assert f"evidence: {artefact}" in rendered, (
+            f"the card never shows the evidence {artefact!r}"
+        )
+
+
+def _full_card() -> str:
+    """Every section rendered at once.
+
+    `POLICY` only appears when a policy was passed and `M10` only when a field survey was, so a card
+    built from nothing would let those two sections claim whatever they liked without either test
+    above ever seeing them.
+    """
+    from neti.config.policy import load_policy
+    from neti.eval.scorecard import Wild, build_scorecard, format_scorecard
+
+    card = build_scorecard(
+        None,
+        load_policy(str(REPO / "examples" / "entra.yaml")),
+        wild=Wild(
+            servers_launched=13,
+            servers_in_catalogue=22,
+            tools_discovered=160,
+            tools_gated=25,
+            tools_sizable_in_principle=34,
+        ),
+    )
+    return format_scorecard(card)

@@ -28,3 +28,7 @@ Acts 3-6 need traffic, and you have none yet.
    Then run this again — acts 3 to 6 need traffic, and that is how you get it.
 
 Measured on this machine. Every number above was produced by walking these files, through the same decision path the gate uses in production.
+
+Nothing to wait for on the other half: `neti prove` runs one call through every door
+this machine has and shows they all reach the same verdict, with a chain you can
+re-check yourself.

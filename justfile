@@ -46,7 +46,8 @@ check: lint types test
 # real MCP tools for the life of the project and nothing said so, because every fixture in the suite
 # was a tool somebody here wrote to be gateable.
 conformance:
-    NETI_REQUIRE_SDKS=1 uv run pytest -q tests/e2e/test_seam_equivalence.py tests/corpus
+    NETI_REQUIRE_SDKS=1 uv run pytest -q tests/e2e/test_seam_equivalence.py tests/corpus tests/e2e/test_proof.py
+    uv run neti prove -c examples/entra.yaml -r out/proof.ndjson
     uv run neti score -c examples/entra.yaml --field eval/results/mcp_coverage.json
 
 # Byte-equality of the record across fresh interpreters with different hash seeds. This is the
