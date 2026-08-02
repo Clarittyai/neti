@@ -42,7 +42,13 @@ from neti.resolvers.graph_entra import (
     PrincipalsWithGuestBreakdown,
 )
 
-__all__ = ["CheckResult", "Status", "format_checks", "run_checks"]
+__all__ = ["NOISE_FLOOR_MS", "CheckResult", "Status", "format_checks", "run_checks"]
+
+NOISE_FLOOR_MS = 1.0
+"""Below this, a latency ratio is jitter rather than a measurement.
+
+A Microsoft Graph round trip cannot complete in under a millisecond, so this only ever triggers
+against an in-process mock — where R6 has nothing to say and should say that instead of passing."""
 
 
 class Status(StrEnum):
@@ -314,38 +320,63 @@ def run_checks(
         time_ratio = largest.p50 / max(smallest.p50, 1e-6)
         worst = max(p.worst for p in sized)
 
-        flat = time_ratio <= 1.5
-        in_budget = worst <= 800
-        status = Status.PASS if (flat and in_budget) else Status.FAIL
-        detail = (
-            f"{size_ratio:,.0f}x more members cost {time_ratio:.2f}x the time; "
-            f"worst observed {worst:.0f} ms"
-        )
-        changes = ""
-        if not flat:
-            changes = (
-                "Latency scales with magnitude, so the endpoint is enumerating rather than reading "
-                "an index — the gate would be slowest exactly when the action is most dangerous, "
-                "and the caching architecture comes back onto the critical path. "
+        # A ratio between two timings that are both below measurement noise is not a measurement.
+        # Against the synthetic tenant every call is an in-process mock and both p50s are tens of
+        # microseconds, so ordinary scheduling jitter produces ratios of 30x and the check "fails"
+        # on a tenant that does not exist. A real Graph round trip cannot come back in under a
+        # millisecond, so this floor never triggers against the thing R6 is actually asking about.
+        if smallest.p50 < NOISE_FLOOR_MS and largest.p50 < NOISE_FLOOR_MS:
+            results.append(
+                CheckResult(
+                    id="R6",
+                    title="latency is flat in magnitude and inside budget",
+                    status=Status.INFO,
+                    detail=(
+                        f"not measurable here — both groups resolved in under "
+                        f"{NOISE_FLOOR_MS:g} ms (worst {worst:.2f} ms), which is below what this "
+                        "can time. Run it against a real tenant."
+                    ),
+                    changes=(
+                        "No change either way. R6 is the one check that needs a real network, and "
+                        "a PASS derived from a mock transport would be the most misleading line "
+                        "in this report."
+                    ),
+                    data={"p50_ms": smallest.p50, "worst_ms": worst, "below_noise_floor": True},
+                )
             )
-        if not in_budget:
-            changes += (
-                "Above the 800ms budget the synchronous design needs rework: async pre-resolution "
-                "or optimistic-hold-with-recall, both of which reintroduce staleness."
+        else:
+            flat = time_ratio <= 1.5
+            in_budget = worst <= 800
+            status = Status.PASS if (flat and in_budget) else Status.FAIL
+            detail = (
+                f"{size_ratio:,.0f}x more members cost {time_ratio:.2f}x the time; "
+                f"worst observed {worst:.0f} ms"
             )
-        results.append(
-            CheckResult(
-                id="R6",
-                title="latency is flat in magnitude and inside budget",
-                status=status,
-                detail=detail,
-                changes=changes,
-                data={
-                    p.target: {"members": p.members, "p50_ms": p.p50, "worst_ms": p.worst}
-                    for p in sized
-                },
+            changes = ""
+            if not flat:
+                changes = (
+                    "Latency scales with magnitude, so the endpoint is enumerating rather than "
+                    "reading an index — the gate would be slowest exactly when the action is most "
+                    "dangerous, and the caching architecture comes back onto the critical path. "
+                )
+            if not in_budget:
+                changes += (
+                    "Above the 800ms budget the synchronous design needs rework: async "
+                    "pre-resolution or optimistic-hold-with-recall, both reintroducing staleness."
+                )
+            results.append(
+                CheckResult(
+                    id="R6",
+                    title="latency is flat in magnitude and inside budget",
+                    status=status,
+                    detail=detail,
+                    changes=changes,
+                    data={
+                        p.target: {"members": p.members, "p50_ms": p.p50, "worst_ms": p.worst}
+                        for p in sized
+                    },
+                )
             )
-        )
 
     # ---------------------------------------------------------------- HEADER
     if sized:

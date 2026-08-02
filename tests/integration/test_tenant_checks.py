@@ -34,12 +34,28 @@ def run(tenant: SyntheticTenant, targets: list[str], repeat: int = 3) -> dict[st
     return {r.id: r for r in results}
 
 
-def test_a_healthy_tenant_passes_every_check(tenant: SyntheticTenant) -> None:
+def test_a_healthy_tenant_passes_every_check_it_can_answer(tenant: SyntheticTenant) -> None:
     by_id = run(tenant, ["g-solo", "g-eng-all"])
     assert by_id["R1"].status is Status.PASS  # type: ignore[union-attr]
     assert by_id["R2"].status is Status.PASS  # type: ignore[union-attr]
-    assert by_id["R6"].status is Status.PASS  # type: ignore[union-attr]
     assert by_id["R2"].data["guests"] == 412  # type: ignore[union-attr,index]
+
+
+def test_r6_declines_to_answer_against_a_mock_transport(tenant: SyntheticTenant) -> None:
+    """R6 asks whether latency is flat in magnitude, and this fixture has no latency.
+
+    Both groups resolve in tens of microseconds in-process, so the ratio between them is scheduling
+    jitter — which used to produce an intermittent FAIL on a tenant that does not exist, and would
+    have flaked across nine CI matrix jobs. Reporting INFO is both the stable answer and the honest
+    one: a PASS derived from a mock transport would be the most misleading line in the report, for
+    the same reason `neti check --demo` prints a banner saying it proves nothing about your
+    directory.
+    """
+    r6 = run(tenant, ["g-solo", "g-eng-all"])["R6"]
+
+    assert r6.status is Status.INFO  # type: ignore[union-attr]
+    assert r6.data["below_noise_floor"] is True  # type: ignore[union-attr,index]
+    assert "real tenant" in r6.detail  # type: ignore[union-attr]
 
 
 def test_a_dynamic_distribution_group_fails_r1_with_the_right_explanation(
