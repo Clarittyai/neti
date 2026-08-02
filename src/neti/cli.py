@@ -955,13 +955,33 @@ def verify(
 def demo(
     config: Annotated[str, typer.Option("--config", "-c")] = "examples/entra.yaml",
     out: Annotated[str, typer.Option("--out", "-o", help="Write JSON here.")] = "-",
+    here: Annotated[
+        bool, typer.Option("--here", help="Measure THIS machine instead of the synthetic tenant.")
+    ] = False,
+    repo: Annotated[
+        str | None, typer.Option("--repo", help="With --here: which directory. Default: cwd.")
+    ] = None,
+    corpus: Annotated[
+        str | None,
+        typer.Option("--corpus", help="With --here: captured traffic to re-run against it."),
+    ] = None,
 ) -> None:
-    """Run the whole narrative against the synthetic tenant and emit it as JSON.
+    """Run the whole narrative and emit it. `--here` runs it against your own machine.
 
-    Every number is produced by the real decision path, so the demo cannot drift from the product.
-    The data is synthetic and the output says so — it demonstrates behaviour, not a finding.
+    Without `--here`: the synthetic tenant. Every number is produced by the real decision path, so
+    the demo cannot drift from the product — but the data is a fixture and the output says so. It
+    demonstrates behaviour, not a finding.
+
+    With `--here`: your files, your MCP configs, your token. The first two acts need nothing but the
+    directory you are standing in, and they answer the question that actually matters on day one —
+    how much can an agent here reach in one call. The rest needs traffic; with none, the demo says
+    so and prints how to get it.
     """
     from neti.eval.demo import demo_json
+
+    if here:
+        _demo_here(config=config, repo=repo, corpus=corpus)
+        return
 
     payload = demo_json(config)
     if out == "-":
@@ -978,6 +998,179 @@ def version() -> None:
     from neti import __version__
 
     typer.echo(__version__)
+
+
+def _packaged_example(name: str) -> Path | None:
+    """The shipped example, from a source checkout or from wherever the demo is being run.
+
+    Tried in order rather than assumed, because `--here` is the command a stranger runs first and
+    "file not found" is a worse first impression than any finding is a good one.
+    """
+    for candidate in (
+        Path(__file__).resolve().parents[2] / "examples" / name,
+        Path.cwd() / "examples" / name,
+        Path.cwd() / name,
+    ):
+        if candidate.exists():
+            return candidate
+    return None
+
+
+def _demo_here(*, config: str, repo: str | None, corpus: str | None) -> None:
+    """Render `neti demo --here`.
+
+    Every act is labelled with what it proves, because the difference between "measured on your
+    machine" and "a captured session's shape, re-run against your files" is the difference between
+    a finding and an anecdote, and a reader who cannot tell them apart should not trust either.
+    """
+    from neti.eval.corpus import Corpus, load_corpus
+    from neti.eval.here import run_here
+
+    root = Path(repo or ".").resolve()
+    if not root.is_dir():
+        typer.secho(f"error: {root} is not a directory", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2)
+
+    if config == "examples/entra.yaml":
+        # `demo`'s default policy is the Entra example, which gates nothing a coding agent calls.
+        # Under `--here` that produces a table of `?` — the demo measuring a directory nobody asked
+        # about — so the default swaps to the policy this mode is built around. An explicit `-c`
+        # still wins.
+        found = _packaged_example("coding-agent.yaml")
+        if found is None:
+            typer.secho(
+                "error: cannot find examples/coding-agent.yaml. Pass -c with your own policy.",
+                fg=typer.colors.RED,
+                err=True,
+            )
+            raise typer.Exit(2)
+        config = str(found)
+
+    traffic: Corpus | None = None
+    if corpus:
+        try:
+            traffic = load_corpus(Path(corpus))
+        except (OSError, ValueError, KeyError) as exc:
+            typer.secho(f"error: cannot read corpus {corpus}: {exc}", fg=typer.colors.RED, err=True)
+            raise typer.Exit(2) from exc
+
+    try:
+        result = run_here(root, config, corpus=traffic)
+    except (ValueError, OSError) as exc:
+        typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2) from exc
+
+    def rule(n: int, title: str, proves: str) -> None:
+        typer.echo("")
+        typer.secho(f"── {n}. {title} ".ljust(56, "─"), bold=True, nl=False)
+        typer.secho(f"  {proves}", fg=typer.colors.BRIGHT_BLACK)
+
+    typer.secho(f"neti demo — measured on {result.root}", bold=True)
+
+    rule(1, "DISCOVER", "read from this machine")
+    if result.servers:
+        for server in result.servers:
+            typer.echo(f"   {server['name']:22} {server['command']:40} ({server['client']})")
+        typer.echo(f"   {len(result.servers)} MCP server(s) — none behind the gate")
+    else:
+        typer.echo("   no MCP servers configured on this machine")
+    if result.already_gated:
+        typer.echo(f"   already gated: {', '.join(result.already_gated)}")
+
+    rule(2, "REACH", "MEASURED here, no traffic needed")
+    # Grouped by resolver rather than listed per parameter, because reachable-max *is* a property
+    # of the resolver and its root. One row per tool repeating the same number reads as "every one
+    # of these tools can touch 35,871 files in one call", which is false for any tool whose
+    # parameter names a single file.
+    by_resolver: dict[str, list[Any]] = {}
+    for row in result.reach:
+        by_resolver.setdefault(row.resolver, []).append(row)
+    for resolver, rows in sorted(
+        by_resolver.items(), key=lambda kv: -(kv[1][0].reachable.magnitude or 0)
+    ):
+        head = rows[0]
+        reach = "?" if head.reachable.magnitude is None else f"{head.reachable.magnitude:,}"
+        typer.echo(f"   {resolver:24} {reach:>12} {head.reachable.unit.value}")
+        bound = ", ".join(sorted(f"{r.tool}{r.pointer}" for r in rows))
+        typer.echo(f"     bound by {len(rows)}: {bound[:88]}")
+    if not result.reach:
+        typer.echo("   nothing gated by this policy")
+
+    for finding in result.findings[:1]:
+        typer.echo("")
+        typer.secho(f"   {finding.headline}", fg=typer.colors.YELLOW, bold=True)
+        typer.echo(f"   {finding.detail}")
+
+    if not result.has_traffic:
+        typer.echo("")
+        typer.secho("Acts 3-6 need traffic, and you have none yet.", bold=True)
+        for line in result.next_steps:
+            typer.echo(f"   {line}")
+        typer.echo("")
+        typer.secho(
+            "Measured on this machine. Every number above was produced by walking these files, "
+            "through the same decision path the gate uses in production.",
+            fg=typer.colors.BRIGHT_BLACK,
+        )
+        return
+
+    rule(3, "OBSERVE", "YOUR files, a captured session's shape")
+    typer.echo(
+        f"   {result.corpus_size:,} calls re-run · "
+        f"{result.observed.get('allow', 0):,} allowed, nothing blocked (observe mode)"
+    )
+    if result.unresolved:
+        typer.echo(
+            f"   {result.unresolved:,} target(s) do not exist here — counted, not averaged away"
+        )
+
+    rule(4, "REPORT & PROPOSE", "from the traffic above")
+    if not result.proposals:
+        seen = result.report.distributions if result.report else {}
+        typer.echo(
+            f"   {len(seen)} parameter(s) observed, none with enough calls to propose a ceiling."
+        )
+        typer.echo(
+            "   30 observations is the floor — a ceiling fitted to fewer encodes an accident."
+        )
+    for proposal in result.proposals[:3]:
+        typer.echo(
+            f"   {proposal.tool} {proposal.pointer}  n={proposal.n:,}  "
+            f"{proposal.anchor}={proposal.normal:,}  max={proposal.observed_max:,}"
+        )
+        typer.echo(
+            f"     proposed  confirm above {proposal.confirm_above:,}   "
+            f"block above {proposal.block_above:,}"
+        )
+
+    rule(5, "ENFORCE", "the same calls, ceilings on")
+    if not result.proposals:
+        typer.echo("   nothing to enforce — no ceilings were proposed above")
+    elif result.enforced:
+        typer.echo(
+            f"   blocked {result.enforced.get('block', 0):,} · "
+            f"asked about {result.enforced.get('confirm', 0):,} · "
+            f"allowed {result.enforced.get('allow', 0):,}"
+        )
+        if not result.enforced.get("block"):
+            # A zero left hanging reads as "the gate did nothing". It is the same thing `propose`
+            # says about a proposal that catches none of its own traffic, and it is a real result:
+            # ceilings derived from ordinary work bind on behaviour that has not happened yet.
+            typer.echo(
+                "   Nothing in this traffic exceeded the block ceiling — these numbers came from "
+                "it,\n   so they bind on what has not happened yet rather than on what has."
+            )
+    for example in result.blocked_examples:
+        typer.secho(f"   BLOCKED  {example}", fg=typer.colors.RED)
+
+    rule(6, "AUDIT", "offline, forever")
+    typer.echo(
+        f"   {result.records:,} records, chain {'intact' if result.chain_ok else 'BROKEN'} · "
+        f"{result.replayed:,} decisions re-derive to the same verdict"
+    )
+
+    typer.echo("")
+    typer.secho(result.disclaimer, fg=typer.colors.BRIGHT_BLACK)
 
 
 def main() -> int:
