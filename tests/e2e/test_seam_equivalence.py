@@ -103,8 +103,17 @@ def build_engine(tenant: SyntheticTenant) -> Engine:
     )
 
 
-def build_preflight(tenant: SyntheticTenant, tmp_path: Path) -> Preflight:
-    return Preflight.demo(EXAMPLE, mode="enforce", records=tmp_path / "records.ndjson")
+def build_preflight(tenant: SyntheticTenant, tmp_path: Path, approver: Any = None) -> Preflight:
+    """The in-process gate, optionally with a control plane behind it.
+
+    The three SDK adapters reach approvals only through here, so an approver that did not arrive
+    would make `CONFIRM` a flat denial on those runtimes while the other four asked a human — the
+    paid tier silently worth less depending on which framework somebody chose.
+    """
+    pf = Preflight.demo(EXAMPLE, mode="enforce", records=tmp_path / "records.ndjson")
+    if approver is None:
+        return pf
+    return Preflight(engine=pf.engine, sink=pf.sink, approver=approver)
 
 
 # ---------------------------------------------------------------------------- the seam drivers
@@ -113,21 +122,28 @@ def build_preflight(tenant: SyntheticTenant, tmp_path: Path) -> Preflight:
 # knows nothing about JSON-RPC, hook protocols or guardrail objects.
 
 
-def via_preflight(tenant: SyntheticTenant, tmp_path: Path, case: Case) -> Outcome:
-    verdict = build_preflight(tenant, tmp_path).check(case.tool, case.args)
+def via_preflight(
+    tenant: SyntheticTenant, tmp_path: Path, case: Case, approver: Any = None
+) -> Outcome:
+    verdict = build_preflight(tenant, tmp_path, approver).check(case.tool, case.args)
+    # `proceeds`, not `verdict`. Every other seam reports what *happened* — the tool ran or it did
+    # not — and `Verdict.verdict` is the decision that was reached before a human answered. A
+    # granted approval leaves it reading `confirm` while the call goes through, so comparing that
+    # field would make this seam look like the odd one out when it is behaving identically.
     return Outcome(
-        verdict=verdict.verdict,
+        verdict="allow" if verdict.proceeds else verdict.verdict,
         magnitude=verdict.payload.get("resolved"),
         sentence=verdict.message,
     )
 
 
-def via_hook(tenant: SyntheticTenant, tmp_path: Path, case: Case) -> Outcome:
+def via_hook(tenant: SyntheticTenant, tmp_path: Path, case: Case, approver: Any = None) -> Outcome:
     from neti.adapters.claude_code import run_hook
 
     out = run_hook(
         build_engine(tenant),
         {"hook_event_name": "PreToolUse", "tool_name": case.tool, "tool_input": case.args},
+        approver=approver,
     )
     if not out:
         # A pass says nothing at all, so the permission rules the operator already configured keep
@@ -142,12 +158,14 @@ def via_hook(tenant: SyntheticTenant, tmp_path: Path, case: Case) -> Outcome:
     )
 
 
-def via_mcp_http(tenant: SyntheticTenant, tmp_path: Path, case: Case) -> Outcome:
+def via_mcp_http(
+    tenant: SyntheticTenant, tmp_path: Path, case: Case, approver: Any = None
+) -> Outcome:
     class Upstream:
         def send(self, message: dict[str, Any], session_id: str | None) -> dict[str, Any] | None:
             return {"jsonrpc": "2.0", "id": message["id"], "result": {"content": []}}
 
-    gateway = McpGateway(engine=build_engine(tenant), upstream=Upstream())
+    gateway = McpGateway(engine=build_engine(tenant), upstream=Upstream(), approver=approver)
     response = gateway.handle(
         {
             "jsonrpc": "2.0",
@@ -159,10 +177,12 @@ def via_mcp_http(tenant: SyntheticTenant, tmp_path: Path, case: Case) -> Outcome
     return _from_mcp(response)
 
 
-def via_mcp_stdio(tenant: SyntheticTenant, tmp_path: Path, case: Case) -> Outcome:
+def via_mcp_stdio(
+    tenant: SyntheticTenant, tmp_path: Path, case: Case, approver: Any = None
+) -> Outcome:
     """A real child process over a real pipe, not an in-process fake."""
     upstream = StdioUpstream([sys.executable, "-c", SERVER])
-    gateway = McpGateway(engine=build_engine(tenant), upstream=upstream)
+    gateway = McpGateway(engine=build_engine(tenant), upstream=upstream, approver=approver)
     out = io.StringIO()
     line = json.dumps(
         {
@@ -194,7 +214,9 @@ def _from_mcp(response: dict[str, Any] | None) -> Outcome:
     )
 
 
-def via_anthropic(tenant: SyntheticTenant, tmp_path: Path, case: Case) -> Outcome:
+def via_anthropic(
+    tenant: SyntheticTenant, tmp_path: Path, case: Case, approver: Any = None
+) -> Outcome:
     from anthropic.lib.tools import beta_tool
 
     from neti.adapters.anthropic_tools import gate_tool
@@ -211,14 +233,16 @@ def via_anthropic(tenant: SyntheticTenant, tmp_path: Path, case: Case) -> Outcom
         tool.name = name
         return tool
 
-    gated = gate_tool(build_preflight(tenant, tmp_path), make(case.tool))
+    gated = gate_tool(build_preflight(tenant, tmp_path, approver), make(case.tool))
     result = gated.call(case.args)
     if ran:
         return Outcome("allow", None, "")
     return Outcome(_verdict_of(str(result)), _magnitude_of(str(result)), str(result))
 
 
-def via_openai_agents(tenant: SyntheticTenant, tmp_path: Path, case: Case) -> Outcome:
+def via_openai_agents(
+    tenant: SyntheticTenant, tmp_path: Path, case: Case, approver: Any = None
+) -> Outcome:
     from agents import Agent
     from agents.tool_context import ToolContext
     from agents.tool_guardrails import ToolInputGuardrailData
@@ -234,14 +258,16 @@ def via_openai_agents(tenant: SyntheticTenant, tmp_path: Path, case: Case) -> Ou
         ),
         agent=Agent(name="test"),
     )
-    out = verdict_for(build_preflight(tenant, tmp_path), data)
+    out = verdict_for(build_preflight(tenant, tmp_path, approver), data)
     if out.behavior["type"] == "allow":
         return Outcome("allow", None, "")
     payload = out.output_info["neti"]
     return Outcome(payload["verdict"], payload.get("resolved"), out.behavior["message"])
 
 
-def via_langchain(tenant: SyntheticTenant, tmp_path: Path, case: Case) -> Outcome:
+def via_langchain(
+    tenant: SyntheticTenant, tmp_path: Path, case: Case, approver: Any = None
+) -> Outcome:
     from langchain_core.tools import StructuredTool
 
     from neti.adapters.langchain_tools import gate_tool
@@ -257,7 +283,7 @@ def via_langchain(tenant: SyntheticTenant, tmp_path: Path, case: Case) -> Outcom
     )
     # The wrapper reads `self.name`, so the policy sees the original name including any MCP prefix.
     # LangChain rejects `__` in a tool name, hence the sanitised inner name and the restore here.
-    gated = gate_tool(build_preflight(tenant, tmp_path), inner).model_copy(
+    gated = gate_tool(build_preflight(tenant, tmp_path, approver), inner).model_copy(
         update={"name": case.tool}
     )
     result = gated.invoke(case.args)
@@ -300,11 +326,13 @@ SEAMS = {
 NEEDS_SDK = {"anthropic": "anthropic", "openai-agents": "agents", "langchain": "langchain_core"}
 
 
-def outcome(seam: str, tenant: SyntheticTenant, tmp_path: Path, case: Case) -> Outcome:
+def outcome(
+    seam: str, tenant: SyntheticTenant, tmp_path: Path, case: Case, approver: Any = None
+) -> Outcome:
     module = NEEDS_SDK.get(seam)
     if module:
         pytest.importorskip(module, reason=f"{seam} needs the sdks extra")
-    return SEAMS[seam](tenant, tmp_path, case)
+    return SEAMS[seam](tenant, tmp_path, case, approver)
 
 
 # ---------------------------------------------------------------------------- the invariant
@@ -378,3 +406,72 @@ def test_the_seam_table_covers_every_shipped_adapter() -> None:
         f"adapters with no seam-equivalence row: {sorted(shipped - covered)}. "
         "Add a driver above so it cannot drift from the others."
     )
+
+
+# ---------------------------------------------------------------------------- approvals
+
+
+# A 500-member group: confirm above 50, block above 500. Squarely a CONFIRM, which is the only
+# verdict a control plane can act on.
+NEEDS_A_HUMAN = Case("confirming", "send_email", {"to": "g-dept"}, "confirm")
+
+
+def approver(answer: str) -> Any:
+    from neti.approvals import ApprovalState
+    from tests.integration.test_approvals import FakeApprover
+
+    return FakeApprover(answer=ApprovalState(answer))
+
+
+@pytest.mark.parametrize("seam", sorted(SEAMS))
+def test_a_confirm_stops_the_call_on_every_seam_when_nobody_can_be_asked(
+    seam: str, tenant: SyntheticTenant, tmp_path: Path
+) -> None:
+    """The free tier, and the behaviour every paid install degrades to.
+
+    With no control plane a `CONFIRM` means "this does not proceed without a human" and there is no
+    human, so it stops. That has to be true on all seven seams or the tier boundary is not a
+    boundary — an install would be quietly more permissive on whichever runtime forgot.
+    """
+    assert outcome(seam, tenant, tmp_path, NEEDS_A_HUMAN).verdict == "confirm"
+
+
+@pytest.mark.parametrize("seam", sorted(SEAMS))
+def test_a_granted_approval_lets_the_call_through_on_every_seam(
+    seam: str, tenant: SyntheticTenant, tmp_path: Path
+) -> None:
+    """`test_a_grant_is_honoured_identically_on_all_three_seams` extended to seven.
+
+    That test predates the Anthropic, OpenAI Agents and LangChain adapters, and those reach the
+    control plane by a different route — through `Preflight` rather than through `Gatekeeper`
+    directly. So the runtimes most people use were the ones with no assertion that approvals work
+    on them at all: a paying customer on LangChain could have been getting flat denials where a
+    customer on MCP got a human, and nothing would have said so.
+    """
+    assert outcome(seam, tenant, tmp_path, NEEDS_A_HUMAN, approver("granted")).verdict == "allow"
+
+
+@pytest.mark.parametrize("seam", sorted(SEAMS))
+def test_a_denied_approval_stops_the_call_on_every_seam(
+    seam: str, tenant: SyntheticTenant, tmp_path: Path
+) -> None:
+    """The direction that matters if the plumbing is wrong.
+
+    A grant arriving where it should not is the failure a reviewer will ask about, so the refusal
+    path is asserted separately rather than inferred from the grant working.
+    """
+    assert outcome(seam, tenant, tmp_path, NEEDS_A_HUMAN, approver("denied")).verdict != "allow"
+
+
+@pytest.mark.parametrize("seam", sorted(SEAMS))
+def test_an_approver_can_never_make_a_block_proceed_on_any_seam(
+    seam: str, tenant: SyntheticTenant, tmp_path: Path
+) -> None:
+    """The tier boundary's load-bearing claim: a control plane can only ever be *more* permissive
+    about a `CONFIRM`, and a `BLOCK` is never put to a human at all.
+
+    If any seam escalated a block, paying for approvals would buy a way around a declared ceiling —
+    which is the opposite of what the product is.
+    """
+    blocked = next(c for c in CASES if c.name == "blocked")
+    assert outcome(seam, tenant, tmp_path, blocked, approver("granted")).verdict == "block"
