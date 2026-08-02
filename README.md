@@ -16,6 +16,33 @@ An agent asks to do one thing. That one thing turns out to be a million things. 
 until after. Alignment, authorization, provenance, sandboxing, anomaly detection and rollback all
 answer a different question; none of them answers *how big is this*.
 
+## The first minute
+
+One command, in a repository you already have. It measures *this* machine — no credentials, no
+config, no traffic to wait for.
+
+```console
+$ neti demo --here
+
+── 2. REACH ────────────────────────────────────────────  MEASURED here, no traffic needed
+   fs.paths                       35,871 objects
+     bound by 8: Edit/file_path, Glob/pattern, Grep/path, Read/file_path, …
+
+   An agent working here reaches 35,871 objects, across 8 gated parameter(s).
+   It bounds what one credential can address here; it does not measure any single
+   call. Nothing in a permission system reports either number — it answers
+   whether, not how many.
+```
+
+Check it yourself with `find . \( -type f -o -type l \) | wc -l`. On a tree too large to walk it
+reports `≥` and says the count stopped at its cap, because a cap presented as a total is a lie in
+the flattering direction.
+
+That is acts 1 and 2. Give it traffic — install the hook, work normally for an afternoon — and the
+same command runs the rest: report, propose ceilings from what you actually did, enforce them
+against the same calls, and verify the chain. `neti demo` without `--here` runs the identical
+narrative against a synthetic tenant, and says so.
+
 ## The first hour
 
 Two commands, from a directory with nothing in it. No YAML to write, no traffic to wait for, and no

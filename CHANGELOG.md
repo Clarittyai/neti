@@ -64,6 +64,34 @@ There is now a second line reporting those separately, because no choice of ceil
             on_unbounded / on_unresolved verdict whatever ceiling you pick.
 ```
 
+### `neti demo --here` — a finding about your machine, not a fixture
+
+The existing demo is careful to say what it is: *"It demonstrates behaviour, not a finding."* True,
+and also why it cannot answer the only question an evaluator asks — what this would find in *their*
+environment.
+
+`--here` runs the same six acts against the directory it is standing in, through the same engine,
+decision procedure, records and reports as production. Acts 1 and 2 need nothing at all and produce
+the day-one number: *an agent working here reaches N objects*. With traffic it runs the rest —
+report, propose, enforce the proposed ceilings against the same calls, verify and replay.
+
+Two supporting pieces:
+
+- **`providers:` is finally read.** It had been in the policy schema since the first release and no
+  code path ever looked at it, so `fs.paths` had no root, `github.repos` no owner, and
+  `neti inventory` could only produce a number for Entra. A fourth construction guard now refuses
+  any provider key nobody reads, beside the three that already catch dead config.
+- **`examples/coding-agent.yaml`** — the policy for the agent most people actually run. `Bash` is
+  ungated in it deliberately, with the reasoning next to the gap.
+
+`neti.eval.corpus` captures a decision log into re-runnable traffic: the hook already records every
+call, so an afternoon in observe mode *is* the capture. Paths are kept relative to the repository
+root and anything outside is dropped rather than scrubbed, because a corpus is a thing people share.
+
+Two things it will not do: attribute a resolver's reach to a single tool (`Edit` takes one
+`file_path` and touches one file), and print a capped walk as a total — a 712,359-file tree reports
+`≥ 200,000`, not `200,000`.
+
 ### `neti verify --config` replays the log against the decision procedure
 
 The command has always said *"Replay every decision and verify the hash chain"* and only ever did
