@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+### M11 said "verified" on the strength of a filename
+
+`neti score` printed `[verified] db.rows — against Postgres 16, in Docker`. What backed that
+sentence was `LIVE_VERIFIED`, a hand-written dict, pinned by a property test that checked
+`tests/live/test_postgres_live.py` **exists**. A live test that had rotted, or that skipped every
+assertion for want of a container, left the claim standing untouched. The same defect this project
+keeps finding in itself — evidence that is really an assertion about a filename — sitting inside the
+section that reports on evidence.
+
+So the live tier writes down what it proved. `just live` leaves
+`eval/results/live_verification.json` behind, in the shape `mcp_coverage.py` already established for
+M10, and `neti score` reads it. A skipped module records as **skipped**, never as passed: running
+the tier with no Docker must not be able to look like running it with Docker, and the previous
+arrangement could not tell those apart at all.
+
+The card has three states now instead of two:
+
+```
+[verified] db.rows            against Postgres 16, in Docker (8 checks passed)
+[claimed ] fs.paths           against real filesystems … — no recorded run; `just live`
+[  —     ] entra.principals   never run against a real provider
+```
+
+`fs.paths` is the interesting row. It has no `tests/live/` module by design — there is no provider
+to be live against — so it was printing `[verified]` with nothing in this repository behind it. It
+says what is true now.
+
+And the tier was run, for the first time in this work: Postgres 16 and MinIO in Docker, real
+`terraform` via the null provider, the live GitHub API. **28 checks, all passing**, which is the
+evidence committed alongside.
+
 ### The console's routes had never been tested in CI
 
 `src/neti/console` is a shipped artifact — `[tool.hatch.build] artifacts` puts it in the wheel — and

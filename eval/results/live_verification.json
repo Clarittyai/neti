@@ -1,0 +1,41 @@
+{
+  "metric": "M11",
+  "platform": "Darwin arm64",
+  "resolvers": {
+    "db.rows": {
+      "failed": 0,
+      "module": "test_postgres_live.py",
+      "passed": 0,
+      "skipped": 8,
+      "verified": false
+    },
+    "github.files": {
+      "failed": 0,
+      "module": "test_github_live.py",
+      "passed": 0,
+      "skipped": 6,
+      "verified": false
+    },
+    "github.repos": {
+      "failed": 0,
+      "module": "test_github_live.py",
+      "passed": 0,
+      "skipped": 6,
+      "verified": false
+    },
+    "storage.objects": {
+      "failed": 0,
+      "module": "test_s3_live.py",
+      "passed": 0,
+      "skipped": 8,
+      "verified": false
+    },
+    "terraform.destroy": {
+      "failed": 0,
+      "module": "test_terraform_live.py",
+      "passed": 0,
+      "skipped": 6,
+      "verified": false
+    }
+  }
+}

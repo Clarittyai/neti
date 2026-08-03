@@ -267,6 +267,9 @@ class Scorecard:
     incidents: dict[str, list[Incident]] = field(default_factory=dict)
     friction: Friction = field(default_factory=Friction)
     wild: Wild | None = None
+    live: dict[str, dict[str, Any]] | None = None
+    """M11's last actual run, from `eval/results/live_verification.json`. `None` when the live tier
+    has not been run here, which is a different statement from a resolver having failed it."""
     policy_digest: str | None = None
     gated_tools: int = 0
     gated_params: int = 0
@@ -289,8 +292,9 @@ def build_scorecard(
     *,
     shipped_units: frozenset[Unit] = SHIPPED_UNITS,
     wild: Wild | None = None,
+    live: dict[str, dict[str, Any]] | None = None,
 ) -> Scorecard:
-    card = Scorecard(incidents=replay(shipped_units), wild=wild)
+    card = Scorecard(incidents=replay(shipped_units), wild=wild, live=live)
 
     card.outstanding = [
         "M1 resolution correctness — covered by the offline suite against the synthetic tenant",
@@ -450,8 +454,18 @@ def format_scorecard(card: Scorecard) -> str:
     out.append(f"    evidence: {EVIDENCE['M11']}")
     for name in sorted(RESOLVERS):
         against = LIVE_VERIFIED.get(name)
-        mark = "verified" if against else "  —     "
-        detail = f"against {against}" if against else "never run against a real provider"
+        ran = (card.live or {}).get(name)
+        # Three states, not two. `LIVE_VERIFIED` is the *claim* — a resolver we say has been run
+        # against a real provider. `card.live` is the last actual run. A claim with no run behind it
+        # is the interesting case, and it used to be indistinguishable from a claim with one.
+        if against and ran and ran.get("verified"):
+            mark, detail = "verified", f"against {against} ({ran['passed']} checks passed)"
+        elif against and ran:
+            mark, detail = " STALE  ", f"claims {against}, but the last run did not verify it"
+        elif against:
+            mark, detail = "claimed ", f"against {against} — no recorded run; `just live`"
+        else:
+            mark, detail = "  —     ", "never run against a real provider"
         out.append(f"    [{mark}] {name:<30} {detail}")
     out.append(
         "    An unverified resolver is not a broken one. It is one whose shape has only ever been "

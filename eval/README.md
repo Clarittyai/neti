@@ -27,6 +27,7 @@ different directory.
 |---|---|
 | `surveys/mcp_coverage.py` | **M10** — of the MCP servers people actually install, how many tools can `neti` size? |
 | `harness/` | **M7** — a real model in the loop, denied, and what it does next. Needs a key. |
+| `../tests/live/` | **M11** — the resolvers, against Postgres, MinIO, real Terraform and the GitHub API. `just live` writes `results/live_verification.json`. |
 | `results/` | one JSON per survey or trial run. This is the evidence, and it is committed. |
 
 ## The offline half

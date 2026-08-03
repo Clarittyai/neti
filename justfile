@@ -92,6 +92,10 @@ live-down:
 
 # Everything the live tier can reach locally. GitHub needs a token and is included when `gh` has
 # one; the Entra half stays skipped until somebody has a tenant (scorecard M2, R2).
+#
+# Leaves `eval/results/live_verification.json` behind, which `neti score` reads for M11 — so a
+# resolver the card *claims* is live-verified and a resolver a run actually verified stop being the
+# same thing. A skipped module records as skipped, never as passed.
 live:
     NETI_DATABASE_URL=postgresql://neti_ro:neti_ro@127.0.0.1:55432/neti \
     AWS_ACCESS_KEY_ID=netiminio AWS_SECRET_ACCESS_KEY=netiminio123 \

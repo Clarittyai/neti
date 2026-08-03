@@ -322,3 +322,53 @@ def test_the_card_says_what_it_does_not_reach() -> None:
             "a non-coverage entry is declared and never printed; the section that shows it has "
             "been dropped or truncated"
         )
+
+
+def test_the_live_evidence_and_the_live_claims_name_the_same_modules() -> None:
+    """Two lists again, and the same rule as everywhere else in this file.
+
+    `tests/live/conftest.py` decides which resolver each module is evidence *for*; `EVIDENCE` above
+    decides which module each claim points *at*. They are separate because one produces the file and
+    the other reads it, and separate lists are how a coverage claim goes stale — a live module
+    renamed on one side would quietly stop backing the claim on the other while both still looked
+    populated.
+    """
+    from tests.live.conftest import PROVES
+
+    from_conftest = {resolver for resolvers in PROVES.values() for resolver in resolvers}
+    from_evidence = {name for name, module in EVIDENCE.items() if module}
+    assert from_conftest == from_evidence, (
+        f"only the live tier proves {sorted(from_conftest - from_evidence)}; "
+        f"only the card claims {sorted(from_evidence - from_conftest)}"
+    )
+
+    for module_set in PROVES.values():
+        for resolver in module_set:
+            assert resolver in LIVE_VERIFIED, (
+                f"{resolver} is proved by the live tier and absent from LIVE_VERIFIED, so a real "
+                "run against a real provider is not reaching the card"
+            )
+
+
+def test_a_resolver_claimed_live_with_no_recorded_run_is_not_shown_as_verified() -> None:
+    """The state the card could not previously express, and the one worth seeing.
+
+    `LIVE_VERIFIED` is an assertion somebody wrote. Until now the card rendered it as `[verified]`
+    whether or not anything had ever run — which is the shape of defect this whole file exists to
+    catch, sitting inside the section that reports on evidence.
+    """
+    from neti.eval.scorecard import build_scorecard, format_scorecard
+
+    none_run = format_scorecard(build_scorecard(None, None, live=None))
+    assert "[claimed " in none_run, "a claim with no run behind it is still printed as verified"
+    assert "no recorded run" in none_run
+
+    confirmed = format_scorecard(
+        build_scorecard(
+            None,
+            None,
+            live={"db.rows": {"verified": True, "passed": 8, "module": "test_postgres_live.py"}},
+        )
+    )
+    assert "db.rows" in confirmed
+    assert "8 checks passed" in confirmed

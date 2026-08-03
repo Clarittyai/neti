@@ -990,6 +990,13 @@ def score(
             help="A field-trial result to fold in, from `eval/surveys/`. Absent is normal.",
         ),
     ] = "eval/results/mcp_coverage.json",
+    live_results: Annotated[
+        str,
+        typer.Option(
+            "--live",
+            help="What the live tier last proved, from `just live`. Absent is normal.",
+        ),
+    ] = "eval/results/live_verification.json",
 ) -> None:
     """The scorecard: incident replay, friction, blind spots, and what is not yet measured.
 
@@ -1026,7 +1033,14 @@ def score(
             tools_sizable_in_principle=int(totals["tools_sizable_in_principle"]),
         )
 
-    card = build_scorecard(summary, policy, wild=wild)
+    # Same rule as `--field`: absent means "not run here", which the card prints as such rather
+    # than assuming the claim holds. A resolver `LIVE_VERIFIED` asserts but no run confirms is a
+    # third state, and it is the one worth seeing.
+    live: dict[str, Any] | None = None
+    with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
+        live = json.loads(Path(live_results).read_text())["resolvers"]
+
+    card = build_scorecard(summary, policy, wild=wild, live=live)
     typer.echo(scorecard_json(card) if as_json else format_scorecard(card))
 
 
