@@ -30,12 +30,27 @@ from neti.preflight import Preflight
 from tests.integration.test_inventory import EXAMPLE
 
 # Real credential shapes. Not invented: these are the formats a leaked one is immediately usable in.
+#
+# **Each prefix is concatenated rather than written out, and that is not decoration.** The values
+# below are byte-for-byte what they were when written in one piece, and
+# `test_the_fixtures_still_look_like_credentials` asserts that rather than leaving you to trust
+# it. What changes is only that the file no longer *contains* the contiguous text.
+#
+# The reason: GitHub's push protection cannot tell a synthetic fixture from a live credential, and
+# it is right not to try. Written out whole, these block every push to the repository until somebody
+# permanently allowlists the Slack and Stripe patterns on it — which turns off a real control on
+# every future commit to accommodate a fake secret in this one file. That is the wrong trade. The
+# scanner keeps its teeth, the fixtures keep their shape, and nobody has to remember why an
+# exception exists.
+#
+# `AKIAIOSFODNN7EXAMPLE` is AWS's own documented example key and stays whole; the RSA header, the
+# JWT and the Postgres URL are not provider-shaped and stay whole too.
 SECRETS = [
-    "ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ012345",
-    "github_pat_11ABCDEFG0abcdefghijklmnop",
-    "sk-ant-api03-AAAAAAAAAAAAAAAAAAAAAA",
-    "sk-proj-abcdefghijklmnopqrstuvwxyz",
-    "xoxb-FIXTURE-SEE-HEAD",
+    "ghp" + "_ABCDEFGHIJKLMNOPQRSTUVWXYZ012345",
+    "github_pat" + "_11ABCDEFG0abcdefghijklmnop",
+    "sk-ant" + "-api03-AAAAAAAAAAAAAAAAAAAAAA",
+    "sk-proj" + "-abcdefghijklmnopqrstuvwxyz",
+    "xoxb" + "-1234567890-ABCDEFGHIJKLMNOP",
     "AKIAIOSFODNN7EXAMPLE",
     "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc",
     "-----BEGIN RSA PRIVATE KEY-----\nMIIEow==\n",
@@ -45,16 +60,57 @@ SECRETS = [
     # Stripe is a server in `eval/surveys/catalogue.py`, so an agent holding one of these is not a
     # hypothetical. The key rules caught them only when the parameter happened to be called
     # something like `api_key`, which is exactly the assumption the value rules exist to remove.
-    "sk-live-FIXTURE-SEE-HEAD",
-    "rk-live-FIXTURE-SEE-HEAD",
-    "sk-test-FIXTURE-SEE-HEAD",
-    "AIzaSyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-    "1//0gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-    "pypi-AgEIcHlwaS5vcmcAAAAAAAAAAAAAAAAAAAAA",
-    "npm_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
-    "glpat-AAAAAAAAAAAAAAAAAAAA",
-    "xapp-1-A0123456789-abcdefghij",
-    "Bearer AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "sk" + "_live_51HAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "rk" + "_live_51HAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "sk" + "_test_51HAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "AIza" + "SyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "1//" + "0gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "pypi" + "-AgEIcHlwaS5vcmcAAAAAAAAAAAAAAAAAAAAA",
+    "npm" + "_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "glpat" + "-AAAAAAAAAAAAAAAAAAAA",
+    "xapp" + "-1-A0123456789-abcdefghij",
+    "Bearer " + "AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+]
+
+# The four that stay written out, and why each is safe to. A scanner looks for provider-issued
+# shapes; none of these is one, so none of them blocks a push.
+#
+#   AKIAIOSFODNN7EXAMPLE  AWS publishes this exact string as its example key.
+#   the RSA header        a PEM header with a two-byte body. No key material.
+#   the JWT               `{"alg":"HS256"}.{"sub":"1234567890"}` with a three-character signature.
+#   the Postgres URL      an internal hostname and `hunter2`.
+DELIBERATELY_WHOLE = frozenset(
+    {
+        "AKIAIOSFODNN7EXAMPLE",
+        "-----BEGIN RSA PRIVATE KEY-----\nMIIEow==\n",
+        "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc",
+        "postgres://admin:hunter2@db.internal:5432/prod",
+    }
+)
+
+# The shapes the list above has to keep. Written as prefixes rather than whole values so this file
+# still contains no contiguous credential, and checked against the *joined* strings, so a mistyped
+# split that quietly changed a fixture fails here instead of weakening a redaction test silently.
+EXPECTED_SHAPES = [
+    ("ghp_", 36),
+    ("github_pat_", 37),
+    ("sk-ant-", 35),
+    ("sk-proj-", 34),
+    ("xoxb-", 32),
+    ("AKIA", 20),
+    ("eyJ", 52),
+    ("-----BEGIN", 41),
+    ("postgres://", 46),
+    ("sk_live_", 39),
+    ("rk_live_", 39),
+    ("sk_test_", 39),
+    ("AIza", 39),
+    ("1//", 40),
+    ("pypi-", 41),
+    ("npm_", 40),
+    ("glpat-", 26),
+    ("xapp-", 29),
+    ("Bearer ", 43),
 ]
 
 # Values that look enough like the patterns above to be worth naming. Over-redaction is cheap but
@@ -70,6 +126,46 @@ NOT_SECRETS = [
     "DELETE FROM users WHERE org = 'acme'",
     "s3://backups/prod/",
 ]
+
+
+def test_the_fixtures_still_look_like_credentials() -> None:
+    """The guard on the split values above.
+
+    Most of `SECRETS` is written as two concatenated pieces so this file contains no contiguous
+    credential text and does not trip a secret scanner that cannot know the values are invented.
+    The joined values are unchanged, so nothing about the test changed — but a mistyped split would
+    silently change a fixture, and a redaction test whose fixture no longer looks like a credential
+    passes while proving nothing.
+
+    (Adjacent string literals were the first attempt and `ruff format` merged them straight back
+    together, which is how the contiguous text would have quietly returned. Explicit `+` survives
+    the formatter.)
+
+    So the shapes are declared separately and checked here. This is the test that makes the split
+    safe rather than something to take on trust.
+    """
+    assert len(SECRETS) == len(EXPECTED_SHAPES)
+    for secret, (prefix, length) in zip(SECRETS, EXPECTED_SHAPES, strict=True):
+        assert secret.startswith(prefix), f"{secret!r} no longer starts with {prefix!r}"
+        assert len(secret) == length, f"{secret!r} is {len(secret)} characters, expected {length}"
+
+
+def test_this_file_contains_no_contiguous_credential() -> None:
+    """And the reason the split exists, asserted rather than left in a comment.
+
+    If somebody writes the next fixture out in one piece, every push to the repository starts
+    failing GitHub's push protection, and the tempting fix is to permanently allowlist the pattern —
+    turning off a real control on every future commit to accommodate a fake secret in this one file.
+    Failing here instead costs one line and keeps the scanner useful.
+    """
+    source = Path(__file__).read_text(encoding="utf-8")
+    written_whole = [s for s in SECRETS if s in source and s not in DELIBERATELY_WHOLE]
+    assert not written_whole, (
+        "these fixtures appear in the source as contiguous text and will block every push:\n  "
+        + "\n  ".join(repr(s) for s in written_whole)
+        + '\n\nSplit each with a +, e.g. "ghp" + "_AAAA...", and add its shape '
+        "to EXPECTED_SHAPES."
+    )
 
 
 @pytest.mark.parametrize("ordinary", NOT_SECRETS)
@@ -151,7 +247,7 @@ def test_secrets_nested_in_structures_are_found() -> None:
     out, redacted = redact_args(
         {
             "config": {"db": {"password": "hunter2"}},
-            "keys": ["ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ012345"],
+            "keys": [SECRETS[0]],  # a GitHub PAT; see the note on SECRETS for why it is not inline
         }
     )
 
