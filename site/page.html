@@ -1,270 +1,201 @@
 <style>
-  /* ─────────────────────────────────────────────────────── tokens
-     Cool, blue-biased neutrals: this is an instrument, not a brochure. The two signal colours are
-     the only saturated things on the page — amber is always the declared ceiling, alarm is always a
-     BLOCK. Nothing else may use them, so seeing one always means the same thing. */
+  /* ══════════════════════════════════════════════════════════════════════ tokens
+     Taken from the Claritty platform's own `globals.css`, not eyeballed from a screenshot:
+     dark #0F0F10 / card #1A1A1C / border #27272A / foreground #F8FAFC / muted #94A3B8,
+     brand accent #5B7FFF in both themes, and `--surface-deep` #0d1117 for code surfaces,
+     which is deliberately identical in light and dark so a code block never changes under you.
+
+     Semantic status colours are separate from the accent and each means exactly one thing on this
+     page: warning is always a declared ceiling, destructive is always a blocked call, success is
+     always a human grant. */
   :root {
-    --ground:      #F7F8FA;
-    --ground-sunk: #EDEFF3;
-    --ink:         #131A22;
-    --ink-dim:     #57636F;
-    --ink-faint:   #8894A1;
-    --rule:        #DCE1E8;
-    --steel:       #3F7CA6;
-    --amber:       #B87413;
-    --alarm:       #C6402C;
-    /* Semantic, not an accent: the one colour a human grant is allowed to wear. It appears in the
-       cloud band and nowhere else, because that is the only place a person says yes. */
-    --grant:       #2F7D51;
-    --shadow:      0 1px 2px rgba(19, 26, 34, .06), 0 8px 24px -12px rgba(19, 26, 34, .18);
-
-    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
-    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
-
-    --measure: 68ch;
-    --gutter: clamp(1.25rem, 5vw, 3rem);
+    --bg:        #F2F4F7;
+    --surface:   #FFFFFF;
+    --fg:        #1E293B;
+    --fg-muted:  #64748B;
+    --fg-faint:  #94A3B8;
+    --border:    #E2E8F0;
+    --accent:    #5B7FFF;
+    --success:   #2E9E4F;
+    --warning:   #C2740B;
+    --destructive: #DC2626;
+    --code:      #0d1117;
+    --code-fg:   #c9d1d9;
+    --radius:    1rem;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue",
+            Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   }
 
   @media (prefers-color-scheme: dark) {
     :root {
-      --ground:      #0B0F14;
-      --ground-sunk: #10161D;
-      --ink:         #DCE3EC;
-      --ink-dim:     #8B99AB;
-      --ink-faint:   #5D6B7C;
-      --rule:        #1D2733;
-      --steel:       #5B8FB9;
-      --amber:       #F0A22E;
-      --alarm:       #E2543F;
-      --grant:       #4FB87A;
-      --shadow:      0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -16px rgba(0, 0, 0, .8);
+      --bg:      #0F0F10;
+      --surface: #1A1A1C;
+      --fg:      #F8FAFC;
+      --fg-muted: #94A3B8;
+      --fg-faint: #6B7684;
+      --border:  #27272A;
+      --accent:  #5B7FFF;
+      --success: #34C759;
+      --warning: #FF9500;
+      --destructive: #F87171;
     }
   }
-  /* The viewer's own toggle. Must win over the media query in both directions, so both are
-     restated at token level rather than styling components inside a media query. */
+  /* The viewer's toggle has to win over the media query in both directions, so both themes are
+     restated at token level rather than components being styled inside a media query. */
   :root[data-theme="light"] {
-    --ground: #F7F8FA; --ground-sunk: #EDEFF3; --ink: #131A22; --ink-dim: #57636F;
-    --ink-faint: #8894A1; --rule: #DCE1E8; --steel: #3F7CA6; --amber: #B87413; --alarm: #C6402C;
-    --grant: #2F7D51;
-    --shadow: 0 1px 2px rgba(19, 26, 34, .06), 0 8px 24px -12px rgba(19, 26, 34, .18);
+    --bg: #F2F4F7; --surface: #FFFFFF; --fg: #1E293B; --fg-muted: #64748B; --fg-faint: #94A3B8;
+    --border: #E2E8F0; --success: #2E9E4F; --warning: #C2740B; --destructive: #DC2626;
   }
   :root[data-theme="dark"] {
-    --ground: #0B0F14; --ground-sunk: #10161D; --ink: #DCE3EC; --ink-dim: #8B99AB;
-    --ink-faint: #5D6B7C; --rule: #1D2733; --steel: #5B8FB9; --amber: #F0A22E; --alarm: #E2543F;
-    --grant: #4FB87A;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -16px rgba(0, 0, 0, .8);
+    --bg: #0F0F10; --surface: #1A1A1C; --fg: #F8FAFC; --fg-muted: #94A3B8; --fg-faint: #6B7684;
+    --border: #27272A; --success: #34C759; --warning: #FF9500; --destructive: #F87171;
   }
 
-  /* ─────────────────────────────────────────────────────── base */
-  .neti { background: var(--ground); color: var(--ink); font-family: var(--serif);
-          font-size: clamp(1.02rem, .35vw + .95rem, 1.14rem); line-height: 1.62;
-          -webkit-font-smoothing: antialiased; }
+  /* ══════════════════════════════════════════════════════════════════════ base */
+  .neti { background: var(--bg); color: var(--fg); font-family: var(--sans);
+          font-size: 1rem; line-height: 1.6; -webkit-font-smoothing: antialiased; }
   .neti *, .neti *::before, .neti *::after { box-sizing: border-box; }
-  .neti :focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 2px; }
-
-  .wrap { max-width: var(--measure); margin-inline: auto; padding-inline: var(--gutter); }
-  .bleed { max-width: 78rem; margin-inline: auto; padding-inline: var(--gutter); }
-
-  .neti p { margin: 0 0 1.1em; }
-  .neti a { color: inherit; text-decoration-color: var(--ink-faint);
-            text-underline-offset: .18em; text-decoration-thickness: 1px; }
-  .neti a:hover { text-decoration-color: var(--amber); }
+  .neti :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 4px; }
+  .neti p { margin: 0 0 1rem; }
   .neti strong { font-weight: 600; }
-  .neti code { font-family: var(--mono); font-size: .86em; background: var(--ground-sunk);
-               padding: .12em .38em; border-radius: 3px; }
+  .neti a { color: inherit; }
+  /* Colour only, and no transition. Motion on hover is banned; the state comes from the press. */
+  .neti a:hover { color: var(--accent); }
+  .neti code { font-family: var(--mono); font-size: .875em; }
 
-  /* ─────────────────────────────────────────────────────── type roles
-     Monospace carries the headlines. This is a terminal product; setting its display face in the
-     same face its output arrives in is the most honest thing available, and it is not what a
-     landing page usually does. */
-  .display { font-family: var(--mono); font-weight: 500; letter-spacing: -.035em;
-             line-height: 1.04; text-wrap: balance; margin: 0; }
-  h1.display { font-size: clamp(2.1rem, 7.5vw, 4.1rem); }
-  h2.display { font-size: clamp(1.5rem, 3.6vw, 2.15rem); margin-bottom: .55em; letter-spacing: -.03em; }
-  h3 { font-family: var(--mono); font-weight: 600; font-size: 1rem; letter-spacing: -.01em;
-       margin: 2.2em 0 .5em; }
+  .shell { max-width: 72rem; margin-inline: auto; padding-inline: clamp(1.25rem, 4vw, 2rem); }
+  section { padding-block: clamp(4rem, 9vw, 7rem); border-top: 1px solid var(--border); }
 
-  .label { font-family: var(--mono); font-size: .69rem; font-weight: 600; text-transform: uppercase;
-           letter-spacing: .155em; color: var(--ink-faint); display: block; margin-bottom: 1.1em; }
-  .lede { font-size: 1.16em; color: var(--ink-dim); }
+  h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -0.03em; text-wrap: balance;
+               line-height: 1.08; }
+  h1 { font-size: clamp(2.4rem, 6vw, 4rem); }
+  h2 { font-size: clamp(1.85rem, 3.4vw, 2.75rem); line-height: 1.12; }
+  h3 { font-size: 1.0625rem; letter-spacing: -0.01em; line-height: 1.4; }
+  .lede { font-size: clamp(1.0625rem, 1.1vw + .85rem, 1.25rem); color: var(--fg-muted);
+          line-height: 1.55; max-width: 34em; }
+  .muted { color: var(--fg-muted); }
+  .small { font-size: .9375rem; line-height: 1.55; color: var(--fg-muted); }
 
-  section { padding-block: clamp(3.2rem, 8vw, 5.5rem); border-top: 1px solid var(--rule); }
-  section:first-of-type { border-top: 0; }
-
-  /* ─────────────────────────────────────────────────────── hero */
-  .hero { padding-block: clamp(3rem, 9vw, 6rem) clamp(2.5rem, 6vw, 4rem); border-top: 0; }
-  .hero h1 { margin-bottom: .45em; }
-  .hero .lede { max-width: 52ch; }
-  .rule-amber { color: var(--amber); }
-
-  .cta { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin-top: 2rem; }
-  .install { font-family: var(--mono); font-size: .93rem; background: var(--ground-sunk);
-             border: 1px solid var(--rule); border-radius: 6px; padding: .7rem 1rem;
-             display: flex; align-items: center; gap: .6rem;
-             /* A command is one unbroken token; let it scroll inside its own box rather than push
-                the page sideways on a phone. */
-             max-width: 100%; overflow-x: auto; white-space: nowrap; }
-  .install .sigil { color: var(--ink-faint); user-select: none; }
-  .btn { font-family: var(--mono); font-size: .82rem; font-weight: 600; letter-spacing: .04em;
-         text-transform: uppercase; padding: .78rem 1.15rem; border-radius: 6px;
-         border: 1px solid var(--ink); text-decoration: none; display: inline-block;
-         transition: background .15s ease, color .15s ease; }
-  .btn:hover { background: var(--ink); color: var(--ground); text-decoration: none; }
-
-  /* ─────────────────────────────────────────────────────── the instrument
-     A row of magnitudes against one declared ceiling. Most calls fit. One does not, and everything
-     stops — which is the entire product in one picture. */
-  .gauge { margin-top: clamp(2.5rem, 6vw, 3.5rem); }
-  .gauge canvas { width: 100%; height: auto; display: block; }
-  .gauge-key { display: flex; flex-wrap: wrap; gap: 1.4rem; margin-top: 1rem;
-               font-family: var(--mono); font-size: .72rem; color: var(--ink-dim);
-               letter-spacing: .04em; }
-  .gauge-key span { display: inline-flex; align-items: center; gap: .45rem; }
-  .swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; }
-
-  /* ─────────────────────────────────────────────────────── captures */
-  figure { margin: 2rem 0 0; }
-  figure img { width: 100%; height: auto; display: block; border-radius: 8px;
-               border: 1px solid var(--rule); box-shadow: var(--shadow); background: #0d1117; }
-  figcaption { font-family: var(--mono); font-size: .72rem; color: var(--ink-faint);
-               letter-spacing: .05em; margin-top: .75rem; line-height: 1.5; }
-
-  /* ─────────────────────────────────────────────────────── the lattice
-     Real structure, not decoration: ALLOW < FLAG < CONFIRM < BLOCK is the actual verdict lattice,
-     and the whole decision procedure is a join over it — most-restrictive-wins. */
-  .lattice { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
-             gap: .6rem; margin: 1.8rem 0 0; padding: 0; list-style: none; }
-  .lattice li { border: 1px solid var(--rule); border-radius: 6px; padding: .85rem .9rem;
-                background: var(--ground-sunk); }
-  .lattice b { font-family: var(--mono); font-size: .82rem; letter-spacing: .06em; display: block;
-               margin-bottom: .3em; }
-  .lattice small { color: var(--ink-dim); font-size: .82rem; line-height: 1.45; display: block; }
-  .lattice li:nth-child(1) b { color: var(--steel); }
-  .lattice li:nth-child(4) b { color: var(--alarm); }
-
-  /* ─────────────────────────────────────────────────────── tables */
-  .scroll { overflow-x: auto; margin-top: 1.6rem; }
-  table { border-collapse: collapse; width: 100%; font-family: var(--mono); font-size: .82rem;
-          font-variant-numeric: tabular-nums; }
-  th, td { text-align: left; padding: .55rem .9rem .55rem 0; border-bottom: 1px solid var(--rule);
-           white-space: nowrap; }
-  th { font-size: .68rem; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-faint);
-       font-weight: 600; }
-  td.n { text-align: right; padding-right: 1.4rem; }
-
-  /* ─────────────────────────────────────────────────────── the rack
-     Three tiers, because the seam is what decides what the gate can see, and a flat grid of names
-     would flatten exactly that. Each tier says how it attaches and what it buys. */
-  .rack { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule);
-          border-radius: 10px; overflow: hidden; margin-top: 2.2rem; }
-  @media (min-width: 62rem) { .rack { grid-template-columns: repeat(3, 1fr); } }
-  .tier { background: var(--ground); padding: 1.6rem 1.5rem 1.75rem; display: flex;
-          flex-direction: column; }
-  .tier-head b { font-family: var(--mono); font-size: .95rem; font-weight: 600;
-                 letter-spacing: -.01em; display: block; }
-  .tier-head span { font-family: var(--mono); font-size: .68rem; text-transform: uppercase;
-                    letter-spacing: .11em; color: var(--ink-faint); display: block;
-                    margin-top: .5em; }
-  .tier-head span code { background: none; padding: 0; font-size: 1em; letter-spacing: 0;
-                         text-transform: none; }
-  .tier-why { font-size: .93rem; color: var(--ink-dim); line-height: 1.55;
-              margin: 1.1rem 0 1.35rem; }
-
-  /* Wordmarks rather than logos: every name is set in the same face at the same size, so the list
-     reads as a list of seams instead of a wall of borrowed brand art. */
-  .chips { list-style: none; margin: auto 0 0; padding: 0; display: flex; flex-wrap: wrap;
-           gap: .4rem; }
-  .chips li { font-family: var(--mono); font-size: .76rem; letter-spacing: -.01em;
-              border: 1px solid var(--rule); border-radius: 5px; padding: .38rem .58rem;
-              background: var(--ground-sunk); color: var(--ink); white-space: nowrap; }
-  .chips li i { font-style: normal; color: var(--ink-faint); }
-  .chips li.chip-quiet { border-style: dashed; background: none; color: var(--ink-faint); }
-
-  /* Two columns of what is free and what is not. The point of the section is that the line is
-     principled, so the two sides are given identical weight rather than one being upsold. */
-  .split { display: grid; gap: 1.5rem; grid-template-columns: 1fr; margin-top: 1.8rem; }
-  @media (min-width: 46rem) { .split { grid-template-columns: 1fr 1fr; gap: 2.5rem; } }
-  .split ul { margin: .8rem 0 0; padding-left: 1.1rem; }
-  .split li { margin-bottom: .45em; }
-
-  .note { border-left: 2px solid var(--amber); padding-left: 1.1rem; color: var(--ink-dim);
-          margin: 1.8rem 0 0; }
-
-  /* ─────────────────────────────────────────────────────── nav */
-  .nav { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--ground) 88%, transparent);
-         backdrop-filter: blur(10px); border-bottom: 1px solid var(--rule); }
-  .nav-in { max-width: 78rem; margin-inline: auto; padding: .7rem var(--gutter);
-            display: flex; align-items: center; gap: 1.4rem;
-            font-family: var(--mono); font-size: .76rem; letter-spacing: .02em; }
-  .nav-mark { font-weight: 600; letter-spacing: -.02em; font-size: .92rem; margin-right: auto; }
-  .nav a { text-decoration: none; color: var(--ink-dim); white-space: nowrap; }
-  .nav a:hover { color: var(--ink); }
-  .nav a.now { color: var(--amber); }
-  @media (max-width: 44rem) { .nav .opt { display: none; } }
-  /* The nav is sticky, so an anchor jump would otherwise land its own heading underneath it. */
-  .neti [id] { scroll-margin-top: 4.5rem; }
-  .neti { scroll-behavior: smooth; }
-  @media (prefers-reduced-motion: reduce) { .neti { scroll-behavior: auto; } }
-
-  /* ─────────────────────────────────────────────────────── proof band
-     Five numbers that do not move week to week. A test count would have been the most flattering
-     one available and is exactly the sort of figure that goes stale unwatched, so it is not here. */
-  .proof { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
-           gap: 1px; background: var(--rule); border-block: 1px solid var(--rule); }
-  .proof div { background: var(--ground); padding: 1.35rem 1.2rem; }
-  .proof b { font-family: var(--mono); font-size: 1.65rem; font-weight: 500; letter-spacing: -.04em;
-             font-variant-numeric: tabular-nums; display: block; line-height: 1; }
-  .proof span { font-family: var(--mono); font-size: .67rem; text-transform: uppercase;
-                letter-spacing: .12em; color: var(--ink-faint); display: block; margin-top: .7em;
-                line-height: 1.4; }
-
-  /* ─────────────────────────────────────────────────────── the cloud band
-     Sunk ground, because this is the other half of the product rather than more of the same one. */
-  .cloud { background: var(--ground-sunk); border-top: 1px solid var(--rule); }
-  .cloud .step-list { counter-reset: step; list-style: none; padding: 0; margin: 2.2rem 0 0;
-                      display: grid; gap: 1px; background: var(--rule);
-                      border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
-  @media (min-width: 58rem) { .cloud .step-list { grid-template-columns: repeat(4, 1fr); } }
-  /* Numbered because it genuinely is a sequence — the call stops, a person is asked, they answer,
-     the agent retries — and the order is the information. */
-  .cloud .step-list li { background: var(--ground-sunk); padding: 1.4rem 1.3rem 1.5rem;
-                         counter-increment: step; }
-  .cloud .step-list li::before { content: counter(step, decimal-leading-zero);
-                                 font-family: var(--mono); font-size: .7rem; font-weight: 600;
-                                 letter-spacing: .1em; color: var(--amber); display: block;
-                                 margin-bottom: .8em; }
-  .cloud .step-list b { font-family: var(--mono); font-size: .88rem; font-weight: 600;
-                        display: block; margin-bottom: .5em; letter-spacing: -.01em; }
-  .cloud .step-list small { font-size: .87rem; color: var(--ink-dim); line-height: 1.5;
-                            display: block; }
-  .cloud .step-list li:last-child::before { color: var(--grant); }
-
-  .shot { margin: 2.4rem 0 0; }
-  .shot img { width: 100%; height: auto; display: block; border-radius: 10px;
-              border: 1px solid var(--rule); box-shadow: var(--shadow); }
-
-  .guarantees { list-style: none; padding: 0; margin: 2rem 0 0; display: grid; gap: .55rem; }
-  @media (min-width: 50rem) { .guarantees { grid-template-columns: 1fr 1fr; } }
-  .guarantees li { font-size: .92rem; color: var(--ink-dim); line-height: 1.5;
-                   padding-left: 1.4rem; position: relative; }
-  .guarantees li::before { content: "→"; position: absolute; left: 0; color: var(--grant);
-                           font-family: var(--mono); }
-  .guarantees b { color: var(--ink); font-weight: 600; }
-
-  .btn-grant { border-color: var(--grant); color: var(--grant); }
-  .btn-grant:hover { background: var(--grant); color: var(--ground); }
-
-  footer { border-top: 1px solid var(--rule); padding-block: 3rem;
-           font-family: var(--mono); font-size: .76rem; color: var(--ink-faint);
-           letter-spacing: .03em; }
-  footer a { text-decoration: none; }
-  footer a:hover { color: var(--ink); }
-
-  @media (max-width: 30rem) {
-    .install { font-size: .8rem; padding: .6rem .75rem; }
-    .gauge-key { gap: .5rem 1rem; font-size: .68rem; }
-    .tier { padding: 1.3rem 1.15rem 1.4rem; }
+  /* Master-detail. Text one side, the visual the other, and the visual alternates down the page. */
+  .duo { display: grid; gap: clamp(2rem, 4vw, 3.5rem); align-items: center; }
+  @media (min-width: 60rem) {
+    .duo { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
+    /* Flipping moves the text to the second cell, so the track widths swap with it. Otherwise the
+       visual inherits the narrow column and every alternating section is cramped. */
+    .duo.flip { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+    .duo.flip > :first-child { order: 2; }
   }
+  .duo-wide { display: grid; gap: clamp(2rem, 4vw, 3.5rem); }
+  @media (min-width: 60rem) { .duo-wide { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); } }
+
+  /* ══════════════════════════════════════════════════════════════════════ nav */
+  .nav { position: sticky; top: 0; z-index: 20; background: var(--bg);
+         border-bottom: 1px solid var(--border); }
+  .nav-in { max-width: 72rem; margin-inline: auto; padding: .85rem clamp(1.25rem, 4vw, 2rem);
+            display: flex; align-items: center; gap: 1.75rem; font-size: .875rem; }
+  .nav-mark { font-weight: 700; letter-spacing: -0.03em; font-size: 1.0625rem; margin-right: auto; }
+  .nav a { text-decoration: none; color: var(--fg-muted); white-space: nowrap; }
+  .nav a.on { color: var(--accent); }
+  @media (max-width: 48rem) { .nav .opt { display: none; } }
+  .neti [id] { scroll-margin-top: 4.5rem; }
+
+  /* ══════════════════════════════════════════════════════════════════════ actions
+     One primary pill per section. Everything else is a quiet text link. */
+  .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem; margin-top: 2rem; }
+  .pill { display: inline-block; background: var(--accent); color: #fff; font-weight: 600;
+          font-size: .9375rem; padding: .7rem 1.4rem; border-radius: 999px;
+          text-decoration: none; }
+  .pill:hover { background: #4A6BE8; color: #fff; }
+  .quiet { font-size: .9375rem; color: var(--fg-muted); text-decoration: none;
+           border-bottom: 1px solid var(--border); padding-bottom: 1px; }
+
+  .cmd { font-family: var(--mono); font-size: .875rem; background: var(--code); color: var(--code-fg);
+         border-radius: .625rem; padding: .7rem 1rem; display: block; max-width: 100%;
+         overflow-x: auto; white-space: nowrap; }
+  .cmd .sig { color: var(--fg-faint); user-select: none; }
+
+  /* ══════════════════════════════════════════════════════════════════════ visuals
+     Flat frames. No drop shadows anywhere, and no window chrome faking an app that is not
+     the one being shown. */
+  .frame { display: block; width: 100%; height: auto; border: 1px solid var(--border);
+           border-radius: var(--radius); background: var(--code); }
+  .cap { font-size: .8125rem; color: var(--fg-faint); line-height: 1.5; margin-top: .85rem; }
+
+  .gauge canvas { width: 100%; height: auto; display: block; }
+  .key { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; margin-top: 1rem;
+         font-size: .8125rem; color: var(--fg-muted); }
+  .key span { display: inline-flex; align-items: center; gap: .5rem; }
+  .key i { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+
+  /* ══════════════════════════════════════════════════════════════════════ editorial rows
+     Used instead of card grids throughout. A label column, a content column, a rule between. */
+  .rows { border-top: 1px solid var(--border); }
+  .row { display: grid; gap: .5rem 2.5rem; padding-block: 1.75rem;
+         border-bottom: 1px solid var(--border); }
+  @media (min-width: 52rem) { .row { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); } }
+  .row-k { font-weight: 600; font-size: .9375rem; letter-spacing: -0.01em; }
+  .row-k em { display: block; font-style: normal; font-weight: 400; font-size: .8125rem;
+              color: var(--fg-faint); margin-top: .3rem; font-family: var(--mono); }
+  .row-v { font-size: .9375rem; color: var(--fg-muted); line-height: 1.6; }
+  .row-v p:last-child { margin-bottom: 0; }
+  .row-n { font-family: var(--mono); font-size: .8125rem; color: var(--accent); font-weight: 600; }
+
+  .names { display: flex; flex-wrap: wrap; gap: .4rem .9rem; margin-top: .85rem;
+           font-family: var(--mono); font-size: .8125rem; color: var(--fg); }
+  .names span { white-space: nowrap; }
+  .names span i { font-style: normal; color: var(--fg-faint); }
+
+  /* ══════════════════════════════════════════════════════════════════════ figures */
+  .stat-strip { display: flex; flex-wrap: wrap; gap: 2.5rem 3.5rem; }
+  .stat b { display: block; font-size: 1.9rem; font-weight: 700; letter-spacing: -0.04em;
+            font-variant-numeric: tabular-nums; line-height: 1; }
+  .stat span { display: block; font-size: .8125rem; color: var(--fg-muted); margin-top: .5rem; }
+  .stat b sup { font-size: .5em; font-weight: 600; vertical-align: super; margin-left: .1em; }
+
+  /* The verdict lattice, drawn as the ordered scale it is rather than four tiles. */
+  .lat { margin-top: 1.5rem; }
+  .lat-track { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0;
+               border-radius: 999px; overflow: hidden; height: 6px; }
+  .lat-track i { display: block; }
+  .lat-marks { display: grid; grid-template-columns: repeat(4, 1fr); gap: .75rem;
+               margin-top: .9rem; }
+  .lat-marks div { font-family: var(--mono); font-size: .75rem; font-weight: 600;
+                   letter-spacing: .04em; }
+  .lat-marks p { font-family: var(--sans); font-size: .8125rem; font-weight: 400;
+                 letter-spacing: 0; color: var(--fg-muted); margin: .4rem 0 0; line-height: 1.45; }
+
+  .scroll { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius); }
+  table { border-collapse: collapse; width: 100%; font-size: .875rem;
+          font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: .7rem 1.1rem; border-bottom: 1px solid var(--border);
+           white-space: nowrap; }
+  tr:last-child td { border-bottom: 0; }
+  th { font-size: .75rem; text-transform: uppercase; letter-spacing: .09em; color: var(--fg-faint);
+       font-weight: 600; }
+  td:first-child { font-family: var(--mono); font-size: .8125rem; }
+  td { color: var(--fg-muted); }
+
+  .note { border-left: 2px solid var(--accent); padding-left: 1.1rem; color: var(--fg-muted);
+          font-size: .9375rem; line-height: 1.6; }
+
+  /* ══════════════════════════════════════════════════════════════════════ cloud band
+     A different surface, because it is the other half of the product rather than more of this one. */
+  .cloud { background: var(--surface); border-top: 1px solid var(--border); }
+  .cloud section { border-top-color: var(--border); }
+  .cloud section:first-of-type { border-top: 0; }
+  .steps { counter-reset: s; list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--border); }
+  .steps li { counter-increment: s; display: grid; gap: .35rem 2rem; padding-block: 1.5rem;
+              border-bottom: 1px solid var(--border); }
+  @media (min-width: 52rem) { .steps li { grid-template-columns: 2.5rem minmax(0,4fr) minmax(0,7fr); } }
+  .steps li::before { content: counter(s, decimal-leading-zero); font-family: var(--mono);
+                      font-size: .8125rem; font-weight: 600; color: var(--accent); }
+  .steps b { font-size: .9375rem; font-weight: 600; letter-spacing: -0.01em; }
+  .steps span { font-size: .9375rem; color: var(--fg-muted); line-height: 1.6; }
+
+  footer { border-top: 1px solid var(--border); padding-block: 2.75rem;
+           font-size: .875rem; color: var(--fg-faint); }
+  footer a { text-decoration: none; }
 
   @media (prefers-reduced-motion: reduce) {
     .neti *, .neti *::before, .neti *::after { animation: none !important; transition: none !important; }
@@ -276,391 +207,419 @@
   <nav class="nav">
     <div class="nav-in">
       <span class="nav-mark">neti</span>
-      <a class="opt" href="#decision">How it decides</a>
+      <a class="opt" href="#decides">How it decides</a>
       <a class="opt" href="#seams">Where it plugs in</a>
       <a class="opt" href="#scope">What it does not do</a>
-      <a class="now" href="#cloud">Cloud</a>
+      <a class="on" href="#cloud">Cloud</a>
       <a href="https://github.com/Neti-Security/neti">GitHub</a>
     </div>
   </nav>
 
-  <!-- ══════════════════════════════════════════════════════ hero -->
-  <header class="hero bleed">
-    <div class="wrap" style="margin-inline:0;padding-inline:0">
-      <span class="label">A preflight gate for agent tool calls</span>
-      <h1 class="display">How big<br>is this<span class="rule-amber">?</span></h1>
-      <p class="lede">An agent asks to do one thing. That one thing turns out to be a million
-        things. Nobody finds out until after.</p>
-      <p class="lede"><code>neti</code> resolves what a call will actually touch <em>before</em> it
-        runs, compares that count to a ceiling you declared, and stops it when it does not fit.</p>
+  <!-- ═══════════════════════════════════════════ hero: the diagram carries it, not the words -->
+  <header class="shell" style="padding-block:clamp(3.5rem,8vw,6rem) clamp(2.5rem,5vw,3.5rem)">
+    <h1>An agent asks to do one&nbsp;thing.<br>It turns out to be a million&nbsp;things.</h1>
+    <p class="lede" style="margin-top:1.5rem">neti counts what a tool call will touch before it
+      runs. If the count is over a ceiling you set, the call does not happen.</p>
 
-      <div class="cta">
-        <div class="install"><span class="sigil">$</span> pip install neti &amp;&amp; neti demo --here</div>
-        <a class="btn" href="https://github.com/Neti-Security/neti">Source</a>
-      </div>
+    <div class="actions">
+      <a class="pill" href="https://github.com/Neti-Security/neti">Get started</a>
+      <a class="quiet" href="#cloud">See the hosted version</a>
     </div>
 
-    <div class="gauge">
+    <div class="gauge" style="margin-top:clamp(2.5rem,5vw,3.5rem)">
       <canvas id="gauge" width="1200" height="300" role="img"
-        aria-label="Eleven tool calls drawn as horizontal bars against a declared ceiling of 200 principals. Ten fit. The eleventh resolves to 41,203 and crosses the ceiling, and is blocked."></canvas>
-      <div class="gauge-key">
-        <span><i class="swatch" style="background:var(--steel)"></i>resolved, within ceiling</span>
-        <span><i class="swatch" style="background:var(--amber)"></i>declared ceiling — 200 principals</span>
-        <span><i class="swatch" style="background:var(--alarm)"></i>blocked before it ran</span>
+        aria-label="Eleven tool calls drawn as horizontal bars against a declared ceiling of 200 principals. Ten fit. The eleventh resolves to 41,203 and crosses the ceiling, and is blocked before it runs."></canvas>
+      <div class="key">
+        <span><i style="background:var(--accent)"></i>counted, under the ceiling</span>
+        <span><i style="background:var(--warning)"></i>the ceiling you declared, 200 principals</span>
+        <span><i style="background:var(--destructive)"></i>stopped before it ran</span>
       </div>
     </div>
   </header>
 
-  <div class="proof">
-    <div><b>12</b><span>seams, no code change</span></div>
-    <div><b>10</b><span>resolvers that count</span></div>
-    <div><b>170</b><span>real tool schemas, adjudicated</span></div>
-    <div><b>~140<small style="font-size:.6em">ms</small></b><span>hook overhead, p50</span></div>
-    <div><b>0</b><span>bytes of telemetry</span></div>
-  </div>
-
-  <!-- ══════════════════════════════════════════════════════ the call -->
-  <section class="wrap">
-    <span class="label">The call</span>
-    <h2 class="display">One string, four hundred people</h2>
-
-    <div class="install" style="display:block;margin-bottom:1.4rem">
-      remove_group_members(group: <span class="rule-amber">"engineering-all"</span>)
+  <!-- ═══════════════════════════════════════════ the call. visual right. -->
+  <section class="shell">
+    <div class="duo">
+      <div>
+        <h2>One string.<br>Four hundred people.</h2>
+        <p class="lede" style="margin-top:1.25rem">Your permission system sees a group name on an
+          allowlist, and the name is allowed. neti sees 412 people losing access to 9
+          applications.</p>
+        <p class="small">The agent gets a number back, not a refusal. That is what makes it narrow
+          the target and try again instead of giving up or working around it. Nothing about the gate
+          reaches the prompt.</p>
+        <span class="cmd" style="margin-top:1.25rem">remove_group_members(group: "engineering-all")</span>
+      </div>
+      <div>
+        <img class="frame" alt="A terminal showing neti's PreToolUse hook denying a call: /group resolves to 41,203 principals, above the declared ceiling of 200." src="{{MEDIA:hook_block}}">
+        <p class="cap">Every image on this page is generated from output the test suite pins byte
+          for byte. If the product stops printing this, the build fails until the picture is
+          regenerated.</p>
+      </div>
     </div>
-
-    <p>Your policy engine sees a string on an allowlist, and the string is allowed. <code>neti</code>
-      sees <strong>412 people losing access to 9 applications</strong> — and stops the call, because
-      you declared a ceiling of 200.</p>
-
-    <p>Alignment, authorization, provenance, sandboxing, anomaly detection and rollback each answer a
-      different question. None of them answers this one.</p>
-
-    <figure>
-      <img alt="A terminal showing neti's PreToolUse hook denying a call: /group resolves to 41,203 principals, above the declared ceiling of 200." src="{{MEDIA:hook_block}}">
-      <figcaption>The agent gets back a number, not a refusal — which is what makes it narrow the
-        target and try again rather than give up or route around. Nothing about the gate reaches the
-        prompt.</figcaption>
-    </figure>
   </section>
 
-  <!-- ══════════════════════════════════════════════════════ the decision -->
-  <section class="wrap" id="decision">
-    <span class="label">The decision</span>
-    <h2 class="display">A static integer comparison</h2>
-
-    <p>There is no threshold to tune, no model to drift in the decision path, and nothing to
-      calibrate on a corpus. A resolver turns the argument into a count; the count is compared
-      against bands you committed to a file; the verdicts join, most-restrictive-wins.</p>
-
-    <ul class="lattice">
-      <li><b>ALLOW</b><small>It fits. Nothing is said, so your existing permission rules keep working
-        exactly as they were.</small></li>
-      <li><b>FLAG</b><small>It runs, and it is recorded as notable.</small></li>
-      <li><b>CONFIRM</b><small>Somebody other than the agent's operator should decide this one.</small></li>
-      <li><b>BLOCK</b><small>It does not run, and the reason carries the number.</small></li>
-    </ul>
-
-    <p class="note">Two properties make the verdict sound, and everything rests on them. <strong>No
-      resolver may return <code>0</code> for something it could not reach</strong> — an unreachable
-      target and an empty one are opposite situations with the same number. And <strong>anything
-      capped or estimated reports a lower bound</strong>, which can block soundly and can never
-      allow, so the targets too large to count are exactly the ones that cannot slip through
-      quietly.</p>
-  </section>
-
-  <!-- ══════════════════════════════════════════════════════ day one -->
-  <section class="bleed">
-    <div class="wrap" style="margin-inline:0;padding-inline:0">
-      <span class="label">Day one · before any traffic</span>
-      <h2 class="display">What one credential can address</h2>
-      <p>Not a measurement of any single call — a bound on what the agent could do in one, which is
-        the number nobody has. It needs no traffic, no ceilings and no waiting.</p>
-    </div>
-
-    <figure>
-      <img alt="neti inventory listing four gated parameters, their resolvers, and the maximum each could reach in one call: 52,400 principals and 214 applications." src="{{MEDIA:inventory_rows}}">
-      <figcaption>The finding on day one: this agent holds a credential that can, in one call, reach
-        52,400 people and 214 applications, and nothing today would stop it.</figcaption>
-    </figure>
-  </section>
-
-  <!-- ══════════════════════════════════════════════════════ week one -->
-  <section class="bleed">
-    <div class="wrap" style="margin-inline:0;padding-inline:0">
-      <span class="label">Week one · from your own traffic</span>
-      <h2 class="display">Ceilings you can defend</h2>
-      <p>The gate ships in <code>observe</code> mode with <strong>every band left blank on
-        purpose</strong>. A ceiling nobody chose is a ceiling nobody will defend the first time it
-        fires — so the numbers arrive a week later, out of what you actually did.</p>
-    </div>
-
-    <figure>
-      <img alt="neti propose deriving ceilings from observed traffic, showing its rationale and what those ceilings would have done to the traffic already recorded." src="{{MEDIA:propose_bimodal}}">
-      <figcaption>It shows its working, including where the statistics disagree with themselves —
-        above, the p95 <em>is</em> the outlier, so it anchors on the median instead and says to
-        expect a higher interrupt rate. You edit the numbers and commit them. Nothing learned ever
-        reaches the decision path.</figcaption>
-    </figure>
-  </section>
-
-  <!-- ══════════════════════════════════════════════════════ coverage -->
-  <section class="wrap">
-    <span class="label">Coverage</span>
-    <h2 class="display">What can be sized</h2>
-    <p>A seam without a resolver is a place to write <code>allow</code>, so this list is the real
-      measure of coverage — and the reason a new resolver is the contribution that matters most.</p>
-
-    <div class="scroll">
-      <table>
-        <thead><tr><th>resolver</th><th>unit</th><th>one call resolves</th><th>cost</th></tr></thead>
-        <tbody>
-          <tr><td>fs.paths</td><td>objects</td><td>a path, directory or glob</td><td>local walk, capped</td></tr>
-          <tr><td>db.rows</td><td>rows</td><td>DELETE / UPDATE → select count(*)</td><td>one scan</td></tr>
-          <tr><td>storage.objects</td><td>objects</td><td>s3://bucket/prefix</td><td>paginated, capped</td></tr>
-          <tr><td>github.repos</td><td>repositories</td><td>owner → every repo in the org</td><td>one request</td></tr>
-          <tr><td>github.files</td><td>objects</td><td>owner/repo → files on the default branch</td><td>one request</td></tr>
-          <tr><td>entra.principals</td><td>principals</td><td>a group → everyone in it, nested included</td><td>one $count</td></tr>
-          <tr><td>entra.apps</td><td>apps</td><td>a group → applications assigned to it</td><td>one $count</td></tr>
-          <tr><td>entra.guests</td><td>principals</td><td>a group → the external members only</td><td>one $count</td></tr>
-          <tr><td>terraform.destroy</td><td>resources</td><td>a plan → what it would destroy</td><td>local read</td></tr>
-        </tbody>
-      </table>
-    </div>
-
-  </section>
-
-  <!-- ══════════════════════════════════════════════════════ integrations
-       Grouped by seam, because the seam is what decides what the gate can see. A flat logo wall
-       would flatten the one distinction that matters here: the hook sees things no proxy can, and
-       an MCP client is reached without neti knowing it exists. -->
-  <section class="bleed">
-    <div class="wrap" style="margin-inline:0;padding-inline:0">
-      <span class="label" id="seams">Twelve seams · no code change</span>
-      <h2 class="display">Where it plugs in</h2>
-      <p>Every runtime has one place where a request becomes an execution. <code>neti</code> sits at
-        that place — so a blocked call comes back to the model as a tool <em>result</em> with the
-        number in it, never an exception that kills the run.</p>
-    </div>
-
-    <div class="rack">
-      <div class="tier">
-        <div class="tier-head">
-          <b>The harness's own tools</b>
-          <span>A config line in <code>.claude/settings.json</code></span>
+  <!-- ═══════════════════════════════════════════ how it decides. visual left. -->
+  <section class="shell" id="decides">
+    <div class="duo flip">
+      <div>
+        <h2>A static integer comparison.</h2>
+        <p class="lede" style="margin-top:1.25rem">No threshold to tune. No model in the decision
+          path. Nothing calibrated on a corpus.</p>
+        <p class="small">A resolver turns the argument into a count. The count is compared against
+          bands you committed to a file. Where a call touches several things, the verdicts join and
+          the most restrictive one wins.</p>
+      </div>
+      <div>
+        <div class="lat">
+          <div class="lat-track">
+            <i style="background:var(--accent);opacity:.45"></i>
+            <i style="background:var(--accent);opacity:.65"></i>
+            <i style="background:var(--warning)"></i>
+            <i style="background:var(--destructive)"></i>
+          </div>
+          <div class="lat-marks">
+            <div style="color:var(--accent)">ALLOW<p>It fits. Nothing is said, so your existing
+              permission rules keep working.</p></div>
+            <div style="color:var(--accent)">FLAG<p>It runs, and the record marks it as
+              notable.</p></div>
+            <div style="color:var(--warning)">CONFIRM<p>Somebody other than the operator should
+              decide this one.</p></div>
+            <div style="color:var(--destructive)">BLOCK<p>It does not run, and the reason carries
+              the number.</p></div>
+          </div>
         </div>
-        <p class="tier-why">The only seam that can see a harness's <em>built-in</em> tools —
-          <code>Read</code>, <code>Edit</code>, <code>Glob</code>, <code>Grep</code>,
-          <code>Write</code>. No proxy can: they never travel over a protocol. This is also where the
-          gate is most effective, gating 6 of 10 built-ins against 25 of 160 MCP tools.</p>
-        <ul class="chips">
-          <li>Claude Code <i>PreToolUse hook</i></li>
-        </ul>
+        <p class="note" style="margin-top:2rem">Two rules make a verdict sound. No resolver may
+          return 0 for something it could not reach, because an unreachable target and an empty one
+          are opposite situations with the same number. And anything capped or estimated reports a
+          lower bound, which can block safely but can never allow. The targets too large to count
+          are the ones that cannot slip through quietly.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ day one. visual right. -->
+  <section class="shell">
+    <div class="duo">
+      <div>
+        <h2>What one credential can reach.</h2>
+        <p class="lede" style="margin-top:1.25rem">Before any traffic, before any ceilings, and
+          without waiting a week to find out.</p>
+        <p class="small">This is not a measurement of one call. It is a bound on what the agent
+          could do in a single call, which is the number nobody has. On day one it usually reads:
+          this agent holds a credential that can reach 52,400 people and 214 applications, and
+          nothing today would stop it.</p>
+      </div>
+      <div>
+        <img class="frame" alt="neti inventory listing four gated parameters, their resolvers, and the maximum each could reach in one call: 52,400 principals and 214 applications." src="{{MEDIA:inventory_rows}}">
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ week one. visual left. -->
+  <section class="shell">
+    <div class="duo flip">
+      <div>
+        <h2>Ceilings you can defend.</h2>
+        <p class="lede" style="margin-top:1.25rem">It ships in observe mode with every band left
+          blank on purpose.</p>
+        <p class="small">A ceiling nobody chose is a ceiling nobody will defend the first time it
+          fires. So the numbers arrive a week later, out of what you actually did. It shows its
+          working, including where the statistics disagree with themselves. You edit the numbers and
+          commit them. Nothing it learns ever reaches the decision path.</p>
+      </div>
+      <div>
+        <img class="frame" alt="neti propose deriving ceilings from observed traffic, with the rationale for each and what those ceilings would have done to traffic already recorded." src="{{MEDIA:propose_bimodal}}">
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ coverage -->
+  <section class="shell">
+    <div class="duo-wide">
+      <div>
+        <h2>What can be counted.</h2>
+        <p class="small" style="margin-top:1.25rem">A seam without a resolver is a place to write
+          "allow", so this list is the real measure of coverage. Adding one is about 80 lines, and
+          it is the contribution that matters most.</p>
+      </div>
+      <div class="scroll">
+        <table>
+          <thead><tr><th>resolver</th><th>unit</th><th>one call resolves</th><th>cost</th></tr></thead>
+          <tbody>
+            <tr><td>fs.paths</td><td>objects</td><td>a path, directory or glob</td><td>local walk, capped</td></tr>
+            <tr><td>db.rows</td><td>rows</td><td>DELETE or UPDATE, via select count(*)</td><td>one scan</td></tr>
+            <tr><td>storage.objects</td><td>objects</td><td>s3://bucket/prefix</td><td>paginated, capped</td></tr>
+            <tr><td>github.repos</td><td>repositories</td><td>an owner, and every repo under it</td><td>one request</td></tr>
+            <tr><td>github.files</td><td>objects</td><td>owner/repo, files on the default branch</td><td>one request</td></tr>
+            <tr><td>entra.principals</td><td>principals</td><td>a group, everyone in it, nested included</td><td>one $count</td></tr>
+            <tr><td>entra.apps</td><td>apps</td><td>a group, applications assigned to it</td><td>one $count</td></tr>
+            <tr><td>entra.guests</td><td>principals</td><td>a group, the external members only</td><td>one $count</td></tr>
+            <tr><td>terraform.destroy</td><td>resources</td><td>a plan, what it would destroy</td><td>local read</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════════════════ seams, as editorial rows -->
+  <section class="shell" id="seams">
+    <div class="duo-wide">
+      <div>
+        <h2>Twelve seams.<br>No code change.</h2>
+        <p class="small" style="margin-top:1.25rem">Every runtime has one place where a request
+          becomes an execution. neti sits at that place, so a blocked call comes back to the model as
+          a tool result with the number in it, never an exception that kills the run.</p>
+        <p class="small">The same call through every door reaches the same verdict, the same
+          magnitude and the same sentence, byte for byte. That is a test, not a claim. A verdict that
+          depends on which door a call arrived through is a bug in the product.</p>
       </div>
 
-      <div class="tier">
-        <div class="tier-head">
-          <b>Anything that speaks MCP</b>
-          <span>One line in the client's server config</span>
+      <div class="rows" style="border-top:0">
+        <div class="row">
+          <div class="row-k">The harness's own tools<em>.claude/settings.json</em></div>
+          <div class="row-v">
+            <p>The only seam that can see a harness's built-in tools: Read, Edit, Glob, Grep, Write.
+              No proxy can, because they never travel over a protocol. It is also where the gate is
+              most effective, covering 6 of 10 built-ins against 25 of 160 MCP tools.</p>
+            <div class="names"><span>Claude Code <i>PreToolUse hook</i></span></div>
+          </div>
         </div>
-        <p class="tier-why">Whatever command launched the server becomes an argument to
-          <code>neti gate</code>. The client is not modified, not configured, and not aware — which
-          is why this list can be long without any of it being work.</p>
-        <ul class="chips">
-          <li>Cursor</li><li>Claude Desktop</li><li>Windsurf</li><li>Cline</li><li>Continue</li>
-          <li>VS&nbsp;Code</li><li>Zed</li><li>Goose</li><li>LlamaIndex</li>
-          <li>Semantic&nbsp;Kernel</li><li>Strands</li><li>smolagents</li>
-          <li class="chip-quiet">stdio <i>and</i> remote HTTP</li>
-        </ul>
-      </div>
 
-      <div class="tier">
-        <div class="tier-head">
-          <b>Agent SDKs, natively</b>
-          <span>One import, at the top of the file</span>
+        <div class="row">
+          <div class="row-k">Anything that speaks MCP<em>one line in the client config</em></div>
+          <div class="row-v">
+            <p>Whatever command launched the server becomes an argument to neti gate. The client is
+              not modified, not configured, and not aware, which is why this list can be long without
+              any of it being work.</p>
+            <div class="names">
+              <span>Cursor</span><span>Claude Desktop</span><span>Windsurf</span><span>Cline</span>
+              <span>Continue</span><span>VS Code</span><span>Zed</span><span>Goose</span>
+              <span>LlamaIndex</span><span>Semantic Kernel</span><span>Strands</span>
+              <span>smolagents</span><span><i>stdio and remote HTTP</i></span>
+            </div>
+          </div>
         </div>
-        <p class="tier-why">Four of these have a before-tool callback the gate attaches to; the rest
-          wrap the one method that executes and copy name, description and schema across verbatim.
-          An agent must not be able to tell a gated tool from an ungated one by looking at it.</p>
-        <ul class="chips">
-          <li>Anthropic <i>tool_runner</i></li>
-          <li>OpenAI Agents <i>guardrail</i></li>
-          <li>LangChain <i>+ LangGraph</i></li>
-          <li>CrewAI <i>hooks</i></li>
-          <li>Pydantic AI <i>toolset</i></li>
-          <li>AutoGen <i>workbench</i></li>
-          <li>Google ADK <i>plugin</i></li>
-          <li class="chip-quiet">or a tool loop you wrote yourself</li>
-        </ul>
+
+        <div class="row">
+          <div class="row-k">Agent SDKs, natively<em>one import</em></div>
+          <div class="row-v">
+            <p>Four of these have a before-tool callback the gate attaches to. The rest wrap the one
+              method that executes and copy name, description and schema across verbatim. An agent
+              must not be able to tell a gated tool from an ungated one by looking at it.</p>
+            <div class="names">
+              <span>Anthropic <i>tool_runner</i></span><span>OpenAI Agents <i>guardrail</i></span>
+              <span>LangChain <i>+ LangGraph</i></span><span>CrewAI <i>hooks</i></span>
+              <span>Pydantic AI <i>toolset</i></span><span>AutoGen <i>workbench</i></span>
+              <span>Google ADK <i>plugin</i></span><span><i>or a tool loop you wrote yourself</i></span>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
 
-    <div class="wrap" style="margin-inline:0;padding-inline:0">
-      <p class="note" style="margin-top:2.4rem"><strong>They agree, and that is a test rather than a
-        claim.</strong> The same call through every door reaches the same verdict, the same
-        magnitude and the same denial sentence, byte for byte. A verdict that depends on which door
-        a call arrived through is a bug in the product, not in the adapter.</p>
+    <p class="small" style="margin-top:2.5rem;max-width:60ch">Those two lists are not equally
+      strong, and the scorecard keeps them apart rather than adding them up. An SDK adapter was
+      driven by that comparison. An MCP client above was never run. What is tested is that neti
+      gates a real MCP server, and that Cursor speaks MCP is a fact about Cursor.</p>
+  </section>
 
-      <p style="margin-top:1.4rem;color:var(--ink-dim)">Those two lists are not equally strong, and
-        the scorecard keeps them apart rather than adding them up. An SDK adapter was
-        <em>driven</em> by that comparison. An MCP client above was never run: what is tested is that
-        <code>neti</code> gates a real MCP server, and that Cursor speaks MCP is a fact about
-        Cursor.</p>
+  <!-- ═══════════════════════════════════════════ the honest part -->
+  <section class="shell" id="scope">
+    <div class="duo-wide">
+      <div>
+        <h2>What it does not do.</h2>
+        <p class="small" style="margin-top:1.25rem">neti answers how big, not whether this is a good
+          idea. The gaps are numbered so tests and write-ups can cite them, and the numbers get
+          published whether or not they flatter.</p>
+      </div>
+      <div class="rows" style="border-top:0">
+        <div class="row">
+          <div class="row-k row-n">NC-01</div>
+          <div class="row-v">A per-call gate cannot see four thousand individual sends. That needs a
+            session budget, and you have to declare one.</div>
+        </div>
+        <div class="row">
+          <div class="row-k row-n">NC-09, NC-10</div>
+          <div class="row-v">Shell commands are not counted. What <code>rm -rf $X</code> deletes is a
+            grammar, not a value, and a gate that guesses is worse than no gate.</div>
+        </div>
+        <div class="row">
+          <div class="row-k row-n">Detection</div>
+          <div class="row-v">Against 170 real tool schemas the rule table gates 31 and leaves 401
+            parameters unclaimed. Most of those genuinely are not sets. Some are, and those are open
+            issues.</div>
+        </div>
+      </div>
+      <p class="note" style="margin-top:2rem">All of it is written down in SCOPE.md before you
+        install anything, next to the sentences this project does not say.</p>
     </div>
   </section>
 
-  <!-- ══════════════════════════════════════════════════════ the honest part -->
-  <section class="wrap" id="scope">
-    <span class="label">NC-01 … NC-13</span>
-    <h2 class="display">What it does not do</h2>
-    <p><code>neti</code> answers <em>how big</em>, not <em>whether this is a good idea</em>. The
-      holes are numbered so that tests and write-ups can cite them, and the numbers are published
-      whether or not they flatter.</p>
-    <ul class="split" style="display:block;padding-left:1.1rem">
-      <li>A per-call gate cannot see four thousand individual sends unless you declare a session
-        budget.</li>
-      <li><strong>Shell commands are not sized</strong> — what <code>rm -rf $X</code> deletes is a
-        grammar, not a value, and a gate that guesses is worse than no gate.</li>
-      <li>Against 170 real tool schemas the rule table gates 31 and leaves <strong>401 parameters
-        unclaimed</strong>. Most genuinely are not sets. Some are, and those are open issues.</li>
-    </ul>
-    <p class="note">Every one of these is written down in <code>SCOPE.md</code> before you install
-      anything, alongside the sentences this project does not say.</p>
-  </section>
-
-  <!-- ══════════════════════════════════════════════════════ the cloud band
-       The other half of the product, on a sunk ground so it reads as a different thing rather than
-       more of the same one. Everything here is a screenshot of the real console against the
-       synthetic tenant — see docs/media/console/PROVENANCE.md. -->
+  <!-- ═══════════════════════════════════════════ cloud -->
   <div class="cloud" id="cloud">
-    <section class="bleed" style="border-top:0">
-      <div class="wrap" style="margin-inline:0;padding-inline:0">
-        <span class="label">neti cloud</span>
-        <h2 class="display">When a <span class="rule-amber">confirm</span><br>needs an actual human</h2>
-        <p class="lede" style="max-width:56ch">A <code>confirm</code> band means <em>somebody other
-          than the agent's operator should decide this one</em>. On one machine there is nobody to
-          ask, so the gate stops the call and says so. That is correct, and it is what a free install
-          will keep doing forever.</p>
-        <p>The hosted tier is the somewhere that question can go.</p>
+    <section class="shell">
+      <div class="duo-wide">
+        <div>
+          <h2>When a confirm needs an actual human.</h2>
+          <p class="lede" style="margin-top:1.25rem">On one machine there is nobody to ask, so the
+            gate stops the call. That is correct, and a free install will keep doing it forever.</p>
+          <p class="small">neti cloud is the somewhere that question can go.</p>
+          <div class="actions">
+            <a class="pill" href="https://github.com/Neti-Security/neti">Talk to us about cloud</a>
+          </div>
+        </div>
+        <ol class="steps">
+          <li>
+            <b>The call stops</b>
+            <span>500 recipients against a ceiling of 50. The agent is told an approval is pending,
+              with its id, and to retry this exact call once it is granted.</span>
+          </li>
+          <li>
+            <b>A reviewer is asked</b>
+            <span>Not the operator, and not the agent. They see the number, the ceiling, and the
+              evidence the verdict came from. Nothing else is needed to decide.</span>
+          </li>
+          <li>
+            <b>They answer</b>
+            <span>Approve or deny, against their name. The answer records who said yes. It is not a
+              second opinion about whether the call was too big.</span>
+          </li>
+          <li>
+            <b>The agent retries</b>
+            <span>The same call, once. The run continues from where it stopped instead of starting
+              again or working around it.</span>
+          </li>
+        </ol>
       </div>
 
-      <ol class="step-list">
-        <li>
-          <b>The call stops</b>
-          <small>500 recipients against a ceiling of 50. The agent is told an approval is pending,
-            with its id, and to retry this exact call once it is granted.</small>
-        </li>
-        <li>
-          <b>A reviewer is asked</b>
-          <small>Not the operator, and not the agent. They see the number, the ceiling, and the
-            evidence the verdict was derived from — nothing else is needed to decide.</small>
-        </li>
-        <li>
-          <b>They answer</b>
-          <small>Approve or deny, against their name. The answer is recorded as who said yes, not as
-            a second opinion about whether the call was too big.</small>
-        </li>
-        <li>
-          <b>The agent retries</b>
-          <small>The same call, once. The run continues from where it stopped rather than starting
-            again or routing around.</small>
-        </li>
-      </ol>
-
-      <div class="shot">
-        <img alt="The neti console's Approvals screen: one call waiting, showing 500 recipients against a declared ceiling of 50, with Deny and Approve, an approval id and an expiry." src="{{CONSOLE:approvals}}">
-      </div>
-
-      <div class="wrap" style="margin-inline:0;padding-inline:0">
-        <h3 style="margin-top:2.6rem">What approving actually authorises</h3>
-        <p>The narrowest thing it can, because a grant that means more than the person thought is the
-          failure mode that matters here. Every one of these is a test in the public repository.</p>
-        <ul class="guarantees">
-          <li><b>This call once.</b> Bound to these exact arguments under this exact policy.</li>
-          <li><b>Spent on redemption.</b> A grant cannot authorise a second call.</li>
-          <li><b>Expiring.</b> An answer nobody acted on stops being an answer.</li>
-          <li><b>Refused if the target grew.</b> If the group is bigger than when a human looked at
-            it, the grant no longer applies.</li>
-        </ul>
+      <div style="margin-top:clamp(2.5rem,5vw,3.5rem)">
+        <img class="frame" style="background:var(--bg)" alt="The neti console's Approvals screen: one call waiting, showing 500 recipients against a declared ceiling of 50, with Deny and Approve, an approval id and an expiry." src="{{CONSOLE:approvals}}">
+        <p class="cap">The console, on the synthetic tenant. The rows carry their own "synthetic"
+          tag and the demo badge because nothing here was edited.</p>
       </div>
     </section>
 
-    <section class="bleed">
-      <div class="wrap" style="margin-inline:0;padding-inline:0">
-        <span class="label">Fleet</span>
-        <h2 class="display">Every agent, one place</h2>
-        <p>One policy version across every machine, signed and pinned by digest, instead of a file
-          per laptop that drifts. Session budgets that survive a restart. And per-machine record
-          chains anchored centrally, so a deleted local file becomes <em>detectable</em> rather than
-          simply gone.</p>
-      </div>
-
-      <div class="shot">
-        <img alt="The neti console's Decisions screen: every call the gate has seen, each tagged Blocked, Needs approval or Allowed, with the magnitude it resolved to." src="{{CONSOLE:decisions}}">
-      </div>
-
-      <div class="wrap" style="margin-inline:0;padding-inline:0">
-        <p class="note" style="margin-top:2rem"><strong>Your records stay yours.</strong> The local
-          NDJSON is the source of truth. A control plane anchors it; it is not an authority over it,
-          and <code>neti verify</code> works with the network unplugged, forever.</p>
+    <section class="shell">
+      <div class="duo-wide">
+        <div>
+          <h2>What approving authorises.</h2>
+          <p class="small" style="margin-top:1.25rem">The narrowest thing it can. A grant that means
+            more than the person thought is the failure that matters here. Each of these is a test in
+            the public repository.</p>
+        </div>
+        <div class="rows" style="border-top:0">
+          <div class="row">
+            <div class="row-k">This call once</div>
+            <div class="row-v">Bound to these exact arguments under this exact policy.</div>
+          </div>
+          <div class="row">
+            <div class="row-k">Spent on redemption</div>
+            <div class="row-v">A grant cannot authorise a second call.</div>
+          </div>
+          <div class="row">
+            <div class="row-k">Expiring</div>
+            <div class="row-v">An answer nobody acted on stops being an answer.</div>
+          </div>
+          <div class="row">
+            <div class="row-k">Refused if the target grew</div>
+            <div class="row-v">If the group is bigger than when a human looked at it, the grant no
+              longer applies.</div>
+          </div>
+        </div>
       </div>
     </section>
 
-    <!-- ═══════════════════════════════════ the line, and why it is where it is -->
-    <section class="wrap">
-      <span class="label">Licensing</span>
-      <h2 class="display">Can one machine do this?</h2>
-      <p>That is the whole rule, and it decides every case. Enforcement runs on one machine, so
-        blocking is free — forever, with nothing withheld, nothing time-limited, and no telemetry. A
-        second person approving a call does not run on one machine, so it is not.</p>
-
-      <div class="split">
+    <section class="shell">
+      <div class="duo flip">
         <div>
-          <h3 style="margin-top:0">Free · Apache-2.0</h3>
-          <ul>
-            <li>the engine and the decision procedure</li>
-            <li>all twelve seams, observe <strong>and enforce</strong></li>
-            <li>every resolver, and the detection rule table</li>
-            <li>the record chain, and replaying it offline</li>
-            <li>the console, every screen</li>
-          </ul>
+          <h2>Every agent, one place.</h2>
+          <p class="small" style="margin-top:1.25rem">One policy version across every machine, signed
+            and pinned by digest, instead of a file per laptop that drifts. Session budgets that
+            survive a restart. Per-machine record chains anchored centrally, so a deleted local file
+            becomes detectable rather than simply gone.</p>
+          <p class="note" style="margin-top:1.75rem">Your records stay yours. The local file is the
+            source of truth. A control plane anchors it and is not an authority over it, and
+            <code>neti verify</code> works with the network unplugged.</p>
         </div>
         <div>
-          <h3 style="margin-top:0">Cloud</h3>
-          <ul>
-            <li>a second human approving a <code>confirm</code></li>
-            <li>org policy, one version across the fleet</li>
-            <li>session budgets that survive a restart</li>
-            <li>audit anchored across every agent</li>
-            <li>the reviewed detection catalogue</li>
-          </ul>
+          <img class="frame" style="background:var(--bg)" alt="The neti console's Decisions screen: every call the gate has seen, each tagged Blocked, Needs approval or Allowed, with the magnitude it resolved to." src="{{CONSOLE:decisions}}">
         </div>
       </div>
+    </section>
 
-      <p class="note">Every item on the right is a hole <code>SCOPE.md</code> already documents, or
-        work that only exists because more than one person did it. We are not inventing limitations
-        to sell past.</p>
+    <section class="shell">
+      <div class="duo-wide">
+        <div>
+          <h2>Can one machine do this?</h2>
+          <p class="small" style="margin-top:1.25rem">That is the whole rule and it decides every
+            case. Enforcement runs on one machine, so blocking is free. Forever, with nothing
+            withheld and nothing time limited. A second person approving a call does not run on one
+            machine, so it is not.</p>
+        </div>
+        <div class="rows" style="border-top:0">
+          <div class="row">
+            <div class="row-k">Free, Apache-2.0</div>
+            <div class="row-v">The engine and the decision procedure. All twelve seams, observe and
+              enforce. Every resolver and the detection rule table. The record chain and replaying it
+              offline. The console, every screen.</div>
+          </div>
+          <div class="row">
+            <div class="row-k">Cloud</div>
+            <div class="row-v">A second human approving a confirm. Org policy, one version across the
+              fleet. Session budgets that survive a restart. Audit anchored across every agent. The
+              reviewed detection catalogue.</div>
+          </div>
+        </div>
 
-      <h3>Two things that stay true when you pay</h3>
-      <p><strong>The gate takes on no new availability risk.</strong> If the control plane is
-        unreachable, absent or unpaid, it behaves exactly as the free tier — a control plane can only
-        ever make a decision <em>more</em> permissive, and only through a named human.</p>
-      <p><strong>The client is open source.</strong> <code>neti.cloud</code> — the approver, the
-        credential file, the wire format — is Apache-2.0 in the public repository, along with the
-        tests pinning every property above. Read the protocol, write your own server, hold it to
-        those tests. What you pay for is a server that is running, not a secret about how to talk to
-        it.</p>
+        <p class="small" style="margin-top:2rem">Every item on the second row is a gap SCOPE.md
+          already documents, or work that only exists because more than one person did it. We are not
+          inventing limitations to sell past.</p>
 
-      <div class="cta">
-        <a class="btn btn-grant" href="https://github.com/Neti-Security/neti">Talk to us about cloud</a>
-        <div class="install"><span class="sigil">$</span> pip install neti</div>
+        <div class="rows" style="margin-top:1.5rem">
+          <div class="row">
+            <div class="row-k">The gate takes on no new availability risk</div>
+            <div class="row-v">If the control plane is unreachable, absent or unpaid, it behaves
+              exactly as the free tier. A control plane can only ever make a decision more permissive,
+              and only through a named human.</div>
+          </div>
+          <div class="row">
+            <div class="row-k">The client is open source</div>
+            <div class="row-v">The approver, the credential file and the wire format are Apache-2.0
+              in the public repository, with the tests pinning every property above. Read the
+              protocol, write your own server, hold it to those tests. What you pay for is a server
+              that is running, not a secret about how to talk to it.</div>
+          </div>
+        </div>
       </div>
     </section>
   </div>
 
-  <footer class="wrap">
-    <a href="https://github.com/Neti-Security/neti">github.com/Neti-Security/neti</a> ·
-    Apache-2.0 ·
-    no telemetry, no phone-home, no licence check
+  <!-- ═══════════════════════════════════════════ close -->
+  <section class="shell">
+    <div class="stat-strip">
+      <div class="stat"><b>12</b><span>seams, no code change</span></div>
+      <div class="stat"><b>10</b><span>resolvers that count</span></div>
+      <div class="stat"><b>170</b><span>real tool schemas, adjudicated</span></div>
+      <div class="stat"><b>140<sup>ms</sup></b><span>hook overhead, median</span></div>
+      <div class="stat"><b>0</b><span>bytes of telemetry</span></div>
+    </div>
+
+    <div style="margin-top:clamp(2.5rem,5vw,3.5rem);max-width:38rem">
+      <h2>Start in observe mode.</h2>
+      <p class="small" style="margin-top:1rem">Nothing is blocked until you write a number. The worst
+        case of installing it is one extra hop.</p>
+      <span class="cmd" style="margin-top:1.25rem;max-width:26rem"><span class="sig">$</span> pip install neti &amp;&amp; neti demo --here</span>
+      <div class="actions">
+        <a class="pill" href="https://github.com/Neti-Security/neti">Read the source</a>
+        <a class="quiet" href="#cloud">Hosted version</a>
+      </div>
+    </div>
+  </section>
+
+  <footer class="shell">
+    <a href="https://github.com/Neti-Security/neti">github.com/Neti-Security/neti</a>
+    &nbsp;·&nbsp; Apache-2.0 &nbsp;·&nbsp; No telemetry, no phone home, no licence check.
   </footer>
 </div>
 
@@ -674,14 +633,13 @@
   // against a ceiling of 200 principals. The last one is the one that matters.
   const CALLS = [18, 7, 63, 4, 112, 31, 9, 147, 22, 76, 41203];
   const CEILING = 200;
-  const CAP = 260;                       // the drawing scale; the last bar deliberately runs past it
+  const CAP = 260;                       // drawing scale; the last bar deliberately runs past it
   const shown = v => Math.min(v, CAP);
-
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
-  // Starts finished. The animation is an entrance, not the content — so every way it can fail
-  // (throttled frame clock, a backgrounded tab, reduced motion, no IntersectionObserver) leaves the
-  // real chart on screen rather than one bar and a ceiling, which reads as broken rather than paused.
+  // Starts finished. The entrance is decoration; the chart is the content. Every way the animation
+  // can fail (a throttled frame clock, a background tab, reduced motion, no IntersectionObserver)
+  // leaves the real chart on screen rather than one bar and a ceiling.
   const DONE = 1.05;
   let progress = DONE, raf = null, started = null, settle = null;
   const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -689,9 +647,8 @@
   function layout() {
     const w = canvas.clientWidth || 1200;
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const rows = CALLS.length;
     const rowH = w < 560 ? 15 : 20;
-    const h = rows * rowH + 34;
+    const h = CALLS.length * rowH + 34;
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
     canvas.style.height = h + 'px';
@@ -701,49 +658,49 @@
 
   function draw() {
     const { w, h, rowH } = layout();
-    const padL = 0, padR = Math.min(150, w * 0.22);
-    const plot = w - padL - padR;
-    const x = v => padL + (shown(v) / CAP) * plot;
-
     ctx.clearRect(0, 0, w, h);
+    const accent = css('--accent'), warning = css('--warning'),
+          destructive = css('--destructive'), faint = css('--fg-faint');
+    const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
-    const steel = css('--steel'), amber = css('--amber'), alarm = css('--alarm'),
-          faint = css('--ink-faint'), mono = getComputedStyle(canvas).fontFamily;
+    // Reserve exactly the room the longest label needs, measured rather than guessed. A fixed
+    // padding clipped "BLOCKED · 41,203 principals" at the frame edge, which is the one label on
+    // the chart that has to be readable.
+    const label = w < 620 ? 'BLOCKED · 41,203' : 'BLOCKED · 41,203 principals';
+    ctx.font = `600 11px ${mono}`;
+    const padR = Math.min(ctx.measureText(label).width + 20, w * 0.45);
+    const plot = w - padR;
+    const x = v => (shown(v) / CAP) * plot;
 
     // The ceiling: one hairline, drawn first so every bar is read against it.
     const cx = x(CEILING);
-    ctx.strokeStyle = amber; ctx.lineWidth = 1; ctx.globalAlpha = 1;
+    ctx.strokeStyle = warning; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(cx + .5, 0); ctx.lineTo(cx + .5, h - 26); ctx.stroke();
-    ctx.fillStyle = amber;
-    ctx.font = `600 10px ${mono}`; ctx.textBaseline = 'top';
-    ctx.fillText('CEILING 200', cx + 8, h - 22);
+    ctx.fillStyle = warning; ctx.font = `600 10px ${mono}`; ctx.textBaseline = 'top';
+    ctx.fillText('CEILING 200', cx + 8, h - 21);
 
     CALLS.forEach((v, i) => {
       const y = i * rowH + 4, bh = rowH - 7;
       const over = v > CEILING;
-      // Bars arrive left to right, staggered, so the last one lands alone.
       const t = Math.max(0, Math.min(1, (progress - i * 0.055) / 0.42));
       if (t <= 0) return;
       const eased = 1 - Math.pow(1 - t, 3);
-      const full = x(v), width = Math.max(1, (full - padL) * eased);
+      const full = x(v), width = Math.max(1, full * eased);
 
-      ctx.fillStyle = over ? alarm : steel;
-      ctx.globalAlpha = over ? 1 : 0.62;
-      ctx.beginPath();
-      ctx.roundRect(padL, y, width, bh, 2);
-      ctx.fill();
+      ctx.fillStyle = over ? destructive : accent;
+      ctx.globalAlpha = over ? 1 : 0.55;
+      ctx.beginPath(); ctx.roundRect(0, y, width, bh, 2); ctx.fill();
       ctx.globalAlpha = 1;
 
-      if (over && eased > 0.985) {
-        ctx.fillStyle = alarm;
-        ctx.font = `600 11px ${mono}`;
+      if (eased > 0.985) {
         ctx.textBaseline = 'middle';
-        ctx.fillText('BLOCK · 41,203 principals', full + 10, y + bh / 2 + 1);
-      } else if (eased > 0.985) {
-        ctx.fillStyle = faint;
-        ctx.font = `10px ${mono}`;
-        ctx.textBaseline = 'middle';
-        ctx.fillText(String(v), full + 8, y + bh / 2 + 1);
+        if (over) {
+          ctx.fillStyle = destructive; ctx.font = `600 11px ${mono}`;
+          ctx.fillText(label, full + 10, y + bh / 2 + 1);
+        } else {
+          ctx.fillStyle = faint; ctx.font = `10px ${mono}`;
+          ctx.fillText(String(v), full + 8, y + bh / 2 + 1);
+        }
       }
     });
   }
@@ -757,12 +714,9 @@
 
   function start() {
     if (reduced.matches || document.visibilityState !== 'visible') return;
-    progress = 0;
-    started = null;
+    progress = 0; started = null;
     cancelAnimationFrame(raf);
     raf = requestAnimationFrame(tick);
-    // Backstop: if the frame clock is being throttled, snap to the finished chart rather than
-    // leaving a half-drawn one on screen for as long as the tab stays open.
     clearTimeout(settle);
     settle = setTimeout(() => {
       if (progress < DONE) { cancelAnimationFrame(raf); progress = DONE; draw(); }
@@ -771,17 +725,15 @@
 
   draw();
 
-  // Replay as an entrance the first time it is actually looked at. Guarded, because everything
-  // above already put the finished chart on screen.
   if ('IntersectionObserver' in window) {
     const io = new IntersectionObserver(entries => {
       if (entries.some(e => e.isIntersecting)) { start(); io.disconnect(); }
     }, { threshold: 0.25 });
     io.observe(canvas);
   }
+
   addEventListener('resize', draw, { passive: true });
   reduced.addEventListener?.('change', draw);
-  // The viewer's theme toggle stamps data-theme on the root; the canvas has to be told.
   new MutationObserver(draw).observe(document.documentElement, {
     attributes: true, attributeFilter: ['data-theme'],
   });
