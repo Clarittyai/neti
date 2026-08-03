@@ -399,7 +399,10 @@ def test_claude_desktop_is_looked_for_in_the_right_place_per_platform(
     for key, value in env.items():
         monkeypatch.setenv(key, value)
 
-    paths = [str(p) for _, p in mod._candidates(Path("/proj"), Path("/home/u"))]
+    # `as_posix`, not `str`. The expectations above are written with forward slashes because they
+    # describe a *location*, not a separator, and `str(Path(...))` on Windows renders backslashes —
+    # so this test failed on the one platform two of its three branches exist for.
+    paths = [p.as_posix() for _, p in mod._candidates(Path("/proj"), Path("/home/u"))]
     assert any(expected in p for p in paths), f"{platform}: no candidate matched {expected}"
 
 
@@ -429,7 +432,7 @@ def test_every_platform_still_finds_the_project_level_configs(
 
     for platform in ("darwin", "win32", "linux"):
         monkeypatch.setattr(mod.sys, "platform", platform)
-        paths = [str(p) for _, p in mod._candidates(Path("/proj"), Path("/home/u"))]
+        paths = [p.as_posix() for _, p in mod._candidates(Path("/proj"), Path("/home/u"))]
         assert any(p.endswith("/proj/.mcp.json") for p in paths), platform
         assert any(p.endswith(".cursor/mcp.json") for p in paths), platform
 

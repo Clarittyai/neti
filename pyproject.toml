@@ -95,7 +95,10 @@ dev = [
 ]
 
 [project.scripts]
-neti = "neti.cli:app"
+# `main`, not `app`, so the one place that reconfigures stdout to UTF-8 is on the path every
+# real invocation takes. Doing it at import instead would mutate the stream of anything that
+# merely imports this module, the test runner included.
+neti = "neti.cli:main"
 
 [tool.hatch.build]
 # The built console, produced at package time rather than committed — `just console-sync` runs the

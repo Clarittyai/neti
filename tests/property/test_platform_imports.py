@@ -17,6 +17,7 @@ runs on the platform that has it — so the check is deliberately about *where* 
 from __future__ import annotations
 
 import ast
+import sys
 from pathlib import Path
 
 import pytest
@@ -171,3 +172,51 @@ def test_the_public_surface_works_with_no_extras_at_all() -> None:
     pf = Preflight.from_config(str(REPO / "examples" / "coding-agent.yaml"), records=None)
     verdict = pf.check("Read", {"file_path": str(REPO / "README.md")})
     assert verdict.payload["resolved"] == 1
+
+
+# ---------------------------------------------------------------------------- console encoding
+#
+# The other half of "runs on a platform nobody here uses". The imports above make `import neti`
+# survive; this makes the CLI able to *print*.
+
+
+def test_the_cli_forces_utf8_on_streams_that_can_be_reconfigured() -> None:
+    """Windows stdout is cp1252 and cannot encode a single character this CLI draws with.
+
+    `neti demo --here` rules its acts with `──`, `neti inventory` writes `≥` when a walk stopped at
+    its cap, and every denial sentence carries an em-dash. On Windows all of that raised
+    `UnicodeEncodeError` and the command printed a traceback instead of output.
+
+    Asserted against a stream that behaves like a Windows console rather than by checking the
+    platform, so this test does its job on the machines where the bug cannot happen.
+    """
+    import io
+
+    from neti.cli import use_utf8_output
+
+    stream = io.TextIOWrapper(io.BytesIO(), encoding="cp1252", errors="strict")
+    original_stdout = sys.stdout
+    try:
+        sys.stdout = stream
+        use_utf8_output()
+        assert stream.encoding.lower().replace("-", "") == "utf8"
+        # The characters that used to raise. If this line throws, the CLI cannot print its own
+        # output on Windows.
+        stream.write("── neti demo · ≥ 35,871 objects — blocked\n")
+    finally:
+        sys.stdout = original_stdout
+
+
+def test_it_leaves_alone_a_stream_that_cannot_be_reconfigured() -> None:
+    """`CliRunner` hands the CLI a `StringIO`, which has no `reconfigure`. Importing the module
+    must not raise there, which is most of the suite."""
+    import io
+
+    from neti.cli import use_utf8_output
+
+    original_stdout = sys.stdout
+    try:
+        sys.stdout = io.StringIO()
+        use_utf8_output()  # must be a no-op, not an AttributeError
+    finally:
+        sys.stdout = original_stdout

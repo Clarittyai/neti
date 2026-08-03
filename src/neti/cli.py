@@ -47,6 +47,43 @@ def missing_cli_extra(argv: list[str]) -> tuple[int, str]:
     return 2, hint
 
 
+def use_utf8_output() -> None:
+    """Print UTF-8 whatever the platform thinks the console encoding is.
+
+    Every screen this CLI draws uses characters above ASCII: the `──` rules in `neti demo`, the `·`
+    separators, the `≥` that says a walk stopped at its cap, the em-dashes throughout. On macOS and
+    Linux stdout is UTF-8 and none of it is a question. On Windows it is cp1252, which can encode
+    none of them, so `neti demo --here` died with a `UnicodeEncodeError` traceback instead of
+    printing anything, and so did `report`, `propose`, `verify` and `prove`.
+
+    **`neti hook` is why this matters most.** The hook writes JSON containing the denial
+    sentence, which carries an em-dash: on Windows it would raise, exit non-zero, and a
+    `PreToolUse` hook that exits non-zero *fails the tool call it was asked about*. Every gated
+    call in the session would die. This file's rule is that the gate never takes the session
+    down with it, and an encoding it did not choose is not an exception to that.
+
+    Called from `main`, which `[project.scripts]` now points at, rather than at import. An
+    import-time version reconfigures the stream of anything that merely imports this module,
+    including pytest's capture, and it showed up as a cold-start cost in the latency bench.
+
+    `errors="replace"` rather than strict: a console that still cannot render a box-drawing
+    character should show a placeholder, not take the command down.
+
+    Guarded on `reconfigure`, because stdout is not always a real stream — `CliRunner` hands it a
+    `StringIO`, which has no such method and needs no such fix.
+
+    The suite could not see any of this until the repository was first pushed and a Windows job ran
+    for the first time. `neti init` carries a Windows branch for finding Claude Desktop's config, so
+    it is plainly a platform we expect to be on.
+    """
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if reconfigure is None:
+            continue
+        with contextlib.suppress(OSError, ValueError):
+            reconfigure(encoding="utf-8", errors="replace")
+
+
 try:
     import typer
 except ModuleNotFoundError:  # pragma: no cover - exercised by test_the_cli_without_its_extra
@@ -1531,6 +1568,7 @@ def _demo_here(*, config: str, repo: str | None, corpus: str | None) -> None:
 
 
 def main() -> int:
+    use_utf8_output()
     app()
     return 0
 

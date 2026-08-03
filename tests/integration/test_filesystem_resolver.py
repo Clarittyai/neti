@@ -10,6 +10,7 @@ the easy part.
 from __future__ import annotations
 
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -81,6 +82,17 @@ def test_a_missing_path_is_unresolved_not_zero(tmp_path: Path) -> None:
     assert res.evidence["reason"] == "path_not_found"
 
 
+@pytest.mark.skipif(
+    sys.platform == "win32",
+    reason=(
+        "`os.chmod(dir, 0o000)` does not make a directory unreadable on Windows: it only toggles "
+        "the read-only attribute, and that applies to writing files, not to listing them. The walk "
+        "below therefore succeeds and the test cannot construct its own precondition. Skipped "
+        "rather than loosened, because an assertion that passes by not testing anything is worse "
+        "than an absent one. The property still holds there — `resolve` catches OSError from the "
+        "walk — it is the permission denial itself that this platform will not produce on demand."
+    ),
+)
 def test_an_unreadable_directory_is_unresolved_not_zero(tmp_path: Path) -> None:
     """A permissions error is not an empty directory."""
     locked = tmp_path / "locked"
