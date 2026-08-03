@@ -513,3 +513,43 @@ def test_wrapping_the_table_gates_every_tool_in_it(tmp_path: Path) -> None:
     assert set(tools) == set(names), "wrapping dropped or added a tool"
     for name in names:
         assert "41,203" in str(tools[name](group="g-eng-all")), f"{name} was not gated"
+
+
+# ---------------------------------------------------------------------------- an incomplete install
+
+
+def test_the_cli_without_its_extra_says_so_instead_of_tracebacking() -> None:
+    """`[project.scripts]` installs the `neti` command whatever extras you asked for.
+
+    `typer` lives in the `cli` extra, so `pip install neti` leaves a command that cannot start, and
+    it answered with a `ModuleNotFoundError` traceback. Found by installing the actual wheel into an
+    empty venv — the suite could never see it, because every environment the suite runs in has the
+    extra.
+    """
+    from neti.cli import missing_cli_extra
+
+    code, message = missing_cli_extra(["neti", "--help"])
+
+    assert code == 2
+    assert "pip install 'neti[cli]'" in message
+    assert "from neti import Preflight" in message, (
+        "the message should say what still works, not only what does not"
+    )
+
+
+def test_the_hook_exits_zero_even_when_the_cli_extra_is_missing() -> None:
+    """The one place a traceback is not merely untidy.
+
+    A `PreToolUse` hook that exits non-zero **fails the tool call it was asked about**. On an
+    incomplete install every tool call in the session would have failed — not the gate silently off,
+    which is bad, but the agent stopped dead, which is worse. The rule the rest of this file holds
+    is that the gate never takes the session down with it, and a missing extra is not an exception.
+    """
+    from neti.cli import missing_cli_extra
+
+    code, message = missing_cli_extra(["neti", "hook", "--config", "neti.yaml"])
+
+    assert code == 0, "a hook that cannot run must still let the session run"
+    assert "Nothing was gated for this call" in message, (
+        "exiting 0 quietly would be the silent-pass failure; it has to say the call went ungated"
+    )

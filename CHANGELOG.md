@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### `pip install neti` left a `neti` command that could not start
+
+`[project.scripts]` installs the `neti` entry point whatever extras you asked for, and `typer` lives
+in the `cli` extra. So a base install had a command that answered with a `ModuleNotFoundError`
+traceback — and one of its subcommands is `neti hook`.
+
+That is the part that matters. **A `PreToolUse` hook exiting non-zero fails the tool call it was
+asked about.** An operator who hand-wrote the hook config on a base install would not have got a
+silently ungated session, which is bad; they would have got every tool call in the session failing,
+which is worse. The rule the rest of `test_never_breaks_the_agent.py` holds is that the gate never
+takes the session down with it, and an incomplete install is not an exception to it.
+
+Now: a three-line message naming the extra to install and saying that `from neti import Preflight`
+still works — and `hook` exits **0**, saying out loud that nothing was gated for that call, because
+exiting 0 quietly would be the silent-pass failure this project spends most of its effort avoiding.
+
+Found by building the wheel and installing it into an empty venv, which is the first time that has
+been done here. The suite could not have caught it: every environment it runs in has the extra.
+
 ### The Entra family has a live tier now, waiting on a tenant
 
 The four `entra.*` resolvers are the product's wedge and were the only ones with no live check at

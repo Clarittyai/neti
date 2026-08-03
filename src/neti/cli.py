@@ -15,7 +15,44 @@ import sys
 from pathlib import Path
 from typing import Annotated, Any
 
-import typer
+
+def missing_cli_extra(argv: list[str]) -> tuple[int, str]:
+    """What to say, and what to exit with, when `typer` is not installed.
+
+    `[project.scripts]` installs the `neti` command unconditionally, but `typer` lives in the `cli`
+    extra — so `pip install neti` leaves a command that cannot start. It used to answer with a
+    `ModuleNotFoundError` traceback, which is a poor first impression everywhere and a genuine
+    hazard in one place:
+
+    **`neti hook` exits 0 even here.** A `PreToolUse` hook that exits non-zero fails the tool call
+    it was asked about, so an operator who hand-wrote the hook config on a base install would have
+    every tool call in the session fail — not the gate silently off, which is bad, but the agent
+    stopped dead, which is worse. The rule the rest of this file follows is that the gate never
+    takes the session down with it, and an incomplete install is not an exception to it.
+
+    Pure and returns rather than exits, so it can be tested without a subprocess and without
+    uninstalling anything.
+    """
+    hint = (
+        "neti: the command line needs the `cli` extra, which this install does not have.\n"
+        "  pip install 'neti[cli]'      # or neti[all] for the console and Graph resolvers too\n"
+        "The library itself is fine: `from neti import Preflight` works on a base install."
+    )
+    if len(argv) > 1 and argv[1] == "hook":
+        return 0, (
+            f"{hint}\n"
+            "Exiting 0 because a PreToolUse hook that fails takes every tool call in the session "
+            "with it. Nothing was gated for this call."
+        )
+    return 2, hint
+
+
+try:
+    import typer
+except ModuleNotFoundError:  # pragma: no cover - exercised by test_the_cli_without_its_extra
+    _code, _message = missing_cli_extra(sys.argv)
+    print(_message, file=sys.stderr)
+    raise SystemExit(_code) from None
 
 app = typer.Typer(
     add_completion=False,
