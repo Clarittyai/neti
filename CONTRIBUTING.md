@@ -45,10 +45,11 @@ Four suites, and they are not interchangeable:
 config, and that is the only channel. Nothing computed from observed traffic may reach the decision
 path — the moment it does, the product becomes anomaly detection with a worse story.
 
-**The paid package is a separate distribution.** `src/neti/` is Apache-2.0; `cloud/src/neti_cloud/`
-is BUSL-1.1. `neti` must never import `neti_cloud`, and `tests/property/test_licence_boundary.py`
-will tell you if it does. The control plane must never import the decision machinery either — the
-gate decides, the server records who said yes.
+**This repository is Apache-2.0, all of it.** The control plane is a separate distribution in a
+separate repository. `neti` must never import `neti_cloud`, and
+`tests/property/test_licence_boundary.py` will tell you if it does. The control plane must never
+import the decision machinery either — the gate decides, the server records who said yes — and that
+half is asserted over there, where the source it reads lives. See [LICENSING.md](LICENSING.md).
 
 ## Claims
 

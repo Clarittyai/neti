@@ -46,7 +46,7 @@ jobs:
         run: cd web && npm ci --silent && npm run build
       - run: cp -R web/out src/neti/console
       - run: uv venv --python 3.12
-      - run: uv pip install -e '.[dev,cli,graph,mcp,console,sdks,sdks-extended,storage,database]' -e ./cloud
+      - run: uv pip install -e '.[dev,cli,graph,mcp,console,sdks,sdks-extended,storage,database]'
       - run: uv run pytest -q
 
   gates:
@@ -55,7 +55,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
       - run: uv venv --python 3.12
-      - run: uv pip install -e '.[dev,cli,graph,mcp,console,sdks,sdks-extended,storage,database]' -e ./cloud
+      - run: uv pip install -e '.[dev,cli,graph,mcp,console,sdks,sdks-extended,storage,database]'
       - name: types
         run: uv run mypy
       - name: lint
@@ -72,37 +72,34 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
       - run: uv venv --python 3.12
-      - run: uv pip install -e '.[dev,cli,graph,mcp,console]' -e ./cloud
+      - run: uv pip install -e '.[dev,cli,graph,mcp,console]'
       # Warm-up run, discarded. These budgets are microseconds of pure CPU, and the first execution
       # after an install pays for cold imports and bytecode compilation *inside* the timed section —
       # which showed up as a 10x miss and looked exactly like a real regression.
       - run: uv run pytest -q tests/bench || true
       - run: uv run pytest -q tests/bench
 
-  # Two distributions, two licences, and the metadata has to say so. BUSL code inside a wheel whose
-  # metadata claims Apache-2.0 is a licence misstatement that no README corrects, because metadata is
-  # what tooling and auditors read.
+  # This wheel says Apache-2.0 in its metadata, and metadata is what tooling and auditors read. BUSL
+  # code inside it would be a licence misstatement that no README corrects.
+  #
+  # This used to build both distributions and check them against each other. The control plane is a
+  # separate repository now, so this checks the half that lives here; the other half — that the BUSL
+  # wheel contains no Apache-2.0 package — runs in `neti-cloud`'s own CI, where that wheel is built.
   packaging:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - name: build both
-        run: |
-          uv build
-          uv build --project cloud
-      - name: the wheels do not contain each other
+      - run: uv build
+      - name: the Apache-2.0 wheel contains nothing but the gate
         run: |
           python - <<'CHECK'
-          import zipfile, glob, sys
+          import glob
+          import sys
+          import zipfile
+
           free = zipfile.ZipFile(glob.glob("dist/neti-*.whl")[0]).namelist()
-          paid = zipfile.ZipFile(glob.glob("cloud/dist/neti_cloud-*.whl")[0]).namelist()
-          bad = []
           if any(n.startswith("neti_cloud/") for n in free):
-              bad.append("the Apache-2.0 wheel contains BUSL code")
-          if any(n.startswith("neti/") for n in paid):
-              bad.append("the BUSL wheel contains the Apache-2.0 package")
-          if bad:
-              sys.exit("licence boundary violated: " + "; ".join(bad))
-          print("free:", len(free), "files | paid:", len(paid), "files")
+              sys.exit("licence boundary violated: the Apache-2.0 wheel contains BUSL code")
+          print("free:", len(free), "files")
           CHECK

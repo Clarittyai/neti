@@ -22,7 +22,9 @@ from pathlib import Path
 import pytest
 
 REPO = Path(__file__).resolve().parents[2]
-PACKAGES = [REPO / "src" / "neti", REPO / "cloud" / "src" / "neti_cloud"]
+# The control plane used to be the second entry here. It lives in the `neti-cloud` repository now
+# and carries its own copy of this check; see LICENSING.md.
+PACKAGES = [REPO / "src" / "neti"]
 
 # Unix-only or Windows-only, all of them plausible things to reach for in a file-locking, terminal
 # or process-limits context — which is exactly the code that tends to get written on one machine.

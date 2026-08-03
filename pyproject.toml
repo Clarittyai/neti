@@ -109,7 +109,7 @@ artifacts = ["src/neti/console/**"]
 packages = ["src/neti"]
 
 [tool.hatch.build.targets.sdist]
-exclude = ["web/node_modules", "web/.next", "web/out", ".venv", "out", "dist", "cloud"]
+exclude = ["web/node_modules", "web/.next", "web/out", ".venv", "out", "dist"]
 
 [tool.ruff]
 line-length = 100
@@ -121,12 +121,14 @@ select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
 [tool.ruff.lint.isort]
 # Declared rather than inferred: ruff decides first-party by what is installed, so a checkout with
 # the control plane installed sorted imports differently from one without, and `ruff format --check`
-# disagreed with itself between a developer's machine and CI.
+# disagreed with itself between a developer's machine and CI. `neti_cloud` stays listed for exactly
+# that reason — it is a separate repository now, but a developer who has it installed alongside must
+# still get the same sort as one who does not.
 known-first-party = ["neti", "neti_cloud"]
 
 [tool.mypy]
 python_version = "3.12"
-files = ["src/neti", "cloud/src/neti_cloud"]
+files = ["src/neti"]
 plugins = ["pydantic.mypy"]
 
 # The core is the part that must be type-tight: it is the whole decision.
