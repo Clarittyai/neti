@@ -125,6 +125,12 @@ def test_no_input_can_crash_the_hook(event: str, config: Path, tmp_path: Path) -
         ),
         ("null tool_input", json.dumps({"tool_name": "send_email", "tool_input": None})),
     ],
+    # The case name alone, never the payload. pytest puts the full node id into
+    # `PYTEST_CURRENT_TEST` for every test, and the "huge argument" payload is 80,000 characters,
+    # which is past Windows'
+    # 32,767-character limit for an environment variable, so setting it raised `ValueError` and the
+    # test errored during *setup*, before the hook it exists to exercise had been run at all.
+    ids=lambda value: value if len(value) < 60 else "",
 )
 def test_specific_hostile_inputs(name: str, payload: str, config: Path, tmp_path: Path) -> None:
     """The cases worth naming, kept alongside the fuzz so a failure reads as a sentence."""

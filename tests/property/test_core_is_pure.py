@@ -159,7 +159,12 @@ def test_the_policy_digest_is_stable_across_processes() -> None:
             capture_output=True,
             text=True,
             check=True,
-            env={"PYTHONHASHSEED": seed, "PATH": os.environ.get("PATH", "")},
+            # The inherited environment with one variable overridden, not a hand-built minimal one.
+            # A minimal `{PYTHONHASHSEED, PATH}` is enough on Unix and not enough on Windows, where
+            # the interpreter needs SYSTEMROOT to initialise at all and exits non-zero before
+            # running a line of this script. What the test varies is the seed; everything else it
+            # was accidentally varying too.
+            env={**os.environ, "PYTHONHASHSEED": seed},
             cwd=root,
         ).stdout.strip()
         for seed in ("0", "1", "2", "3")

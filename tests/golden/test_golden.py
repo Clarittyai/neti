@@ -50,8 +50,18 @@ _NOISE: list[tuple[re.Pattern[str], str]] = [
         "<time>",
     ),
     (re.compile(r"\b\d+(?:\.\d+)?\s?ms\b"), "<ms>"),
+    # Absolute paths, on every platform this runs on rather than on the one it was written on.
+    #
+    # These three lines used to be two, covering /tmp, /var and /Users — which is macOS and nothing
+    # else. So the golden suite silently only worked there: on Linux the checkout is under /home and
+    # on Windows it is a drive letter, and both spent the first CI run this repository ever had
+    # reporting that `neti demo` "says something different now" when the only difference was where
+    # the machine had put the file.
     (re.compile(r"/(?:private/)?(?:tmp|var)/[^\s'\"),]+"), "<path>"),
-    (re.compile(r"/Users/[^\s'\"),]+"), "<path>"),
+    (re.compile(r"/(?:Users|home)/[^\s'\"),]+"), "<path>"),
+    # Windows: `D:\a\neti\neti\examples\...`, and the doubled form it takes inside a repr.
+    (re.compile(r"[A-Za-z]:\\\\[^\s'\"),]+"), "<path>"),
+    (re.compile(r"[A-Za-z]:\\[^\s'\"),]+"), "<path>"),
     # Rich wraps to the terminal width, which differs between a developer's shell and CI.
     (re.compile(r"[ \t]+$", re.M), ""),
 ]

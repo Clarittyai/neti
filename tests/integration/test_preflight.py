@@ -209,11 +209,20 @@ def test_concurrent_processes_do_not_fork_the_chain(tmp_path: Path) -> None:
         "pf.close()"
     )
     procs = [
-        subprocess.Popen([sys.executable, "-c", script], cwd=Path(__file__).resolve().parents[2])
+        subprocess.Popen(
+            [sys.executable, "-c", script],
+            cwd=Path(__file__).resolve().parents[2],
+            # Captured so a failing child says why. `assert proc.wait() == 0` reports "1 == 0" and
+            # nothing else, which is a whole CI round trip to learn something the child already
+            # printed.
+            stderr=subprocess.PIPE,
+            text=True,
+        )
         for _ in range(8)
     ]
     for proc in procs:
-        assert proc.wait(timeout=120) == 0
+        _, stderr = proc.communicate(timeout=120)
+        assert proc.returncode == 0, f"a writer died:\n{stderr}"
 
     stored = list(read_records(str(records)))
     assert len(stored) == 8
