@@ -1,7 +1,17 @@
-# neti
+<h1 align="center">neti</h1>
 
-**A preflight gate for agent tool calls.** Before an agent acts, `neti` resolves what the action will
-actually touch, and blocks it when that is bigger than you said it should be.
+<p align="center">
+  <b>A preflight gate for agent tool calls.</b><br>
+  Before an agent acts, <code>neti</code> resolves what the action will actually touch —<br>
+  and blocks it when that is bigger than you said it should be.
+</p>
+
+<p align="center">
+  <img alt="licence: Apache-2.0" src="https://img.shields.io/badge/licence-Apache--2.0-blue">
+  <img alt="python 3.12+" src="https://img.shields.io/badge/python-3.12%2B-blue">
+  <img alt="no telemetry" src="https://img.shields.io/badge/telemetry-none-brightgreen">
+  <img alt="offline by default" src="https://img.shields.io/badge/decision-local%20%26%20deterministic-brightgreen">
+</p>
 
 ```
 remove_group_members(group: "engineering-all")
@@ -9,6 +19,15 @@ remove_group_members(group: "engineering-all")
 
 Your policy engine sees a string on an allowlist. `neti` sees **412 people losing access to 9
 applications** — and stops the call, because you declared a ceiling of 200.
+
+<img src="docs/media/hook_block.svg" alt="neti hook denying a call that resolves to 41,203 principals against a declared ceiling of 200">
+
+The agent gets back a number, not a refusal — which is what makes it narrow the target and try again
+instead of giving up or routing around. Nothing about the gate leaks into the prompt.
+
+**Every image on this page is generated from a transcript the test suite pins byte for byte.** They
+cannot show something the product no longer prints: change the wording and the build fails until the
+picture is regenerated. See [`tools/make_media.py`](tools/make_media.py).
 
 ## Why
 
@@ -42,6 +61,12 @@ That is acts 1 and 2. Give it traffic — install the hook, work normally for an
 same command runs the rest: report, propose ceilings from what you actually did, enforce them
 against the same calls, and verify the chain. `neti demo` without `--here` runs the identical
 narrative against a synthetic tenant, and says so.
+
+<img src="docs/media/demo_here_full.svg" alt="the six acts of neti demo --here: discover, reach, observe, report and propose, enforce, audit">
+
+Six acts, one machine, no credentials: what an agent can reach here, what it actually did, the
+ceilings that follow from it, the same calls re-run with those ceilings on, and a chain that
+re-derives every verdict offline.
 
 ## Installing it
 
@@ -95,6 +120,8 @@ remove_group_members  /group#apps  entra.apps                  214  no ceiling d
 
 5 of 5 gated parameters have no ceiling declared. They resolve and record, but they cannot block.
 ```
+
+<img src="docs/media/inventory_rows.svg" alt="neti inventory listing each gated parameter, its resolver, and the maximum it could reach in one call">
 
 That is the finding, on day one: *this agent holds a credential that can, in one call, reach 52,400
 people and 214 applications, and nothing today would stop it.*
@@ -244,6 +271,20 @@ send_email /to:  confirm above 150   block above 1,000     # 2× observed p99
 You edit the numbers and commit them. `neti propose` is a config-authoring aid read by a human —
 nothing learned ever reaches the decision path, so the gate stays a static integer comparison.
 
+<img src="docs/media/propose_bimodal.svg" alt="neti propose deriving ceilings from observed traffic, with the rationale and the impact of each">
+
+It shows its working, including when the statistics disagree with themselves: above, the p95 *is*
+the outlier, so multiplying it would propose a ceiling above everything that has ever happened. It
+anchors on the median instead and tells you to expect a higher interrupt rate. Then it prints what
+those numbers would have done to the traffic you already have.
+
+And the record it all came from re-derives, offline, forever:
+
+<img src="docs/media/verify_intact.svg" alt="neti verify reporting the record chain intact">
+
+`neti verify --config` goes further and replays each decision against the policy, so "the chain is
+unbroken" becomes "and every verdict in it still follows from its evidence".
+
 ## What it costs to run
 
 Measured against real Claude Code sessions, not modelled:
@@ -295,7 +336,8 @@ A `confirm` band means *somebody other than the agent's operator should decide t
 machine there is nobody to ask, so the gate stops the call and says so. That is correct, and it is
 what a free install will keep doing.
 
-The paid tier — [`neti-cloud`](cloud/), BUSL-1.1 — is the somewhere the question can go:
+The hosted tier — [`neti-cloud`](https://neti-gate.github.io/neti/), BUSL-1.1 — is the somewhere the
+question can go:
 
 ```console
 $ neti-cloud serve --key $KEY                        # the control plane
@@ -313,16 +355,23 @@ is single-use, expires, and is refused if the target has grown since a human loo
 tier.** A control plane can only ever make a decision *more* permissive, and only through a named
 human — so nothing about paying adds availability risk to enforcement. That is a test, not a promise.
 
-| Free — Apache-2.0 | Paid — BUSL-1.1 |
+| Free — Apache-2.0, this repository | Hosted — BUSL-1.1, a separate one |
 |---|---|
-| the engine, all three seams, **observe and enforce** | a second human approving a `confirm` |
-| `init` · `inventory` · `report` · `propose` · `verify` · `score` | org policy, one version across the fleet |
+| the engine, **all twelve seams**, observe **and enforce** | a second human approving a `confirm` |
+| `init` · `inventory` · `report` · `propose` · `verify` · `prove` · `score` | org policy, one version across the fleet |
 | the record chain, and replaying it with `neti verify --config` | session budgets that survive a restart |
 | the console, every screen | audit across every agent |
+| the detection rule table, and every resolver | the reviewed detection catalogue |
 
-The rule is *"can one machine do this?"* — which is why enforcement is free and why every paid
-feature is a hole [SCOPE.md](SCOPE.md) already documents. See [LICENSING.md](LICENSING.md); the
-boundary is enforced by a test, not by good intentions.
+The rule is *"can one machine do this?"* — which is why enforcement is free and why every hosted
+feature is a hole [SCOPE.md](SCOPE.md) already documents, or work that only exists because more than
+one person did it. See [LICENSING.md](LICENSING.md).
+
+**The client for the control plane is in this repository, under Apache-2.0**, along with the tests
+pinning every property a grant is allowed to have: bound to one call, single-use, expiring, refused
+if the target has grown since a human looked at it. Read the protocol, write your own server, hold it
+to the same tests. What the hosted tier sells is a server that is running, not a secret about how to
+talk to it.
 
 ## What can be sized
 
@@ -368,7 +417,7 @@ and a per-call gate cannot see 4,000 individual sends unless you declare a sessi
 ## Development
 
 ```console
-just install          # or: uv pip install -e '.[dev,cli,graph,mcp,console,sdks,storage,database]'
+just install          # uv pip install -e '.[dev,cli,graph,mcp,console,sdks,sdks-extended,storage,database]'
 just test-all         # NETI_REQUIRE_SDKS=1 uv run pytest -q — what CI runs
 uv run mypy
 uv run ruff check
@@ -421,10 +470,39 @@ CI, because it is non-deterministic and costs tokens. See [eval/README.md](eval/
 uv run python -m eval.surveys.mcp_coverage --markdown
 ```
 
-That one is **M10**, and it is the least comfortable number in the project. Run against a config
-carrying the MCP servers people actually install, `neti init` gates **0 of 160 discovered tools**
-across the 13 that launch. Forty-three of them carry a parameter a *shipped* resolver could size —
-`fs.paths` on the filesystem server's `path`, `github.repos` on GitHub's `owner` — which makes that
-gap a defect in the matcher rather than a missing resolver: `neti init` can only ever propose 2 of
-the 10 resolvers that exist. `neti score` prints it, and prints it as absent when the survey has not
-been run.
+That one is **M10**, and it used to be the least comfortable number in the project. Run against a
+config carrying the MCP servers people actually install, `neti init` gated **0 of 160 discovered
+tools** across the 13 that launch, because the matcher knew two parameter shapes and could therefore
+only ever propose 2 of the 10 resolvers that exist. It is **25 of 160** now, against 34 that carry a
+parameter a shipped resolver could size.
+
+The remaining nine are not an oversight, and neither are the 135: `tests/corpus/` holds 170 real tool
+schemas and a written judgement on every parameter of every one of them, including **401 parameters
+no rule claims** and 41 the rule table declined *with a reason* — `query` on a search server is not
+SQL, `repo` next to `owner` addresses one repository rather than the set of them. A gate that guesses
+is worse than no gate, so the honest ceiling on a hand-written table is visible rather than hidden.
+`neti score` prints the number, and prints it as absent when the survey has not been run.
+
+## Contributing
+
+The highest-value contribution is **a resolver**: something that turns a tool's parameter into a
+count. `tests/corpus/` names 401 parameters across 170 real tools that nothing here can size, and
+some of them are sets somebody could measure — a Slack channel's members, the pages in a Notion
+database, the rows a Linear filter matches.
+
+It is about 80 lines against [RESOLVER_CONTRACT.md](RESOLVER_CONTRACT.md), which is short and is the
+actual specification of the product. Two rules do most of the work: **never return `0` for something
+you could not reach** — a failure is `UNRESOLVED`, because an unreachable target and an empty one are
+opposite situations with the same number — and **anything capped or estimated reports a
+`LOWER_BOUND`**, which can block soundly and can never allow.
+
+Open an issue with the tool and the parameter and we will tell you honestly whether it can be sized.
+[CONTRIBUTING.md](CONTRIBUTING.md) is the rest.
+
+---
+
+<p align="center">
+  <a href="https://neti-gate.github.io/neti/"><b>neti-gate.github.io/neti</b></a> ·
+  <a href="LICENSING.md">Apache-2.0</a> ·
+  no telemetry, no phone-home, no licence check
+</p>

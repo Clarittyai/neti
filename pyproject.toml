@@ -26,9 +26,11 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/neti-gate/neti"
+# Kept in step with src/neti/_website.py by tests/property/test_urls_agree.py — one place to edit.
+Homepage = "https://neti-gate.github.io/neti/"
 Source = "https://github.com/neti-gate/neti"
 Issues = "https://github.com/neti-gate/neti/issues"
+Licensing = "https://github.com/neti-gate/neti/blob/main/LICENSING.md"
 
 [project.optional-dependencies]
 graph = ["httpx[http2]>=0.27", "msal>=1.31"]

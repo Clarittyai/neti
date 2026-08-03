@@ -1,0 +1,71 @@
+name: "Bug report"
+description: "Something the gate got wrong, or said wrongly."
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Two kinds of bug matter most here, and both are worth reporting even if you are not sure:
+
+        - **A wrong verdict.** A call that should have been blocked and was not, or the reverse.
+        - **A true sentence that misleads.** Four of the defects found by using this product were
+          the CLI describing its own state accurately and uselessly. Those count.
+
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: "The command you ran and what it printed. Paste it rather than describing it."
+      render: console
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected instead
+    validations:
+      required: true
+
+  - type: textarea
+    id: policy
+    attributes:
+      label: The relevant part of your policy
+      description: |
+        The gate for the tool involved is usually enough. **Redact anything sensitive** — though
+        `neti` itself never writes credentials to a record, and `tests/property/
+        test_no_secrets_in_records.py` is what keeps that true.
+      render: yaml
+
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: "`neti version`"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: seam
+    attributes:
+      label: Which seam
+      description: "How the call reached the gate. If a verdict differs between two of these, say so — that is a more serious bug than either one alone."
+      options:
+        - "Claude Code PreToolUse hook"
+        - "neti gate --stdio (MCP)"
+        - "neti gate --upstream (remote MCP)"
+        - "Preflight, in-process"
+        - "An agent SDK adapter (say which)"
+        - "A CLI command, not a gated call"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: record
+    attributes:
+      label: The decision record, if you have one
+      description: |
+        One line from your records file for the call in question. It carries the evidence the verdict
+        was derived from, which usually settles the question outright.
+      render: json

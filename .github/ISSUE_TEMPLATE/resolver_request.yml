@@ -1,0 +1,96 @@
+name: "A set we cannot size"
+description: "A tool parameter that names a set of things neti has no resolver for."
+title: "resolver: <provider> <thing being counted>"
+labels: ["resolver", "good first issue"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **This is the most useful issue you can open.** A seam without a resolver is a place to write
+        `allow`, so the list of things neti can count *is* the coverage.
+
+        `tests/corpus/` already names 401 parameters across 170 real tools that nothing here can
+        size. Most of them genuinely are not sets — a page size, a cursor, one issue number. Some of
+        them are: a Slack channel's members, the pages in a Notion database, the rows a Linear filter
+        matches. Those are the ones worth writing down.
+
+        Writing one is about 80 lines against
+        [RESOLVER_CONTRACT.md](../../RESOLVER_CONTRACT.md). You do not have to write it to file this.
+
+  - type: input
+    id: tool
+    attributes:
+      label: The tool
+      description: "Server and tool name, as the agent sees it."
+      placeholder: "slack / conversations_invite"
+    validations:
+      required: true
+
+  - type: input
+    id: parameter
+    attributes:
+      label: The parameter
+      description: "Which argument names the set."
+      placeholder: "channel_id"
+    validations:
+      required: true
+
+  - type: textarea
+    id: unit
+    attributes:
+      label: What is being counted, and in what unit
+      description: |
+        "How many *what*?" — people, files, rows, repositories, resources. The unit matters: it is
+        what an operator reads when a call is blocked, and two units from one target (people *and*
+        applications) are two resolvers, not one.
+      placeholder: "The members of a Slack channel. Unit: principals."
+    validations:
+      required: true
+
+  - type: textarea
+    id: how
+    attributes:
+      label: How would you count it in one request
+      description: |
+        An API endpoint, a query, a local read. If it needs pagination or has a hard cap, say so —
+        that decides whether it can report an exact count or only a lower bound, and a resolver that
+        gets this wrong makes every `allow` above it unsound.
+      placeholder: "conversations.members with limit=1 returns response_metadata; otherwise paginate, cap at 10k."
+    validations:
+      required: true
+
+  - type: dropdown
+    id: direction
+    attributes:
+      label: Would the count be exact?
+      description: |
+        Anything capped, sampled or estimated is a **lower bound** — which can block soundly and can
+        never allow, so the targets too large to count are exactly the ones that cannot slip through
+        quietly. Say "not sure" if you are not sure; getting this wrong is the most expensive mistake
+        a resolver can make, and it is better discussed than guessed.
+      options:
+        - "Exact — the API returns a real count"
+        - "Lower bound — it paginates, or there is a cap"
+        - "Not sure"
+    validations:
+      required: true
+
+  - type: textarea
+    id: credential
+    attributes:
+      label: What credential does counting need
+      description: |
+        Read-only, ideally, and the narrowest scope that works. `neti` only ever reads; a resolver
+        that needs write access to count is a resolver we will argue about.
+      placeholder: "A bot token with channels:read. Read-only."
+
+  - type: checkboxes
+    id: zero
+    attributes:
+      label: The one thing that must be true
+      options:
+        - label: >
+            I understand a resolver must never return `0` for something it could not reach — an
+            unreachable target and an empty one are opposite situations with the same number, and
+            collapsing them turns every unreachable target into a call that sails under every ceiling.
+          required: true
