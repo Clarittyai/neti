@@ -45,7 +45,7 @@ def tree(tmp_path: Path) -> Path:
     root = tmp_path / "repo"
     (root / "src").mkdir(parents=True)
     for i in range(12):
-        (root / "src" / f"f{i}.py").write_text("x")
+        (root / "src" / f"f{i}.py").write_text("x", encoding="utf-8")
     return root
 
 

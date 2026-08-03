@@ -96,7 +96,7 @@ def _plan_json(workspace: Path, *plan_args: str) -> str:
 def workspace(tmp_path_factory: pytest.TempPathFactory) -> Path:
     """A real initialised workspace with real state. Built once; every plan below comes from it."""
     root = tmp_path_factory.mktemp("neti-terraform")
-    (root / "main.tf").write_text(MAIN_TF)
+    (root / "main.tf").write_text(MAIN_TF, encoding="utf-8")
     _run("init", "-no-color", "-input=false", cwd=root)
     _run("apply", "-auto-approve", "-no-color", "-input=false", cwd=root)
     return root
@@ -146,11 +146,11 @@ def test_a_plan_that_only_creates_is_zero_and_still_sound(
     the resolution degrades to a floor: it can still block, and it can no longer allow. Offline that
     branch was reached by hand-writing `after_unknown` into a fixture; here Terraform put it there.
     """
-    (workspace / "main.tf").write_text(GROWN_TF)
+    (workspace / "main.tf").write_text(GROWN_TF, encoding="utf-8")
     try:
         out = plans.resolve(_plan_json(workspace), CTX)
     finally:
-        (workspace / "main.tf").write_text(MAIN_TF)
+        (workspace / "main.tf").write_text(MAIN_TF, encoding="utf-8")
 
     assert out.state is ResolutionState.RESOLVED
     assert out.breakdown["create"] == 1
@@ -175,7 +175,7 @@ def test_the_plan_can_also_be_passed_as_a_path(
 ) -> None:
     """Both target shapes, against real output: the JSON inline, or a file this process can open."""
     path = workspace / "destroy.json"
-    path.write_text(_plan_json(workspace, "-destroy"))
+    path.write_text(_plan_json(workspace, "-destroy"), encoding="utf-8")
 
     out = plans.resolve(str(path), CTX)
 

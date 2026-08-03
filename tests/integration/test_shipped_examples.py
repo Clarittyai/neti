@@ -74,7 +74,7 @@ def test_the_coding_agent_example_actually_gates_this_repository(tmp_path: Path)
     tree = tmp_path / "repo"
     (tree / "src").mkdir(parents=True)
     for i in range(30):
-        (tree / "src" / f"f{i}.py").write_text("x")
+        (tree / "src" / f"f{i}.py").write_text("x", encoding="utf-8")
 
     policy = load_policy(EXAMPLES / "coding-agent.yaml").model_copy(
         update={"mode": Mode.ENFORCE, "providers": {"fs": {"root": str(tree)}}}
@@ -94,7 +94,7 @@ def test_bash_is_ungated_on_purpose_and_says_so() -> None:
     the product starts making a weaker claim than it advertises, so the reasoning has to survive in
     the file next to the gap it explains.
     """
-    text = (EXAMPLES / "coding-agent.yaml").read_text()
+    text = (EXAMPLES / "coding-agent.yaml").read_text(encoding="utf-8")
     policy = load_policy(EXAMPLES / "coding-agent.yaml")
 
     assert "Bash" not in policy.tools, "Bash must stay out of scope (NC-09)"

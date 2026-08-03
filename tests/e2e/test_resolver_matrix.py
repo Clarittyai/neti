@@ -85,7 +85,7 @@ def build_fixtures(tmp_path: Path) -> list[Fixture]:
     tree_dir = tmp_path / "repo"
     tree_dir.mkdir()
     for i in range(120):
-        (tree_dir / f"f{i}.txt").write_text("x" * 10)
+        (tree_dir / f"f{i}.txt").write_text("x" * 10, encoding="utf-8")
 
     db_path = tmp_path / "app.db"
     conn = sqlite3.connect(db_path)
@@ -102,7 +102,8 @@ def build_fixtures(tmp_path: Path) -> list[Fixture]:
                     for i in range(7)
                 ]
             }
-        )
+        ),
+        encoding="utf-8",
     )
 
     github = FakeApi(
@@ -292,7 +293,7 @@ def bound_producing(tmp_path: Path) -> list[Fixture]:
     tree_dir = tmp_path / "capped"
     tree_dir.mkdir()
     for i in range(5):
-        (tree_dir / f"f{i}.txt").write_text("x")
+        (tree_dir / f"f{i}.txt").write_text("x", encoding="utf-8")
 
     conn = sqlite3.connect(":memory:")
     conn.execute("create table users (id integer primary key)")

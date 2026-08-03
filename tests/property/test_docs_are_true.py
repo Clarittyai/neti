@@ -122,7 +122,7 @@ def test_the_readme_resolver_table_matches_the_registry() -> None:
     from neti.resolvers.graph_client import ClientCredential, GraphClient
     from neti.resolvers.registry import resolvers_for_client
 
-    readme = (REPO / "README.md").read_text()
+    readme = (REPO / "README.md").read_text(encoding="utf-8")
     table = readme.split("## What can be sized", 1)[1].split("##", 1)[0]
     documented = set(re.findall(r"^\| `([a-z_]+\.[a-z_]+)` \|", table, re.MULTILINE))
 
@@ -167,7 +167,7 @@ def test_the_record_size_the_readme_publishes_is_the_size_records_actually_are()
         root = Path(tmp)
         (root / "tree").mkdir()
         for i in range(5):
-            (root / "tree" / f"f{i}.txt").write_text("x")
+            (root / "tree" / f"f{i}.txt").write_text("x", encoding="utf-8")
 
         policy = load_policy(str(REPO / "examples" / "coding-agent.yaml"))
         blank = GraphClient(ClientCredential(tenant_id="", client_id="", client_secret=""))

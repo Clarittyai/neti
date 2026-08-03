@@ -177,7 +177,7 @@ def test_the_demo_reports_the_whole_stack(bare: Path, monkeypatch: pytest.Monkey
 
     repo = bare / "repo"
     repo.mkdir()
-    (repo / "a.py").write_text("x")
+    (repo / "a.py").write_text("x", encoding="utf-8")
 
     example = Path(__file__).resolve().parents[2] / "examples" / "coding-agent.yaml"
     result = run_here(repo, example)

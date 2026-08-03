@@ -75,7 +75,7 @@ def test_a_local_only_policy_needs_no_directory_credential(
     tmp_path: Path, no_credentials: dict[str, str]
 ) -> None:
     config = tmp_path / "neti.yaml"
-    config.write_text(LOCAL_ONLY)
+    config.write_text(LOCAL_ONLY, encoding="utf-8")
 
     out = run(["inventory", "--config", str(config)], no_credentials)
 
@@ -89,10 +89,10 @@ def test_the_gate_still_decides_without_one(tmp_path: Path, no_credentials: dict
     tree = tmp_path / "tree"
     tree.mkdir()
     for i in range(80):
-        (tree / f"f{i}.txt").write_text("x")
+        (tree / f"f{i}.txt").write_text("x", encoding="utf-8")
 
     config = tmp_path / "neti.yaml"
-    config.write_text(LOCAL_ONLY)
+    config.write_text(LOCAL_ONLY, encoding="utf-8")
 
     out = run(
         ["hook", "--config", str(config), "--records", str(tmp_path / "d.ndjson")],
@@ -113,7 +113,7 @@ def test_a_policy_that_does_use_entra_still_says_so_immediately(
     the same problem found on the hot path is every gated call failing closed at once.
     """
     config = tmp_path / "neti.yaml"
-    config.write_text(NEEDS_ENTRA)
+    config.write_text(NEEDS_ENTRA, encoding="utf-8")
 
     out = run(["inventory", "--config", str(config)], no_credentials)
 
@@ -151,7 +151,7 @@ def test_the_in_process_seam_needs_no_directory_credential_either(
     tree = tmp_path / "tree"
     tree.mkdir()
     for i in range(12):
-        (tree / f"f{i}.txt").write_text("x")
+        (tree / f"f{i}.txt").write_text("x", encoding="utf-8")
 
     # A real verdict on real data, not merely a constructed object.
     assert pf.check("Read", {"file_path": str(tree / "f0.txt")}).payload["resolved"] == 1
@@ -164,7 +164,7 @@ def test_the_in_process_seam_still_refuses_when_entra_is_actually_bound(
     from neti.resolvers.base import ResolverError
 
     config = tmp_path / "neti.yaml"
-    config.write_text(NEEDS_ENTRA)
+    config.write_text(NEEDS_ENTRA, encoding="utf-8")
 
     from neti.preflight import Preflight
 

@@ -173,7 +173,7 @@ def find_clients(
 
     for label, path in _candidates(cwd, home):
         try:
-            raw = json.loads(path.read_text())
+            raw = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError):
             continue
         if not isinstance(raw, dict):

@@ -110,7 +110,8 @@ def test_init_finds_nothing(workspace: Path) -> None:
 def test_init_when_everything_is_already_gated(workspace: Path) -> None:
     def setup(ws: Path) -> None:
         (ws / ".mcp.json").write_text(
-            '{"mcpServers": {"entra": {"command": "neti", "args": ["gate", "--stdio"]}}}'
+            '{"mcpServers": {"entra": {"command": "neti", "args": ["gate", "--stdio"]}}}',
+            encoding="utf-8",
         )
 
     check("init_all_gated", ["init", "--out", "gen.yaml"], setup=setup, workspace=workspace)
@@ -125,7 +126,7 @@ def test_inventory_with_the_example_policy(workspace: Path) -> None:
 
 def test_inventory_with_nothing_gated(workspace: Path) -> None:
     def setup(ws: Path) -> None:
-        (ws / "empty.yaml").write_text("version: 1\nmode: observe\ntools: {}\n")
+        (ws / "empty.yaml").write_text("version: 1\nmode: observe\ntools: {}\n", encoding="utf-8")
 
     check(
         "inventory_nothing_gated",
@@ -140,7 +141,7 @@ def test_inventory_with_nothing_gated(workspace: Path) -> None:
 
 def test_report_on_an_empty_corpus(workspace: Path) -> None:
     def setup(ws: Path) -> None:
-        (ws / "none.ndjson").write_text("")
+        (ws / "none.ndjson").write_text("", encoding="utf-8")
 
     check("report_empty", ["report", "-r", "none.ndjson"], setup=setup, workspace=workspace)
 
@@ -215,7 +216,8 @@ def test_a_resolver_that_does_not_exist(workspace: Path) -> None:
     def setup(ws: Path) -> None:
         (ws / "typo.yaml").write_text(
             "version: 1\nmode: enforce\ntools:\n  send_email:\n    gate:\n      /to:\n"
-            "        resolver: entra.principal\n        bands: [{ above: 10, verdict: block }]\n"
+            "        resolver: entra.principal\n        bands: [{ above: 10, verdict: block }]\n",
+            encoding="utf-8",
         )
 
     check(
@@ -234,7 +236,8 @@ def test_a_breakdown_band_nothing_emits(workspace: Path) -> None:
             "version: 1\nmode: enforce\ntools:\n  send_email:\n    gate:\n      /to:\n"
             "        resolver: entra.principals\n        bands: [{ above: 10, verdict: block }]\n"
             "        breakdown_bands:\n          guest:\n"
-            "            - { above: 5, verdict: block }\n"
+            "            - { above: 5, verdict: block }\n",
+            encoding="utf-8",
         )
 
     check(
@@ -248,7 +251,7 @@ def test_a_breakdown_band_nothing_emits(workspace: Path) -> None:
 
 def test_malformed_yaml(workspace: Path) -> None:
     def setup(ws: Path) -> None:
-        (ws / "bad.yaml").write_text("version: 1\n  mode: [unclosed\n")
+        (ws / "bad.yaml").write_text("version: 1\n  mode: [unclosed\n", encoding="utf-8")
 
     check(
         "policy_malformed",
@@ -314,7 +317,7 @@ def _fixture_repo(ws: Path) -> Path:
     for name, count in (("src", 8), ("vendor", 24)):
         (repo / name).mkdir(parents=True)
         for i in range(count):
-            (repo / name / f"f{i}.py").write_text("x")
+            (repo / name / f"f{i}.py").write_text("x", encoding="utf-8")
     return repo
 
 

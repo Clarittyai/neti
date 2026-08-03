@@ -103,7 +103,7 @@ def build_fixtures(root: Path) -> Fixtures:
     tree = root / "tree"
     tree.mkdir(parents=True)
     for i in range(30):
-        (tree / f"f{i}.txt").write_text("x" * 10)
+        (tree / f"f{i}.txt").write_text("x" * 10, encoding="utf-8")
 
     db = root / "app.db"
     connection = sqlite3.connect(db)
@@ -123,7 +123,8 @@ def build_fixtures(root: Path) -> Fixtures:
                     for i in range(7)
                 ]
             }
-        )
+        ),
+        encoding="utf-8",
     )
 
     small_plan = root / "small-plan.json"
@@ -135,11 +136,12 @@ def build_fixtures(root: Path) -> Fixtures:
                     for i in range(2)
                 ]
             }
-        )
+        ),
+        encoding="utf-8",
     )
 
     state = root / "state.json"
-    state.write_text(json.dumps({"values": {"root_module": {"resources": []}}}))
+    state.write_text(json.dumps({"values": {"root_module": {"resources": []}}}), encoding="utf-8")
 
     return Fixtures(
         root=root,

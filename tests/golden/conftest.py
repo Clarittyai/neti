@@ -60,8 +60,10 @@ def write_records(path: Path, magnitudes: list[int], *, tool: str = "send_email"
 
 def break_chain(path: Path) -> Path:
     """Tamper with a stored magnitude, leaving the digest that no longer covers it."""
-    rows = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+    rows = [
+        json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()
+    ]
     if rows and rows[0]["causes"]:
         rows[0]["causes"][0]["magnitude"] = 1
-    path.write_text("\n".join(json.dumps(r) for r in rows) + "\n")
+    path.write_text("\n".join(json.dumps(r) for r in rows) + "\n", encoding="utf-8")
     return path

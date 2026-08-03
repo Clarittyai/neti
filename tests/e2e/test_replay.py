@@ -164,7 +164,10 @@ def run(*args: str) -> subprocess.CompletedProcess[str]:
 def enforcing_file(tmp_path: Path) -> Path:
     """The example, written out in enforce mode, so its digest matches the records."""
     target = tmp_path / "enforcing.yaml"
-    target.write_text(EXAMPLE.read_text().replace("mode: observe", "mode: enforce", 1))
+    target.write_text(
+        EXAMPLE.read_text(encoding="utf-8").replace("mode: observe", "mode: enforce", 1),
+        encoding="utf-8",
+    )
     return target
 
 
@@ -191,7 +194,7 @@ def test_a_tampered_record_fails_before_replay_is_attempted(recorded: Path, tmp_
 
     Editing a verdict is the obvious attack, and it is the one the chain exists for.
     """
-    lines = recorded.read_text().splitlines()
+    lines = recorded.read_text(encoding="utf-8").splitlines()
     # A record that was *not* already an allow — flipping "allow" to "allow" changes nothing, which
     # is how the first draft of this test passed against an untampered file.
     index, record = next(
@@ -202,7 +205,7 @@ def test_a_tampered_record_fails_before_replay_is_attempted(recorded: Path, tmp_
     record["verdict"] = "allow"
     lines[index] = json.dumps(record)
     tampered = tmp_path / "tampered.ndjson"
-    tampered.write_text("\n".join(lines) + "\n")
+    tampered.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
     out = run("verify", "--records", str(tampered), "--config", str(EXAMPLE))
 

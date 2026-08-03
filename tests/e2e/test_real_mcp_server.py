@@ -86,10 +86,10 @@ def tree(tmp_path_factory: pytest.TempPathFactory) -> Path:
     root = tmp_path_factory.mktemp("served")
     (root / "small").mkdir()
     for i in range(3):
-        (root / "small" / f"f{i}.txt").write_text("x")
+        (root / "small" / f"f{i}.txt").write_text("x", encoding="utf-8")
     (root / "large").mkdir()
     for i in range(80):
-        (root / "large" / f"f{i}.txt").write_text("x")
+        (root / "large" / f"f{i}.txt").write_text("x", encoding="utf-8")
     return root
 
 
@@ -138,7 +138,7 @@ def gate(tree: Path, policy: Path, lines: list[str], timeout: int = 300) -> dict
 @pytest.fixture(scope="module")
 def policy(tmp_path_factory: pytest.TempPathFactory) -> Path:
     target = tmp_path_factory.mktemp("policy") / "neti.yaml"
-    target.write_text(POLICY.format(ceiling=10))
+    target.write_text(POLICY.format(ceiling=10), encoding="utf-8")
     return target
 
 

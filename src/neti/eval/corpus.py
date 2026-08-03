@@ -150,7 +150,11 @@ def load_corpus(path: Path) -> Corpus:
     )
     header = next(rows, {})
     if "calls" not in header:  # headerless file — treat every line as a call
-        rows = (json.loads(line) for line in path.read_text().splitlines() if line.strip())
+        rows = (
+            json.loads(line)
+            for line in path.read_text(encoding="utf-8").splitlines()
+            if line.strip()
+        )
         header = {}
     return Corpus(
         calls=tuple(

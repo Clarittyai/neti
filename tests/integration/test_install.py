@@ -32,12 +32,12 @@ EXAMPLE = Path(__file__).resolve().parents[2] / "examples" / "coding-agent.yaml"
 
 @pytest.fixture
 def project(tmp_path: Path) -> Path:
-    (tmp_path / "neti.yaml").write_text(EXAMPLE.read_text())
+    (tmp_path / "neti.yaml").write_text(EXAMPLE.read_text(encoding="utf-8"), encoding="utf-8")
     return tmp_path
 
 
 def settings_of(project: Path) -> dict:
-    return json.loads(settings_path(project).read_text())
+    return json.loads(settings_path(project).read_text(encoding="utf-8"))
 
 
 def neti(*args: str, cwd: Path) -> subprocess.CompletedProcess[str]:
@@ -73,7 +73,8 @@ def test_someone_elses_hook_survives(project: Path) -> None:
                     ]
                 },
             }
-        )
+        ),
+        encoding="utf-8",
     )
 
     plan = plan_install(project, project / "neti.yaml")
@@ -96,7 +97,7 @@ def test_installing_twice_installs_once(project: Path) -> None:
 def test_pointing_at_a_new_policy_updates_rather_than_appends(project: Path) -> None:
     """Re-running with a different `-c` should move the hook, not add a competing one."""
     apply_install(plan_install(project, project / "neti.yaml"))
-    (project / "other.yaml").write_text(EXAMPLE.read_text())
+    (project / "other.yaml").write_text(EXAMPLE.read_text(encoding="utf-8"), encoding="utf-8")
 
     plan = plan_install(project, project / "other.yaml")
     entries = plan.after["hooks"]["PreToolUse"]
@@ -111,7 +112,7 @@ def test_settings_that_cannot_be_parsed_are_refused(project: Path) -> None:
     gets destroyed."""
     path = settings_path(project)
     path.parent.mkdir(parents=True)
-    path.write_text("{ this is not json")
+    path.write_text("{ this is not json", encoding="utf-8")
 
     with pytest.raises(json.JSONDecodeError):
         plan_install(project, project / "neti.yaml")
@@ -120,7 +121,7 @@ def test_settings_that_cannot_be_parsed_are_refused(project: Path) -> None:
 def test_a_hooks_block_of_the_wrong_shape_is_refused(project: Path) -> None:
     path = settings_path(project)
     path.parent.mkdir(parents=True)
-    path.write_text(json.dumps({"hooks": {"PreToolUse": "not-a-list"}}))
+    path.write_text(json.dumps({"hooks": {"PreToolUse": "not-a-list"}}), encoding="utf-8")
 
     with pytest.raises(ValueError, match="not a list"):
         plan_install(project, project / "neti.yaml")
@@ -129,12 +130,12 @@ def test_a_hooks_block_of_the_wrong_shape_is_refused(project: Path) -> None:
 def test_the_original_is_kept(project: Path) -> None:
     path = settings_path(project)
     path.parent.mkdir(parents=True)
-    path.write_text(json.dumps({"permissions": {"allow": []}}))
+    path.write_text(json.dumps({"permissions": {"allow": []}}), encoding="utf-8")
 
     backup = apply_install(plan_install(project, project / "neti.yaml"))
 
     assert backup is not None and backup.exists()
-    assert json.loads(backup.read_text()) == {"permissions": {"allow": []}}
+    assert json.loads(backup.read_text(encoding="utf-8")) == {"permissions": {"allow": []}}
 
 
 def test_user_scope_writes_to_the_home_settings(
@@ -175,7 +176,7 @@ def test_it_refuses_a_policy_that_does_not_load(project: Path) -> None:
     """A hook pointing at a broken policy runs on every tool call and fails on every one of them.
     Better to refuse at install than to discover it mid-session."""
     (project / "broken.yaml").write_text(
-        "version: 1\ntools:\n  x:\n    gate:\n      /y: {resolver: nope}\n"
+        "version: 1\ntools:\n  x:\n    gate:\n      /y: {resolver: nope}\n", encoding="utf-8"
     )
 
     out = neti("install", "-c", "broken.yaml", "--yes", cwd=project)

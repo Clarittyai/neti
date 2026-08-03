@@ -279,7 +279,8 @@ def test_a_broken_policy_never_takes_down_a_claude_code_session(tmp_path: Path) 
         "      /group:\n"
         "        resolver: entra.principal\n"  # one letter short of `principals`
         "        bands: [{ above: 10, verdict: block }]\n"
-        "        on_unresolved: block\n"
+        "        on_unresolved: block\n",
+        encoding="utf-8",
     )
     event = json.dumps(
         {

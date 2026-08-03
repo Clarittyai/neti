@@ -174,7 +174,7 @@ def _write_config(root: Path, candidates: tuple[Candidate, ...]) -> Path:
     """A `.mcp.json` in the shape every stdio client uses, so `find_clients` reads it for real."""
     workdir = root / "workspace"
     workdir.mkdir(parents=True, exist_ok=True)
-    (workdir / "README.md").write_text("survey fixture\n")
+    (workdir / "README.md").write_text("survey fixture\n", encoding="utf-8")
     db = root / "fixture.sqlite"
     db.touch()
 
@@ -200,7 +200,7 @@ def _write_config(root: Path, candidates: tuple[Candidate, ...]) -> Path:
             **({"env": c.env} if c.env else {}),
         }
     path = root / ".mcp.json"
-    path.write_text(json.dumps({"mcpServers": servers}, indent=2))
+    path.write_text(json.dumps({"mcpServers": servers}, indent=2), encoding="utf-8")
     return path
 
 
@@ -393,7 +393,7 @@ def main(argv: list[str] | None = None) -> int:
     survey = run(timeout_s=args.timeout, only=args.only)
     args.out.parent.mkdir(parents=True, exist_ok=True)
     payload = {**asdict(survey), "totals": survey.totals()}
-    args.out.write_text(json.dumps(payload, indent=2) + "\n")
+    args.out.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     print(as_markdown(survey) if args.markdown else f"wrote {args.out}")
     return 0
 

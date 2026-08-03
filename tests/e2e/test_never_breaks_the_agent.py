@@ -48,7 +48,7 @@ def run_hook_process(stdin: str, config: Path, records: Path) -> subprocess.Comp
 @pytest.fixture
 def config(tmp_path: Path) -> Path:
     target = tmp_path / "neti.yaml"
-    target.write_text(EXAMPLE.read_text())
+    target.write_text(EXAMPLE.read_text(encoding="utf-8"), encoding="utf-8")
     return target
 
 
@@ -156,7 +156,10 @@ def test_an_argument_that_breaks_the_provider_is_decided_not_allowed(tmp_path: P
 def test_a_policy_that_will_not_parse_still_lets_the_session_run(tmp_path: Path) -> None:
     """The instance that already had a test, kept because it is the likeliest one in practice."""
     broken = tmp_path / "broken.yaml"
-    broken.write_text("version: 1\ntools:\n  send_email:\n    gate:\n      /to: {resolver: nope}\n")
+    broken.write_text(
+        "version: 1\ntools:\n  send_email:\n    gate:\n      /to: {resolver: nope}\n",
+        encoding="utf-8",
+    )
     event = json.dumps({"tool_name": "send_email", "tool_input": {"to": "g-team"}})
     assert_survivable(run_hook_process(event, broken, tmp_path / "d.ndjson"), "unknown resolver")
 
@@ -195,7 +198,10 @@ def test_an_unwritable_records_path_does_not_turn_enforcement_off(tmp_path: Path
     available. So this asserts the verdict, and asserts the operator is told the record was lost.
     """
     policy = tmp_path / "neti.yaml"
-    policy.write_text(EXAMPLE.read_text().replace("mode: observe", "mode: enforce"))
+    policy.write_text(
+        EXAMPLE.read_text(encoding="utf-8").replace("mode: observe", "mode: enforce"),
+        encoding="utf-8",
+    )
     blocked = tmp_path / "records-dir"
     blocked.mkdir()
 

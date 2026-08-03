@@ -47,7 +47,7 @@ def repo(tmp_path: Path) -> Path:
     for name, count in (("src", 30), ("tests", 10), ("vendor", VENDOR)):
         (root / name).mkdir(parents=True)
         for i in range(count):
-            (root / name / f"f{i}.py").write_text("x" * 20)
+            (root / name / f"f{i}.py").write_text("x" * 20, encoding="utf-8")
     return root
 
 
@@ -190,7 +190,7 @@ def test_the_corpus_file_is_readable_without_a_parser(repo: Path, tmp_path: Path
     read it in a terminal first, which rules out anything more compact than one object per line."""
     path = tmp_path / "corpus.jsonl"
     write_corpus(traffic(repo, tmp_path, n=3), path)
-    lines = path.read_text().splitlines()
+    lines = path.read_text(encoding="utf-8").splitlines()
 
     assert len(lines) == 4, "a header plus one line per call"
     assert all(line.startswith("{") and line.endswith("}") for line in lines)

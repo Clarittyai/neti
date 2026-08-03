@@ -26,11 +26,11 @@ CTX = ResolveContext()
 def tree(tmp_path: Path) -> Path:
     """12 files, 3 of them nested, with known sizes."""
     for i in range(9):
-        (tmp_path / f"f{i}.txt").write_text("x" * 10)
+        (tmp_path / f"f{i}.txt").write_text("x" * 10, encoding="utf-8")
     nested = tmp_path / "sub" / "deeper"
     nested.mkdir(parents=True)
     for i in range(3):
-        (nested / f"n{i}.md").write_text("y" * 100)
+        (nested / f"n{i}.md").write_text("y" * 100, encoding="utf-8")
     return tmp_path
 
 
@@ -85,7 +85,7 @@ def test_an_unreadable_directory_is_unresolved_not_zero(tmp_path: Path) -> None:
     """A permissions error is not an empty directory."""
     locked = tmp_path / "locked"
     locked.mkdir()
-    (locked / "secret.txt").write_text("x")
+    (locked / "secret.txt").write_text("x", encoding="utf-8")
     os.chmod(locked, 0o000)
     try:
         res = FilesystemResolver().resolve(str(locked), CTX)
@@ -118,10 +118,10 @@ def test_a_capped_walk_is_a_lower_bound_and_can_only_block(tree: Path) -> None:
 def test_a_symlink_cycle_terminates(tmp_path: Path) -> None:
     """A directory that links to its own parent is a hang, and a gate that hangs is a gate that
     gets removed. Directories are tracked by (device, inode), so a cycle is visited once."""
-    (tmp_path / "a.txt").write_text("x")
+    (tmp_path / "a.txt").write_text("x", encoding="utf-8")
     inner = tmp_path / "inner"
     inner.mkdir()
-    (inner / "b.txt").write_text("y")
+    (inner / "b.txt").write_text("y", encoding="utf-8")
     try:
         (inner / "loop").symlink_to(tmp_path, target_is_directory=True)
     except OSError:

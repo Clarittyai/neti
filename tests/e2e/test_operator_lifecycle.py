@@ -115,7 +115,8 @@ def test_the_first_week_end_to_end(workdir: Path) -> None:
     # ---------------------------------------------------------------- 1. init
     # A client config of the kind that is already on the machine.
     (workdir / ".mcp.json").write_text(
-        json.dumps({"mcpServers": {"entra": {"command": "npx", "args": ["-y", "@acme/entra"]}}})
+        json.dumps({"mcpServers": {"entra": {"command": "npx", "args": ["-y", "@acme/entra"]}}}),
+        encoding="utf-8",
     )
     init = run("init", "--out", str(policy), "--no-probe", cwd=workdir)
     assert init.returncode in (0, 1), init.stderr
@@ -125,7 +126,7 @@ def test_the_first_week_end_to_end(workdir: Path) -> None:
     # shipped example: it is what the README tells an operator to start from and the only policy
     # with gates the synthetic tenant can resolve.
     source = Path(__file__).resolve().parents[2] / "examples" / "entra.yaml"
-    started = yaml.safe_load(source.read_text())
+    started = yaml.safe_load(source.read_text(encoding="utf-8"))
 
     # The session budget comes out, and the reason is the point of step 7 rather than a convenience.
     # `propose` reasons about *per-call* ceilings: it reads a distribution of individual magnitudes
@@ -135,7 +136,7 @@ def test_the_first_week_end_to_end(workdir: Path) -> None:
     # a per-call prediction against a per-call-plus-per-session reality and fail for a reason that
     # is not a defect. That the budget does fire is asserted on its own, below.
     started.pop("session_budgets", None)
-    policy.write_text(yaml.safe_dump(started, sort_keys=False))
+    policy.write_text(yaml.safe_dump(started, sort_keys=False), encoding="utf-8")
 
     # ---------------------------------------------------------------- 2. inventory
     inventory = run("inventory", "--config", str(policy), "--demo", cwd=workdir)
@@ -150,7 +151,7 @@ def test_the_first_week_end_to_end(workdir: Path) -> None:
     assert observed == Counter({"allow": len(CORPUS)}), (
         f"observe mode must never stop anything, got {dict(observed)}"
     )
-    assert records.exists() and len(records.read_text().splitlines()) == len(CORPUS)
+    assert records.exists() and len(records.read_text(encoding="utf-8").splitlines()) == len(CORPUS)
 
     # ---------------------------------------------------------------- 4. report
     report = run("report", "--records", str(records), cwd=workdir)
@@ -172,9 +173,9 @@ def test_the_first_week_end_to_end(workdir: Path) -> None:
     # ---------------------------------------------------------------- 6. merge and enforce
     # Exactly what the output instructs: merge the bands into the gates that already exist, keeping
     # each `resolver:` line. If this cannot be done mechanically, the instruction is not followable.
-    merged = _merge(yaml.safe_load(policy.read_text()), fragment)
+    merged = _merge(yaml.safe_load(policy.read_text(encoding="utf-8")), fragment)
     merged["mode"] = "enforce"
-    policy.write_text(yaml.safe_dump(merged, sort_keys=False))
+    policy.write_text(yaml.safe_dump(merged, sort_keys=False), encoding="utf-8")
 
     check = run("inventory", "--config", str(policy), "--demo", cwd=workdir)
     assert check.returncode == 0, (
@@ -210,7 +211,7 @@ def test_the_proposed_ceilings_actually_bind(workdir: Path) -> None:
     policy = workdir / "neti.yaml"
     records = workdir / "d.ndjson"
     source = Path(__file__).resolve().parents[2] / "examples" / "entra.yaml"
-    policy.write_text(source.read_text())
+    policy.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
 
     gate_corpus(workdir, policy, records, CORPUS)
 
@@ -283,10 +284,10 @@ def test_a_session_budget_bites_across_a_long_lived_session(workdir: Path) -> No
     policy = workdir / "neti.yaml"
     records = workdir / "d.ndjson"
     source = Path(__file__).resolve().parents[2] / "examples" / "entra.yaml"
-    declared = yaml.safe_load(source.read_text())
+    declared = yaml.safe_load(source.read_text(encoding="utf-8"))
     assert declared.get("session_budgets"), "the shipped example must still declare one"
     declared["mode"] = "enforce"
-    policy.write_text(yaml.safe_dump(declared, sort_keys=False))
+    policy.write_text(yaml.safe_dump(declared, sort_keys=False), encoding="utf-8")
 
     counts = gate_corpus(workdir, policy, records, CORPUS)
 

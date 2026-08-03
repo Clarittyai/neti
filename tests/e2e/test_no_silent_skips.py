@@ -124,7 +124,7 @@ def test_every_importorskip_in_the_suite_names_a_dependency_that_is_installed() 
     for path in sorted((REPO / "tests").rglob("test_*.py")):
         if "live" in path.parts:
             continue
-        for module in pattern.findall(path.read_text()):
+        for module in pattern.findall(path.read_text(encoding="utf-8")):
             try:
                 importlib.import_module(module)
             except ImportError:
@@ -145,7 +145,7 @@ def test_the_ci_workflow_installs_what_the_tests_import() -> None:
     the dependencies the suite needs. Runs unconditionally — it reads a file and needs nothing
     installed.
     """
-    workflow = (REPO / ".github" / "workflows" / "ci.yml").read_text()
+    workflow = (REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
     install_lines = [ln for ln in workflow.splitlines() if "uv pip install" in ln]
     assert install_lines, "no install line found in ci.yml — has the workflow changed shape?"
 

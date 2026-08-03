@@ -279,7 +279,7 @@ def test_no_secret_survives_a_real_gated_call(secret: str, tmp_path: Path) -> No
     pf = Preflight.demo(EXAMPLE, mode="observe", records=records)
     pf.check("send_email", {"to": "g-team", "creds": secret, "nested": {"inner": secret}})
 
-    raw = records.read_text()
+    raw = records.read_text(encoding="utf-8")
     assert secret not in raw
     assert secret.splitlines()[0] not in raw, "not even the first line of a multi-line key"
     assert PLACEHOLDER in raw
@@ -292,7 +292,7 @@ def test_the_record_says_what_it_redacted(tmp_path: Path) -> None:
     pf = Preflight.demo(EXAMPLE, mode="observe", records=records)
     pf.check("send_email", {"to": "g-team", "api_key": "sk-live-abcdefghijklmnop"})
 
-    record = json.loads(records.read_text().splitlines()[0])
+    record = json.loads(records.read_text(encoding="utf-8").splitlines()[0])
     assert record["redacted"] == ["/api_key"]
 
 
@@ -305,10 +305,10 @@ def test_stripping_the_redaction_marker_breaks_the_chain(tmp_path: Path) -> None
     pf = Preflight.demo(EXAMPLE, mode="observe", records=records)
     pf.check("send_email", {"to": "g-team", "api_key": "sk-live-abcdefghijklmnop"})
 
-    doctored = json.loads(records.read_text().splitlines()[0])
+    doctored = json.loads(records.read_text(encoding="utf-8").splitlines()[0])
     doctored["redacted"] = []
     tampered = tmp_path / "t.ndjson"
-    tampered.write_text(json.dumps(doctored) + "\n")
+    tampered.write_text(json.dumps(doctored) + "\n", encoding="utf-8")
 
     ok, _ = verify_chain(list(read_records(tampered)))
     assert not ok

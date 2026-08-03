@@ -77,10 +77,12 @@ def test_finds_servers_across_client_configs(tmp_path: Path) -> None:
     (cwd / ".cursor").mkdir(parents=True)
     home.mkdir()
     (cwd / ".mcp.json").write_text(
-        json.dumps({"mcpServers": {"entra": {"command": "npx", "args": ["-y", "@acme/entra"]}}})
+        json.dumps({"mcpServers": {"entra": {"command": "npx", "args": ["-y", "@acme/entra"]}}}),
+        encoding="utf-8",
     )
     (cwd / ".cursor" / "mcp.json").write_text(
-        json.dumps({"mcpServers": {"jira": {"command": "uvx", "args": ["jira-mcp"]}}})
+        json.dumps({"mcpServers": {"jira": {"command": "uvx", "args": ["jira-mcp"]}}}),
+        encoding="utf-8",
     )
 
     found = find_clients(cwd=cwd, home=home)
@@ -94,7 +96,8 @@ def test_finds_servers_nested_per_project(tmp_path: Path) -> None:
     cwd.mkdir(parents=True)
     home.mkdir()
     (home / ".claude.json").write_text(
-        json.dumps({"projects": {"/some/path": {"mcpServers": {"gh": {"command": "gh-mcp"}}}}})
+        json.dumps({"projects": {"/some/path": {"mcpServers": {"gh": {"command": "gh-mcp"}}}}}),
+        encoding="utf-8",
     )
     assert [s.name for s in find_clients(cwd=cwd, home=home)] == ["gh"]
 
@@ -112,7 +115,8 @@ def test_skips_a_server_already_behind_the_gate(tmp_path: Path) -> None:
                     "bare": {"command": "npx", "args": ["y"]},
                 }
             }
-        )
+        ),
+        encoding="utf-8",
     )
     assert [s.name for s in find_clients(cwd=cwd, home=home)] == ["bare"]
 
@@ -122,10 +126,10 @@ def test_ignores_remote_servers_and_junk(tmp_path: Path) -> None:
     cwd.mkdir(parents=True)
     home.mkdir()
     (cwd / ".mcp.json").write_text(
-        json.dumps({"mcpServers": {"remote": {"url": "https://mcp.example/rpc"}}})
+        json.dumps({"mcpServers": {"remote": {"url": "https://mcp.example/rpc"}}}), encoding="utf-8"
     )
     (cwd / ".vscode").mkdir()
-    (cwd / ".vscode" / "mcp.json").write_text("{ not json")
+    (cwd / ".vscode" / "mcp.json").write_text("{ not json", encoding="utf-8")
     assert find_clients(cwd=cwd, home=home) == []
 
 
@@ -181,7 +185,8 @@ def test_a_server_that_needs_a_credential_is_launched_with_it(tmp_path: Path) ->
                     }
                 }
             }
-        )
+        ),
+        encoding="utf-8",
     )
 
     (found,) = find_clients(cwd=cwd, home=home)
@@ -298,7 +303,7 @@ def test_names_what_it_did_not_take_responsibility_for(server: ServerSpec) -> No
 def test_the_generated_policy_loads_and_gates(tmp_path: Path, server: ServerSpec) -> None:
     """The round trip. A generator whose output the loader rejects is worse than no generator."""
     config = tmp_path / "neti.yaml"
-    config.write_text(render_policy(discover([server])))
+    config.write_text(render_policy(discover([server])), encoding="utf-8")
 
     policy = load_policy(str(config))
     assert set(policy.tools) >= {"remove_group_members", "send_email"}
@@ -321,7 +326,7 @@ def test_the_generated_policy_loads_and_gates(tmp_path: Path, server: ServerSpec
 
 def test_an_empty_discovery_still_writes_a_loadable_file(tmp_path: Path) -> None:
     config = tmp_path / "neti.yaml"
-    config.write_text(render_policy(discover([], probe=False)))
+    config.write_text(render_policy(discover([], probe=False)), encoding="utf-8")
     assert load_policy(str(config)).tools == {}
 
 
@@ -338,7 +343,8 @@ def test_an_all_gated_machine_is_a_finished_state_not_an_empty_one(tmp_path: Pat
     (cwd / ".mcp.json").write_text(
         json.dumps(
             {"mcpServers": {"fs": {"command": "neti", "args": ["gate", "--stdio", "--", "npx"]}}}
-        )
+        ),
+        encoding="utf-8",
     )
 
     gated: list[str] = []

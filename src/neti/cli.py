@@ -135,7 +135,7 @@ def init(
             typer.echo(f"  ungated {tool.name:26} nothing here can be sized")
 
     target.parent.mkdir(parents=True, exist_ok=True)
-    target.write_text(render_policy(found))
+    target.write_text(render_policy(found), encoding="utf-8")
 
     typer.secho(f"\nWrote {out}", bold=True)
     example = found.servers[0] if found.servers else None
@@ -1080,7 +1080,7 @@ def score(
 
     wild = None
     with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
-        totals = json.loads(Path(field_results).read_text())["totals"]
+        totals = json.loads(Path(field_results).read_text(encoding="utf-8"))["totals"]
         wild = Wild(
             servers_launched=int(totals["servers_launched"]),
             servers_in_catalogue=int(totals["servers_in_catalogue"]),
@@ -1094,7 +1094,7 @@ def score(
     # third state, and it is the one worth seeing.
     live: dict[str, Any] | None = None
     with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
-        live = json.loads(Path(live_results).read_text())["resolvers"]
+        live = json.loads(Path(live_results).read_text(encoding="utf-8"))["resolvers"]
 
     card = build_scorecard(summary, policy, wild=wild, live=live)
     typer.echo(scorecard_json(card) if as_json else format_scorecard(card))
