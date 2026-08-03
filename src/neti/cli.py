@@ -591,12 +591,18 @@ def gate(
         client.close()
 
 
-def _approver(org: bool) -> Any:
+def _approver(org: bool, *, fatal: bool = True) -> Any:
     """A control plane, if the operator asked for one and is logged in.
 
     Refuses rather than falling back silently: someone who passed `--org` believes their `CONFIRM`s
     reach a human, and quietly running without one would leave them thinking approvals are wired up
     when every such call is simply being stopped.
+
+    `fatal=False` for the hook, and only for the hook. `neti gate` is a long-lived process and
+    exiting 2 at startup is the right, loud answer; `neti hook` is one process per tool call, and a
+    non-zero exit there fails the tool call it was asked about — so a missing login would take the
+    whole session down rather than one call. It says the same thing and carries on, which leaves a
+    `CONFIRM` stopping the call: the free tier's behaviour, and the one the paid tier degrades to.
     """
     if not org:
         return None
@@ -605,6 +611,13 @@ def _approver(org: bool) -> Any:
 
     creds = load_credentials()
     if creds is None or not creds.configured:
+        if not fatal:
+            print(
+                "neti hook: --org needs a control plane; run `neti login` first. Continuing "
+                "without one, so a CONFIRM stops the call rather than reaching a human.",
+                file=sys.stderr,
+            )
+            return None
         typer.secho(
             "error: --org needs a control plane. Run `neti login --url ... --key ...` first.",
             fg=typer.colors.RED,
@@ -678,6 +691,10 @@ def hook(
         str | None,
         typer.Option("--mode", help="Override the policy's mode: observe or enforce."),
     ] = None,
+    org: Annotated[
+        bool,
+        typer.Option("--org", help="Escalate a CONFIRM to your control plane. Needs `neti login`."),
+    ] = False,
     timeout_ms: Annotated[int, typer.Option()] = 800,
 ) -> None:
     """Gate a Claude Code `PreToolUse` event read from stdin.
@@ -738,7 +755,9 @@ def hook(
         raise typer.Exit(0) from exc
     sink = JsonlSink(records)
     try:
-        response = run_hook(engine, event, sink)
+        # `fatal=False`: a hook that exits non-zero fails the tool call it was asked about, so a
+        # missing `neti login` must degrade to the free tier rather than take the session down.
+        response = run_hook(engine, event, sink, _approver(org, fatal=False))
     except Exception as exc:
         print(f"neti hook: {exc}", file=sys.stderr)
         raise typer.Exit(0) from exc

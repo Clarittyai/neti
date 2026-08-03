@@ -368,3 +368,68 @@ def test_a_denial_is_not_erased_by_a_retry(api: TestClient, tenant: SyntheticTen
 
     # And no new request was ever raised, so nobody was re-asked.
     assert len(api.get("/v1/approvals").json()["approvals"]) == 1
+
+
+# ---------------------------------------------------------------------------- reaching it at all
+
+
+def test_the_hook_can_be_pointed_at_a_control_plane() -> None:
+    """`neti gate` had `--org` and `neti hook` did not, so the paid tier was unreachable from it.
+
+    That is the seam for a harness's own built-in tools — the README calls it "the only seam that
+    exists for those" — and it is the one most installs use. `run_hook` has always taken an
+    `approver`, and `tests/e2e/test_seam_equivalence.py` proves the hook honours a granted approval,
+    because the test passes one in directly. The command line never did, so nothing an operator
+    could type reached a human from that seam.
+
+    Asserted against the CLI surface rather than the function, because the function was never the
+    problem.
+    """
+    import inspect
+
+    from neti.cli import hook
+
+    assert "org" in inspect.signature(hook).parameters, (
+        "`neti hook` has no --org, so a CONFIRM on Claude Code's built-in tools can never reach a "
+        "human however the operator is logged in"
+    )
+
+
+def test_a_hook_missing_its_login_degrades_instead_of_failing_the_call(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """`--org` without credentials must not take the session down.
+
+    For `neti gate` the right answer is to refuse loudly at startup: it is one long-lived process,
+    and somebody who passed `--org` believing their CONFIRMs reach a human should find out
+    immediately. For `neti hook` the same exit code fails the tool call it was asked about, so every
+    call in the session would fail — the failure this codebase spends most of its effort avoiding.
+
+    So it says the same thing and carries on without an approver, which leaves a CONFIRM stopping
+    the call: the free tier's behaviour, and the one the paid tier degrades to everywhere else.
+    """
+    from neti.cli import _approver
+
+    monkeypatch.setenv("NETI_HOME", str(tmp_path))
+
+    assert _approver(True, fatal=False) is None
+
+    # `typer.Exit`, not `SystemExit` — typer raises its own and click turns it into an exit code at
+    # the top of the CLI. Worth naming: catching `SystemExit` here passes for the wrong reason on a
+    # future version that changes it.
+    import typer
+
+    with pytest.raises(typer.Exit) as refused:
+        _approver(True, fatal=True)
+    assert refused.value.exit_code == 2
+
+
+def test_asking_for_no_control_plane_reaches_for_nothing(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    """The default. Without `--org` the gate never looks for credentials at all."""
+    from neti.cli import _approver
+
+    monkeypatch.setenv("NETI_HOME", str(tmp_path))
+    assert _approver(False) is None
+    assert _approver(False, fatal=False) is None

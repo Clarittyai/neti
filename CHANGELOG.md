@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+### The paid tier was unreachable from the hook
+
+`neti gate` had `--org`. `neti hook` did not — so a `CONFIRM` on Claude Code's built-in tools could
+never reach a human, however carefully the operator had run `neti login`. That is the seam the
+README calls *"the only seam that exists"* for a harness's own tools, and the one most installs use.
+
+`run_hook` has always taken an `approver`, and `test_seam_equivalence.py` proves the hook honours a
+granted approval — because the test passes one in directly. Nothing an operator could type did. The
+capability was real, tested, and unreachable, which is the shape of defect this work keeps turning
+up.
+
+`--org` on the hook is **non-fatal** when there is no login, and that asymmetry is deliberate. For
+`neti gate`, refusing loudly at startup is right: one long-lived process, and somebody who passed
+`--org` believing their CONFIRMs reach a human should find out at once. For `neti hook` the same
+exit code fails the tool call it was asked about, so every call in the session would fail. It says
+the same thing and carries on without an approver, which leaves a CONFIRM stopping the call — the
+free tier's behaviour, and the one the paid tier degrades to everywhere else.
+
+Found by driving the control plane end to end for the first time, as separate processes rather than
+in a `TestClient`: `neti-cloud serve`, `neti login`, a CONFIRM escalating with a real approval id
+and the retry instruction, `neti-cloud list` showing a reviewer *500 recipients, above the declared
+ceiling of 50*, `neti-cloud approve`, and the retry going through. Both negatives hold under real
+processes too — **the grant is single-use** (the same call again raised a fresh approval rather than
+reusing the spent one) and **a BLOCK is never escalated** (`approval: None`), so paying for a control
+plane cannot buy a way past a declared ceiling.
+
 ### `pip install neti` left a `neti` command that could not start
 
 `[project.scripts]` installs the `neti` entry point whatever extras you asked for, and `typer` lives

@@ -300,7 +300,8 @@ The paid tier — [`neti-cloud`](cloud/), BUSL-1.1 — is the somewhere the ques
 ```console
 $ neti-cloud serve --key $KEY                        # the control plane
 $ neti login --url http://localhost:8730 --key $KEY  # on the agent's machine
-$ neti gate --stdio --org -- npx -y @acme/entra-mcp
+$ neti gate --stdio --org -- npx -y @acme/entra-mcp  # in front of an MCP server
+$ neti hook --org                                    # or Claude Code's built-in tools
 ```
 
 The agent's call stops with *"approval a_b271… is pending; retry this exact call once it is
