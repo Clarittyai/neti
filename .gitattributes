@@ -1,0 +1,25 @@
+# Every text file in this repository is LF in the working tree, on every platform.
+#
+# This is load-bearing rather than a style preference. Git's default on Windows converts LF to CRLF
+# on checkout, and this project is built almost entirely on byte equality:
+#
+#   tests/golden/     pins each command's output byte for byte
+#   docs/media/       SVGs are a pure function of those transcripts, compared as bytes
+#   docs/index.html   is base64 of those SVG bytes, so two extra bytes per line changes it
+#   the record chain  digests the policy file
+#
+# The first Windows CI run this repository ever had failed on all four at once, and every failure
+# said the same thing in a different costume: the file on disk was not the file that was committed.
+#
+# `text=auto` still lets git detect binary and leave it alone; the explicit lines below are for the
+# two extensions where a wrong guess would be silent and expensive.
+* text=auto eol=lf
+
+*.png binary
+*.gif binary
+*.ico binary
+*.whl binary
+*.tar.gz binary
+
+*.svg text eol=lf
+*.ndjson text eol=lf

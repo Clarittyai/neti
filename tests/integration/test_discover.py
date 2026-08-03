@@ -459,7 +459,9 @@ def load_policy_from_text(text: str) -> Any:
     """Round-trip helper: the generated file has to actually load."""
     import tempfile
 
-    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as fh:
+    # encoding, because the generated policy contains an em-dash and Windows would otherwise
+    # write it as cp1252 for `load_policy` to choke on as UTF-8.
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False, encoding="utf-8") as fh:
         fh.write(text)
         path = fh.name
     return load_policy(path)

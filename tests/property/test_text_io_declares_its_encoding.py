@@ -43,6 +43,12 @@ SKIP = ("console",)
 # is a good reminder that a check keen enough to be useful is keen enough to be wrong.
 TEXT_METHODS = {"read_text", "write_text"}
 
+# Temporary files have exactly the same problem and are easier to miss, because the mode string
+# is the first positional argument rather than a keyword. A test wrote a generated policy through
+# one of these and then read it back with `load_policy`, which does name UTF-8 — so Windows wrote
+# cp1252 and the product's own correct reader was the thing that raised.
+TEMPFILES = {"NamedTemporaryFile", "TemporaryFile", "SpooledTemporaryFile"}
+
 
 def _sources() -> list[Path]:
     return sorted(
@@ -72,6 +78,10 @@ def _offenders(tree: ast.Module) -> list[str]:
             name, mode = node.func.attr, ""
         elif isinstance(node.func, ast.Name) and node.func.id == "open":
             name, mode = "open", _mode(node, positional=1)
+        elif isinstance(node.func, ast.Attribute) and node.func.attr in TEMPFILES:
+            name, mode = node.func.attr, _mode(node, positional=0) or "w+b"
+        elif isinstance(node.func, ast.Name) and node.func.id in TEMPFILES:
+            name, mode = node.func.id, _mode(node, positional=0) or "w+b"
         else:
             continue
 
