@@ -13,6 +13,9 @@
     --steel:       #3F7CA6;
     --amber:       #B87413;
     --alarm:       #C6402C;
+    /* Semantic, not an accent: the one colour a human grant is allowed to wear. It appears in the
+       cloud band and nowhere else, because that is the only place a person says yes. */
+    --grant:       #2F7D51;
     --shadow:      0 1px 2px rgba(19, 26, 34, .06), 0 8px 24px -12px rgba(19, 26, 34, .18);
 
     --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
@@ -33,6 +36,7 @@
       --steel:       #5B8FB9;
       --amber:       #F0A22E;
       --alarm:       #E2543F;
+      --grant:       #4FB87A;
       --shadow:      0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -16px rgba(0, 0, 0, .8);
     }
   }
@@ -41,11 +45,13 @@
   :root[data-theme="light"] {
     --ground: #F7F8FA; --ground-sunk: #EDEFF3; --ink: #131A22; --ink-dim: #57636F;
     --ink-faint: #8894A1; --rule: #DCE1E8; --steel: #3F7CA6; --amber: #B87413; --alarm: #C6402C;
+    --grant: #2F7D51;
     --shadow: 0 1px 2px rgba(19, 26, 34, .06), 0 8px 24px -12px rgba(19, 26, 34, .18);
   }
   :root[data-theme="dark"] {
     --ground: #0B0F14; --ground-sunk: #10161D; --ink: #DCE3EC; --ink-dim: #8B99AB;
     --ink-faint: #5D6B7C; --rule: #1D2733; --steel: #5B8FB9; --amber: #F0A22E; --alarm: #E2543F;
+    --grant: #4FB87A;
     --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -16px rgba(0, 0, 0, .8);
   }
 
@@ -184,6 +190,70 @@
   .note { border-left: 2px solid var(--amber); padding-left: 1.1rem; color: var(--ink-dim);
           margin: 1.8rem 0 0; }
 
+  /* ─────────────────────────────────────────────────────── nav */
+  .nav { position: sticky; top: 0; z-index: 20; background: color-mix(in srgb, var(--ground) 88%, transparent);
+         backdrop-filter: blur(10px); border-bottom: 1px solid var(--rule); }
+  .nav-in { max-width: 78rem; margin-inline: auto; padding: .7rem var(--gutter);
+            display: flex; align-items: center; gap: 1.4rem;
+            font-family: var(--mono); font-size: .76rem; letter-spacing: .02em; }
+  .nav-mark { font-weight: 600; letter-spacing: -.02em; font-size: .92rem; margin-right: auto; }
+  .nav a { text-decoration: none; color: var(--ink-dim); white-space: nowrap; }
+  .nav a:hover { color: var(--ink); }
+  .nav a.now { color: var(--amber); }
+  @media (max-width: 44rem) { .nav .opt { display: none; } }
+  /* The nav is sticky, so an anchor jump would otherwise land its own heading underneath it. */
+  .neti [id] { scroll-margin-top: 4.5rem; }
+  .neti { scroll-behavior: smooth; }
+  @media (prefers-reduced-motion: reduce) { .neti { scroll-behavior: auto; } }
+
+  /* ─────────────────────────────────────────────────────── proof band
+     Five numbers that do not move week to week. A test count would have been the most flattering
+     one available and is exactly the sort of figure that goes stale unwatched, so it is not here. */
+  .proof { display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+           gap: 1px; background: var(--rule); border-block: 1px solid var(--rule); }
+  .proof div { background: var(--ground); padding: 1.35rem 1.2rem; }
+  .proof b { font-family: var(--mono); font-size: 1.65rem; font-weight: 500; letter-spacing: -.04em;
+             font-variant-numeric: tabular-nums; display: block; line-height: 1; }
+  .proof span { font-family: var(--mono); font-size: .67rem; text-transform: uppercase;
+                letter-spacing: .12em; color: var(--ink-faint); display: block; margin-top: .7em;
+                line-height: 1.4; }
+
+  /* ─────────────────────────────────────────────────────── the cloud band
+     Sunk ground, because this is the other half of the product rather than more of the same one. */
+  .cloud { background: var(--ground-sunk); border-top: 1px solid var(--rule); }
+  .cloud .step-list { counter-reset: step; list-style: none; padding: 0; margin: 2.2rem 0 0;
+                      display: grid; gap: 1px; background: var(--rule);
+                      border: 1px solid var(--rule); border-radius: 10px; overflow: hidden; }
+  @media (min-width: 58rem) { .cloud .step-list { grid-template-columns: repeat(4, 1fr); } }
+  /* Numbered because it genuinely is a sequence — the call stops, a person is asked, they answer,
+     the agent retries — and the order is the information. */
+  .cloud .step-list li { background: var(--ground-sunk); padding: 1.4rem 1.3rem 1.5rem;
+                         counter-increment: step; }
+  .cloud .step-list li::before { content: counter(step, decimal-leading-zero);
+                                 font-family: var(--mono); font-size: .7rem; font-weight: 600;
+                                 letter-spacing: .1em; color: var(--amber); display: block;
+                                 margin-bottom: .8em; }
+  .cloud .step-list b { font-family: var(--mono); font-size: .88rem; font-weight: 600;
+                        display: block; margin-bottom: .5em; letter-spacing: -.01em; }
+  .cloud .step-list small { font-size: .87rem; color: var(--ink-dim); line-height: 1.5;
+                            display: block; }
+  .cloud .step-list li:last-child::before { color: var(--grant); }
+
+  .shot { margin: 2.4rem 0 0; }
+  .shot img { width: 100%; height: auto; display: block; border-radius: 10px;
+              border: 1px solid var(--rule); box-shadow: var(--shadow); }
+
+  .guarantees { list-style: none; padding: 0; margin: 2rem 0 0; display: grid; gap: .55rem; }
+  @media (min-width: 50rem) { .guarantees { grid-template-columns: 1fr 1fr; } }
+  .guarantees li { font-size: .92rem; color: var(--ink-dim); line-height: 1.5;
+                   padding-left: 1.4rem; position: relative; }
+  .guarantees li::before { content: "→"; position: absolute; left: 0; color: var(--grant);
+                           font-family: var(--mono); }
+  .guarantees b { color: var(--ink); font-weight: 600; }
+
+  .btn-grant { border-color: var(--grant); color: var(--grant); }
+  .btn-grant:hover { background: var(--grant); color: var(--ground); }
+
   footer { border-top: 1px solid var(--rule); padding-block: 3rem;
            font-family: var(--mono); font-size: .76rem; color: var(--ink-faint);
            letter-spacing: .03em; }
@@ -203,6 +273,17 @@
 
 <div class="neti">
 
+  <nav class="nav">
+    <div class="nav-in">
+      <span class="nav-mark">neti</span>
+      <a class="opt" href="#decision">How it decides</a>
+      <a class="opt" href="#seams">Where it plugs in</a>
+      <a class="opt" href="#scope">What it does not do</a>
+      <a class="now" href="#cloud">Cloud</a>
+      <a href="https://github.com/Neti-Security/neti">GitHub</a>
+    </div>
+  </nav>
+
   <!-- ══════════════════════════════════════════════════════ hero -->
   <header class="hero bleed">
     <div class="wrap" style="margin-inline:0;padding-inline:0">
@@ -215,7 +296,7 @@
 
       <div class="cta">
         <div class="install"><span class="sigil">$</span> pip install neti &amp;&amp; neti demo --here</div>
-        <a class="btn" href="https://github.com/neti-gate/neti">Source</a>
+        <a class="btn" href="https://github.com/Neti-Security/neti">Source</a>
       </div>
     </div>
 
@@ -229,6 +310,14 @@
       </div>
     </div>
   </header>
+
+  <div class="proof">
+    <div><b>12</b><span>seams, no code change</span></div>
+    <div><b>10</b><span>resolvers that count</span></div>
+    <div><b>170</b><span>real tool schemas, adjudicated</span></div>
+    <div><b>~140<small style="font-size:.6em">ms</small></b><span>hook overhead, p50</span></div>
+    <div><b>0</b><span>bytes of telemetry</span></div>
+  </div>
 
   <!-- ══════════════════════════════════════════════════════ the call -->
   <section class="wrap">
@@ -255,7 +344,7 @@
   </section>
 
   <!-- ══════════════════════════════════════════════════════ the decision -->
-  <section class="wrap">
+  <section class="wrap" id="decision">
     <span class="label">The decision</span>
     <h2 class="display">A static integer comparison</h2>
 
@@ -346,7 +435,7 @@
        an MCP client is reached without neti knowing it exists. -->
   <section class="bleed">
     <div class="wrap" style="margin-inline:0;padding-inline:0">
-      <span class="label">Twelve seams · no code change</span>
+      <span class="label" id="seams">Twelve seams · no code change</span>
       <h2 class="display">Where it plugs in</h2>
       <p>Every runtime has one place where a request becomes an execution. <code>neti</code> sits at
         that place — so a blocked call comes back to the model as a tool <em>result</em> with the
@@ -420,7 +509,7 @@
   </section>
 
   <!-- ══════════════════════════════════════════════════════ the honest part -->
-  <section class="wrap">
+  <section class="wrap" id="scope">
     <span class="label">NC-01 … NC-13</span>
     <h2 class="display">What it does not do</h2>
     <p><code>neti</code> answers <em>how big</em>, not <em>whether this is a good idea</em>. The
@@ -438,44 +527,138 @@
       anything, alongside the sentences this project does not say.</p>
   </section>
 
-  <!-- ══════════════════════════════════════════════════════ the split -->
-  <section class="wrap">
-    <span class="label">Licensing</span>
-    <h2 class="display">Can one machine do this?</h2>
-    <p>That is the whole rule, and it decides every case. Enforcement runs on one machine, so
-      blocking is free — forever, with nothing withheld and no telemetry.</p>
+  <!-- ══════════════════════════════════════════════════════ the cloud band
+       The other half of the product, on a sunk ground so it reads as a different thing rather than
+       more of the same one. Everything here is a screenshot of the real console against the
+       synthetic tenant — see docs/media/console/PROVENANCE.md. -->
+  <div class="cloud" id="cloud">
+    <section class="bleed" style="border-top:0">
+      <div class="wrap" style="margin-inline:0;padding-inline:0">
+        <span class="label">neti cloud</span>
+        <h2 class="display">When a <span class="rule-amber">confirm</span><br>needs an actual human</h2>
+        <p class="lede" style="max-width:56ch">A <code>confirm</code> band means <em>somebody other
+          than the agent's operator should decide this one</em>. On one machine there is nobody to
+          ask, so the gate stops the call and says so. That is correct, and it is what a free install
+          will keep doing forever.</p>
+        <p>The hosted tier is the somewhere that question can go.</p>
+      </div>
 
-    <div class="split">
-      <div>
-        <h3 style="margin-top:0">Free · Apache-2.0</h3>
-        <ul>
-          <li>the engine and the decision procedure</li>
-          <li>all twelve seams, observe <strong>and enforce</strong></li>
-          <li>every resolver, and the detection rule table</li>
-          <li>the record chain, and replaying it offline</li>
-          <li>the console, every screen</li>
+      <ol class="step-list">
+        <li>
+          <b>The call stops</b>
+          <small>500 recipients against a ceiling of 50. The agent is told an approval is pending,
+            with its id, and to retry this exact call once it is granted.</small>
+        </li>
+        <li>
+          <b>A reviewer is asked</b>
+          <small>Not the operator, and not the agent. They see the number, the ceiling, and the
+            evidence the verdict was derived from — nothing else is needed to decide.</small>
+        </li>
+        <li>
+          <b>They answer</b>
+          <small>Approve or deny, against their name. The answer is recorded as who said yes, not as
+            a second opinion about whether the call was too big.</small>
+        </li>
+        <li>
+          <b>The agent retries</b>
+          <small>The same call, once. The run continues from where it stopped rather than starting
+            again or routing around.</small>
+        </li>
+      </ol>
+
+      <div class="shot">
+        <img alt="The neti console's Approvals screen: one call waiting, showing 500 recipients against a declared ceiling of 50, with Deny and Approve, an approval id and an expiry." src="{{CONSOLE:approvals}}">
+      </div>
+
+      <div class="wrap" style="margin-inline:0;padding-inline:0">
+        <h3 style="margin-top:2.6rem">What approving actually authorises</h3>
+        <p>The narrowest thing it can, because a grant that means more than the person thought is the
+          failure mode that matters here. Every one of these is a test in the public repository.</p>
+        <ul class="guarantees">
+          <li><b>This call once.</b> Bound to these exact arguments under this exact policy.</li>
+          <li><b>Spent on redemption.</b> A grant cannot authorise a second call.</li>
+          <li><b>Expiring.</b> An answer nobody acted on stops being an answer.</li>
+          <li><b>Refused if the target grew.</b> If the group is bigger than when a human looked at
+            it, the grant no longer applies.</li>
         </ul>
       </div>
-      <div>
-        <h3 style="margin-top:0">Hosted</h3>
-        <ul>
-          <li>a second human approving a <code>confirm</code></li>
-          <li>org policy, one version across the fleet</li>
-          <li>session budgets that survive a restart</li>
-          <li>audit across every agent</li>
-          <li>the reviewed detection catalogue</li>
-        </ul>
-      </div>
-    </div>
+    </section>
 
-    <p class="note">If the control plane is unreachable, absent or unpaid, the gate behaves exactly
-      as the free tier. It can only ever make a decision <em>more</em> permissive, and only through a
-      named human — so nothing about paying adds availability risk to enforcement. Its client is
-      Apache-2.0 and in the public repository, with the tests pinning what a grant may authorise.</p>
-  </section>
+    <section class="bleed">
+      <div class="wrap" style="margin-inline:0;padding-inline:0">
+        <span class="label">Fleet</span>
+        <h2 class="display">Every agent, one place</h2>
+        <p>One policy version across every machine, signed and pinned by digest, instead of a file
+          per laptop that drifts. Session budgets that survive a restart. And per-machine record
+          chains anchored centrally, so a deleted local file becomes <em>detectable</em> rather than
+          simply gone.</p>
+      </div>
+
+      <div class="shot">
+        <img alt="The neti console's Decisions screen: every call the gate has seen, each tagged Blocked, Needs approval or Allowed, with the magnitude it resolved to." src="{{CONSOLE:decisions}}">
+      </div>
+
+      <div class="wrap" style="margin-inline:0;padding-inline:0">
+        <p class="note" style="margin-top:2rem"><strong>Your records stay yours.</strong> The local
+          NDJSON is the source of truth. A control plane anchors it; it is not an authority over it,
+          and <code>neti verify</code> works with the network unplugged, forever.</p>
+      </div>
+    </section>
+
+    <!-- ═══════════════════════════════════ the line, and why it is where it is -->
+    <section class="wrap">
+      <span class="label">Licensing</span>
+      <h2 class="display">Can one machine do this?</h2>
+      <p>That is the whole rule, and it decides every case. Enforcement runs on one machine, so
+        blocking is free — forever, with nothing withheld, nothing time-limited, and no telemetry. A
+        second person approving a call does not run on one machine, so it is not.</p>
+
+      <div class="split">
+        <div>
+          <h3 style="margin-top:0">Free · Apache-2.0</h3>
+          <ul>
+            <li>the engine and the decision procedure</li>
+            <li>all twelve seams, observe <strong>and enforce</strong></li>
+            <li>every resolver, and the detection rule table</li>
+            <li>the record chain, and replaying it offline</li>
+            <li>the console, every screen</li>
+          </ul>
+        </div>
+        <div>
+          <h3 style="margin-top:0">Cloud</h3>
+          <ul>
+            <li>a second human approving a <code>confirm</code></li>
+            <li>org policy, one version across the fleet</li>
+            <li>session budgets that survive a restart</li>
+            <li>audit anchored across every agent</li>
+            <li>the reviewed detection catalogue</li>
+          </ul>
+        </div>
+      </div>
+
+      <p class="note">Every item on the right is a hole <code>SCOPE.md</code> already documents, or
+        work that only exists because more than one person did it. We are not inventing limitations
+        to sell past.</p>
+
+      <h3>Two things that stay true when you pay</h3>
+      <p><strong>The gate takes on no new availability risk.</strong> If the control plane is
+        unreachable, absent or unpaid, it behaves exactly as the free tier — a control plane can only
+        ever make a decision <em>more</em> permissive, and only through a named human.</p>
+      <p><strong>The client is open source.</strong> <code>neti.cloud</code> — the approver, the
+        credential file, the wire format — is Apache-2.0 in the public repository, along with the
+        tests pinning every property above. Read the protocol, write your own server, hold it to
+        those tests. What you pay for is a server that is running, not a secret about how to talk to
+        it.</p>
+
+      <div class="cta">
+        <a class="btn btn-grant" href="https://github.com/Neti-Security/neti">Talk to us about cloud</a>
+        <div class="install"><span class="sigil">$</span> pip install neti</div>
+      </div>
+    </section>
+  </div>
 
   <footer class="wrap">
-    <a href="https://github.com/neti-gate/neti">github.com/neti-gate/neti</a> ·
+    <a href="https://github.com/Neti-Security/neti">github.com/Neti-Security/neti</a> ·
     Apache-2.0 ·
     no telemetry, no phone-home, no licence check
   </footer>

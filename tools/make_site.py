@@ -30,10 +30,19 @@ from pathlib import Path
 REPO = Path(__file__).resolve().parents[1]
 SOURCE = REPO / "site" / "page.html"
 MEDIA = REPO / "docs" / "media"
+CONSOLE = MEDIA / "console"
 PAGE = REPO / "docs" / "index.html"
 FRAGMENT = REPO / "build" / "page.html"
 
 PLACEHOLDER = re.compile(r"\{\{MEDIA:([a-z0-9_]+)\}\}")
+
+# A second kind of image, kept syntactically distinct because it carries a weaker guarantee. The
+# `{{MEDIA:…}}` SVGs are generated from transcripts the suite pins byte for byte and cannot show
+# something the product no longer prints. These are screenshots of a running console, taken by hand;
+# nothing can tell you automatically when they stop being true. `docs/media/console/PROVENANCE.md`
+# records when each was taken and the exact commands that reproduce it, because the alternative is
+# leaving somebody to discover the difference.
+CONSOLE_PLACEHOLDER = re.compile(r"\{\{CONSOLE:([a-z0-9_]+)\}\}")
 
 TITLE = "neti — how big is this?"
 DESCRIPTION = (
@@ -42,20 +51,31 @@ DESCRIPTION = (
 )
 
 
-def _data_uri(name: str) -> str:
-    svg = MEDIA / f"{name}.svg"
-    if not svg.exists():
-        raise SystemExit(
-            f"{svg.relative_to(REPO)} is missing — run `just media` first, since the page is built "
-            "from the same images the README uses"
-        )
-    encoded = base64.b64encode(svg.read_bytes()).decode("ascii")
-    return f"data:image/svg+xml;base64,{encoded}"
+def _data_uri(path: Path, mime: str, hint: str) -> str:
+    if not path.exists():
+        raise SystemExit(f"{path.relative_to(REPO)} is missing — {hint}")
+    return f"data:{mime};base64,{base64.b64encode(path.read_bytes()).decode('ascii')}"
 
 
 def fragment() -> str:
     """The body: styles, markup and script, with every image inlined. No document wrapper."""
-    return PLACEHOLDER.sub(lambda m: _data_uri(m.group(1)), SOURCE.read_text(encoding="utf-8"))
+    text = SOURCE.read_text(encoding="utf-8")
+    text = PLACEHOLDER.sub(
+        lambda m: _data_uri(
+            MEDIA / f"{m.group(1)}.svg",
+            "image/svg+xml",
+            "run `just media` first, since the page uses the same images the README does",
+        ),
+        text,
+    )
+    return CONSOLE_PLACEHOLDER.sub(
+        lambda m: _data_uri(
+            CONSOLE / f"{m.group(1)}.png",
+            "image/png",
+            "see docs/media/console/PROVENANCE.md for how to re-take it",
+        ),
+        text,
+    )
 
 
 def document(body: str) -> str:

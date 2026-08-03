@@ -336,7 +336,7 @@ A `confirm` band means *somebody other than the agent's operator should decide t
 machine there is nobody to ask, so the gate stops the call and says so. That is correct, and it is
 what a free install will keep doing.
 
-The hosted tier — [`neti-cloud`](https://neti-gate.github.io/neti/), BUSL-1.1 — is the somewhere the
+The hosted tier — [`neti-cloud`](https://neti-security.github.io/neti/), BUSL-1.1 — is the somewhere the
 question can go:
 
 ```console
@@ -502,7 +502,7 @@ Open an issue with the tool and the parameter and we will tell you honestly whet
 ---
 
 <p align="center">
-  <a href="https://neti-gate.github.io/neti/"><b>neti-gate.github.io/neti</b></a> ·
+  <a href="https://neti-security.github.io/neti/"><b>neti-security.github.io/neti</b></a> ·
   <a href="LICENSING.md">Apache-2.0</a> ·
   no telemetry, no phone-home, no licence check
 </p>

@@ -10,7 +10,7 @@ have to check, and no clause that expires.
 | `tests/**`, `eval/**`, `examples/**`, docs | Apache-2.0 | |
 
 The control plane — the paid tier — used to live in this repository under BUSL-1.1, in `cloud/`. It
-now has [its own repository](https://github.com/neti-gate/neti-cloud). That was not a way of hiding
+now has [its own repository](https://github.com/Neti-Security/neti-cloud). That was not a way of hiding
 anything, and the section below is the reason it is not.
 
 ## Where the line is

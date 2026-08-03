@@ -134,3 +134,35 @@ def test_the_landing_page_inlines_the_generated_images() -> None:
     built = make_site.expected()[make_site.PAGE]
     assert "{{MEDIA:" not in built, "a placeholder survived the build"
     assert built.count("data:image/svg+xml;base64,") == len(referenced)
+
+
+def test_every_console_screenshot_exists_and_is_documented() -> None:
+    """The images that carry a weaker guarantee, held to the one guarantee they can carry.
+
+    `{{CONSOLE:…}}` images are screenshots of a running console, taken by hand. Nothing can tell
+    automatically when they stop being true — which is exactly why the file recording how and when
+    each was taken has to exist, and has to name every one of them. An undocumented screenshot on a
+    landing page is a claim with no provenance at all.
+    """
+    source = make_site.SOURCE.read_text(encoding="utf-8")
+    referenced = set(make_site.CONSOLE_PLACEHOLDER.findall(source))
+    assert referenced, "the page no longer shows the console"
+
+    missing = sorted(n for n in referenced if not (make_site.CONSOLE / f"{n}.png").exists())
+    assert not missing, f"referenced but not in docs/media/console: {missing}"
+
+    provenance = make_site.CONSOLE / "PROVENANCE.md"
+    assert provenance.exists(), "docs/media/console/PROVENANCE.md is missing"
+    text = provenance.read_text(encoding="utf-8")
+    undocumented = sorted(n for n in referenced if f"{n}.png" not in text)
+    assert not undocumented, (
+        "these screenshots are on the landing page but PROVENANCE.md does not say how they were "
+        f"taken, so nobody can re-take them or tell when they went stale: {undocumented}"
+    )
+
+
+def test_no_console_screenshot_is_committed_that_nothing_shows() -> None:
+    source = make_site.SOURCE.read_text(encoding="utf-8")
+    referenced = set(make_site.CONSOLE_PLACEHOLDER.findall(source))
+    orphans = sorted(p.name for p in make_site.CONSOLE.glob("*.png") if p.stem not in referenced)
+    assert not orphans, f"in docs/media/console but shown nowhere: {orphans}"

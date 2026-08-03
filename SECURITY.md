@@ -2,7 +2,7 @@
 
 ## Reporting
 
-Open a [security advisory](https://github.com/neti-gate/neti/security/advisories/new) rather than a
+Open a [security advisory](https://github.com/Neti-Security/neti/security/advisories/new) rather than a
 public issue. We will confirm within three working days.
 
 ## What `neti` is trusted with

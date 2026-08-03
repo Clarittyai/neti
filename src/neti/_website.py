@@ -12,11 +12,11 @@ the repository knows the difference.
 
 from __future__ import annotations
 
-WEBSITE = "https://neti-gate.github.io/neti/"
+WEBSITE = "https://neti-security.github.io/neti/"
 """The product site: what neti is, for someone who has not decided to install anything yet."""
 
-REPOSITORY = "https://github.com/neti-gate/neti"
+REPOSITORY = "https://github.com/Neti-Security/neti"
 """The source. Apache-2.0, all of it — see LICENSING.md."""
 
-CLOUD_REPOSITORY = "https://github.com/neti-gate/neti-cloud"
+CLOUD_REPOSITORY = "https://github.com/Neti-Security/neti-cloud"
 """The control plane. BUSL-1.1, and a separate distribution; not required to run the gate."""
