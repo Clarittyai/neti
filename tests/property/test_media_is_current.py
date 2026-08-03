@@ -30,21 +30,22 @@ REPO = Path(__file__).resolve().parents[2]
 MEDIA = REPO / "docs" / "media"
 
 
-def _make_media():  # type: ignore[no-untyped-def]
-    """Load `tools/make_media.py`, which is deliberately not part of the package.
+def _load(name: str):  # type: ignore[no-untyped-def]
+    """Load a script from `tools/`, which is deliberately not part of the package.
 
-    It is a repository tool, not something a user installs, so it has no importable home. Loading it
-    by path is the honest way to test it rather than moving it into `src/` to make testing tidier.
+    These are repository tools, not something a user installs, so they have no importable home.
+    Loading by path is the honest way to test them rather than moving them into `src/` to make
+    testing tidier.
     """
-    spec = importlib.util.spec_from_file_location("make_media", REPO / "tools" / "make_media.py")
+    spec = importlib.util.spec_from_file_location(name, REPO / "tools" / f"{name}.py")
     assert spec and spec.loader
     module = importlib.util.module_from_spec(spec)
-    sys.modules["make_media"] = module
+    sys.modules[name] = module
     spec.loader.exec_module(module)
     return module
 
 
-make_media = _make_media()
+make_media = _load("make_media")
 
 
 def test_there_are_images_to_check() -> None:
@@ -95,3 +96,41 @@ def test_no_image_is_committed_that_nothing_generates() -> None:
         "these images are in docs/media but nothing in tools/make_media.py generates them, so "
         f"nothing can tell whether they are still true: {orphans}"
     )
+
+
+# ---------------------------------------------------------------------------- the landing page
+#
+# It embeds the same images, so it can go stale in the same way and for the same reason — with the
+# added hazard that it is the first thing a stranger sees and the last thing anybody re-reads.
+
+make_site = _load("make_site")
+
+
+def test_the_landing_page_is_what_its_source_builds_to() -> None:
+    built = make_site.expected()[make_site.PAGE]
+    assert make_site.PAGE.exists(), "docs/index.html is missing. Run `just site`."
+    assert make_site.PAGE.read_text(encoding="utf-8") == built, (
+        "docs/index.html no longer matches site/page.html and the images it inlines.\n"
+        "Run `just site` and commit the result; the diff is then the review."
+    )
+
+
+def test_the_landing_page_inlines_the_generated_images() -> None:
+    """The property that makes the page's screenshots as trustworthy as the README's.
+
+    If a placeholder were left unsubstituted, or the page started pointing at artwork nothing
+    generates, the picture and the program could drift apart again — which is the whole failure this
+    file exists to prevent.
+    """
+    source = make_site.SOURCE.read_text(encoding="utf-8")
+    referenced = set(make_site.PLACEHOLDER.findall(source))
+    assert referenced, "site/page.html no longer embeds any generated image"
+
+    generated = {s.transcript for s in make_media.SHOTS}
+    assert referenced <= generated, (
+        f"the page references images nothing generates: {sorted(referenced - generated)}"
+    )
+
+    built = make_site.expected()[make_site.PAGE]
+    assert "{{MEDIA:" not in built, "a placeholder survived the build"
+    assert built.count("data:image/svg+xml;base64,") == len(referenced)

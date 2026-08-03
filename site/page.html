@@ -1,0 +1,607 @@
+<style>
+  /* ─────────────────────────────────────────────────────── tokens
+     Cool, blue-biased neutrals: this is an instrument, not a brochure. The two signal colours are
+     the only saturated things on the page — amber is always the declared ceiling, alarm is always a
+     BLOCK. Nothing else may use them, so seeing one always means the same thing. */
+  :root {
+    --ground:      #F7F8FA;
+    --ground-sunk: #EDEFF3;
+    --ink:         #131A22;
+    --ink-dim:     #57636F;
+    --ink-faint:   #8894A1;
+    --rule:        #DCE1E8;
+    --steel:       #3F7CA6;
+    --amber:       #B87413;
+    --alarm:       #C6402C;
+    --shadow:      0 1px 2px rgba(19, 26, 34, .06), 0 8px 24px -12px rgba(19, 26, 34, .18);
+
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", monospace;
+    --serif: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, "Times New Roman", serif;
+
+    --measure: 68ch;
+    --gutter: clamp(1.25rem, 5vw, 3rem);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --ground:      #0B0F14;
+      --ground-sunk: #10161D;
+      --ink:         #DCE3EC;
+      --ink-dim:     #8B99AB;
+      --ink-faint:   #5D6B7C;
+      --rule:        #1D2733;
+      --steel:       #5B8FB9;
+      --amber:       #F0A22E;
+      --alarm:       #E2543F;
+      --shadow:      0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -16px rgba(0, 0, 0, .8);
+    }
+  }
+  /* The viewer's own toggle. Must win over the media query in both directions, so both are
+     restated at token level rather than styling components inside a media query. */
+  :root[data-theme="light"] {
+    --ground: #F7F8FA; --ground-sunk: #EDEFF3; --ink: #131A22; --ink-dim: #57636F;
+    --ink-faint: #8894A1; --rule: #DCE1E8; --steel: #3F7CA6; --amber: #B87413; --alarm: #C6402C;
+    --shadow: 0 1px 2px rgba(19, 26, 34, .06), 0 8px 24px -12px rgba(19, 26, 34, .18);
+  }
+  :root[data-theme="dark"] {
+    --ground: #0B0F14; --ground-sunk: #10161D; --ink: #DCE3EC; --ink-dim: #8B99AB;
+    --ink-faint: #5D6B7C; --rule: #1D2733; --steel: #5B8FB9; --amber: #F0A22E; --alarm: #E2543F;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 12px 32px -16px rgba(0, 0, 0, .8);
+  }
+
+  /* ─────────────────────────────────────────────────────── base */
+  .neti { background: var(--ground); color: var(--ink); font-family: var(--serif);
+          font-size: clamp(1.02rem, .35vw + .95rem, 1.14rem); line-height: 1.62;
+          -webkit-font-smoothing: antialiased; }
+  .neti *, .neti *::before, .neti *::after { box-sizing: border-box; }
+  .neti :focus-visible { outline: 2px solid var(--amber); outline-offset: 3px; border-radius: 2px; }
+
+  .wrap { max-width: var(--measure); margin-inline: auto; padding-inline: var(--gutter); }
+  .bleed { max-width: 78rem; margin-inline: auto; padding-inline: var(--gutter); }
+
+  .neti p { margin: 0 0 1.1em; }
+  .neti a { color: inherit; text-decoration-color: var(--ink-faint);
+            text-underline-offset: .18em; text-decoration-thickness: 1px; }
+  .neti a:hover { text-decoration-color: var(--amber); }
+  .neti strong { font-weight: 600; }
+  .neti code { font-family: var(--mono); font-size: .86em; background: var(--ground-sunk);
+               padding: .12em .38em; border-radius: 3px; }
+
+  /* ─────────────────────────────────────────────────────── type roles
+     Monospace carries the headlines. This is a terminal product; setting its display face in the
+     same face its output arrives in is the most honest thing available, and it is not what a
+     landing page usually does. */
+  .display { font-family: var(--mono); font-weight: 500; letter-spacing: -.035em;
+             line-height: 1.04; text-wrap: balance; margin: 0; }
+  h1.display { font-size: clamp(2.1rem, 7.5vw, 4.1rem); }
+  h2.display { font-size: clamp(1.5rem, 3.6vw, 2.15rem); margin-bottom: .55em; letter-spacing: -.03em; }
+  h3 { font-family: var(--mono); font-weight: 600; font-size: 1rem; letter-spacing: -.01em;
+       margin: 2.2em 0 .5em; }
+
+  .label { font-family: var(--mono); font-size: .69rem; font-weight: 600; text-transform: uppercase;
+           letter-spacing: .155em; color: var(--ink-faint); display: block; margin-bottom: 1.1em; }
+  .lede { font-size: 1.16em; color: var(--ink-dim); }
+
+  section { padding-block: clamp(3.2rem, 8vw, 5.5rem); border-top: 1px solid var(--rule); }
+  section:first-of-type { border-top: 0; }
+
+  /* ─────────────────────────────────────────────────────── hero */
+  .hero { padding-block: clamp(3rem, 9vw, 6rem) clamp(2.5rem, 6vw, 4rem); border-top: 0; }
+  .hero h1 { margin-bottom: .45em; }
+  .hero .lede { max-width: 52ch; }
+  .rule-amber { color: var(--amber); }
+
+  .cta { display: flex; flex-wrap: wrap; gap: .75rem; align-items: center; margin-top: 2rem; }
+  .install { font-family: var(--mono); font-size: .93rem; background: var(--ground-sunk);
+             border: 1px solid var(--rule); border-radius: 6px; padding: .7rem 1rem;
+             display: flex; align-items: center; gap: .6rem;
+             /* A command is one unbroken token; let it scroll inside its own box rather than push
+                the page sideways on a phone. */
+             max-width: 100%; overflow-x: auto; white-space: nowrap; }
+  .install .sigil { color: var(--ink-faint); user-select: none; }
+  .btn { font-family: var(--mono); font-size: .82rem; font-weight: 600; letter-spacing: .04em;
+         text-transform: uppercase; padding: .78rem 1.15rem; border-radius: 6px;
+         border: 1px solid var(--ink); text-decoration: none; display: inline-block;
+         transition: background .15s ease, color .15s ease; }
+  .btn:hover { background: var(--ink); color: var(--ground); text-decoration: none; }
+
+  /* ─────────────────────────────────────────────────────── the instrument
+     A row of magnitudes against one declared ceiling. Most calls fit. One does not, and everything
+     stops — which is the entire product in one picture. */
+  .gauge { margin-top: clamp(2.5rem, 6vw, 3.5rem); }
+  .gauge canvas { width: 100%; height: auto; display: block; }
+  .gauge-key { display: flex; flex-wrap: wrap; gap: 1.4rem; margin-top: 1rem;
+               font-family: var(--mono); font-size: .72rem; color: var(--ink-dim);
+               letter-spacing: .04em; }
+  .gauge-key span { display: inline-flex; align-items: center; gap: .45rem; }
+  .swatch { width: 10px; height: 10px; border-radius: 2px; flex: none; }
+
+  /* ─────────────────────────────────────────────────────── captures */
+  figure { margin: 2rem 0 0; }
+  figure img { width: 100%; height: auto; display: block; border-radius: 8px;
+               border: 1px solid var(--rule); box-shadow: var(--shadow); background: #0d1117; }
+  figcaption { font-family: var(--mono); font-size: .72rem; color: var(--ink-faint);
+               letter-spacing: .05em; margin-top: .75rem; line-height: 1.5; }
+
+  /* ─────────────────────────────────────────────────────── the lattice
+     Real structure, not decoration: ALLOW < FLAG < CONFIRM < BLOCK is the actual verdict lattice,
+     and the whole decision procedure is a join over it — most-restrictive-wins. */
+  .lattice { display: grid; grid-template-columns: repeat(auto-fit, minmax(9.5rem, 1fr));
+             gap: .6rem; margin: 1.8rem 0 0; padding: 0; list-style: none; }
+  .lattice li { border: 1px solid var(--rule); border-radius: 6px; padding: .85rem .9rem;
+                background: var(--ground-sunk); }
+  .lattice b { font-family: var(--mono); font-size: .82rem; letter-spacing: .06em; display: block;
+               margin-bottom: .3em; }
+  .lattice small { color: var(--ink-dim); font-size: .82rem; line-height: 1.45; display: block; }
+  .lattice li:nth-child(1) b { color: var(--steel); }
+  .lattice li:nth-child(4) b { color: var(--alarm); }
+
+  /* ─────────────────────────────────────────────────────── tables */
+  .scroll { overflow-x: auto; margin-top: 1.6rem; }
+  table { border-collapse: collapse; width: 100%; font-family: var(--mono); font-size: .82rem;
+          font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: .55rem .9rem .55rem 0; border-bottom: 1px solid var(--rule);
+           white-space: nowrap; }
+  th { font-size: .68rem; text-transform: uppercase; letter-spacing: .12em; color: var(--ink-faint);
+       font-weight: 600; }
+  td.n { text-align: right; padding-right: 1.4rem; }
+
+  /* ─────────────────────────────────────────────────────── the rack
+     Three tiers, because the seam is what decides what the gate can see, and a flat grid of names
+     would flatten exactly that. Each tier says how it attaches and what it buys. */
+  .rack { display: grid; gap: 1px; background: var(--rule); border: 1px solid var(--rule);
+          border-radius: 10px; overflow: hidden; margin-top: 2.2rem; }
+  @media (min-width: 62rem) { .rack { grid-template-columns: repeat(3, 1fr); } }
+  .tier { background: var(--ground); padding: 1.6rem 1.5rem 1.75rem; display: flex;
+          flex-direction: column; }
+  .tier-head b { font-family: var(--mono); font-size: .95rem; font-weight: 600;
+                 letter-spacing: -.01em; display: block; }
+  .tier-head span { font-family: var(--mono); font-size: .68rem; text-transform: uppercase;
+                    letter-spacing: .11em; color: var(--ink-faint); display: block;
+                    margin-top: .5em; }
+  .tier-head span code { background: none; padding: 0; font-size: 1em; letter-spacing: 0;
+                         text-transform: none; }
+  .tier-why { font-size: .93rem; color: var(--ink-dim); line-height: 1.55;
+              margin: 1.1rem 0 1.35rem; }
+
+  /* Wordmarks rather than logos: every name is set in the same face at the same size, so the list
+     reads as a list of seams instead of a wall of borrowed brand art. */
+  .chips { list-style: none; margin: auto 0 0; padding: 0; display: flex; flex-wrap: wrap;
+           gap: .4rem; }
+  .chips li { font-family: var(--mono); font-size: .76rem; letter-spacing: -.01em;
+              border: 1px solid var(--rule); border-radius: 5px; padding: .38rem .58rem;
+              background: var(--ground-sunk); color: var(--ink); white-space: nowrap; }
+  .chips li i { font-style: normal; color: var(--ink-faint); }
+  .chips li.chip-quiet { border-style: dashed; background: none; color: var(--ink-faint); }
+
+  /* Two columns of what is free and what is not. The point of the section is that the line is
+     principled, so the two sides are given identical weight rather than one being upsold. */
+  .split { display: grid; gap: 1.5rem; grid-template-columns: 1fr; margin-top: 1.8rem; }
+  @media (min-width: 46rem) { .split { grid-template-columns: 1fr 1fr; gap: 2.5rem; } }
+  .split ul { margin: .8rem 0 0; padding-left: 1.1rem; }
+  .split li { margin-bottom: .45em; }
+
+  .note { border-left: 2px solid var(--amber); padding-left: 1.1rem; color: var(--ink-dim);
+          margin: 1.8rem 0 0; }
+
+  footer { border-top: 1px solid var(--rule); padding-block: 3rem;
+           font-family: var(--mono); font-size: .76rem; color: var(--ink-faint);
+           letter-spacing: .03em; }
+  footer a { text-decoration: none; }
+  footer a:hover { color: var(--ink); }
+
+  @media (max-width: 30rem) {
+    .install { font-size: .8rem; padding: .6rem .75rem; }
+    .gauge-key { gap: .5rem 1rem; font-size: .68rem; }
+    .tier { padding: 1.3rem 1.15rem 1.4rem; }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .neti *, .neti *::before, .neti *::after { animation: none !important; transition: none !important; }
+  }
+</style>
+
+<div class="neti">
+
+  <!-- ══════════════════════════════════════════════════════ hero -->
+  <header class="hero bleed">
+    <div class="wrap" style="margin-inline:0;padding-inline:0">
+      <span class="label">A preflight gate for agent tool calls</span>
+      <h1 class="display">How big<br>is this<span class="rule-amber">?</span></h1>
+      <p class="lede">An agent asks to do one thing. That one thing turns out to be a million
+        things. Nobody finds out until after.</p>
+      <p class="lede"><code>neti</code> resolves what a call will actually touch <em>before</em> it
+        runs, compares that count to a ceiling you declared, and stops it when it does not fit.</p>
+
+      <div class="cta">
+        <div class="install"><span class="sigil">$</span> pip install neti &amp;&amp; neti demo --here</div>
+        <a class="btn" href="https://github.com/neti-gate/neti">Source</a>
+      </div>
+    </div>
+
+    <div class="gauge">
+      <canvas id="gauge" width="1200" height="300" role="img"
+        aria-label="Eleven tool calls drawn as horizontal bars against a declared ceiling of 200 principals. Ten fit. The eleventh resolves to 41,203 and crosses the ceiling, and is blocked."></canvas>
+      <div class="gauge-key">
+        <span><i class="swatch" style="background:var(--steel)"></i>resolved, within ceiling</span>
+        <span><i class="swatch" style="background:var(--amber)"></i>declared ceiling — 200 principals</span>
+        <span><i class="swatch" style="background:var(--alarm)"></i>blocked before it ran</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════ the call -->
+  <section class="wrap">
+    <span class="label">The call</span>
+    <h2 class="display">One string, four hundred people</h2>
+
+    <div class="install" style="display:block;margin-bottom:1.4rem">
+      remove_group_members(group: <span class="rule-amber">"engineering-all"</span>)
+    </div>
+
+    <p>Your policy engine sees a string on an allowlist, and the string is allowed. <code>neti</code>
+      sees <strong>412 people losing access to 9 applications</strong> — and stops the call, because
+      you declared a ceiling of 200.</p>
+
+    <p>Alignment, authorization, provenance, sandboxing, anomaly detection and rollback each answer a
+      different question. None of them answers this one.</p>
+
+    <figure>
+      <img alt="A terminal showing neti's PreToolUse hook denying a call: /group resolves to 41,203 principals, above the declared ceiling of 200." src="{{MEDIA:hook_block}}">
+      <figcaption>The agent gets back a number, not a refusal — which is what makes it narrow the
+        target and try again rather than give up or route around. Nothing about the gate reaches the
+        prompt.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ the decision -->
+  <section class="wrap">
+    <span class="label">The decision</span>
+    <h2 class="display">A static integer comparison</h2>
+
+    <p>There is no threshold to tune, no model to drift in the decision path, and nothing to
+      calibrate on a corpus. A resolver turns the argument into a count; the count is compared
+      against bands you committed to a file; the verdicts join, most-restrictive-wins.</p>
+
+    <ul class="lattice">
+      <li><b>ALLOW</b><small>It fits. Nothing is said, so your existing permission rules keep working
+        exactly as they were.</small></li>
+      <li><b>FLAG</b><small>It runs, and it is recorded as notable.</small></li>
+      <li><b>CONFIRM</b><small>Somebody other than the agent's operator should decide this one.</small></li>
+      <li><b>BLOCK</b><small>It does not run, and the reason carries the number.</small></li>
+    </ul>
+
+    <p class="note">Two properties make the verdict sound, and everything rests on them. <strong>No
+      resolver may return <code>0</code> for something it could not reach</strong> — an unreachable
+      target and an empty one are opposite situations with the same number. And <strong>anything
+      capped or estimated reports a lower bound</strong>, which can block soundly and can never
+      allow, so the targets too large to count are exactly the ones that cannot slip through
+      quietly.</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ day one -->
+  <section class="bleed">
+    <div class="wrap" style="margin-inline:0;padding-inline:0">
+      <span class="label">Day one · before any traffic</span>
+      <h2 class="display">What one credential can address</h2>
+      <p>Not a measurement of any single call — a bound on what the agent could do in one, which is
+        the number nobody has. It needs no traffic, no ceilings and no waiting.</p>
+    </div>
+
+    <figure>
+      <img alt="neti inventory listing four gated parameters, their resolvers, and the maximum each could reach in one call: 52,400 principals and 214 applications." src="{{MEDIA:inventory_rows}}">
+      <figcaption>The finding on day one: this agent holds a credential that can, in one call, reach
+        52,400 people and 214 applications, and nothing today would stop it.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ week one -->
+  <section class="bleed">
+    <div class="wrap" style="margin-inline:0;padding-inline:0">
+      <span class="label">Week one · from your own traffic</span>
+      <h2 class="display">Ceilings you can defend</h2>
+      <p>The gate ships in <code>observe</code> mode with <strong>every band left blank on
+        purpose</strong>. A ceiling nobody chose is a ceiling nobody will defend the first time it
+        fires — so the numbers arrive a week later, out of what you actually did.</p>
+    </div>
+
+    <figure>
+      <img alt="neti propose deriving ceilings from observed traffic, showing its rationale and what those ceilings would have done to the traffic already recorded." src="{{MEDIA:propose_bimodal}}">
+      <figcaption>It shows its working, including where the statistics disagree with themselves —
+        above, the p95 <em>is</em> the outlier, so it anchors on the median instead and says to
+        expect a higher interrupt rate. You edit the numbers and commit them. Nothing learned ever
+        reaches the decision path.</figcaption>
+    </figure>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ coverage -->
+  <section class="wrap">
+    <span class="label">Coverage</span>
+    <h2 class="display">What can be sized</h2>
+    <p>A seam without a resolver is a place to write <code>allow</code>, so this list is the real
+      measure of coverage — and the reason a new resolver is the contribution that matters most.</p>
+
+    <div class="scroll">
+      <table>
+        <thead><tr><th>resolver</th><th>unit</th><th>one call resolves</th><th>cost</th></tr></thead>
+        <tbody>
+          <tr><td>fs.paths</td><td>objects</td><td>a path, directory or glob</td><td>local walk, capped</td></tr>
+          <tr><td>db.rows</td><td>rows</td><td>DELETE / UPDATE → select count(*)</td><td>one scan</td></tr>
+          <tr><td>storage.objects</td><td>objects</td><td>s3://bucket/prefix</td><td>paginated, capped</td></tr>
+          <tr><td>github.repos</td><td>repositories</td><td>owner → every repo in the org</td><td>one request</td></tr>
+          <tr><td>github.files</td><td>objects</td><td>owner/repo → files on the default branch</td><td>one request</td></tr>
+          <tr><td>entra.principals</td><td>principals</td><td>a group → everyone in it, nested included</td><td>one $count</td></tr>
+          <tr><td>entra.apps</td><td>apps</td><td>a group → applications assigned to it</td><td>one $count</td></tr>
+          <tr><td>entra.guests</td><td>principals</td><td>a group → the external members only</td><td>one $count</td></tr>
+          <tr><td>terraform.destroy</td><td>resources</td><td>a plan → what it would destroy</td><td>local read</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ integrations
+       Grouped by seam, because the seam is what decides what the gate can see. A flat logo wall
+       would flatten the one distinction that matters here: the hook sees things no proxy can, and
+       an MCP client is reached without neti knowing it exists. -->
+  <section class="bleed">
+    <div class="wrap" style="margin-inline:0;padding-inline:0">
+      <span class="label">Twelve seams · no code change</span>
+      <h2 class="display">Where it plugs in</h2>
+      <p>Every runtime has one place where a request becomes an execution. <code>neti</code> sits at
+        that place — so a blocked call comes back to the model as a tool <em>result</em> with the
+        number in it, never an exception that kills the run.</p>
+    </div>
+
+    <div class="rack">
+      <div class="tier">
+        <div class="tier-head">
+          <b>The harness's own tools</b>
+          <span>A config line in <code>.claude/settings.json</code></span>
+        </div>
+        <p class="tier-why">The only seam that can see a harness's <em>built-in</em> tools —
+          <code>Read</code>, <code>Edit</code>, <code>Glob</code>, <code>Grep</code>,
+          <code>Write</code>. No proxy can: they never travel over a protocol. This is also where the
+          gate is most effective, gating 6 of 10 built-ins against 25 of 160 MCP tools.</p>
+        <ul class="chips">
+          <li>Claude Code <i>PreToolUse hook</i></li>
+        </ul>
+      </div>
+
+      <div class="tier">
+        <div class="tier-head">
+          <b>Anything that speaks MCP</b>
+          <span>One line in the client's server config</span>
+        </div>
+        <p class="tier-why">Whatever command launched the server becomes an argument to
+          <code>neti gate</code>. The client is not modified, not configured, and not aware — which
+          is why this list can be long without any of it being work.</p>
+        <ul class="chips">
+          <li>Cursor</li><li>Claude Desktop</li><li>Windsurf</li><li>Cline</li><li>Continue</li>
+          <li>VS&nbsp;Code</li><li>Zed</li><li>Goose</li><li>LlamaIndex</li>
+          <li>Semantic&nbsp;Kernel</li><li>Strands</li><li>smolagents</li>
+          <li class="chip-quiet">stdio <i>and</i> remote HTTP</li>
+        </ul>
+      </div>
+
+      <div class="tier">
+        <div class="tier-head">
+          <b>Agent SDKs, natively</b>
+          <span>One import, at the top of the file</span>
+        </div>
+        <p class="tier-why">Four of these have a before-tool callback the gate attaches to; the rest
+          wrap the one method that executes and copy name, description and schema across verbatim.
+          An agent must not be able to tell a gated tool from an ungated one by looking at it.</p>
+        <ul class="chips">
+          <li>Anthropic <i>tool_runner</i></li>
+          <li>OpenAI Agents <i>guardrail</i></li>
+          <li>LangChain <i>+ LangGraph</i></li>
+          <li>CrewAI <i>hooks</i></li>
+          <li>Pydantic AI <i>toolset</i></li>
+          <li>AutoGen <i>workbench</i></li>
+          <li>Google ADK <i>plugin</i></li>
+          <li class="chip-quiet">or a tool loop you wrote yourself</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="wrap" style="margin-inline:0;padding-inline:0">
+      <p class="note" style="margin-top:2.4rem"><strong>They agree, and that is a test rather than a
+        claim.</strong> The same call through every door reaches the same verdict, the same
+        magnitude and the same denial sentence, byte for byte. A verdict that depends on which door
+        a call arrived through is a bug in the product, not in the adapter.</p>
+
+      <p style="margin-top:1.4rem;color:var(--ink-dim)">Those two lists are not equally strong, and
+        the scorecard keeps them apart rather than adding them up. An SDK adapter was
+        <em>driven</em> by that comparison. An MCP client above was never run: what is tested is that
+        <code>neti</code> gates a real MCP server, and that Cursor speaks MCP is a fact about
+        Cursor.</p>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ the honest part -->
+  <section class="wrap">
+    <span class="label">NC-01 … NC-13</span>
+    <h2 class="display">What it does not do</h2>
+    <p><code>neti</code> answers <em>how big</em>, not <em>whether this is a good idea</em>. The
+      holes are numbered so that tests and write-ups can cite them, and the numbers are published
+      whether or not they flatter.</p>
+    <ul class="split" style="display:block;padding-left:1.1rem">
+      <li>A per-call gate cannot see four thousand individual sends unless you declare a session
+        budget.</li>
+      <li><strong>Shell commands are not sized</strong> — what <code>rm -rf $X</code> deletes is a
+        grammar, not a value, and a gate that guesses is worse than no gate.</li>
+      <li>Against 170 real tool schemas the rule table gates 31 and leaves <strong>401 parameters
+        unclaimed</strong>. Most genuinely are not sets. Some are, and those are open issues.</li>
+    </ul>
+    <p class="note">Every one of these is written down in <code>SCOPE.md</code> before you install
+      anything, alongside the sentences this project does not say.</p>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════ the split -->
+  <section class="wrap">
+    <span class="label">Licensing</span>
+    <h2 class="display">Can one machine do this?</h2>
+    <p>That is the whole rule, and it decides every case. Enforcement runs on one machine, so
+      blocking is free — forever, with nothing withheld and no telemetry.</p>
+
+    <div class="split">
+      <div>
+        <h3 style="margin-top:0">Free · Apache-2.0</h3>
+        <ul>
+          <li>the engine and the decision procedure</li>
+          <li>all twelve seams, observe <strong>and enforce</strong></li>
+          <li>every resolver, and the detection rule table</li>
+          <li>the record chain, and replaying it offline</li>
+          <li>the console, every screen</li>
+        </ul>
+      </div>
+      <div>
+        <h3 style="margin-top:0">Hosted</h3>
+        <ul>
+          <li>a second human approving a <code>confirm</code></li>
+          <li>org policy, one version across the fleet</li>
+          <li>session budgets that survive a restart</li>
+          <li>audit across every agent</li>
+          <li>the reviewed detection catalogue</li>
+        </ul>
+      </div>
+    </div>
+
+    <p class="note">If the control plane is unreachable, absent or unpaid, the gate behaves exactly
+      as the free tier. It can only ever make a decision <em>more</em> permissive, and only through a
+      named human — so nothing about paying adds availability risk to enforcement. Its client is
+      Apache-2.0 and in the public repository, with the tests pinning what a grant may authorise.</p>
+  </section>
+
+  <footer class="wrap">
+    <a href="https://github.com/neti-gate/neti">github.com/neti-gate/neti</a> ·
+    Apache-2.0 ·
+    no telemetry, no phone-home, no licence check
+  </footer>
+</div>
+
+<script>
+(() => {
+  const canvas = document.getElementById('gauge');
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+
+  // Real magnitudes from the shipped example: a week of send_email and remove_group_members calls
+  // against a ceiling of 200 principals. The last one is the one that matters.
+  const CALLS = [18, 7, 63, 4, 112, 31, 9, 147, 22, 76, 41203];
+  const CEILING = 200;
+  const CAP = 260;                       // the drawing scale; the last bar deliberately runs past it
+  const shown = v => Math.min(v, CAP);
+
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+  // Starts finished. The animation is an entrance, not the content — so every way it can fail
+  // (throttled frame clock, a backgrounded tab, reduced motion, no IntersectionObserver) leaves the
+  // real chart on screen rather than one bar and a ceiling, which reads as broken rather than paused.
+  const DONE = 1.05;
+  let progress = DONE, raf = null, started = null, settle = null;
+  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+
+  function layout() {
+    const w = canvas.clientWidth || 1200;
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const rows = CALLS.length;
+    const rowH = w < 560 ? 15 : 20;
+    const h = rows * rowH + 34;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
+    canvas.style.height = h + 'px';
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    return { w, h, rowH };
+  }
+
+  function draw() {
+    const { w, h, rowH } = layout();
+    const padL = 0, padR = Math.min(150, w * 0.22);
+    const plot = w - padL - padR;
+    const x = v => padL + (shown(v) / CAP) * plot;
+
+    ctx.clearRect(0, 0, w, h);
+
+    const steel = css('--steel'), amber = css('--amber'), alarm = css('--alarm'),
+          faint = css('--ink-faint'), mono = getComputedStyle(canvas).fontFamily;
+
+    // The ceiling: one hairline, drawn first so every bar is read against it.
+    const cx = x(CEILING);
+    ctx.strokeStyle = amber; ctx.lineWidth = 1; ctx.globalAlpha = 1;
+    ctx.beginPath(); ctx.moveTo(cx + .5, 0); ctx.lineTo(cx + .5, h - 26); ctx.stroke();
+    ctx.fillStyle = amber;
+    ctx.font = `600 10px ${mono}`; ctx.textBaseline = 'top';
+    ctx.fillText('CEILING 200', cx + 8, h - 22);
+
+    CALLS.forEach((v, i) => {
+      const y = i * rowH + 4, bh = rowH - 7;
+      const over = v > CEILING;
+      // Bars arrive left to right, staggered, so the last one lands alone.
+      const t = Math.max(0, Math.min(1, (progress - i * 0.055) / 0.42));
+      if (t <= 0) return;
+      const eased = 1 - Math.pow(1 - t, 3);
+      const full = x(v), width = Math.max(1, (full - padL) * eased);
+
+      ctx.fillStyle = over ? alarm : steel;
+      ctx.globalAlpha = over ? 1 : 0.62;
+      ctx.beginPath();
+      ctx.roundRect(padL, y, width, bh, 2);
+      ctx.fill();
+      ctx.globalAlpha = 1;
+
+      if (over && eased > 0.985) {
+        ctx.fillStyle = alarm;
+        ctx.font = `600 11px ${mono}`;
+        ctx.textBaseline = 'middle';
+        ctx.fillText('BLOCK · 41,203 principals', full + 10, y + bh / 2 + 1);
+      } else if (eased > 0.985) {
+        ctx.fillStyle = faint;
+        ctx.font = `10px ${mono}`;
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(v), full + 8, y + bh / 2 + 1);
+      }
+    });
+  }
+
+  function tick(now) {
+    if (started === null) started = now;
+    progress = Math.min(DONE, (now - started) / 1400);
+    draw();
+    if (progress < DONE) raf = requestAnimationFrame(tick);
+  }
+
+  function start() {
+    if (reduced.matches || document.visibilityState !== 'visible') return;
+    progress = 0;
+    started = null;
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(tick);
+    // Backstop: if the frame clock is being throttled, snap to the finished chart rather than
+    // leaving a half-drawn one on screen for as long as the tab stays open.
+    clearTimeout(settle);
+    settle = setTimeout(() => {
+      if (progress < DONE) { cancelAnimationFrame(raf); progress = DONE; draw(); }
+    }, 2400);
+  }
+
+  draw();
+
+  // Replay as an entrance the first time it is actually looked at. Guarded, because everything
+  // above already put the finished chart on screen.
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(entries => {
+      if (entries.some(e => e.isIntersecting)) { start(); io.disconnect(); }
+    }, { threshold: 0.25 });
+    io.observe(canvas);
+  }
+  addEventListener('resize', draw, { passive: true });
+  reduced.addEventListener?.('change', draw);
+  // The viewer's theme toggle stamps data-theme on the root; the canvas has to be told.
+  new MutationObserver(draw).observe(document.documentElement, {
+    attributes: true, attributeFilter: ['data-theme'],
+  });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', draw);
+})();
+</script>

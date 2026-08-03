@@ -69,6 +69,14 @@ score:
 media:
     uv run python tools/make_media.py
 
+# The landing page, built from site/page.html with those same images inlined.
+#
+# docs/index.html is what GitHub Pages serves; build/page.html is the body alone, for previewing
+# before anything is committed. Both come from one source, because two copies of a landing page kept
+# in sync by hand is how a landing page starts lying.
+site: media
+    uv run python tools/make_site.py
+
 # ---------------------------------------------------------------------------- the live tier
 #
 # `db.rows`, `storage.objects` and `terraform.destroy` all shipped without ever having touched a
