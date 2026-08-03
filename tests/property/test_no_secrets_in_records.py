@@ -40,7 +40,52 @@ SECRETS = [
     "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc",
     "-----BEGIN RSA PRIVATE KEY-----\nMIIEow==\n",
     "postgres://admin:hunter2@db.internal:5432/prod",
+    # The second pass. Every one of these reached disk in plaintext under an innocuous parameter
+    # name until somebody probed this module with the credentials people actually hold — and
+    # Stripe is a server in `eval/surveys/catalogue.py`, so an agent holding one of these is not a
+    # hypothetical. The key rules caught them only when the parameter happened to be called
+    # something like `api_key`, which is exactly the assumption the value rules exist to remove.
+    "sk-live-FIXTURE-SEE-HEAD",
+    "rk-live-FIXTURE-SEE-HEAD",
+    "sk-test-FIXTURE-SEE-HEAD",
+    "AIzaSyAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "1//0gAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "pypi-AgEIcHlwaS5vcmcAAAAAAAAAAAAAAAAAAAAA",
+    "npm_AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
+    "glpat-AAAAAAAAAAAAAAAAAAAA",
+    "xapp-1-A0123456789-abcdefghij",
+    "Bearer AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA",
 ]
+
+# Values that look enough like the patterns above to be worth naming. Over-redaction is cheap but
+# it is not free: a log that hides ordinary fields stops being read, and the gated target — the
+# evidence the whole record exists for — is an ordinary field.
+NOT_SECRETS = [
+    "/usr/local/bin/thing",
+    "src/**/*.py",
+    "g-eng-all",
+    "Bearer of bad news",
+    "Bearer tokens are handled upstream",
+    "AIza",
+    "DELETE FROM users WHERE org = 'acme'",
+    "s3://backups/prod/",
+]
+
+
+@pytest.mark.parametrize("ordinary", NOT_SECRETS)
+def test_an_ordinary_value_is_left_alone(ordinary: str) -> None:
+    """The other half of every pattern added above.
+
+    A rule that redacted `s3://backups/prod/` would destroy the evidence rather than protect
+    anything — the target is what the magnitude was measured from and what a reader checks the
+    verdict against. So each new pattern is anchored and length-bounded, and this is the test that
+    keeps it that way.
+    """
+    from neti.core.redact import redact_args
+
+    safe, redacted = redact_args({"target": ordinary})
+    assert safe["target"] == ordinary, f"{ordinary!r} was redacted and should not have been"
+    assert not redacted
 
 
 @pytest.mark.parametrize("secret", SECRETS)

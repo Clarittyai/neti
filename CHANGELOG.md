@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### Ten credential formats went to disk in plaintext
+
+`core/redact.py` opens by calling this "the worst shape of defect available to" a security tool: an
+agent passes a token as a tool argument, and it lands in the file the product asks you to keep,
+verify and hand to an auditor. It has two independent rules — redact by parameter *name*, and redact
+by value *shape* — and says why either alone is too weak: "agents pass credentials under names
+nobody predicted".
+
+Probed with the credentials people actually hold, the value rules missed **Stripe** (`sk_live_`,
+`rk_live_`, `sk_test_`), **Google API keys** (`AIza…`), **Google OAuth refresh tokens**, **PyPI**,
+**npm**, **GitLab** PATs, **Slack** app-level tokens, and a whole `Bearer …` header handed over as a
+string. Each was caught only when the parameter happened to be named something like `api_key` —
+precisely the assumption the value rules exist to remove. Stripe is a server in
+`eval/surveys/catalogue.py`, so an agent holding one of these is not hypothetical.
+
+All ten are matched now, anchored and length-bounded, and there is a second list in the tests of
+values that must **not** be redacted — `s3://backups/prod/`, `src/**/*.py`, `DELETE FROM users …`,
+`Bearer of bad news`. Over-redaction is cheap but not free: the gated target is an ordinary field,
+and it is the evidence the record exists for.
+
 ### Which runtime is yours, and which are not reached
 
 "Twelve adapters" answers a question nobody asks. What somebody asks is *does this work with

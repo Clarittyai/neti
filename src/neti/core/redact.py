@@ -67,6 +67,20 @@ _SECRET_VALUES: tuple[re.Pattern[str], ...] = (
     re.compile(r"^ASIA[0-9A-Z]{16}$"),
     re.compile(r"^eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\."),  # JWT
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    # The second pass, added after probing this module with the credentials people actually hold.
+    # Every one of these went to disk in plaintext when it arrived under a parameter name the key
+    # rules do not claim — which is the exact case the value rules exist for, and Stripe is a server
+    # in `eval/surveys/catalogue.py`, so it is not a hypothetical agent holding it.
+    re.compile(r"^[sr]k_(?:live|test)_[A-Za-z0-9]{16,}$"),  # Stripe secret and restricted keys
+    re.compile(r"^AIza[0-9A-Za-z_-]{35}$"),  # Google API key: fixed length, unambiguous
+    re.compile(r"^1//[0-9A-Za-z_-]{20,}$"),  # Google OAuth refresh token
+    re.compile(r"^pypi-[A-Za-z0-9_-]{16,}$"),  # PyPI
+    re.compile(r"^npm_[A-Za-z0-9]{30,}$"),
+    re.compile(r"^glpat-[A-Za-z0-9_-]{16,}$"),  # GitLab personal access token
+    re.compile(r"^xapp-[0-9]-[A-Za-z0-9-]{10,}$"),  # Slack app-level token
+    # A whole `Authorization` header value handed to a tool as a string. The scheme is the tell;
+    # anchored so an ordinary sentence beginning with the word cannot match.
+    re.compile(r"^Bearer\s+[A-Za-z0-9._~+/-]{20,}=*$"),
     # A URL carrying inline credentials: postgres://user:password@host/db. The password is the
     # point, and connection strings are passed to tools constantly.
     re.compile(r"^[a-z][a-z0-9+.-]*://[^/\s:@]+:[^/\s@]+@"),
