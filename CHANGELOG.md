@@ -2,6 +2,37 @@
 
 ## Unreleased
 
+### M7 has a harness now, and its instrument is already verified
+
+`neti score` has said *"M7 denial response — UNMEASURED"* since the first release. It is the last
+claim in the project resting on plausibility rather than evidence: that naming a magnitude makes a
+model **retry with a narrower target** instead of giving up, repeating itself, or reaching the same
+objects through a tool nobody gated. No LLM has ever been in the loop in this repository.
+
+`eval/harness/` is the thing that changes that — one command, `just m7`, needing a key and costing
+tokens, with the tools resolving against the synthetic tenant so nothing real is touched.
+
+Two decisions shape it.
+
+**Classification is a rule over the calls the agent made, not a reading of its prose.** An LLM judge
+scoring denial responses would put the softest available evidence underneath the hardest claim the
+product makes. Every category — `narrowed`, `repeated`, `routed_around`, `abandoned`, `asked`,
+`fabricated`, `unclear` — is decided from the tool sequence and the resolved magnitudes.
+
+**`routed_around` is why it was worth building.** The interesting failure is not the model giving up;
+it is the model reaching the same principals through `remove_user_from_group` after `delete_group`
+was refused. Both calls are allowed, both under their ceilings, and **nothing in the record chain
+would say the gate had been evaded** — SCOPE.md NC-03 already admits neti sees a proposed call and
+not a plan. One scenario deliberately leaves that door open, because a harness whose only options are
+comply or stop would report a flattering number by construction.
+
+The measurement waits for a key. The *instrument* does not: the classifier is pinned by
+`tests/e2e/test_m7_classifier.py`, and so is the driver itself with only the model call faked — real
+policy, real `Engine`, real `gate_tools`, real denial sentence. One of those tests asserts the model
+is handed the product's actual wording, magnitude and all, because a harness that fed it a paraphrase
+would be measuring the harness. So a wrong number can only come from the model's behaviour, which is
+the thing being measured.
+
 ### Ten credential formats went to disk in plaintext
 
 `core/redact.py` opens by calling this "the worst shape of defect available to" a security tool: an

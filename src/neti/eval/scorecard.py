@@ -301,9 +301,11 @@ def build_scorecard(
         "only a clean machine: time `neti install` to the first `neti inventory` finding.",
         "Guest breakdown (risk R2) — UNVERIFIED. That `$filter=userType eq 'Guest'` works on the "
         "cast transitiveMembers collection with `$count` has not been confirmed against Graph.",
-        "M7 denial response — UNMEASURED. What a real model does after a denial (narrows, stops, "
-        "loops, or routes around the gate through an ungated tool) has never been observed. No "
-        "LLM has been in the loop in this repository.",
+        "M7 denial response — NOT RUN here. `uv run python -m eval.harness.m7` puts a real model "
+        "in the loop, denies it, and classifies what it does next: narrowed, repeated, abandoned, "
+        "asked, fabricated, or routed around the gate through a tool nobody gated. Needs a key and "
+        "costs tokens, which is why it is not produced offline — but the classifier that reads the "
+        "transcript is pinned by tests/e2e/test_m7_classifier.py, so only the model is unverified.",
     ]
     if card.wild is None:
         card.outstanding.append(

@@ -114,6 +114,12 @@ corpus-refresh:
     uv run python -m eval.surveys.mcp_coverage
     uv run python -m tests.corpus.refresh
 
+# M7. Puts a real model in the loop, denies it, and records what it does next — the last claim in
+# the project resting on plausibility rather than evidence. Needs ANTHROPIC_API_KEY and costs
+# tokens; the tools resolve against the synthetic tenant, so nothing real is touched.
+m7 RUNS="3":
+    uv run python -m eval.harness.m7 --runs {{RUNS}}
+
 # Requires a live tenant. This is the measurement every latency figure in the plan is waiting on.
 measure GROUP_SMALL GROUP_LARGE:
     uv run neti measure -g {{GROUP_SMALL}} -g {{GROUP_LARGE}}

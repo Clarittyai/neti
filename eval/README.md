@@ -26,6 +26,7 @@ different directory.
 | path | what it produces |
 |---|---|
 | `surveys/mcp_coverage.py` | **M10** — of the MCP servers people actually install, how many tools can `neti` size? |
+| `harness/` | **M7** — a real model in the loop, denied, and what it does next. Needs a key. |
 | `results/` | one JSON per survey or trial run. This is the evidence, and it is committed. |
 
 ## The offline half
@@ -42,8 +43,12 @@ just corpus-refresh    # re-run the survey, then re-derive the corpus. Read the 
 about a real tool — gate this, decline that, and why — and a change to the matcher shows up there as
 a diff somebody has to agree with.
 
-More arrives with later phases: `harness/` (the real-agent driver and the M7 denial-response
-taxonomy), `scenarios/`, `fixtures/`.
+`harness/` is the real-agent tier. Its *classifier* — the part that decides what a transcript means —
+is pinned offline by `tests/e2e/test_m7_classifier.py`, along with the driver itself with only the
+model call faked. So the only thing a live run adds is the model's behaviour, which is the thing
+being measured; a wrong number cannot come from the instrument.
+
+More arrives with later phases: `scenarios/`, `fixtures/`.
 
 ## Running them
 
