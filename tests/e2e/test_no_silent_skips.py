@@ -87,6 +87,27 @@ def test_node_is_available_for_the_real_mcp_server_test() -> None:
 
 
 @requires_full_install
+def test_the_console_is_built_so_its_routes_are_actually_served() -> None:
+    """The same hole as `npx`, one artifact over — and it was open in CI.
+
+    `src/neti/console` is a *shipped* artifact: `pyproject.toml` declares it under
+    `[tool.hatch.build] artifacts`, so the wheel carries a UI. It is built by `just console-sync`
+    and gitignored, so a plain checkout does not have one — and the CI workflow did a plain
+    checkout. Four tests asserting every console route is served skipped on every run, in the
+    surface a customer actually looks at.
+
+    The guard above only catches `importorskip`. This one is a `skipif` on a built file, which no
+    regex over the source could have found.
+    """
+    from neti.api.static import console_dir
+
+    assert console_dir() is not None, (
+        "no built console, so `tests/integration/test_console_serving.py` is skipping the routes "
+        "the wheel ships. Run `just console-sync` (or `cd web && npm ci && npm run build`)."
+    )
+
+
+@requires_full_install
 def test_every_importorskip_in_the_suite_names_a_dependency_that_is_installed() -> None:
     """The invariant the fixed list above cannot express: a *new* skip guard nobody thought to add.
 
@@ -137,6 +158,11 @@ def test_the_ci_workflow_installs_what_the_tests_import() -> None:
     )
     for extra in ("sdks", "sdks-extended", "storage", "database", "console"):
         assert any(extra in ln for ln in suite_installs), f"CI never installs the `{extra}` extra"
+
+    assert "npm run build" in workflow or "console-sync" in workflow, (
+        "CI never builds the console, so every test asserting a console route is served skips — "
+        "and the console is an artifact the wheel ships."
+    )
 
     assert "NETI_REQUIRE_SDKS" in workflow, (
         "CI installs the extras but does not set NETI_REQUIRE_SDKS, so a future install-line "

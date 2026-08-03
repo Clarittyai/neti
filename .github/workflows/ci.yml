@@ -38,6 +38,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
+      # The console is a shipped artifact — `[tool.hatch.build] artifacts` puts it in the wheel —
+      # and it is gitignored because it is built rather than committed. Without this step a plain
+      # checkout has none, and the four tests asserting every console route is served skipped on
+      # every CI run: the surface a customer actually looks at, untested, invisibly.
+      - name: build the console
+        run: cd web && npm ci --silent && npm run build
+      - run: cp -R web/out src/neti/console
       - run: uv venv --python 3.12
       - run: uv pip install -e '.[dev,cli,graph,mcp,console,sdks,sdks-extended,storage,database]' -e ./cloud
       - run: uv run pytest -q

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### The console's routes had never been tested in CI
+
+`src/neti/console` is a shipped artifact — `[tool.hatch.build] artifacts` puts it in the wheel — and
+it is built rather than committed, so it is gitignored. CI did a plain checkout and never built it,
+which meant `console_dir()` returned `None` and the four tests asserting every console route is
+served skipped on every run. The surface a customer actually looks at, untested, invisibly, for the
+life of the project.
+
+`test_no_silent_skips.py` could not have caught it: its guard scans the source for `importorskip`,
+and this is a `skipif` on a *built file*. It now requires the console under `NETI_REQUIRE_SDKS`, the
+same way it already requires `npx` — and asserts the workflow builds one, so the fix cannot be
+reverted quietly. CI gained the build step.
+
+Found by cloning the branch into a clean directory and running the CI recipe against it, which is
+the only thing that shows what a stranger's checkout actually does: 40 skips there against 29 here.
+
 ### M7 has a harness now, and its instrument is already verified
 
 `neti score` has said *"M7 denial response — UNMEASURED"* since the first release. It is the last
