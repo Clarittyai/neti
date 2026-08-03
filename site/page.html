@@ -122,11 +122,45 @@
            border-radius: var(--radius); background: var(--code); }
   .cap { font-size: .8125rem; color: var(--fg-faint); line-height: 1.5; margin-top: .85rem; }
 
-  .gauge canvas { width: 100%; height: auto; display: block; }
-  .key { display: flex; flex-wrap: wrap; gap: 1rem 1.5rem; margin-top: 1rem;
-         font-size: .8125rem; color: var(--fg-muted); }
-  .key span { display: inline-flex; align-items: center; gap: .5rem; }
-  .key i { width: 9px; height: 9px; border-radius: 2px; flex: none; }
+  /* ══════════════════════════════════════════════════════════════════════ the live gate
+     Everything here is real. The magnitudes are the synthetic tenant's, the comparison is the
+     one the engine makes, and the sentence is the one `neti hook` prints. */
+  .sim { margin-top: clamp(2rem, 4vw, 3rem); border: 1px solid var(--border);
+         border-radius: 1.25rem; background: var(--surface); overflow: hidden; }
+  .sim-head { padding: .8rem 1.25rem; border-bottom: 1px solid var(--border); }
+  .sim-tag { font-family: var(--mono); font-size: .75rem; color: var(--fg-faint);
+             display: inline-flex; align-items: center; gap: .5rem; }
+  .sim-tag::before { content: ""; width: 6px; height: 6px; border-radius: 999px;
+                     background: var(--success); flex: none; }
+
+  .sim-call { padding: 1.25rem 1.25rem .25rem; font-family: var(--mono); font-size: .9375rem;
+              display: flex; flex-wrap: wrap; align-items: center; gap: .35rem; }
+  .sim-call code { color: var(--fg-muted); font-size: inherit; }
+  .pick { display: inline-flex; flex-wrap: wrap; gap: .35rem; }
+  .pick button { font: inherit; font-family: var(--mono); color: var(--fg-muted);
+                 background: transparent; border: 1px solid var(--border); border-radius: 999px;
+                 padding: .2rem .7rem; cursor: pointer; }
+  .pick button.sel { color: #fff; background: var(--accent); border-color: var(--accent); }
+
+  .bloom-wrap { padding: .5rem 1.25rem 1rem; }
+  #bloom { width: 100%; height: auto; display: block; }
+
+  .sim-read { display: flex; flex-wrap: wrap; gap: 1.5rem 2.5rem; align-items: flex-end;
+              padding: 0 1.25rem 1.25rem; }
+  .sim-read b { display: block; font-size: 2rem; font-weight: 700; letter-spacing: -0.04em;
+                font-variant-numeric: tabular-nums; line-height: 1; }
+  .sim-read span { display: block; font-size: .8125rem; color: var(--fg-muted); margin-top: .45rem; }
+  .sim-ceil { flex: 1 1 16rem; max-width: 24rem; }
+  .sim-ceil span { font-size: .8125rem; color: var(--fg-muted); display: block;
+                   margin-bottom: .5rem; }
+  .sim-ceil b { display: inline; font-size: .8125rem; color: var(--warning); font-weight: 600;
+                font-variant-numeric: tabular-nums; }
+  .sim-ceil input { width: 100%; accent-color: var(--warning); }
+
+  .sim-out { display: block; border-top: 1px solid var(--border); padding: 1.1rem 1.25rem;
+             font-family: var(--mono); font-size: .8125rem; line-height: 1.6; }
+  .sim-out .v { font-weight: 700; letter-spacing: .06em; }
+  .sim-out .why { color: var(--fg-muted); display: block; margin-top: .35rem; }
 
   /* ══════════════════════════════════════════════════════════════════════ editorial rows
      Used instead of card grids throughout. A label column, a content column, a rule between. */
@@ -192,6 +226,13 @@
                       font-size: .8125rem; font-weight: 600; color: var(--accent); }
   .steps b { font-size: .9375rem; font-weight: 600; letter-spacing: -0.01em; }
   .steps span { font-size: .9375rem; color: var(--fg-muted); line-height: 1.6; }
+  /* The flow lights in sequence, so its shape reads without being read. Colour and a rule only:
+     nothing moves, nothing lifts, and the whole list stays legible at every point in the loop. */
+  .steps li { position: relative; }
+  .steps li::after { content: ""; position: absolute; left: 0; top: 0; bottom: -1px; width: 2px;
+                     background: var(--accent); opacity: 0; }
+  .steps li.on::after { opacity: 1; }
+  .steps li.on b { color: var(--accent); }
 
   footer { border-top: 1px solid var(--border); padding-block: 2.75rem;
            font-size: .875rem; color: var(--fg-faint); }
@@ -226,14 +267,41 @@
       <a class="quiet" href="#cloud">See the hosted version</a>
     </div>
 
-    <div class="gauge" style="margin-top:clamp(2.5rem,5vw,3.5rem)">
-      <canvas id="gauge" width="1200" height="300" role="img"
-        aria-label="Eleven tool calls drawn as horizontal bars against a declared ceiling of 200 principals. Ten fit. The eleventh resolves to 41,203 and crosses the ceiling, and is blocked before it runs."></canvas>
-      <div class="key">
-        <span><i style="background:var(--accent)"></i>counted, under the ceiling</span>
-        <span><i style="background:var(--warning)"></i>the ceiling you declared, 200 principals</span>
-        <span><i style="background:var(--destructive)"></i>stopped before it ran</span>
+    <!-- ═══════════ live: the gate, running.
+         Not a mock of the decision. The decision *is* a static integer comparison, so the same
+         comparison runs here, on the synthetic tenant's real magnitudes, and prints the sentence
+         the product actually emits. Change the target or drag the ceiling and watch it decide. -->
+    <div class="sim" id="sim">
+      <div class="sim-head">
+        <span class="sim-tag">Live. This is the decision procedure, running here.</span>
       </div>
+
+      <div class="sim-call">
+        <code>remove_group_members(group:</code>
+        <span class="pick" role="group" aria-label="Choose a target group">
+          <button type="button" data-n="25" data-g="g-team">"g-team"</button>
+          <button type="button" data-n="500" data-g="g-dept">"g-dept"</button>
+          <button type="button" data-n="41203" data-g="engineering-all" class="sel">"engineering-all"</button>
+        </span><code>)</code>
+      </div>
+
+      <div class="bloom-wrap">
+        <canvas id="bloom" width="1200" height="260" role="img"
+          aria-label="A field of dots, one per principal the selected group resolves to. Dots past the declared ceiling are marked as blocked."></canvas>
+      </div>
+
+      <div class="sim-read">
+        <div>
+          <b id="mag">41,203</b>
+          <span>principals this call would touch</span>
+        </div>
+        <label class="sim-ceil">
+          <span>Your declared ceiling <b id="ceilNum">200</b></span>
+          <input id="ceil" type="range" min="1" max="1200" value="425" aria-label="Declared ceiling">
+        </label>
+      </div>
+
+      <output class="sim-out" id="verdict" for="ceil"></output>
     </div>
   </header>
 
@@ -623,120 +691,184 @@
   </footer>
 </div>
 
+
 <script>
+/* ═══════════════════════════════════════════════════════════════════════ the live gate
+   This is not a mock of the decision. neti's decision is a static integer comparison against
+   bands you committed to a file, which means the same comparison can run here and be exactly
+   right. The magnitudes are the synthetic tenant's real ones (the same numbers the shipped
+   transcripts show), and the denial sentence is the string `neti hook` prints, character for
+   character. If the product's wording changes, this is a place that has to change with it. */
 (() => {
-  const canvas = document.getElementById('gauge');
-  if (!canvas) return;
+  const sim = document.getElementById('sim');
+  if (!sim) return;
+
+  const canvas = document.getElementById('bloom');
   const ctx = canvas.getContext('2d');
+  const slider = document.getElementById('ceil');
+  const ceilNum = document.getElementById('ceilNum');
+  const magEl = document.getElementById('mag');
+  const out = document.getElementById('verdict');
+  const buttons = [...sim.querySelectorAll('.pick button')];
 
-  // Real magnitudes from the shipped example: a week of send_email and remove_group_members calls
-  // against a ceiling of 200 principals. The last one is the one that matters.
-  const CALLS = [18, 7, 63, 4, 112, 31, 9, 147, 22, 76, 41203];
-  const CEILING = 200;
-  const CAP = 260;                       // drawing scale; the last bar deliberately runs past it
-  const shown = v => Math.min(v, CAP);
+  const MAX_DOTS = 1100;
+  const LO = 10, HI = 50000;              // the ceiling slider's range, log scaled
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const comma = n => n.toLocaleString('en-US');
 
-  // Starts finished. The entrance is decoration; the chart is the content. Every way the animation
-  // can fail (a throttled frame clock, a background tab, reduced motion, no IntersectionObserver)
-  // leaves the real chart on screen rather than one bar and a ceiling.
-  const DONE = 1.05;
-  let progress = DONE, raf = null, started = null, settle = null;
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
+  let magnitude = 41203, group = 'engineering-all';
+  let grown = 1;                          // 0..1, how much of the field has bloomed in
+  let raf = null, settle = null;
 
-  function layout() {
-    const w = canvas.clientWidth || 1200;
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const rowH = w < 560 ? 15 : 20;
-    const h = CALLS.length * rowH + 34;
+  const ceiling = () => {
+    const t = +slider.value / 1000;
+    return Math.round(10 ** (Math.log10(LO) + t * (Math.log10(HI) - Math.log10(LO))));
+  };
+
+  /* The verdict. Two bands, exactly as a policy file declares them: over the ceiling is a block,
+     at or under it the call is allowed and the gate says nothing at all, so the permission rules
+     you already configured keep working. */
+  function decide() {
+    const c = ceiling();
+    if (magnitude > c) {
+      return {
+        verdict: 'BLOCK', colour: css('--destructive'),
+        why: `Preflight blocked this call: /group resolves to ${comma(magnitude)} principals, ` +
+             `above the declared ceiling of ${comma(c)}. Narrow the target and try again.`,
+      };
+    }
+    return {
+      verdict: 'ALLOW', colour: css('--accent'),
+      why: `${comma(magnitude)} principals is at or under ${comma(c)}. The gate says nothing, ` +
+           `the call runs, and your existing permission rules decide it as they always did.`,
+    };
+  }
+
+  function paint() {
+    const w = canvas.clientWidth || 1100;
+    const dpr = Math.min(devicePixelRatio || 1, 2);
+    const shown = Math.min(magnitude, MAX_DOTS);
+    const perDot = magnitude / shown;
+
+    // Dot pitch scales with how many there are, so 25 principals reads as a field rather than a
+    // thin sliver and 41,203 reads as a carpet. The jump between the two is the whole point of
+    // the control, and it is lost if a small count renders as a few specks in a wide empty box.
+    const narrow = w < 520;
+    const pitch = shown <= 60 ? (narrow ? 20 : 28)
+                : shown <= 400 ? (narrow ? 13 : 17)
+                : (narrow ? 9 : 11);
+    const cols = Math.max(8, Math.floor(w / pitch));
+    const rows = Math.ceil(shown / cols);
+    const h = Math.max(90, rows * pitch + 24);
+
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
     canvas.style.height = h + 'px';
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    return { w, h, rowH };
-  }
-
-  function draw() {
-    const { w, h, rowH } = layout();
     ctx.clearRect(0, 0, w, h);
-    const accent = css('--accent'), warning = css('--warning'),
-          destructive = css('--destructive'), faint = css('--fg-faint');
-    const mono = "ui-monospace, SFMono-Regular, Menlo, monospace";
 
-    // Reserve exactly the room the longest label needs, measured rather than guessed. A fixed
-    // padding clipped "BLOCKED · 41,203 principals" at the frame edge, which is the one label on
-    // the chart that has to be readable.
-    const label = w < 620 ? 'BLOCKED · 41,203' : 'BLOCKED · 41,203 principals';
-    ctx.font = `600 11px ${mono}`;
-    const padR = Math.min(ctx.measureText(label).width + 20, w * 0.45);
-    const plot = w - padR;
-    const x = v => (shown(v) / CAP) * plot;
+    const c = ceiling();
+    const underDots = Math.max(0, Math.min(shown, Math.floor(c / perDot)));
+    const accent = css('--accent'), destructive = css('--destructive');
+    const r = Math.max(2.2, pitch * 0.27);
+    // The entrance fades the whole field in rather than counting dots into it. That matters:
+    // requestAnimationFrame is throttled hard in a background tab, and a count-up left stalled
+    // shows an empty box, which reads as broken. A stalled fade shows a slightly dim field, which
+    // reads as fine. The field is the content; the entrance is decoration.
+    const entrance = 0.4 + 0.6 * grown;
 
-    // The ceiling: one hairline, drawn first so every bar is read against it.
-    const cx = x(CEILING);
-    ctx.strokeStyle = warning; ctx.lineWidth = 1;
-    ctx.beginPath(); ctx.moveTo(cx + .5, 0); ctx.lineTo(cx + .5, h - 26); ctx.stroke();
-    ctx.fillStyle = warning; ctx.font = `600 10px ${mono}`; ctx.textBaseline = 'top';
-    ctx.fillText('CEILING 200', cx + 8, h - 21);
-
-    CALLS.forEach((v, i) => {
-      const y = i * rowH + 4, bh = rowH - 7;
-      const over = v > CEILING;
-      const t = Math.max(0, Math.min(1, (progress - i * 0.055) / 0.42));
-      if (t <= 0) return;
-      const eased = 1 - Math.pow(1 - t, 3);
-      const full = x(v), width = Math.max(1, full * eased);
-
+    for (let i = 0; i < shown; i++) {
+      const x = (i % cols) * pitch + pitch / 2;
+      const y = Math.floor(i / cols) * pitch + pitch / 2 + 8;
+      const over = i >= underDots;
       ctx.fillStyle = over ? destructive : accent;
-      ctx.globalAlpha = over ? 1 : 0.55;
-      ctx.beginPath(); ctx.roundRect(0, y, width, bh, 2); ctx.fill();
-      ctx.globalAlpha = 1;
-
-      if (eased > 0.985) {
-        ctx.textBaseline = 'middle';
-        if (over) {
-          ctx.fillStyle = destructive; ctx.font = `600 11px ${mono}`;
-          ctx.fillText(label, full + 10, y + bh / 2 + 1);
-        } else {
-          ctx.fillStyle = faint; ctx.font = `10px ${mono}`;
-          ctx.fillText(String(v), full + 8, y + bh / 2 + 1);
-        }
-      }
-    });
+      ctx.globalAlpha = (over ? 0.95 : 0.7) * entrance;
+      ctx.beginPath();
+      ctx.arc(x, y, r, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
   }
 
-  function tick(now) {
-    if (started === null) started = now;
-    progress = Math.min(DONE, (now - started) / 1400);
-    draw();
-    if (progress < DONE) raf = requestAnimationFrame(tick);
+  function render() {
+    const d = decide();
+    magEl.textContent = comma(magnitude);
+    ceilNum.textContent = comma(ceiling());
+    const perDot = magnitude / Math.min(magnitude, MAX_DOTS);
+    const scale = perDot > 1.5
+      ? ` <span class="why">One dot is about ${comma(Math.round(perDot))} principals. ` +
+        `A field this size does not fit on a screen, which is rather the point.</span>` : '';
+    out.innerHTML =
+      `<span class="v" style="color:${d.colour}">${d.verdict}</span>` +
+      `<span class="why">${d.why}</span>${scale}`;
+    paint();
   }
 
-  function start() {
-    if (reduced.matches || document.visibilityState !== 'visible') return;
-    progress = 0; started = null;
+  function bloom() {
+    if (reduced.matches) { grown = 1; render(); return; }
+    grown = 0;
     cancelAnimationFrame(raf);
-    raf = requestAnimationFrame(tick);
+    const started = performance.now();
+    const step = now => {
+      grown = Math.min(1, (now - started) / 500);
+      render();
+      if (grown < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    // The field is the content; the bloom is decoration. If the frame clock is throttled, land on
+    // the finished field rather than a half-drawn one.
     clearTimeout(settle);
-    settle = setTimeout(() => {
-      if (progress < DONE) { cancelAnimationFrame(raf); progress = DONE; draw(); }
-    }, 2400);
+    settle = setTimeout(() => { if (grown < 1) { cancelAnimationFrame(raf); grown = 1; render(); } }, 1500);
   }
 
-  draw();
+  buttons.forEach(b => b.addEventListener('click', () => {
+    buttons.forEach(o => o.classList.toggle('sel', o === b));
+    magnitude = +b.dataset.n;
+    group = b.dataset.g;
+    bloom();
+  }));
 
+  slider.addEventListener('input', render);
+  addEventListener('resize', render, { passive: true });
+  new MutationObserver(render).observe(document.documentElement,
+    { attributes: true, attributeFilter: ['data-theme'] });
+  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', render);
+
+  render();
   if ('IntersectionObserver' in window) {
-    const io = new IntersectionObserver(entries => {
-      if (entries.some(e => e.isIntersecting)) { start(); io.disconnect(); }
-    }, { threshold: 0.25 });
+    const io = new IntersectionObserver(e => {
+      if (e.some(x => x.isIntersecting)) { bloom(); io.disconnect(); }
+    }, { threshold: 0.2 });
     io.observe(canvas);
   }
+})();
 
-  addEventListener('resize', draw, { passive: true });
-  reduced.addEventListener?.('change', draw);
-  new MutationObserver(draw).observe(document.documentElement, {
-    attributes: true, attributeFilter: ['data-theme'],
-  });
-  matchMedia('(prefers-color-scheme: dark)').addEventListener?.('change', draw);
+/* ═══════════════════════════════════════════════════════════════════════ the approval, running
+   The four steps light in sequence so the shape of the flow is visible without reading it. It is
+   a loop, it pauses when the tab is hidden, and with reduced motion every step simply stays lit. */
+(() => {
+  const steps = [...document.querySelectorAll('.steps li')];
+  if (!steps.length) return;
+
+  const reduced = matchMedia('(prefers-reduced-motion: reduce)');
+  if (reduced.matches) { steps.forEach(s => s.classList.add('on')); return; }
+
+  let i = 0, timer = null;
+  const tick = () => {
+    steps.forEach((s, n) => s.classList.toggle('on', n === i));
+    i = (i + 1) % steps.length;
+  };
+  const play = () => { if (!timer) { tick(); timer = setInterval(tick, 2000); } };
+  const stop = () => { clearInterval(timer); timer = null; };
+
+  document.addEventListener('visibilitychange', () => document.hidden ? stop() : play());
+
+  if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver(e => e[0].isIntersecting ? play() : stop(), { threshold: .2 });
+    io.observe(steps[0].parentElement);
+  } else {
+    play();
+  }
 })();
 </script>
