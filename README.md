@@ -7,10 +7,15 @@
 </p>
 
 <p align="center">
+  <a href="https://github.com/Neti-Security/neti/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Neti-Security/neti/actions/workflows/ci.yml/badge.svg?branch=main"></a>
   <img alt="licence: Apache-2.0" src="https://img.shields.io/badge/licence-Apache--2.0-blue">
   <img alt="python 3.12+" src="https://img.shields.io/badge/python-3.12%2B-blue">
   <img alt="no telemetry" src="https://img.shields.io/badge/telemetry-none-brightgreen">
   <img alt="offline by default" src="https://img.shields.io/badge/decision-local%20%26%20deterministic-brightgreen">
+</p>
+
+<p align="center">
+  <b><a href="https://neti-security.github.io/neti/">neti-security.github.io/neti</a></b>
 </p>
 
 ```
@@ -37,7 +42,15 @@ answer a different question; none of them answers *how big is this*.
 
 ## The first minute
 
-One command, in a repository you already have. It measures *this* machine — no credentials, no
+```console
+$ pip install "neti[all] @ git+https://github.com/Neti-Security/neti"
+```
+
+From source, because the package is not on PyPI yet. `[all]` is everything one machine needs, which
+is the entire free tier; a bare install leaves a `neti` command with no CLI behind it, and says so
+rather than failing obscurely.
+
+Then one command, in a repository you already have. It measures *this* machine — no credentials, no
 config, no traffic to wait for.
 
 ```console
