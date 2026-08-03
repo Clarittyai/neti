@@ -9,6 +9,34 @@
       "skipped": 8,
       "verified": false
     },
+    "entra.apps": {
+      "failed": 0,
+      "module": "test_entra_live.py",
+      "passed": 0,
+      "skipped": 9,
+      "verified": false
+    },
+    "entra.guests": {
+      "failed": 0,
+      "module": "test_entra_live.py",
+      "passed": 0,
+      "skipped": 9,
+      "verified": false
+    },
+    "entra.principals": {
+      "failed": 0,
+      "module": "test_entra_live.py",
+      "passed": 0,
+      "skipped": 9,
+      "verified": false
+    },
+    "entra.principals_with_guests": {
+      "failed": 0,
+      "module": "test_entra_live.py",
+      "passed": 0,
+      "skipped": 9,
+      "verified": false
+    },
     "github.files": {
       "failed": 0,
       "module": "test_github_live.py",

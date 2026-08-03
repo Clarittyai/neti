@@ -335,19 +335,22 @@ def test_the_live_evidence_and_the_live_claims_name_the_same_modules() -> None:
     """
     from tests.live.conftest import PROVES
 
-    from_conftest = {resolver for resolvers in PROVES.values() for resolver in resolvers}
-    from_evidence = {name for name, module in EVIDENCE.items() if module}
-    assert from_conftest == from_evidence, (
-        f"only the live tier proves {sorted(from_conftest - from_evidence)}; "
-        f"only the card claims {sorted(from_evidence - from_conftest)}"
+    provable = {resolver for resolvers in PROVES.values() for resolver in resolvers}
+    claimed = {name for name, module in EVIDENCE.items() if module}
+
+    # One direction only, and the asymmetry is the point. Every *claim* must have a module that
+    # could produce it — a claim with no possible evidence is the defect this file exists for.
+    assert claimed <= provable, (
+        f"the card claims {sorted(claimed - provable)} live-verified; no module proves it"
     )
 
-    for module_set in PROVES.values():
-        for resolver in module_set:
-            assert resolver in LIVE_VERIFIED, (
-                f"{resolver} is proved by the live tier and absent from LIVE_VERIFIED, so a real "
-                "run against a real provider is not reaching the card"
-            )
+    # The other direction is legitimate and currently true: `test_entra_live.py` exists and nobody
+    # here has a tenant, so those four resolvers are provable and correctly *not* claimed. A written
+    # check nobody has run is a different state from no check at all, and both are honest.
+    assert provable - claimed, (
+        "every provable resolver is also claimed, which would mean the live tier has no module "
+        "waiting on credentials — true one day, and worth noticing when it happens"
+    )
 
 
 def test_a_resolver_claimed_live_with_no_recorded_run_is_not_shown_as_verified() -> None:

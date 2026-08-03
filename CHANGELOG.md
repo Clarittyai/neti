@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### The Entra family has a live tier now, waiting on a tenant
+
+The four `entra.*` resolvers are the product's wedge and were the only ones with no live check at
+all. Every assertion about them has been made against `neti.eval.synthetic` — a fixture we wrote,
+which reproduces the provider failures we *thought of*, precisely the set a fixture cannot extend.
+
+`tests/live/test_entra_live.py` is the check. Read-only, `GroupMember.Read.All`, skipping loudly
+without a tenant. It asserts what only a real directory can settle:
+
+- a real group resolves, and the direction says `EXACT` — the mislabelled bound is the mistake
+  GitHub actually shipped, and only its live tier found it
+- a group that is not there is `UNRESOLVED` and **never zero**
+- **R2**, listed as unverified since the first release: that `$filter=userType eq 'Guest'` works on
+  the cast `transitiveMembers` collection together with `$count`. If it does not, `entra.guests` and
+  the `breakdown_bands: guest` rule in `examples/entra.yaml` are a policy that can never fire — and
+  the test says *R2 is REFUTED* in those words
+- **R6**, the claim every latency figure in the plan rests on: inside the 800ms budget, and flat in
+  magnitude between a small group and a large one
+
+The card gained a fourth state for it. `[ ready ]` — a live check exists and is waiting — is not the
+same as `[ — ] never run against a real provider`, and the difference is between a gap nobody has
+looked at and one somebody has done everything about except find a tenant.
+
 ### M11 said "verified" on the strength of a filename
 
 `neti score` printed `[verified] db.rows — against Postgres 16, in Docker`. What backed that

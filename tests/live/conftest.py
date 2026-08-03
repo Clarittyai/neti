@@ -35,6 +35,15 @@ PROVES: dict[str, tuple[str, ...]] = {
     "test_s3_live.py": ("storage.objects",),
     "test_terraform_live.py": ("terraform.destroy",),
     "test_github_live.py": ("github.repos", "github.files"),
+    # Present and, at the time of writing, never run — nobody here has a tenant. That is precisely
+    # why it is listed: a module that records `skipped` is the difference between "we have not
+    # verified this" and "we have not even written the check".
+    "test_entra_live.py": (
+        "entra.principals",
+        "entra.apps",
+        "entra.guests",
+        "entra.principals_with_guests",
+    ),
 }
 
 _OUTCOMES: dict[str, dict[str, int]] = {}

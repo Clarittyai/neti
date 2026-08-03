@@ -298,13 +298,17 @@ def build_scorecard(
 
     card.outstanding = [
         "M1 resolution correctness — covered by the offline suite against the synthetic tenant",
-        "M2 latency — REQUIRES A LIVE TENANT. Run `neti measure`. Every figure in the plan is "
-        "modelled and no published Graph p50/p99 exists.",
+        "M2 latency — REQUIRES A LIVE TENANT. Run `neti measure`, or the R6 check in "
+        "`tests/live/test_entra_live.py`, which asserts latency is inside the 800ms budget and "
+        "flat in magnitude. Every figure in the plan is modelled; no published Graph p50/p99 "
+        "exists.",
         "M3 failure-mode matrix — covered by the offline suite",
         "M6 time to first value — the Entra half REQUIRES A TENANT. The coding-agent half needs "
         "only a clean machine: time `neti install` to the first `neti inventory` finding.",
-        "Guest breakdown (risk R2) — UNVERIFIED. That `$filter=userType eq 'Guest'` works on the "
-        "cast transitiveMembers collection with `$count` has not been confirmed against Graph.",
+        "Guest breakdown (risk R2) — UNVERIFIED, and now written down as a check rather than a "
+        "worry: `tests/live/test_entra_live.py` asserts the guest filter resolves against a real "
+        "tenant, and refutes R2 out loud if it does not. Set the three NETI_ credentials and two "
+        "group ids to run it.",
         "M7 denial response — NOT RUN here. `uv run python -m eval.harness.m7` puts a real model "
         "in the loop, denies it, and classifies what it does next: narrowed, repeated, abandoned, "
         "asked, fabricated, or routed around the gate through a tool nobody gated. Needs a key and "
@@ -464,6 +468,11 @@ def format_scorecard(card: Scorecard) -> str:
             mark, detail = " STALE  ", f"claims {against}, but the last run did not verify it"
         elif against:
             mark, detail = "claimed ", f"against {against} — no recorded run; `just live`"
+        elif ran:
+            # A written check that last skipped for want of credentials. Distinct from "never run",
+            # and the distinction is the difference between a gap nobody has looked at and one
+            # somebody has done everything about except find a tenant.
+            mark, detail = " ready  ", f"a live check exists and is waiting ({ran['module']})"
         else:
             mark, detail = "  —     ", "never run against a real provider"
         out.append(f"    [{mark}] {name:<30} {detail}")
