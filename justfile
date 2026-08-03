@@ -61,6 +61,14 @@ determinism:
 score:
     uv run neti score -c examples/entra.yaml
 
+# The README's images, rendered from the golden transcripts.
+#
+# Not screenshots. Each SVG is a pure function of a transcript `tests/golden` already pins byte for
+# byte, so a change to what the product says fails the golden suite, and updating the transcript
+# fails `test_media_is_current` until this is re-run. A picture and the program cannot disagree.
+media:
+    uv run python tools/make_media.py
+
 # ---------------------------------------------------------------------------- the live tier
 #
 # `db.rows`, `storage.objects` and `terraform.destroy` all shipped without ever having touched a
