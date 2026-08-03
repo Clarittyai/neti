@@ -234,3 +234,46 @@ def test_concurrent_processes_do_not_fork_the_chain(tmp_path: Path) -> None:
     from neti.core.record import verify_chain
 
     assert verify_chain(stored) == (True, None)
+
+
+def test_a_locked_record_file_does_not_kill_the_reader(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Windows holds a mandatory lock, so a concurrent writer blocks readers outright.
+
+    `msvcrt.locking` is mandatory where `fcntl.flock` is advisory: while one process holds the lock,
+    another cannot open the file for reading at all and gets `PermissionError`. Claude Code issues
+    tool calls in parallel and every hook invocation is its own process, so two agents starting at
+    the same moment is the ordinary case there. One of them died with a traceback out of
+    `Preflight.demo` before the gate had decided anything, and the first Windows CI run this
+    repository ever had is what surfaced it.
+
+    Simulated rather than skipped, so the retry is exercised on every platform. Returning `None`
+    after the retries cannot fork the chain: this value only seeds the first append, and
+    `JsonlSink.append` re-reads the head under its own exclusive lock before sealing.
+    """
+    from neti.store import jsonl
+
+    calls = {"n": 0}
+
+    def always_locked(path: str | Path):  # type: ignore[no-untyped-def]
+        calls["n"] += 1
+        raise PermissionError(13, "Permission denied")
+        yield  # pragma: no cover - generator marker
+
+    monkeypatch.setattr(jsonl, "read_records", always_locked)
+    monkeypatch.setattr(jsonl, "_HEAD_READ_BACKOFF_S", 0)
+
+    assert jsonl.chain_head(__file__) is None
+    assert calls["n"] == jsonl._HEAD_READ_ATTEMPTS, "it must retry rather than give up at once"
+
+
+def test_a_reader_that_wins_the_race_still_gets_the_head(tmp_path: Path) -> None:
+    """The other half: the retry must not swallow a head that is simply there."""
+    from neti.store import jsonl
+
+    records = tmp_path / "d.ndjson"
+    pf = Preflight.demo(EXAMPLE, mode="enforce", records=records)
+    pf.check("send_email", {"to": "g-team"})
+    pf.close()
+
+    stored = list(read_records(str(records)))
+    assert jsonl.chain_head(str(records)) == stored[-1].record_digest

@@ -30,12 +30,18 @@ import os
 import queue
 import sys
 import threading
+import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
 from typing import IO, Any
 
 from neti.core.record import DecisionRecord
+
+# A writer holds the lock for microseconds, so a reader that collides with one only has to wait
+# out a moment. Bounded rather than indefinite: a gate that hangs is a gate that gets removed.
+_HEAD_READ_ATTEMPTS = 5
+_HEAD_READ_BACKOFF_S = 0.02
 
 __all__ = ["JsonlSink", "chain_head", "read_records"]
 
@@ -265,13 +271,32 @@ def chain_head(path: str | Path) -> str | None:
     if not isinstance(cached, _Miss):
         return cached
 
-    try:
-        last = None
-        for record in read_records(path):
-            last = record
-        return None if last is None else last.record_digest
-    except FileNotFoundError:
-        return None
+    # Retried, because on Windows this raises where on Unix it would simply read.
+    #
+    # `msvcrt.locking` is a *mandatory* lock: while a writer holds it, another process cannot open
+    # the file for reading at all and gets `PermissionError`. `fcntl.flock` is advisory and readers
+    # sail past it, which is why this was invisible until the first Windows CI run. Claude Code
+    # issues tool calls in parallel and every hook is its own process, so two agents starting at
+    # once is the ordinary case there, not a corner: one of them died with a traceback before the
+    # gate had decided anything.
+    #
+    # Giving up after the retries is safe, and that is worth being explicit about because returning
+    # `None` looks like it should fork the chain. It cannot: this value only seeds the *first*
+    # append, and `JsonlSink.append` re-reads the head inside its own exclusive lock before sealing.
+    # The authority is there, not here.
+    for attempt in range(_HEAD_READ_ATTEMPTS):
+        try:
+            last = None
+            for record in read_records(path):
+                last = record
+            return None if last is None else last.record_digest
+        except FileNotFoundError:
+            return None
+        except PermissionError:
+            if attempt == _HEAD_READ_ATTEMPTS - 1:
+                return None
+            time.sleep(_HEAD_READ_BACKOFF_S * (attempt + 1))
+    return None
 
 
 def read_records(path: str | Path) -> Iterator[DecisionRecord]:
