@@ -679,10 +679,10 @@
       <h2>Start in observe mode.</h2>
       <p class="small" style="margin-top:1rem">Nothing is blocked until you write a number. The worst
         case of installing it is one extra hop.</p>
-      <span class="cmd" style="margin-top:1.25rem"><span class="sig">$</span> pip install "neti[all] @ git+https://github.com/Neti-Security/neti"</span>
+      <span class="cmd" style="margin-top:1.25rem"><span class="sig">$</span> pip install "neti[all]"</span>
       <span class="cmd" style="margin-top:.5rem;max-width:16rem"><span class="sig">$</span> neti demo --here</span>
-      <p class="cap">Installs from source until the package is on PyPI. Nothing is blocked by
-        either command.</p>
+      <p class="cap">Nothing is blocked by either command. The install itself is checked: <code>just
+        e2e</code> walks this whole page against the published wheel and asserts every number.</p>
       <div class="actions">
         <a class="pill" href="https://github.com/Neti-Security/neti">Read the source</a>
         <a class="quiet" href="#cloud">Hosted version</a>

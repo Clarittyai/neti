@@ -44,12 +44,17 @@ answer a different question; none of them answers *how big is this*.
 ## The first minute
 
 ```console
-$ pip install "neti[all] @ git+https://github.com/Neti-Security/neti"
+$ pip install "neti[all]"
 ```
 
-From source, because the package is not on PyPI yet. `[all]` is everything one machine needs, which
-is the entire free tier; a bare install leaves a `neti` command with no CLI behind it, and says so
-rather than failing obscurely.
+`[all]` is everything one machine needs, which is the entire free tier; a bare install leaves a
+`neti` command with no CLI behind it, and says so rather than failing obscurely.
+
+That install is checked rather than asserted. [`tools/verify_install.py`](https://github.com/Neti-Security/neti/blob/main/tools/verify_install.py)
+builds a fresh virtualenv, installs the published wheel into it, generates a tree with a known file
+count and walks this whole page — measure, gate, block, seal, tamper, verify, serve — asserting the
+numbers. Run `just e2e` and watch twenty-two checks go green, or `just e2e --local` against a
+checkout. Four defects in this project were only ever visible from outside the repository.
 
 Then one command, in a repository you already have. It measures *this* machine — no credentials, no
 config, no traffic to wait for.

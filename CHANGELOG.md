@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### The out-of-the-box journey is a command now, not a story
+
+The last four defects in this file share a cause: they were invisible from a source checkout, where
+the repository root is two directories up and every example, fixture and document is simply *there*.
+Nearly two thousand tests all ran in that layout. None of them ran in a customer's.
+
+`just e2e` closes it. It builds a virtualenv, installs the published wheel from PyPI, generates a
+tree with a *known* file count and walks the whole documented flow — measure, gate, block, seal,
+tamper, verify, prove, serve — asserting twenty-two numbers rather than printing them. `just e2e
+--local` runs the same journey against the working tree. The tree is generated rather than borrowed
+because pointing it at a real repository makes the expected values machine-dependent, and a check
+whose number changes when somebody runs `npm install` is one people learn to ignore.
+
+Writing it caught one thing immediately, and not in the product: the first draft looked for `CHAIN
+BROKEN` on stdout, where `neti verify` does not print it. It reports the break on stderr and exits
+1. A check pinned to the wrong stream is a check that passes forever, so the tamper step now asserts
+both the message and the non-zero exit — the exit code being the part that actually matters, since
+cron and CI read the status and nothing else.
+
+The README and the landing page said to install from git "because the package is not on PyPI yet".
+It is, so they say `pip install "neti[all]"` now.
+
 ### The first command in the README did not work on a real install
 
 `neti demo --here` is the first thing this project asks a stranger to run. On a clean install it

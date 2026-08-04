@@ -79,6 +79,19 @@ score:
 media:
     uv run python tools/make_media.py
 
+# Install neti the way a stranger does and walk the whole journey, asserting every number.
+#
+# Every other test here runs from a source checkout, where the repository root is two directories
+# up and every example and fixture is simply there. That is not the layout a customer has, and the
+# difference has already cost this project four defects nobody could see from the inside. This
+# builds a virtualenv, installs the package, generates a tree with a known file count, and drives
+# the documented flow end to end.
+#
+#   just e2e            against the published package on PyPI
+#   just e2e --local    against this working tree
+e2e *ARGS:
+    uv run python tools/verify_install.py {{ARGS}}
+
 # README.md with every relative link made absolute, for the copy PyPI shows. It renders the long
 # description with no base URL, so relative paths are broken images and dead links there.
 readme-pypi:
