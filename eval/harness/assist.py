@@ -96,6 +96,57 @@ def _specs_for_recovery(decisions: dict[str, dict[str, Any]]) -> list[Any]:
     return out
 
 
+def _specs_for_over_claim(decisions: dict[str, dict[str, Any]]) -> list[Any]:
+    """The 41 the rule table declined *with a written reason*, offered up deliberately.
+
+    `neti suggest` structurally cannot send these — `eligible()` drops anything with a `would_be`,
+    so the shipped command never asks a model to overturn a judgement somebody already made in
+    writing. This arm sends exactly those, because every claim on them is an over-claim by
+    construction and that makes the rate measurable rather than assumed.
+
+    It is the instrument for the failure the whole feature is arranged around: "this search string
+    is SQL". `Grep/pattern` is a search pattern and not a set of paths; `WebSearch/query` is a
+    search string and not a `DELETE`. A model that confidently claims those is a model whose
+    suggestions cost more to review than they save.
+    """
+    from neti.insight.discover import DeclinedParam, ToolSpec
+
+    out = []
+    for key, entry in sorted(decisions.items()):
+        contested = [d for d in entry["declined"] if d["would_be"]]
+        if not contested:
+            continue
+        params = sorted(
+            {g["pointer"].lstrip("/").split("#")[0] for g in entry["gated"]}
+            | {d["param"] for d in entry["declined"]}
+        )
+        out.append(
+            ToolSpec(
+                name=_tool_name(key),
+                description=entry.get("description", ""),
+                params=tuple(params),
+                gated=(),
+                destructive=entry.get("destructive", False),
+                # The contested ones only, and stripped of `would_be` so they are askable here.
+                declined=tuple(DeclinedParam(param=d["param"], why="withheld") for d in contested),
+            )
+        )
+    return out
+
+
+def _contested(decisions: dict[str, dict[str, Any]]) -> dict[tuple[str, str], dict[str, str]]:
+    """(tool, parameter) -> the resolver the rule table rejected, and why it rejected it."""
+    out: dict[tuple[str, str], dict[str, str]] = {}
+    for key, entry in decisions.items():
+        for declined in entry["declined"]:
+            if declined["would_be"]:
+                out[(_tool_name(key), declined["param"])] = {
+                    "would_be": declined["would_be"],
+                    "why": declined["why"],
+                }
+    return out
+
+
 def _expected(decisions: dict[str, dict[str, Any]]) -> dict[tuple[str, str], str]:
     """(tool, parameter) -> resolver, from the committed key."""
     out: dict[tuple[str, str], str] = {}
@@ -163,18 +214,67 @@ def run(client: Any, *, batch_size: int, limit: int | None) -> Arm:
     return arm
 
 
+def run_over_claim(client: Any, *, batch_size: int) -> Arm:
+    """Arm B. Every claim here is wrong by construction, so the number is the over-claim rate."""
+    from neti.insight.assist import SYSTEM, batches, eligible, parse, payload, schema
+
+    decisions = _corpus()
+    contested = _contested(decisions)
+    specs = _specs_for_over_claim(decisions)
+    arm = Arm(of=len(contested))
+
+    groups = batches(eligible(specs), size=batch_size)
+    for index, group in enumerate(groups, start=1):
+        print(f"  batch {index}/{len(groups)} ({len(group)} parameters)", file=sys.stderr)
+        try:
+            answer = client.ask(SYSTEM, json.dumps(payload(group), sort_keys=True), schema())
+        except Exception as exc:
+            arm.unassisted += len(group)
+            arm.detail.append({"batch_failed": f"{index}/{len(groups)}", "why": str(exc)[:160]})
+            continue
+        got, _ = parse(answer.text, group)
+        for suggestion in got:
+            key = (suggestion.tool, suggestion.parameter)
+            known = contested.get(key)
+            if known is None:
+                continue
+            arm.over_claimed += 1
+            arm.detail.append(
+                {
+                    "over_claimed": f"{key[0]}/{key[1]}",
+                    "model_said": suggestion.resolver,
+                    "rule_table_rejected": known["would_be"],
+                    "because": known["why"][:150],
+                }
+            )
+    return arm
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--provider", default="anthropic", choices=["anthropic", "openai", "local"])
     parser.add_argument("--base-url", default=None, help="For --provider local.")
     parser.add_argument("--timeout", type=float, default=None, help="Seconds per request.")
     parser.add_argument("--model", default=None)
-    # Larger than the CLI's default on purpose: a local model re-reads the whole
-    # system prompt every request, so a run is dominated by the number of requests
-    # rather than by their size. Twelve batches of 8 took 25 minutes; three of 40
-    # take a fraction of that for the same work.
-    parser.add_argument("--batch-size", type=int, default=40)
+    # 16, and the number is measured rather than picked. A local runner re-reads the whole system
+    # prompt every request, so wall-clock is dominated by the request count — but accuracy falls off
+    # once a batch gets large enough that the model starts skimming. Against the committed key on
+    # llama3:
+    #
+    #     batch  8  (12 requests)   recovered 30/34
+    #     batch 16  ( 5 requests)   recovered 30/34
+    #     batch 40  ( 3 requests)   recovered 27/34
+    #
+    # 16 is where the curve flattens: the same answer as 8 for less than half the requests, and the
+    # three parameters 40 loses are ones it plainly knows (`Glob/pattern`, `query/sql`).
+    parser.add_argument("--batch-size", type=int, default=16)
     parser.add_argument("--limit", type=int, default=None, help="First N gated tools only.")
+    parser.add_argument(
+        "--arm",
+        default="both",
+        choices=["recovery", "over-claim", "both"],
+        help="recovery is the go/no-go; over-claim is the risk.",
+    )
     args = parser.parse_args()
 
     from neti.insight.assist_client import client_for
@@ -201,26 +301,51 @@ def main() -> int:
         )
         return 2
 
-    print("M12 arm A — recovery against the committed answer key", file=sys.stderr)
-    arm = run(client, batch_size=args.batch_size, limit=args.limit)
+    recovery = over_claim = None
 
-    payload = {
+    if args.arm in {"recovery", "both"}:
+        print("M12 arm A — recovery against the committed answer key", file=sys.stderr)
+        recovery = run(client, batch_size=args.batch_size, limit=args.limit)
+
+    if args.arm in {"over-claim", "both"}:
+        print("M12 arm B — over-claim on the parameters already declined", file=sys.stderr)
+        over_claim = run_over_claim(client, batch_size=args.batch_size)
+
+    result: dict[str, Any] = {
         "metric": "M12",
-        "arm": "recovery",
         "provider": args.provider,
         "model": client.name,
-        "recovery": {k: v for k, v in asdict(arm).items() if k != "detail"},
-        "detail": arm.detail,
     }
-    RESULTS.parent.mkdir(parents=True, exist_ok=True)
-    RESULTS.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    detail: list[dict[str, str]] = []
+    if recovery is not None:
+        result["recovery"] = {k: v for k, v in asdict(recovery).items() if k != "detail"}
+        detail.extend(recovery.detail)
+    if over_claim is not None:
+        result["over_claim"] = {k: v for k, v in asdict(over_claim).items() if k != "detail"}
+        detail.extend(over_claim.detail)
+    result["detail"] = detail
 
-    # The wrong count first, which is the rule the incident table already follows.
-    print(
-        f"\nof {arm.of} gates the rule table makes on these tools, the model got "
-        f"{arm.wrong_resolver} wrong, missed {arm.missed}, and claimed {arm.extra} the rule table "
-        f"declined.\nIt recovered {arm.recovered}.\n\nwrote {RESULTS.relative_to(REPO)}"
-    )
+    RESULTS.parent.mkdir(parents=True, exist_ok=True)
+    RESULTS.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    # The wrong counts first, which is the rule the incident table already follows.
+    print()
+    if recovery is not None:
+        print(
+            f"recovery   of {recovery.of} gates the rule table already makes, the model got "
+            f"{recovery.wrong_resolver} wrong, missed {recovery.missed},\n"
+            f"           and claimed {recovery.extra} it had declined. It recovered "
+            f"{recovery.recovered}."
+        )
+    if over_claim is not None:
+        print(
+            f"over-claim of {over_claim.of} parameters the rule table declined *with a written "
+            f"reason*, the model\n"
+            f"           claimed {over_claim.over_claimed}. Every one of those is an over-claim by "
+            "construction.\n"
+            "           `neti suggest` never sends these; this arm exists to measure the appetite."
+        )
+    print(f"\nwrote {RESULTS.relative_to(REPO)}")
     return 0
 
 

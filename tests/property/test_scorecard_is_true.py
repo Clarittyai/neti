@@ -453,3 +453,47 @@ def test_the_wrong_total_counts_every_way_of_being_wrong() -> None:
     from neti.eval.scorecard import Assist
 
     assert Assist(of=39, recovered=31, wrong_resolver=2, missed=6, extra=4).wrong == 12
+
+
+def test_m12_reports_the_over_claim_rate_when_arm_b_has_run() -> None:
+    """The number that justifies the design, rather than the one that sells it.
+
+    Arm A makes a model look trustworthy: shown parameters nobody has judged, it claimed nothing
+    wrong. Arm B shows the other half — shown parameters that *look* claimable and were rejected in
+    writing, it claims most of them. `neti suggest` never sends those, and this is the measurement
+    of the appetite that exclusion exists to contain. A card that printed only arm A would be
+    advertising the feature instead of describing it.
+    """
+    from neti.eval.scorecard import Assist, build_scorecard, format_scorecard
+
+    body = format_scorecard(
+        build_scorecard(
+            assist=Assist(
+                model="m", provider="p", of=34, recovered=30, contested=41, over_claimed=28
+            )
+        )
+    )
+    section = body[body.index("M12 MODEL-ASSISTED") :]
+    assert "declined *with a written reason*, it claimed 28" in section
+    assert "wrong by construction" in section
+    assert "never sends them" in section
+
+
+def test_m12_omits_the_over_claim_line_when_arm_b_has_not_run() -> None:
+    """Arms are separable, and a missing one must not print as a zero.
+
+    `--arm recovery` is a legitimate run. Rendering "claimed 0 of 0" from it would read as a
+    perfect score for a measurement nobody took, which is the exact failure this file exists for.
+    """
+    from neti.eval.scorecard import Assist, build_scorecard, format_scorecard
+
+    body = format_scorecard(
+        build_scorecard(assist=Assist(model="m", provider="p", of=34, recovered=30))
+    )
+    section = body[body.index("M12 MODEL-ASSISTED") :]
+    # Arm B's block only. "claimed 0" on its own would match arm A's `extra` count, which is a real
+    # measurement and correctly zero — the two arms report different things and the test has to
+    # know which one it is looking at.
+    assert "written reason" not in section
+    assert "wrong by construction" not in section
+    assert "never sends them" not in section

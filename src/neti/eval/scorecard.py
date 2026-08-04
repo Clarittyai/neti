@@ -284,6 +284,17 @@ class Assist:
     missed: int = 0
     extra: int = 0
 
+    contested: int = 0
+    """How many parameters the rule table declined with a written reason. Arm B's denominator."""
+
+    over_claimed: int = 0
+    """How many of those the model claimed anyway. Every one is wrong by construction.
+
+    This is the number that justifies the design rather than the one that sells it. `neti suggest`
+    never sends these — `eligible()` drops anything the rule table already judged — and this
+    measures what would happen if it did.
+    """
+
     @property
     def wrong(self) -> int:
         """Everything that was not a recovery. Reported before the recovery, deliberately."""
@@ -543,6 +554,21 @@ def format_scorecard(card: Scorecard) -> str:
             f"    and claimed {a.extra} parameter(s) the rule table had declined. It recovered "
             f"{a.recovered}."
         )
+        if a.contested:
+            out.append("")
+            out.append(
+                f"    Shown the {a.contested} parameters the rule table declined *with a written "
+                f"reason*, it claimed {a.over_claimed}."
+            )
+            out.append(
+                "    Every one of those is wrong by construction, and `neti suggest` never sends "
+                "them: what the rule"
+            )
+            out.append(
+                "    table has already judged is excluded when the batch is built. This is the "
+                "number that measures"
+            )
+            out.append("    the appetite that exclusion exists to contain.")
         out.append("")
         out.append(
             "    Nothing here is a gate. `neti suggest` writes a commented-out fragment to a file "

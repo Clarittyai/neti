@@ -1353,6 +1353,7 @@ def score(
     with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
         raw = json.loads(Path(assist_results).read_text(encoding="utf-8"))
         recovery = raw["recovery"]
+        over = raw.get("over_claim") or {}
         assist = Assist(
             model=str(raw.get("model", "")),
             provider=str(raw.get("provider", "")),
@@ -1361,6 +1362,8 @@ def score(
             wrong_resolver=int(recovery["wrong_resolver"]),
             missed=int(recovery["missed"]),
             extra=int(recovery["extra"]),
+            contested=int(over.get("of", 0)),
+            over_claimed=int(over.get("over_claimed", 0)),
         )
 
     card = build_scorecard(summary, policy, wild=wild, live=live, assist=assist)

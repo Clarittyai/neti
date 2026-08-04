@@ -1,13 +1,8 @@
 {
-  "arm": "recovery",
   "detail": [
     {
       "rejected": "unknown_param",
       "what": "move_file/path"
-    },
-    {
-      "rejected": "unknown_param",
-      "what": "db.rows/sql"
     },
     {
       "expected": "fs.paths",
@@ -26,27 +21,192 @@
       "missed": "move_file/source"
     },
     {
-      "expected": "fs.paths",
-      "missed": "browser_drop/paths"
+      "because": "a search pattern rather than a set of paths; the tool's path parameter is what bounds this call",
+      "model_said": "fs.paths",
+      "over_claimed": "Grep/glob",
+      "rule_table_rejected": "fs.paths"
     },
     {
-      "expected": "fs.paths",
-      "missed": "browser_file_upload/paths"
+      "because": "a search string on this tool, not a SQL statement",
+      "model_said": "db.rows",
+      "over_claimed": "brave_local_search/query",
+      "rule_table_rejected": "db.rows"
     },
     {
-      "expected": "db.rows",
-      "missed": "query/sql"
+      "because": "a search string on this tool, not a SQL statement",
+      "model_said": "db.rows",
+      "over_claimed": "brave_web_search/query",
+      "rule_table_rejected": "db.rows"
+    },
+    {
+      "because": "a search string on this tool, not a SQL statement",
+      "model_said": "db.rows",
+      "over_claimed": "query-docs/query",
+      "rule_table_rejected": "db.rows"
+    },
+    {
+      "because": "a search pattern rather than a set of paths; the tool's path parameter is what bounds this call",
+      "model_said": "fs.paths",
+      "over_claimed": "search_files/pattern",
+      "rule_table_rejected": "fs.paths"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "fs.paths",
+      "over_claimed": "create_or_update_file/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "github.repos",
+      "over_claimed": "create_pull_request/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "github.repos",
+      "over_claimed": "create_pull_request_review/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "github.repos",
+      "over_claimed": "fork_repository/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "fs.paths",
+      "over_claimed": "get_file_contents/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "github.repos",
+      "over_claimed": "get_issue/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "github.repos",
+      "over_claimed": "get_pull_request/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "github.repos",
+      "over_claimed": "get_pull_request_comments/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "github.repos",
+      "over_claimed": "get_pull_request_files/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "github.repos",
+      "over_claimed": "get_pull_request_reviews/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "github.repos",
+      "over_claimed": "get_pull_request_status/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "fs.paths",
+      "over_claimed": "list_commits/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "github.repos",
+      "over_claimed": "list_issues/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "github.repos",
+      "over_claimed": "list_pull_requests/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "github.repos",
+      "over_claimed": "merge_pull_request/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "github.repos",
+      "over_claimed": "push_files/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "a search string on this tool, not a SQL statement",
+      "model_said": "db.rows",
+      "over_claimed": "search_repositories/query",
+      "rule_table_rejected": "db.rows"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "github.repos",
+      "over_claimed": "update_issue/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "the call names a repository, so the owner is an address and not the target",
+      "model_said": "github.repos",
+      "over_claimed": "update_pull_request_branch/owner",
+      "rule_table_rejected": "github.repos"
+    },
+    {
+      "because": "a search string on this tool, not a SQL statement",
+      "model_said": "db.rows",
+      "over_claimed": "search_nodes/query",
+      "rule_table_rejected": "db.rows"
+    },
+    {
+      "because": "a URL, and nothing here says it addresses an object store",
+      "model_said": "fs.paths",
+      "over_claimed": "browser_navigate/url",
+      "rule_table_rejected": "storage.objects"
+    },
+    {
+      "because": "a URL, and nothing here says it addresses an object store",
+      "model_said": "fs.paths",
+      "over_claimed": "browser_tabs/url",
+      "rule_table_rejected": "storage.objects"
+    },
+    {
+      "because": "a URL, and nothing here says it addresses an object store",
+      "model_said": "fs.paths",
+      "over_claimed": "puppeteer_navigate/url",
+      "rule_table_rejected": "storage.objects"
     }
   ],
   "metric": "M12",
   "model": "llama3:latest",
+  "over_claim": {
+    "extra": 0,
+    "missed": 0,
+    "of": 41,
+    "over_claimed": 28,
+    "recovered": 0,
+    "unassisted": 0,
+    "wrong_resolver": 0
+  },
   "provider": "local",
   "recovery": {
     "extra": 0,
-    "missed": 7,
+    "missed": 4,
     "of": 34,
     "over_claimed": 0,
-    "recovered": 27,
+    "recovered": 30,
     "unassisted": 0,
     "wrong_resolver": 0
   }
