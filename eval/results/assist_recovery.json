@@ -1,0 +1,84 @@
+{
+  "arm": "recovery",
+  "detail": [
+    {
+      "expected": "fs.paths",
+      "missed": "Edit/file_path"
+    },
+    {
+      "expected": "fs.paths",
+      "missed": "Glob/pattern"
+    },
+    {
+      "expected": "fs.paths",
+      "missed": "NotebookEdit/notebook_path"
+    },
+    {
+      "expected": "fs.paths",
+      "missed": "evaluate_script/filePath"
+    },
+    {
+      "expected": "fs.paths",
+      "missed": "get_network_request/requestFilePath"
+    },
+    {
+      "expected": "fs.paths",
+      "missed": "get_network_request/responseFilePath"
+    },
+    {
+      "expected": "fs.paths",
+      "missed": "take_screenshot/filePath"
+    },
+    {
+      "expected": "fs.paths",
+      "missed": "take_snapshot/filePath"
+    },
+    {
+      "expected": "fs.paths",
+      "missed": "upload_file/filePath"
+    },
+    {
+      "expected": "fs.paths",
+      "missed": "create_directory/path"
+    },
+    {
+      "expected": "fs.paths",
+      "missed": "get_file_info/path"
+    },
+    {
+      "expected": "fs.paths",
+      "missed": "list_directory/path"
+    },
+    {
+      "expected": "fs.paths",
+      "missed": "list_directory_with_sizes/path"
+    },
+    {
+      "expected": "fs.paths",
+      "missed": "move_file/destination"
+    },
+    {
+      "expected": "fs.paths",
+      "missed": "move_file/source"
+    },
+    {
+      "expected": "fs.paths",
+      "missed": "read_file/path"
+    },
+    {
+      "expected": "fs.paths",
+      "missed": "read_media_file/path"
+    }
+  ],
+  "metric": "M12",
+  "model": "qwen2.5:32b",
+  "provider": "local",
+  "recovery": {
+    "extra": 0,
+    "missed": 17,
+    "of": 34,
+    "over_claimed": 0,
+    "recovered": 17,
+    "wrong_resolver": 0
+  }
+}

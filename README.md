@@ -508,6 +508,18 @@ $ neti suggest --dry-run     # prints exactly what would be sent, and sends noth
 $ neti suggest               # asks, and writes neti.suggested.yaml
 ```
 
+**Or point it at a model on your own machine, and nothing leaves it at all:**
+
+```console
+$ neti suggest --provider local --model qwen2.5:32b
+```
+
+Any OpenAI-compatible runner — Ollama, LM Studio, llama.cpp, vLLM — with `--base-url` if it is not
+Ollama's default. No key, no account, no third party, and **no extra to install**: the local client
+is stdlib only, because reaching for an SDK to talk to a process on your own machine is a dependency
+for nothing. The default address is loopback and a test asserts it, so the only way schemas leave
+this machine is somebody typing an address.
+
 What comes back is a **commented-out** fragment in a file `neti gate` never loads, with every band
 empty. Deleting the `#` is your confirmation, and even then a merged suggestion resolves and records
 without being able to block anything. It never edits your policy.

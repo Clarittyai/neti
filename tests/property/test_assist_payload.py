@@ -45,46 +45,104 @@ def test_the_only_hosts_named_are_the_two_providers() -> None:
     )
 
 
-def test_no_client_is_constructed_with_a_base_url() -> None:
-    """A base_url is how a proxy gets introduced without anything else changing.
+# This used to read "no client is constructed with a base_url anywhere", which was the right rule
+# until `--provider local` arrived: pointing at a model on your own machine is the *strongest*
+# version of the promise, not a breach of it. Deleting the test would have been the easy move and
+# the wrong one, so it got narrower instead.
+#
+# The rule that actually matters: a client that talks to somebody else's server must not be
+# aimable. The hosted clients therefore still cannot take a base_url in any spelling, and the local
+# one defaults to loopback and moves only when the operator says so.
+HOSTED_CLIENTS = {"AnthropicAssist", "OpenAIAssist"}
 
-    Checked on the syntax rather than by string search, so `base_url = something` in any spelling
-    fails rather than only the literal keyword.
+
+def test_a_hosted_client_can_never_be_aimed_somewhere_else() -> None:
+    """A base_url on these two is how a proxy gets introduced with nothing else changing.
+
+    Checked on the syntax inside each class rather than by string search, so any spelling fails.
     """
     tree = ast.parse(CLIENT_SOURCE)
-    offenders = [
-        f"line {node.lineno}"
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call)
-        for keyword in node.keywords
-        if keyword.arg == "base_url"
-    ]
-    assert not offenders, f"a client is being pointed somewhere: {offenders}"
+    offenders: list[str] = []
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.ClassDef) or node.name not in HOSTED_CLIENTS:
+            continue
+        for inner in ast.walk(node):
+            if isinstance(inner, ast.Call) and any(k.arg == "base_url" for k in inner.keywords):
+                offenders.append(f"{node.name} line {inner.lineno}")
+    assert not offenders, f"a hosted client is being pointed somewhere: {offenders}"
 
 
-# Only the two provider SDKs may open a socket. An HTTP client imported here is a route to
-# somewhere the operator did not choose, and the first version of this test looked for the *word*
-# "telemetry" in the source — which failed on a docstring promising there is none. A test that reads
-# prose rather than code measures how the thing was described.
-SOCKET_CAPABLE = {"anthropic", "openai"}
-NEVER_IMPORTED = {"httpx", "requests", "urllib", "http", "socket", "aiohttp"}
+def test_the_local_client_defaults_to_this_machine() -> None:
+    """`--provider local` must not become a way to send schemas to a stranger by default.
+
+    The operator can point it anywhere deliberately — that is the feature — but the default has to
+    be loopback, so the only way schemas leave the machine is somebody typing an address.
+    """
+    from urllib.parse import urlparse
+
+    host = urlparse(assist_client.LOCAL_BASE_URL).hostname
+    assert host in {"localhost", "127.0.0.1", "::1"}, f"the local default points at {host}"
+    assert assist_client.LocalAssist(model="m").base_url == assist_client.LOCAL_BASE_URL
 
 
-def test_only_the_provider_sdks_can_open_a_socket() -> None:
-    """The alternative is a second route out of the machine that nothing here would notice."""
-    for name, source in (("assist.py", ASSIST_SOURCE), ("assist_client.py", CLIENT_SOURCE)):
-        tree = ast.parse(source)
-        imported: set[str] = set()
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                imported |= {a.name.split(".")[0] for a in node.names}
-            elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
-                imported.add(node.module.split(".")[0])
-        assert not (imported & NEVER_IMPORTED), (
-            f"{name} imports an HTTP client of its own: {sorted(imported & NEVER_IMPORTED)}"
+def test_a_local_model_needs_no_sdk_installed() -> None:
+    """Reaching for an SDK to talk to a process on your own machine is a dependency for nothing.
+
+    `pip install neti` and point it at Ollama: no key, no account, no extra. Asserted by importing
+    the module with neither provider SDK importable.
+    """
+    import subprocess
+    import sys
+
+    probe = (
+        "import sys;"
+        "sys.modules['anthropic'] = None; sys.modules['openai'] = None;"
+        "from neti.insight.assist_client import LocalAssist;"
+        "print(LocalAssist(model='m').provider)"
+    )
+    out = subprocess.run([sys.executable, "-c", probe], capture_output=True, text=True, timeout=120)
+    assert out.returncode == 0, out.stderr
+    assert "local" in out.stdout
+
+
+# `assist.py` is the pure half and must reach nothing at all. `assist_client.py` is the half whose
+# job is to open a socket, so the rule there is not "no HTTP client" — it is *where* it can reach.
+#
+# The first version banned `urllib` from both files, which was right until `--provider local`
+# arrived and needed exactly that to reach a process on the operator's own machine. Narrowed
+# rather than deleted: what is asserted now is that every address hardcoded in the module is a
+# provider endpoint or loopback, and everything else has to be typed by the operator.
+NETWORKING = {"httpx", "requests", "urllib", "http", "socket", "aiohttp", "anthropic", "openai"}
+
+
+def test_the_pure_module_reaches_nothing() -> None:
+    """Batching, prompting, parsing and rendering need no network and must not acquire one."""
+    imported = _imports(ASSIST_SOURCE)
+    assert not (imported & NETWORKING), (
+        f"assist.py imports something network-capable: {sorted(imported & NETWORKING)}"
+    )
+
+
+def test_every_address_the_client_hardcodes_is_a_provider_or_this_machine() -> None:
+    """The client may open sockets. It may not decide where to, beyond these three."""
+    urls = set(re.findall(r"https?://[^\s\"'\)]+", CLIENT_SOURCE))
+    from urllib.parse import urlparse
+
+    for url in urls:
+        host = urlparse(url).hostname or ""
+        assert host in {"localhost", "127.0.0.1", "::1"} | ALLOWED_HOSTS, (
+            f"assist_client.py hardcodes {url}, which is neither a provider nor this machine"
         )
-        if name == "assist.py":
-            assert not (imported & SOCKET_CAPABLE), "the pure module must reach no provider at all"
+
+
+def _imports(source: str) -> set[str]:
+    out: set[str] = set()
+    for node in ast.walk(ast.parse(source)):
+        if isinstance(node, ast.Import):
+            out |= {a.name.split(".")[0] for a in node.names}
+        elif isinstance(node, ast.ImportFrom) and node.module and node.level == 0:
+            out.add(node.module.split(".")[0])
+    return out
 
 
 # ---------------------------------------------------------------------------- the payload

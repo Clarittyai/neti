@@ -203,9 +203,16 @@ SYSTEM = """\
 You are helping an operator configure `neti`, a preflight gate that resolves how many things a
 proposed tool call will touch and compares that count to a ceiling the operator declared.
 
-Your only job: for each parameter you are shown, say whether it names a SET whose size one of the
-resolvers below could measure, and which one. You are not asked for a number, a ceiling, a
-direction, or a risk judgement, and you will not be given any.
+Your only job: for each parameter you are shown, say whether one of the resolvers below could
+COUNT what it addresses, and which one. You are not asked for a number, a ceiling, a direction, or
+a risk judgement, and you will not be given any.
+
+**"Could be counted" is not the same as "is plural", and this is the distinction that matters
+most.** A parameter naming a single file is countable: the resolver answers 1, which is a true
+magnitude and exactly what the operator wants a ceiling against. The same parameter usually also
+accepts a directory or a glob, and that is when the number stops being 1 and starts being the
+reason this product exists. So judge whether the resolver could produce a number for the kind of
+thing this parameter addresses — not whether a typical call happens to pass one item.
 
 A wrong claim is worse than no claim. Every claim the operator accepts binds a resolver to a
 parameter; if the parameter is not what you thought, every call records "could not resolve" and the
@@ -221,9 +228,11 @@ The resolvers that ship. These are the only values you may use.
   entra.apps          counts the applications a directory group grants access to. Same target as
                       entra.principals; claim it only alongside one.
   fs.paths            walks a path or glob on THIS machine and counts files, up to a cap. Claim it
-                      for a local filesystem path or glob. Not a path inside a repository, not an
-                      object-store key, not a URL path, and not a pattern that matches file
-                      *contents* rather than naming files.
+                      for any local filesystem path, directory or glob — including one that names a
+                      single file, which counts as 1. `file_path`, `filePath`, `notebook_path`,
+                      `path` and `pattern` on a local tool are all this. Not a path inside a
+                      repository (a sibling naming a repo tells you), not an object-store key, not
+                      a URL path, and not a pattern matching file *contents* rather than files.
   db.rows             parses a SQL statement and counts the rows its predicate matches with
                       `select count(*)`. It recognises `DELETE FROM t [WHERE p]` and
                       `UPDATE t SET ... [WHERE p]` and nothing else. Claim it only when the
@@ -239,9 +248,10 @@ The resolvers that ship. These are the only values you may use.
   terraform.destroy   reads a Terraform plan document and counts the resources it destroys or
                       replaces. Claim it only for a plan, a plan file, or plan JSON.
 
-  not_a_set           the parameter is a single value, a flag, a page size, a cursor, an identifier
-                      for one object, free text, or anything else that does not name a set. This is
-                      the correct answer for most parameters.
+  not_a_set           nothing above could count it: a flag, a page size, a cursor, an opaque id
+                      for one record in somebody's database, free text, a boolean. This is the
+                      correct answer for most parameters. It is NOT the right answer merely because
+                      a value is singular — see the note above.
   no_shipped_resolver the parameter genuinely names a set, but none of the resolvers above could
                       measure it — a chat channel's members, the pages in a database. Use this
                       rather than forcing a near-miss.
@@ -256,6 +266,53 @@ Rules.
 """
 
 
+def extract_json(raw: str) -> str:
+    """Find the JSON object in a response that may be wrapped in prose or a code fence.
+
+    **This is decoding the transport, not repairing the answer, and the difference matters.** The
+    strict-parse rule below stands: a malformed claim is discarded and counted, never guessed at,
+    and a truncated response is thrown away whole. What this handles is a model that returned
+    perfectly good JSON inside ```json ... ``` or after a sentence of preamble, which local models
+    do constantly and hosted ones do when structured output is unavailable. Refusing those would
+    measure markdown habits rather than judgement.
+
+    If there is no balanced object here, it returns the input unchanged and `parse` rejects it as
+    malformed, which is the correct outcome.
+    """
+    text = raw.strip()
+    if text.startswith("```"):
+        # ```json\n{...}\n``` — drop the fence line and anything after the closing one.
+        body = text.split("\n", 1)[1] if "\n" in text else ""
+        text = body.rsplit("```", 1)[0].strip() if "```" in body else body.strip()
+
+    start = text.find("{")
+    if start == -1:
+        return raw
+
+    depth = 0
+    in_string = False
+    escaped = False
+    for index in range(start, len(text)):
+        char = text[index]
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            depth += 1
+        elif char == "}":
+            depth -= 1
+            if depth == 0:
+                return text[start : index + 1]
+    return raw
+
+
 def parse(raw: str, batch: tuple[Candidate, ...]) -> tuple[list[Suggestion], list[Rejection]]:
     """Read a response strictly. Anything that does not fit is a counted rejection, never a guess.
 
@@ -266,7 +323,7 @@ def parse(raw: str, batch: tuple[Candidate, ...]) -> tuple[list[Suggestion], lis
     allowed = set(proposable_resolvers())
 
     try:
-        data = json.loads(raw)
+        data = json.loads(extract_json(raw))
         claims = data["claims"]
         if not isinstance(claims, list):
             raise TypeError("claims is not a list")

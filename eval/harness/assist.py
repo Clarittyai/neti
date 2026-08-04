@@ -149,7 +149,9 @@ def run(client: Any, *, batch_size: int, limit: int | None) -> Arm:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--provider", default="anthropic")
+    parser.add_argument("--provider", default="anthropic", choices=["anthropic", "openai", "local"])
+    parser.add_argument("--base-url", default=None, help="For --provider local.")
+    parser.add_argument("--timeout", type=float, default=None, help="Seconds per request.")
     parser.add_argument("--model", default=None)
     parser.add_argument("--batch-size", type=int, default=8)
     parser.add_argument("--limit", type=int, default=None, help="First N gated tools only.")
@@ -158,15 +160,18 @@ def main() -> int:
     from neti.insight.assist_client import client_for
 
     try:
-        client = client_for(args.provider, args.model)
+        client = client_for(args.provider, args.model, base_url=args.base_url)
+        if args.timeout and hasattr(client, "timeout_s"):
+            client.timeout_s = args.timeout
     except ValueError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 2
 
     import os
 
-    key = "ANTHROPIC_API_KEY" if args.provider == "anthropic" else "OPENAI_API_KEY"
-    if not os.environ.get(key):
+    # A local runner needs no key, which is most of the point of having one.
+    key = {"anthropic": "ANTHROPIC_API_KEY", "openai": "OPENAI_API_KEY"}.get(args.provider, "")
+    if key and not os.environ.get(key):
         print(
             f"error: {key} is not set.\n\n"
             "This is your key and your account: neti never proxies the request and this harness\n"

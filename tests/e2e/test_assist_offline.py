@@ -265,3 +265,82 @@ def test_a_set_nothing_can_size_lands_in_a_list_and_not_in_yaml() -> None:
 def test_nothing_is_suggested_when_the_model_claims_nothing() -> None:
     text = render_fragment([], model="m", provider="p", unsized=[])
     assert "claimed no parameter" in text
+
+
+# ---------------------------------------------------------------------------- a model on this box
+#
+# `--provider local` is the strongest version of the promise the hosted clients make: the schemas go
+# to a process on the operator's own machine, so there is no key, no account, no third party and
+# nothing to take our word about. Everything below runs without a runner installed.
+
+
+def test_a_local_runner_that_is_not_running_says_so() -> None:
+    """The likeliest first attempt there is, and it must not read as a bug in neti."""
+    from neti.insight.assist_client import LocalAssist, Refused
+
+    # A port nothing is listening on. Short timeout so this test stays fast.
+    client = LocalAssist(model="whatever", base_url="http://127.0.0.1:9", timeout_s=2)
+    with pytest.raises(Refused) as caught:
+        client.ask("system", "{}", schema())
+    assert "could not reach a local model" in str(caught.value)
+    assert "runner started" in str(caught.value), "it has to say what to check"
+
+
+def test_a_slow_local_model_is_not_a_crash() -> None:
+    """A 30B model loading from cold takes minutes, and the first run anyone does is a cold one.
+
+    `TimeoutError` is not a `urllib.error.URLError`, so the first real run against a 32B model came
+    back as an unhandled stack trace out of `http.client` rather than as a sentence. Asserted by
+    raising the same exception the socket does.
+    """
+    from neti.insight.assist_client import LocalAssist, Refused
+
+    client = LocalAssist(model="big", base_url="http://127.0.0.1:11434/v1", timeout_s=30)
+
+    def timeout(*_args: object, **_kwargs: object) -> None:
+        raise TimeoutError("timed out")
+
+    import urllib.request
+
+    original = urllib.request.urlopen
+    urllib.request.urlopen = timeout  # type: ignore[assignment]
+    try:
+        with pytest.raises(Refused) as caught:
+            client.ask("system", "{}", schema())
+    finally:
+        urllib.request.urlopen = original  # type: ignore[assignment]
+
+    assert "within 30s" in str(caught.value)
+    assert "loading from cold" in str(caught.value), "it has to name the likely cause"
+
+
+def test_a_local_model_that_fences_its_json_is_still_read() -> None:
+    """Local models wrap answers in a code fence constantly, and hosted ones do without
+    structured output.
+
+    Decoding that is not the same as repairing a malformed answer: the claims inside are parsed
+    exactly as strictly as any other, and a truncated one is still discarded whole.
+    """
+    claim = {
+        "tool": "supabase__execute_sql",
+        "parameter": "project_id",
+        "resolver": "fs.paths",
+        "why": "the description calls it a path",
+    }
+    fenced = "```json\n" + json.dumps({"claims": [claim]}) + "\n```"
+    got, rejected = parse(fenced, _batch())
+    assert [s.parameter for s in got] == ["project_id"]
+    assert not [r for r in rejected if r.reason == "malformed"]
+
+
+def test_prose_around_the_answer_does_not_defeat_it() -> None:
+    chatty = 'Sure, here are my claims:\n{"claims": []}\nLet me know if you need more.'
+    _, rejected = parse(chatty, _batch())
+    assert "malformed" not in {r.reason for r in rejected}
+
+
+def test_a_truncated_fenced_answer_is_still_thrown_away_whole() -> None:
+    """The tolerance is about the wrapper, never about the content."""
+    got, rejected = parse('```json\n{"claims": [{"tool": "supa', _batch())
+    assert not got
+    assert "malformed" in {r.reason for r in rejected}

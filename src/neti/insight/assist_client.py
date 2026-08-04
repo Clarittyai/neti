@@ -24,6 +24,10 @@ from typing import Any, Protocol
 ANTHROPIC_HOST = "api.anthropic.com"
 OPENAI_HOST = "api.openai.com"
 
+# Ollama's OpenAI-compatible endpoint. LM Studio is :1234, llama.cpp and vLLM vary, and all of them
+# speak the same chat-completions shape — so one client covers every local runner people use.
+LOCAL_BASE_URL = "http://localhost:11434/v1"
+
 DEFAULT_ANTHROPIC_MODEL = "claude-opus-5"
 DEFAULT_OPENAI_MODEL = "gpt-5"
 
@@ -171,10 +175,117 @@ class RecordedAssist:
         return Answer(text=self.replies.pop(0), usage={"input_tokens": 0, "output_tokens": 0})
 
 
-def client_for(provider: str, model: str | None) -> AssistClient:
+@dataclass
+class LocalAssist:
+    """A model on this machine. Nothing leaves it at all.
+
+    The strongest version of the promise the hosted clients make. `neti suggest` against Ollama, LM
+    Studio, llama.cpp or vLLM sends the tool schemas to a process on localhost: no key, no account,
+    no third party, and nothing to trust us about. For an operator whose tool definitions are the
+    sensitive thing — which is most of the people this product is for — that is the difference
+    between an evaluation that proceeds and one that does not.
+
+    **Stdlib only, on purpose.** Every local runner exposes the OpenAI chat-completions shape, and
+    it is simple enough that reaching for an SDK would mean `pip install openai` just to talk to a
+    process on your own machine. So a local model needs no extra installed: `pip install neti` and
+    point it at your runner.
+
+    `base_url` is the one place in this package where a client is aimed somewhere, and it defaults
+    to loopback and can only be moved by the operator saying so. `tests/property/
+    test_assist_payload.py` asserts the hosted clients still cannot be aimed anywhere at all.
+    """
+
+    model: str
+    base_url: str = LOCAL_BASE_URL
+    # Cold-loading a 30B model from disk is minutes, not seconds, and the first run
+    # somebody does is always a cold one.
+    timeout_s: float = 900.0
+
+    @property
+    def name(self) -> str:
+        return self.model
+
+    @property
+    def provider(self) -> str:
+        return f"{self.base_url} (local)"
+
+    def ask(self, system: str, body: str, response_schema: dict[str, Any]) -> Answer:
+        import json
+        import urllib.error
+        import urllib.request
+
+        request = urllib.request.Request(
+            f"{self.base_url.rstrip('/')}/chat/completions",
+            data=json.dumps(
+                {
+                    "model": self.model,
+                    "messages": [
+                        {"role": "system", "content": system},
+                        {"role": "user", "content": body},
+                    ],
+                    # Asked for as a schema where the runner supports it, and a bare JSON object
+                    # where it does not. `assist.extract_json` copes with either, and with a model
+                    # that wraps the answer in a code fence regardless.
+                    "response_format": {
+                        "type": "json_schema",
+                        "json_schema": {
+                            "name": "claims",
+                            "strict": True,
+                            "schema": response_schema,
+                        },
+                    },
+                    "temperature": 0,
+                    "stream": False,
+                }
+            ).encode("utf-8"),
+            headers={"Content-Type": "application/json"},
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout_s) as response:
+                data = json.loads(response.read().decode("utf-8"))
+        # `TimeoutError` is not a `URLError`, and a large model loading cold takes minutes — so
+        # the first real run against a 32B model came back as an unhandled stack trace out of
+        # `http.client`. A slow runner is an ordinary thing that must read as one.
+        except TimeoutError:
+            raise Refused(
+                f"no response from {self.base_url} within {self.timeout_s:.0f}s. A large model "
+                "loading from cold can take several minutes; raise --timeout, or try a smaller one."
+            ) from None
+        except (urllib.error.URLError, OSError) as exc:
+            raise Refused(
+                f"could not reach a local model at {self.base_url}: {exc}. "
+                "Is the runner started, and is --model one it has pulled?"
+            ) from None
+
+        choices = data.get("choices") or []
+        if not choices:
+            raise Refused(f"the local model returned no choices: {str(data)[:200]}")
+        finish = choices[0].get("finish_reason") or ""
+        if finish == "length":
+            raise Refused("length")
+        usage = data.get("usage") or {}
+        return Answer(
+            text=choices[0].get("message", {}).get("content", ""),
+            usage={
+                "input_tokens": int(usage.get("prompt_tokens", 0)),
+                "output_tokens": int(usage.get("completion_tokens", 0)),
+            },
+            stopped_for=finish,
+        )
+
+
+def client_for(provider: str, model: str | None, *, base_url: str | None = None) -> AssistClient:
     """Pick a client, and fail with an installable instruction rather than an ImportError."""
     if provider == "anthropic":
         return AnthropicAssist(model=model or DEFAULT_ANTHROPIC_MODEL)
     if provider == "openai":
         return OpenAIAssist(model=model or DEFAULT_OPENAI_MODEL)
-    raise ValueError(f"unknown provider {provider!r}: expected 'anthropic' or 'openai'")
+    if provider == "local":
+        if not model:
+            raise ValueError(
+                "--provider local needs --model: a local runner holds several and neti will not "
+                "pick one for you. `ollama list` shows what you have."
+            )
+        return LocalAssist(model=model, base_url=base_url or LOCAL_BASE_URL)
+    raise ValueError(f"unknown provider {provider!r}: expected 'anthropic', 'openai' or 'local'")

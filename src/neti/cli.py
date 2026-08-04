@@ -860,9 +860,28 @@ def suggest(
         str, typer.Option("--out", "-o", help="Where to write the fragment.")
     ] = "neti.suggested.yaml",
     provider: Annotated[
-        str, typer.Option("--provider", help="anthropic or openai. Your key, your account.")
+        str,
+        typer.Option(
+            "--provider",
+            help="anthropic, openai, or local. Hosted uses your key and your account; "
+            "local sends nothing off this machine.",
+        ),
     ] = "anthropic",
     model: Annotated[str | None, typer.Option("--model")] = None,
+    base_url: Annotated[
+        str | None,
+        typer.Option(
+            "--base-url",
+            help="For --provider local. Any OpenAI-compatible runner; defaults to Ollama.",
+        ),
+    ] = None,
+    timeout: Annotated[
+        float | None,
+        typer.Option(
+            "--timeout",
+            help="Seconds per request. A large local model loading from cold needs minutes.",
+        ),
+    ] = None,
     dry_run: Annotated[
         bool,
         typer.Option("--dry-run", help="Print exactly what would be sent, and send nothing."),
@@ -921,7 +940,7 @@ def suggest(
     typer.secho("neti suggest — asks YOUR model which unclaimed parameters name a set.", bold=True)
     typer.echo(
         f"\n  {tools} tool(s) carry {len(candidates)} parameter(s) the rule table did not claim.\n"
-        f"  {len(groups)} request(s) to {provider}, using your key from this shell.\n"
+        f"  {len(groups)} request(s) to {_destination(provider, base_url)}.\n"
         "\n  What is sent: tool names, parameter names, sibling names, and the first line of each\n"
         "  description. Nothing else: not your policy, not your ceilings, not your records,\n"
         "  not the server commands or their environment. --dry-run prints it."
@@ -943,7 +962,9 @@ def suggest(
     from neti.insight.assist_client import Refused, client_for
 
     try:
-        client = client_for(provider, model)
+        client = client_for(provider, model, base_url=base_url)
+        if timeout and hasattr(client, "timeout_s"):
+            client.timeout_s = timeout
     except ValueError as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from None
@@ -1638,6 +1659,15 @@ def resolve_records(records: str, *, what: str) -> Path:
         err=True,
     )
     raise typer.Exit(2)
+
+
+def _destination(provider: str, base_url: str | None) -> str:
+    """Where the request is going, said plainly enough to be checked."""
+    if provider == "local":
+        from neti.insight.assist_client import LOCAL_BASE_URL
+
+        return f"{base_url or LOCAL_BASE_URL} — a model on this machine, nothing leaves it"
+    return f"{provider}, using your key from this shell"
 
 
 def _probe_call(tool: str, args: dict[str, Any]) -> str:
