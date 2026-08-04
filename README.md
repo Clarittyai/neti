@@ -496,6 +496,30 @@ SQL, `repo` next to `owner` addresses one repository rather than the set of them
 is worse than no gate, so the honest ceiling on a hand-written table is visible rather than hidden.
 `neti score` prints the number, and prints it as absent when the survey has not been run.
 
+### Asking your own model about the rest
+
+`neti suggest` takes those 401 unclaimed parameters to a model, using **your** key from your shell.
+neti never proxies the request and never sees the answer: `assist_client.py` is the only module that
+opens a socket, it constructs the SDK with no `base_url`, and a property test asserts it names no
+host but your provider and that `import neti` never loads it at all.
+
+```console
+$ neti suggest --dry-run     # prints exactly what would be sent, and sends nothing
+$ neti suggest               # asks, and writes neti.suggested.yaml
+```
+
+What comes back is a **commented-out** fragment in a file `neti gate` never loads, with every band
+empty. Deleting the `#` is your confirmation, and even then a merged suggestion resolves and records
+without being able to block anything. It never edits your policy.
+
+Four things make a wrong answer harmless rather than merely unlikely. The model is never asked for a
+quantity — the response schema has nowhere to put a magnitude, a direction, a unit or a ceiling. The
+resolver list is a closed enum derived from the rule table. The 41 parameters the rule table already
+declined *with a written reason* are excluded when the batch is built, so the command structurally
+cannot ask a model to overturn a judgement somebody already made. And it is scored: `just assist`
+measures it against the committed answer key and reports what the model got **wrong** before what it
+got right. `SCOPE.md` carries the one contamination path that does exist rather than hiding it.
+
 ## Contributing
 
 The highest-value contribution is **a resolver**: something that turns a tool's parameter into a

@@ -185,6 +185,7 @@ EVIDENCE: dict[str, str] = {
     "M8": "tests/e2e/test_seam_equivalence.py",
     "M10": "eval/surveys/mcp_coverage.py + tests/corpus/",
     "M11": "tests/live/",
+    "M12": "eval/harness/assist.py + tests/corpus/decisions.json",
     "POLICY": "the policy named by --config",
     "BLIND SPOTS": "SCOPE.md",
     # The one section whose honest answer is "none", and it is not a gap in the rule — it is the
@@ -263,10 +264,38 @@ class Wild:
 
 
 @dataclass
+class Assist:
+    """M12. Can a model do the detection job the rule table cannot?
+
+    Produced by `eval/harness/assist.py`, which feeds back the tools the rule table already gates
+    with the answer withheld and scores what comes back against `tests/corpus/decisions.json`.
+    Absent unless somebody has run it with their own key — the same shape as M7 and M10, and for the
+    same reason: this cannot be derived, only measured, and the key belongs to whoever measures it.
+
+    `wrong_resolver`, `missed` and `extra` are carried separately from `recovered` because the
+    interesting number is how often a model is confidently wrong, not how often it agrees.
+    """
+
+    model: str = ""
+    provider: str = ""
+    of: int = 0
+    recovered: int = 0
+    wrong_resolver: int = 0
+    missed: int = 0
+    extra: int = 0
+
+    @property
+    def wrong(self) -> int:
+        """Everything that was not a recovery. Reported before the recovery, deliberately."""
+        return self.wrong_resolver + self.missed + self.extra
+
+
+@dataclass
 class Scorecard:
     incidents: dict[str, list[Incident]] = field(default_factory=dict)
     friction: Friction = field(default_factory=Friction)
     wild: Wild | None = None
+    assist: Assist | None = None
     live: dict[str, dict[str, Any]] | None = None
     """M11's last actual run, from `eval/results/live_verification.json`. `None` when the live tier
     has not been run here, which is a different statement from a resolver having failed it."""
@@ -293,8 +322,9 @@ def build_scorecard(
     shipped_units: frozenset[Unit] = SHIPPED_UNITS,
     wild: Wild | None = None,
     live: dict[str, dict[str, Any]] | None = None,
+    assist: Assist | None = None,
 ) -> Scorecard:
-    card = Scorecard(incidents=replay(shipped_units), wild=wild, live=live)
+    card = Scorecard(incidents=replay(shipped_units), wild=wild, live=live, assist=assist)
 
     card.outstanding = [
         "M1 resolution correctness — covered by the offline suite against the synthetic tenant",
@@ -319,6 +349,14 @@ def build_scorecard(
         card.outstanding.append(
             "M10 coverage in the wild — NOT RUN here. `uv run python -m eval.surveys.mcp_coverage` "
             "launches real MCP servers and counts what `neti init` gates."
+        )
+    if card.assist is None:
+        card.outstanding.append(
+            "M12 model-assisted suggestion — NOT RUN here. `just assist` asks a model which of the "
+            "parameters the rule table could not claim name a set, and scores it against the "
+            "committed answer key by feeding back gates the rules already make. Needs a key and "
+            "costs tokens, which is why it is not produced offline. Nothing it produces reaches a "
+            "decision: `neti suggest` writes a commented-out fragment a human has to edit."
         )
 
     if policy is not None:
@@ -481,6 +519,33 @@ def format_scorecard(card: Scorecard) -> str:
         "checked against a fixture we wrote."
     )
     out.append("")
+
+    if card.assist is not None:
+        a = card.assist
+        out.append("M12 MODEL-ASSISTED SUGGESTION (can a model do what the rule table cannot?)")
+        out.append(f"    evidence: {EVIDENCE['M12']}")
+        out.append(f"    {a.model} via {a.provider}, run with somebody's own key")
+        # The wrong count first. This is the same rule the incident table follows, and it matters
+        # more here than anywhere else on the card: a recovery rate reads as an endorsement, and the
+        # number that decides whether this is worth shipping is how often it is confidently wrong.
+        out.append(
+            f"    Of {a.of} gates the rule table already makes, the model got {a.wrong_resolver} "
+            f"wrong, missed {a.missed},"
+        )
+        out.append(
+            f"    and claimed {a.extra} parameter(s) the rule table had declined. It recovered "
+            f"{a.recovered}."
+        )
+        out.append("")
+        out.append(
+            "    Nothing here is a gate. `neti suggest` writes a commented-out fragment to a file "
+            "the gate never"
+        )
+        out.append(
+            "    loads, with empty bands, so a suggestion a human merges resolves and records and "
+            "still cannot block."
+        )
+        out.append("")
 
     if card.policy_digest:
         out.append("POLICY")

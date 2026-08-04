@@ -238,12 +238,13 @@ def test_the_card_says_evidence_for_each_section_out_loud() -> None:
 def _full_card() -> str:
     """Every section rendered at once.
 
-    `POLICY` only appears when a policy was passed and `M10` only when a field survey was, so a card
-    built from nothing would let those two sections claim whatever they liked without either test
-    above ever seeing them.
+    `POLICY` only appears when a policy was passed, `M10` only when a field survey was, and `M12`
+    only when somebody has run `just assist`. A card built from nothing would let all three claim
+    whatever they liked without either test above ever seeing them — which is what happened when
+    M12 was added and this helper was not updated with it.
     """
     from neti.config.policy import load_policy
-    from neti.eval.scorecard import Wild, build_scorecard, format_scorecard
+    from neti.eval.scorecard import Assist, Wild, build_scorecard, format_scorecard
 
     card = build_scorecard(
         None,
@@ -254,6 +255,15 @@ def _full_card() -> str:
             tools_discovered=160,
             tools_gated=25,
             tools_sizable_in_principle=34,
+        ),
+        assist=Assist(
+            model="a-model",
+            provider="a-provider",
+            of=39,
+            recovered=31,
+            wrong_resolver=2,
+            missed=6,
+            extra=4,
         ),
     )
     return format_scorecard(card)
@@ -375,3 +385,71 @@ def test_a_resolver_claimed_live_with_no_recorded_run_is_not_shown_as_verified()
     )
     assert "db.rows" in confirmed
     assert "8 checks passed" in confirmed
+
+
+# ---------------------------------------------------------------------------- M12
+
+
+def _assist_card() -> str:
+    from neti.eval.scorecard import Assist, build_scorecard, format_scorecard
+
+    return format_scorecard(
+        build_scorecard(
+            assist=Assist(
+                model="a-model",
+                provider="a-provider",
+                of=39,
+                recovered=31,
+                wrong_resolver=2,
+                missed=6,
+                extra=4,
+            )
+        )
+    )
+
+
+def test_m12_is_outstanding_until_somebody_runs_it() -> None:
+    """It needs a key, so an absent result means "not run here", never "a model did badly".
+
+    The same rule as M7 and M10, and the reason the card is worth reading at all: a metric that
+    prints a number when nothing measured one is the failure this whole file exists to prevent.
+    """
+    from neti.eval.scorecard import build_scorecard, format_scorecard
+
+    card = build_scorecard()
+    assert card.assist is None
+    assert any(item.startswith("M12") for item in card.outstanding)
+    # Rendered from *this* card, not from `_full_card`, which deliberately supplies every optional
+    # section so the evidence checks can see them.
+    assert "M12 MODEL-ASSISTED" not in format_scorecard(card)
+
+
+def test_m12_reports_what_the_model_got_wrong_before_what_it_got_right() -> None:
+    """The order is the point, and it is the same rule the incident table follows.
+
+    A recovery rate reads as an endorsement. The number that decides whether this feature is worth
+    shipping is how often a model is confidently wrong, so that number comes first. Asserted on
+    position rather than presence, because both numbers being *somewhere* is not the claim.
+    """
+    rendered = _assist_card()
+    body = rendered[rendered.index("M12 MODEL-ASSISTED") :]
+    assert body.index("got 2 wrong") < body.index("recovered 31")
+
+
+def test_m12_says_out_loud_that_none_of_it_is_a_gate() -> None:
+    """The card is where somebody's security team reads about this, so it says the posture there.
+
+    A section describing a model's judgement, on a card about a gate, has to be unambiguous that the
+    two never meet.
+    """
+    body = _assist_card()
+    assert "Nothing here is a gate" in body
+    assert "commented-out fragment" in body
+    assert "cannot block" in body
+
+
+def test_the_wrong_total_counts_every_way_of_being_wrong() -> None:
+    """`wrong_resolver` alone would flatter it: a missed gate and an invented one both cost."""
+    from neti.eval.scorecard import Assist
+
+    assert Assist(of=39, recovered=31, wrong_resolver=2, missed=6, extra=4).wrong == 12

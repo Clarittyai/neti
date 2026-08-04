@@ -1275,6 +1275,14 @@ def score(
             help="What the live tier last proved, from `just live`. Absent is normal.",
         ),
     ] = "eval/results/live_verification.json",
+    assist_results: Annotated[
+        str,
+        typer.Option(
+            "--assist",
+            help="What `just assist` last measured about model-assisted suggestion. "
+            "Absent is normal.",
+        ),
+    ] = "eval/results/assist_recovery.json",
 ) -> None:
     """The scorecard: incident replay, friction, blind spots, and what is not yet measured.
 
@@ -1286,7 +1294,7 @@ def score(
     rather than printing a number it made up. That is the rule the whole card runs on.
     """
     from neti.config.policy import PolicyError, load_policy
-    from neti.eval.scorecard import Wild, build_scorecard, format_scorecard, scorecard_json
+    from neti.eval.scorecard import Assist, Wild, build_scorecard, format_scorecard, scorecard_json
     from neti.insight.report import build_report
     from neti.store.jsonl import read_records
 
@@ -1318,7 +1326,23 @@ def score(
     with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
         live = json.loads(Path(live_results).read_text(encoding="utf-8"))["resolvers"]
 
-    card = build_scorecard(summary, policy, wild=wild, live=live)
+    # Same rule again. M12 cannot be derived: it needs somebody's key, and an absent file means
+    # nobody has run it here rather than that a model did badly.
+    assist = None
+    with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
+        raw = json.loads(Path(assist_results).read_text(encoding="utf-8"))
+        recovery = raw["recovery"]
+        assist = Assist(
+            model=str(raw.get("model", "")),
+            provider=str(raw.get("provider", "")),
+            of=int(recovery["of"]),
+            recovered=int(recovery["recovered"]),
+            wrong_resolver=int(recovery["wrong_resolver"]),
+            missed=int(recovery["missed"]),
+            extra=int(recovery["extra"]),
+        )
+
+    card = build_scorecard(summary, policy, wild=wild, live=live, assist=assist)
     typer.echo(scorecard_json(card) if as_json else format_scorecard(card))
 
 
