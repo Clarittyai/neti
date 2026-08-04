@@ -113,6 +113,23 @@ artifacts = ["src/neti/console/**"]
 [tool.hatch.build.targets.wheel]
 packages = ["src/neti"]
 
+# The example policies travel with the package.
+#
+# `neti demo --here` is the first command the README gives a stranger, and it defaults to
+# `examples/coding-agent.yaml`. That file was only ever found relative to a *source checkout*, so on
+# a real install the headline command answered
+#
+#     error: cannot find examples/coding-agent.yaml. Pass -c with your own policy.
+#
+# which is the exact first impression `_packaged_example`'s own docstring says is worse than any
+# finding is good. Found by installing the published package into a clean venv and running the
+# documented flow, which is the only way this class of defect ever shows up.
+#
+# Kept at the repository root rather than moved under `src/`, because `cp examples/entra.yaml
+# neti.yaml` is in the docs and in people's shells.
+[tool.hatch.build.targets.wheel.force-include]
+"examples" = "neti/examples"
+
 [tool.hatch.build.targets.sdist]
 exclude = ["web/node_modules", "web/.next", "web/out", ".venv", "out", "dist"]
 

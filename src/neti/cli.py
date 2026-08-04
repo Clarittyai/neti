@@ -108,6 +108,14 @@ def init(
         typer.Option(help="Launch each server to ask what tools it exposes. --no-probe to skip."),
     ] = True,
     force: Annotated[bool, typer.Option("--force", help="Overwrite an existing policy.")] = False,
+    example: Annotated[
+        str | None,
+        typer.Option(
+            "--example",
+            help="Start from a shipped policy instead of discovery: coding-agent, entra, "
+            "data-agent, infra-agent.",
+        ),
+    ] = None,
 ) -> None:
     """Find your agent's tools and write a starting policy.
 
@@ -122,6 +130,10 @@ def init(
     if target.exists() and not force:
         typer.secho(f"error: {out} already exists. Pass --force to overwrite.", fg="red", err=True)
         raise typer.Exit(2)
+
+    if example is not None:
+        _write_example(example, target)
+        return
 
     gated: list[str] = []
     servers = find_clients(already_gated=gated)
@@ -144,9 +156,11 @@ def init(
         typer.secho("No MCP servers found in any client config on this machine.", fg="yellow")
         typer.echo(
             "\nLooked in .mcp.json, ~/.claude.json, ~/.cursor/mcp.json, .vscode/mcp.json and the\n"
-            "Claude Desktop config. If your agent's tools are not MCP servers, they can still be\n"
-            "gated — see `neti hook --help` for Claude Code's built-ins, or `from neti import\n"
-            "Preflight` for a tool loop you wrote yourself."
+            "Claude Desktop config. Plenty of agents have no MCP server at all, and they can\n"
+            "still be gated:\n\n"
+            "  neti init --example coding-agent    Claude Code's built-in Read, Edit, Glob, Bash\n"
+            "  neti hook --help                    how that reaches the agent\n"
+            "  from neti import Preflight          a tool loop you wrote yourself"
         )
         raise typer.Exit(1)
 
@@ -175,8 +189,8 @@ def init(
     target.write_text(render_policy(found), encoding="utf-8")
 
     typer.secho(f"\nWrote {out}", bold=True)
-    example = found.servers[0] if found.servers else None
-    wrap = " ".join(example.argv) if example else "<your server command>"
+    first_server = found.servers[0] if found.servers else None
+    wrap = " ".join(first_server.argv) if first_server else "<your server command>"
 
     if not found.gated:
         # The likeliest first run there is, and it used to end in a dead end: nothing gated, then
@@ -1057,6 +1071,31 @@ def prove(
         typer.secho(f"error: no policy at {config}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2)
 
+    # `prove` drives one fixed call against the built-in synthetic tenant, because the question it
+    # answers is whether the doors agree — not what your policy says. A policy that does not gate
+    # that call cannot answer it, and every seam driver asserts the call was stopped. Pointing
+    # `prove` at a coding-agent policy therefore ended in `AssertionError: the gate let the call
+    # through` and a traceback, which reads as a broken product rather than as the wrong argument.
+    from neti.config.policy import load_policy
+    from neti.eval.proof import ARGS, TOOL
+
+    if TOOL not in load_policy(resolved).tools:
+        typer.secho(
+            f"error: {resolved} does not gate {TOOL}, which is the call `neti prove` drives.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        typer.echo(
+            f"\n`neti prove` drives one known call, {_probe_call(TOOL, ARGS)}, through every\n"
+            "door installed here against the built-in synthetic tenant, and checks they all\n"
+            "reach the same verdict. It proves the seams agree; it does not read your traffic\n"
+            "or your numbers.\n\n"
+            "  neti prove                       against the shipped example, which gates it\n"
+            f"  neti demo --here -c {config}     what YOUR policy reaches, measured here",
+            err=True,
+        )
+        raise typer.Exit(2)
+
     proof = run_proof(str(resolved), path)
 
     if as_json:
@@ -1292,8 +1331,8 @@ def install(
         typer.secho(f"error: no policy at {policy}", fg=typer.colors.RED, err=True)
         typer.echo(
             "\nWrite one first:\n"
-            "  neti init                       from the MCP servers already on this machine\n"
-            "  cp examples/coding-agent.yaml neti.yaml    for a coding agent",
+            "  neti init                            from the MCP servers on this machine\n"
+            "  neti init --example coding-agent     for a coding agent",
             err=True,
         )
         raise typer.Exit(2)
@@ -1363,15 +1402,66 @@ def version() -> None:
     typer.echo(__version__)
 
 
+EXAMPLES = ("coding-agent", "entra", "data-agent", "infra-agent")
+
+
+def _probe_call(tool: str, args: dict[str, Any]) -> str:
+    """`remove_group_members(group='g-eng-all')`, for an error message to name."""
+    return f"{tool}({', '.join(f'{k}={v!r}' for k, v in args.items())})"
+
+
+def _write_example(name: str, target: Path) -> None:
+    """Copy a shipped policy into place, for the machine discovery cannot help.
+
+    `neti init` reads MCP client configs, and plenty of people have none: a Claude Code user gating
+    the built-in `Read`, `Edit`, `Glob` and `Bash` has no MCP server anywhere. That case used to end
+    at
+
+        cp examples/coding-agent.yaml neti.yaml    for a coding agent
+
+    which is a directory that exists in a git checkout and nowhere on a real install. So the advice
+    the CLI printed at the exact moment somebody was stuck could not be followed. This is the
+    command that advice now names.
+    """
+    source = _packaged_example(f"{name}.yaml")
+    if source is None:
+        typer.secho(f"error: no shipped example called {name!r}.", fg="red", err=True)
+        typer.echo(f"Available: {', '.join(EXAMPLES)}", err=True)
+        raise typer.Exit(2)
+
+    target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    typer.secho(f"Wrote {target}", bold=True)
+    typer.echo(
+        f"  from the shipped {name} example, in observe mode with every ceiling blank.\n"
+        "  Nothing is blocked until you write a number into it.\n\n"
+        "Next:\n"
+        f"  neti inventory -c {target}     what one call could reach, before any traffic\n"
+        "  neti install                   wire it into Claude Code"
+    )
+
+
 def _packaged_example(name: str) -> Path | None:
     """The shipped example, from a source checkout or from wherever the demo is being run.
 
     Tried in order rather than assumed, because `--here` is the command a stranger runs first and
     "file not found" is a worse first impression than any finding is a good one.
+
+    **The packaged copy comes first, and it is the one that was missing.** The list used to start at
+    `parents[2]`, which is the repository root from `src/neti/cli.py` and `lib/python3.12/` from
+    `site-packages/neti/cli.py`. So every candidate assumed a source checkout, and the README's
+    opening command failed for everyone who had actually installed the thing. The wheel now carries
+    `examples/` (see pyproject) and this looks there first.
     """
+    # Callers pass both shapes. `demo --here` asks for "coding-agent.yaml"; `prove`, `inventory`,
+    # `report` and `propose` default to the literal string "examples/entra.yaml" and hand that
+    # straight through, which looked for `neti/examples/examples/entra.yaml` and found nothing. So
+    # `neti prove` with no arguments answered "error: no policy at examples/entra.yaml" on every
+    # install — including the one `neti demo --here` recommends running next.
+    base = Path(name).name
     for candidate in (
-        Path(__file__).resolve().parents[2] / "examples" / name,
-        Path.cwd() / "examples" / name,
+        Path(__file__).resolve().parent / "examples" / base,
+        Path(__file__).resolve().parents[2] / "examples" / base,
+        Path.cwd() / "examples" / base,
         Path.cwd() / name,
     ):
         if candidate.exists():

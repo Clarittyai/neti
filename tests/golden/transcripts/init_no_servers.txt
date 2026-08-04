@@ -3,6 +3,9 @@ $ neti init --out gen.yaml
 No MCP servers found in any client config on this machine.
 
 Looked in .mcp.json, ~/.claude.json, ~/.cursor/mcp.json, .vscode/mcp.json and the
-Claude Desktop config. If your agent's tools are not MCP servers, they can still be
-gated — see `neti hook --help` for Claude Code's built-ins, or `from neti import
-Preflight` for a tool loop you wrote yourself.
+Claude Desktop config. Plenty of agents have no MCP server at all, and they can
+still be gated:
+
+  neti init --example coding-agent    Claude Code's built-in Read, Edit, Glob, Bash
+  neti hook --help                    how that reaches the agent
+  from neti import Preflight          a tool loop you wrote yourself
