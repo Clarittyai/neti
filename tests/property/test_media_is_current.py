@@ -166,3 +166,41 @@ def test_no_console_screenshot_is_committed_that_nothing_shows() -> None:
     referenced = set(make_site.CONSOLE_PLACEHOLDER.findall(source))
     orphans = sorted(p.name for p in make_site.CONSOLE.glob("*.png") if p.stem not in referenced)
     assert not orphans, f"in docs/media/console but shown nowhere: {orphans}"
+
+
+# ---------------------------------------------------------------------------- the PyPI README
+#
+# The package page is where most people meet this project, and PyPI renders the long description
+# with no base URL — so every relative path in README.md is a broken image or a dead link there.
+
+make_readme = _load("make_readme_pypi")
+
+
+def test_the_pypi_readme_is_what_the_readme_generates() -> None:
+    assert make_readme.TARGET.exists(), "README.pypi.md is missing. Run `just readme-pypi`."
+    assert make_readme.TARGET.read_text(encoding="utf-8") == make_readme.expected(), (
+        "README.pypi.md no longer matches README.md.\nRun `just readme-pypi` and commit the result."
+    )
+
+
+def test_the_pypi_readme_has_no_relative_links_left() -> None:
+    """The whole reason it exists, asserted rather than assumed.
+
+    A rewrite rule that silently stopped matching would leave the generated file looking fine in a
+    checkout and broken on the package page, which is the one place nobody here looks.
+    """
+    import re
+
+    text = make_readme.expected()
+    relative = re.findall(r'src="(?!https?://)[^"]+"', text) + re.findall(
+        r"\]\((?!https?://|#)[^)]+\)", text
+    )
+    assert not relative, f"these would be dead on PyPI: {relative[:6]}"
+
+
+def test_the_packaged_readme_is_the_generated_one() -> None:
+    """`pyproject.toml` has to point at it, or none of the above matters."""
+    import tomllib
+
+    config = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))
+    assert config["project"]["readme"] == "README.pypi.md"

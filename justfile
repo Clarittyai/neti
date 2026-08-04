@@ -79,6 +79,11 @@ score:
 media:
     uv run python tools/make_media.py
 
+# README.md with every relative link made absolute, for the copy PyPI shows. It renders the long
+# description with no base URL, so relative paths are broken images and dead links there.
+readme-pypi:
+    uv run python tools/make_readme_pypi.py
+
 # The landing page, built from site/page.html with those same images inlined.
 #
 # docs/index.html is what GitHub Pages serves; build/page.html is the body alone, for previewing
@@ -160,6 +165,7 @@ console-sync:
     rm -rf src/neti/console
     cp -R web/out src/neti/console
 
-# Everything a release needs: the console, then the wheel.
-dist: console-sync
+# Everything a release needs: the console, the generated README, then the wheel.
+dist: console-sync readme-pypi
     uv build
+    uv run --with twine twine check dist/*
