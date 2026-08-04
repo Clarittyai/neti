@@ -149,16 +149,13 @@ def _registry() -> dict[str, Any]:
     either something `neti init` can propose, or something it deliberately will not, with the reason
     recorded next to it. A resolver in neither bucket is a gap nobody has looked at.
     """
-    from neti.insight.discover import NEVER_PROPOSED, RULES
+    from neti.insight.discover import NEVER_PROPOSED, proposable_resolvers
     from neti.resolvers.graph_client import ClientCredential, GraphClient
     from neti.resolvers.registry import resolvers_for_client
 
     blank = GraphClient(ClientCredential(tenant_id="", client_id="", client_secret=""))
     registered = sorted(resolvers_for_client(blank))
-    proposable = sorted(
-        {rule.resolver for rule in RULES}
-        | {resolver for rule in RULES for _, resolver, _ in rule.also}
-    )
+    proposable = list(proposable_resolvers())
     return {
         "registered": registered,
         "init_can_propose": proposable,

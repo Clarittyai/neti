@@ -484,6 +484,23 @@ NEVER_PROPOSED: dict[str, str] = {
 }
 
 
+def proposable_resolvers() -> tuple[str, ...]:
+    """Every resolver `neti init` is capable of expressing as a gate today.
+
+    Derived from `RULES` rather than written down, so a rule added or a resolver retired cannot
+    leave a list stale somewhere else. `eval/surveys/mcp_coverage.py` computed exactly this one
+    directory over and now calls this instead; `insight/assist.py` uses it as the closed set a model
+    is allowed to answer from.
+
+    `NEVER_PROPOSED` is subtracted because those are resolvers the rule table deliberately declines
+    to propose — `github.files` needs `owner/repo` and a JSON pointer resolves one value, so a
+    suggestion naming it could not be rendered into a policy even if it were right.
+    """
+    from_rules = {rule.resolver for rule in RULES}
+    from_also = {resolver for rule in RULES for _, resolver, _ in rule.also}
+    return tuple(sorted((from_rules | from_also) - set(NEVER_PROPOSED)))
+
+
 def _applies(rule: Rule, tool: str, params: set[str], destructive: bool) -> bool:
     if rule.tool is not None and not rule.tool.search(tool):
         return False

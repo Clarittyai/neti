@@ -855,6 +855,151 @@ def report(
 
 
 @app.command()
+def suggest(
+    out: Annotated[
+        str, typer.Option("--out", "-o", help="Where to write the fragment.")
+    ] = "neti.suggested.yaml",
+    provider: Annotated[
+        str, typer.Option("--provider", help="anthropic or openai. Your key, your account.")
+    ] = "anthropic",
+    model: Annotated[str | None, typer.Option("--model")] = None,
+    dry_run: Annotated[
+        bool,
+        typer.Option("--dry-run", help="Print exactly what would be sent, and send nothing."),
+    ] = False,
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Do not ask before sending.")] = False,
+    batch_size: Annotated[int, typer.Option("--batch-size")] = 8,
+) -> None:
+    """Ask YOUR model which unclaimed parameters name a set. Suggestions only, never a policy.
+
+    `neti init` gates what its rule table can claim and leaves the rest listed as "no resolver
+    claims this". This asks a model about that remainder, using your own key from your own machine:
+    neti never proxies the request and never sees the answer.
+
+    What comes back is a commented-out YAML fragment in a separate file. Nothing is active until you
+    delete the `#` yourself, and even then every band is empty, so a merged suggestion resolves and
+    records but cannot block. `neti suggest` never edits your policy.
+    """
+    from neti.insight.assist import (
+        SYSTEM,
+        Suggestion,
+        batches,
+        eligible,
+        parse,
+        payload,
+        render_fragment,
+        schema,
+    )
+    from neti.insight.discover import discover, find_clients
+
+    target = Path(out)
+    policy = Path("neti.yaml")
+    if target.resolve() == policy.resolve():
+        typer.secho(
+            "error: --out must not be your policy. This writes suggestions, not configuration.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(2)
+
+    servers = find_clients(already_gated=[])
+    if not servers:
+        typer.secho("No MCP servers found, so there is nothing to ask about.", fg="yellow")
+        typer.echo("`neti suggest` reads the same servers `neti init` does.")
+        raise typer.Exit(1)
+
+    found = discover(servers, probe=True)
+    candidates = eligible(list(found.tools))
+    if not candidates:
+        typer.secho("Every parameter here is already claimed or already judged.", fg="green")
+        typer.echo("Nothing to ask a model about.")
+        return
+
+    groups = batches(candidates, size=batch_size)
+    tools = len({c.tool for c in candidates})
+
+    typer.secho("neti suggest — asks YOUR model which unclaimed parameters name a set.", bold=True)
+    typer.echo(
+        f"\n  {tools} tool(s) carry {len(candidates)} parameter(s) the rule table did not claim.\n"
+        f"  {len(groups)} request(s) to {provider}, using your key from this shell.\n"
+        "\n  What is sent: tool names, parameter names, sibling names, and the first line of each\n"
+        "  description. Nothing else: not your policy, not your ceilings, not your records,\n"
+        "  not the server commands or their environment. --dry-run prints it."
+    )
+
+    if dry_run:
+        typer.echo("\n--- system prompt ---")
+        typer.echo(SYSTEM)
+        for index, group in enumerate(groups, start=1):
+            typer.echo(f"--- request {index} of {len(groups)} ---")
+            typer.echo(json.dumps(payload(group), indent=2, sort_keys=True))
+        typer.echo("--- nothing was sent ---")
+        return
+
+    if not yes and not typer.confirm("\nSend it?", default=False):
+        typer.echo("Nothing sent.")
+        raise typer.Exit(1)
+
+    from neti.insight.assist_client import Refused, client_for
+
+    try:
+        client = client_for(provider, model)
+    except ValueError as exc:
+        typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
+        raise typer.Exit(2) from None
+
+    suggestions: list[Suggestion] = []
+    unsized: list[Suggestion] = []
+    rejected: list[Any] = []
+    unassisted = 0
+
+    with typer.progressbar(groups, label="asking") as progress:
+        for group in progress:
+            try:
+                answer = client.ask(SYSTEM, json.dumps(payload(group), sort_keys=True), schema())
+            except ModuleNotFoundError:
+                typer.secho(
+                    f"\nerror: the {provider} SDK is not installed.\n"
+                    f"  pip install 'neti[assist]'          for anthropic\n"
+                    f"  pip install 'neti[assist-openai]'   for openai",
+                    fg=typer.colors.RED,
+                    err=True,
+                )
+                raise typer.Exit(2) from None
+            except Refused as exc:
+                unassisted += 1
+                rejected.append(("refused", f"{exc}"))
+                continue
+            except Exception as exc:  # a provider error must not lose the batches that worked
+                unassisted += 1
+                rejected.append((type(exc).__name__, str(exc)[:160]))
+                continue
+
+            got, bad = parse(answer.text, group)
+            suggestions.extend(got)
+            rejected.extend((r.reason, r.detail) for r in bad)
+
+    fragment = render_fragment(
+        suggestions, model=client.name, provider=client.provider, unsized=unsized
+    )
+    target.write_text(fragment, encoding="utf-8")
+
+    typer.echo("")
+    for s in sorted(suggestions, key=lambda x: (x.tool, x.parameter)):
+        typer.secho(f"  {s.tool}  /{s.parameter}", bold=True)
+        typer.echo(f"      {s.resolver}   UNVERIFIED")
+        typer.echo(f"      {s.why}")
+    typer.echo(
+        f"\n  {len(candidates)} parameter(s) looked at · {len(suggestions)} claimed · "
+        f"{len(rejected)} discarded"
+    )
+    if unassisted:
+        typer.secho(f"  {unassisted} request(s) failed and were not merged.", fg="yellow")
+    typer.secho(f"\nWrote {target}. Every block in it is commented out.", bold=True)
+    typer.echo("Nothing is active until you delete the `#` in front of it yourself.")
+
+
+@app.command()
 def propose(
     records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
     since: Annotated[

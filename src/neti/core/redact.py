@@ -87,8 +87,19 @@ _SECRET_VALUES: tuple[re.Pattern[str], ...] = (
 )
 
 
-def _looks_secret(value: str) -> bool:
+def looks_secret(value: str) -> bool:
+    """Does this value have the shape of a credential?
+
+    Public because `insight/assist.py` scrubs outbound text with it. A tool *description*
+    containing an example `ghp_…` is not hypothetical, and the operator did not choose to send
+    it to a model. One rule, used by both the thing that keeps credentials off disk and the
+    thing that keeps them off the wire.
+    """
     return any(pattern.search(value) for pattern in _SECRET_VALUES)
+
+
+# The private spelling, kept so nothing inside this module has to change.
+_looks_secret = looks_secret
 
 
 def redact_args(

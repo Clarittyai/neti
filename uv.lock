@@ -2324,6 +2324,12 @@ all = [
     { name = "typer" },
     { name = "uvicorn" },
 ]
+assist = [
+    { name = "anthropic" },
+]
+assist-openai = [
+    { name = "openai" },
+]
 cli = [
     { name = "rich" },
     { name = "typer" },
@@ -2370,6 +2376,7 @@ storage = [
 
 [package.metadata]
 requires-dist = [
+    { name = "anthropic", marker = "extra == 'assist'", specifier = ">=0.69" },
     { name = "anthropic", marker = "extra == 'sdks'", specifier = ">=0.120" },
     { name = "autogen-agentchat", marker = "extra == 'sdks-extended'", specifier = ">=0.5.5" },
     { name = "autogen-core", marker = "extra == 'sdks-extended'", specifier = ">=0.5.5" },
@@ -2387,6 +2394,7 @@ requires-dist = [
     { name = "msal", marker = "extra == 'all'", specifier = ">=1.31" },
     { name = "msal", marker = "extra == 'graph'", specifier = ">=1.31" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13" },
+    { name = "openai", marker = "extra == 'assist-openai'", specifier = ">=2.0" },
     { name = "openai", marker = "extra == 'sdks'", specifier = ">=2.0" },
     { name = "openai-agents", marker = "extra == 'sdks'", specifier = ">=0.19" },
     { name = "psycopg", extras = ["binary"], marker = "extra == 'database'", specifier = ">=3.2" },

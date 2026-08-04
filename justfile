@@ -57,6 +57,16 @@ determinism:
     PYTHONHASHSEED=1 uv run pytest -q tests/property/test_determinism.py
     PYTHONHASHSEED=random uv run pytest -q tests/property/test_determinism.py
 
+# M12: can a model do the detection job the rule table cannot?
+#
+# Arm A is the go/no-go and needs no hand-labelling. It feeds back the 31 tools the rule table
+# already gates, with the answer withheld, and scores what comes back against the committed key.
+# If a model cannot recover gates the rules already make, nothing downstream is interpretable.
+#
+# Your key, your account, your machine. neti never proxies this.
+assist provider="anthropic":
+    uv run python -m eval.harness.assist --provider {{provider}}
+
 # The offline scorecard: incident replay, friction, blind spots, and what is still unmeasured.
 score:
     uv run neti score -c examples/entra.yaml

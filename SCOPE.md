@@ -21,8 +21,22 @@ not guess: `UNRESOLVED` and `PARTIAL` are first-class states routed to a declare
 ## One property stated positively
 
 The gate has no algorithmic false positives. A false block is always a mis-declared ceiling, never a
-mis-scored value. There is no threshold to tune, no model to drift, and nothing to calibrate on a
-corpus.
+mis-scored value. There is no threshold to tune, **no model to drift in the decision path**, and
+nothing to calibrate on a corpus.
+
+The qualifier arrived with `neti suggest` (2026-08-03) and is not a hedge. That command calls a
+model, so the sentence had to get more precise or become untrue. What it does is ask which
+unclaimed parameters name a set; what it produces is a commented-out YAML fragment in a file the
+gate never loads. Nothing a model says can reach a verdict without a person deleting a `#` and
+committing the result, and even then the bands are empty, so the gate is still a static integer
+comparison against numbers a human wrote.
+
+**The contamination path that does exist, stated rather than hidden.** A wrong suggestion, once
+uncommented and merged, records magnitudes measured by the wrong resolver; `neti report` shows
+them and `neti propose` could derive a ceiling from them. That is two deliberate human steps
+deep, and a wrong resolver almost always reports UNRESOLVED rather than a plausible number, which
+surfaces in the first week. It is still a path, and it is written down here rather than left for
+somebody to find.
 
 ## Non-coverage
 
@@ -54,6 +68,9 @@ this list as part of its output, not as an appendix.
   identity target to the principals and applications that lose access."
 - ❌ "Zero false positives." → ✅ "No algorithmic false positives; a false block is a mis-declared
   ceiling."
+- ❌ "Uses AI to find what to gate." → ✅ "`neti suggest` asks *your* model, with *your* key, which
+  unclaimed parameters name a set. The answer is a commented-out block a person uncomments.
+  Nothing a model said reaches a decision, and neti never proxies the request."
 - ❌ "Learns what normal looks like." → ✅ "`neti propose` shows you your own distribution so you can
   declare a number. The number is static config; nothing learned reaches the decision path."
 - ❌ Any claim about a specific public incident that needs a resolver we have not shipped. The

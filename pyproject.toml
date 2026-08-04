@@ -53,6 +53,13 @@ all = [
     "fastapi>=0.115",
     "uvicorn>=0.32",
 ]
+# `neti suggest` calls the operator's own model with the operator's own key. Out of `all` and out
+# of `sdks` deliberately: `pip install neti` must pull in no provider SDK, and somebody gating a
+# coding agent should not acquire one by accident. Both are imported inside the function that
+# uses them, so `import neti` never reaches either.
+assist = ["anthropic>=0.69"]
+assist-openai = ["openai>=2.0"]
+
 # The agent runtimes neti adapts to. Test-only: nothing in `neti` imports them at module scope,
 # and each adapter imports its SDK inside the function that needs it, so `pip install neti` pulls
 # in none of them.
