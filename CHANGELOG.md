@@ -2,6 +2,134 @@
 
 ## Unreleased
 
+### The first command in the README did not work on a real install
+
+`neti demo --here` is the first thing this project asks a stranger to run. On a clean install it
+answered:
+
+    error: cannot find examples/coding-agent.yaml. Pass -c with your own policy.
+
+`examples/` was never in the wheel, and every path `_packaged_example` tried assumed a source
+checkout — `parents[2]` is the repository root from `src/neti/cli.py` and `lib/python3.12/` from
+`site-packages/neti/cli.py`. Its own docstring says *"file not found is a worse first impression
+than any finding is a good one"*, which is exactly what it delivered.
+
+`neti prove` was worse, and it is the command `demo --here` recommends in its closing line. Bare, it
+answered *no policy at examples/entra.yaml*, because the default is that literal string and it was
+joined under the package's own examples directory. Pointed at a coding-agent policy it ended in
+`AssertionError: the gate let the call through` under a rich traceback: it drives one fixed Entra
+call and every seam driver asserts the call was stopped, so a policy that cannot gate that call
+cannot answer its question. And `neti init` with no MCP servers — the ordinary case for anyone gating
+Claude Code's built-ins — pointed at `cp examples/coding-agent.yaml neti.yaml`, a directory that
+exists in a checkout and nowhere else.
+
+The wheel carries the examples now, `neti init --example coding-agent` writes one from the package,
+and `tests/property/test_the_wheel_is_usable.py` reads the built artifact rather than the working
+tree so it fails for the same reason a customer would. Found by installing the published package
+into an empty virtualenv and walking the documented flow, which is the only way this class of defect
+surfaces — and why it survived a suite of nearly two thousand tests.
+
+### Every first run answered with a raw errno, and one with a traceback
+
+`neti demo` with no arguments ended in a `FileNotFoundError` traceback. `inventory`, `report`,
+`propose`, `verify`, `score` and `install` each answered `error: [Errno 2] No such file or
+directory`. All seven are somebody's first run, and the difference between a tool that is missing a
+file and a tool that is broken is entirely in that message.
+
+Two shared resolvers stand in front of all of them now. A missing policy names `neti init` and
+`neti init --example`. A missing records file explains that the gate writes those as it decides and
+names `neti install` and `neti prove` — with the follow-up spelled out, because `prove` writes
+`out/proof.ndjson` rather than the default path and `neti report` bare would otherwise have failed
+again immediately afterwards. A test now reads the command list off the Typer app and asserts every
+`neti <thing>` the guidance names is real: nothing had been comparing the words to the program,
+which is how `cp examples/coding-agent.yaml` survived.
+
+### neti was unusable on Windows, and the suite could not see it
+
+The first Windows CI run this repository has ever had found five defects. `neti init` reads the MCP
+client configs already on the machine and carries a Windows branch for finding Claude Desktop's
+config *precisely because we expect to run there* — and read them with no encoding, so cp1252, so
+one accented character in a path and it died with a stack trace about charmap.
+
+Worse, the CLI could not print. Every screen it draws uses characters above ASCII: the `──` rules in
+`neti demo`, the `·` separators, the `≥` that says a walk stopped at its cap. Windows stdout encodes
+none of them, so `neti demo --here` printed a traceback instead of output, and so did `report`,
+`propose`, `verify` and `prove`. **`neti hook` is the sharp end**: its JSON carries the denial
+sentence, which has an em-dash in it, so it would raise, exit non-zero, and a `PreToolUse` hook that
+exits non-zero *fails the tool call it was asked about* — every gated call in the session dead.
+
+And `msvcrt.locking` is a *mandatory* lock where `fcntl.flock` is advisory. While one writer holds
+it another process cannot open the record file to read at all and gets `PermissionError`. Claude
+Code issues tool calls in parallel with one hook process each, so two agents starting at once is the
+ordinary case there; the second one died out of `Preflight.demo` before the gate had decided
+anything. `chain_head` retries now, and giving up is safe because `_sealed_append` re-reads the head
+under its own exclusive lock before sealing.
+
+Every one is now an invariant rather than a fix: `test_text_io_declares_its_encoding.py` is
+parametrised over every source file and also catches temp files, the encoding fix is tested against
+a stream that *behaves* like a Windows console so it does its job on machines where the bug cannot
+happen, and the lock retry is simulated rather than skipped. macOS, Linux and Windows are green
+across three hash seeds.
+
+### `neti suggest` — your model, or one on your own machine
+
+`neti init` gates what its rule table can claim. Against the 170 real tool schemas in
+`tests/corpus/` that is 31 tools; it declines 41 with a written reason and leaves **401 parameters
+with no rule at all**. This asks a model about that remainder.
+
+Bring-your-own-key by construction rather than by policy. `assist_client.py` is the only module that
+opens a socket, the hosted clients are constructed with no `base_url`, and a property test asserts
+the file names no host but your provider, imports no HTTP client of its own, and that `import neti`
+never loads it. `--provider local` points it at Ollama, LM Studio, llama.cpp or vLLM instead, in
+which case nothing leaves the machine at all — no key, no account, and no extra to install, because
+the local client is stdlib only.
+
+Nothing a model says reaches a decision, and four things make that structural rather than stated.
+The response schema has nowhere to put a magnitude, direction, unit or ceiling. The resolver enum is
+derived from the rule table, so it cannot go stale and cannot name something the renderer could not
+express. The output is commented-out YAML in a file `neti gate` never loads, with empty bands, so
+even a merged suggestion resolves and records without being able to block. And the 41 parameters the
+rule table already declined are excluded when the batch is built, so the command structurally cannot
+ask a model to overturn a judgement somebody made in writing.
+
+`SCOPE.md` said *"no model to drift"*. It says *"no model to drift in the decision path"* now, dated,
+with the one real contamination path spelled out rather than hidden.
+
+### M12, and the number that justifies the design
+
+Measured against the committed answer key, on a model running locally:
+
+    recovery    30 of 34 gates the rule table already makes · 0 wrong · 0 invented
+    over-claim  28 of the 41 it had declined with a written reason
+
+The second number is the interesting one. Arm A makes a model look trustworthy — shown parameters
+nobody has judged, it claimed nothing wrong. Arm B shows the other half: shown parameters that
+*look* claimable and were rejected in writing, it claimed 68% of them. `brave_web_search/query` came
+back as `db.rows` — a web search string claimed as SQL, which is the failure this feature was
+arranged around, verbatim. Eighteen more were `github.repos` on an `owner` sitting next to a `repo`.
+
+`neti suggest` never sends those. That was decided on principle before there was a number; the
+number says the 41 written judgements in the rule table are doing more work than the model is.
+
+The first Arm A run recovered 17 of 34 and every miss was `fs.paths` — which was not a model failing
+but the prompt asking the wrong question. It asked whether a parameter *"names a set"*, so the model
+correctly reasoned that `Edit(file_path=...)` names one file; neti gates it because a resolver can
+produce a *count*, and one file is a count of 1. Recovery went to 30 on a model four times smaller.
+
+### One repository, one licence
+
+BUSL-1.1 source sitting in a repository people are told is open source is honest and reads as a
+caveat, at exactly the moment a reader is deciding whether to trust an open-source gate. The control
+plane moved to its own repository; everything here is Apache-2.0 with no directory anyone has to
+check.
+
+What did not move is the client. `src/neti/cloud.py` and the tests pinning what a grant may
+authorise stay, so the protocol remains readable and testable without the server — which is the
+whole anti-lock-in argument, and it only holds while the client is on this side of the line.
+`test_the_control_plane_never_decides` went with the source it reads: it sat here behind
+`if not PAID.exists(): return`, which the moment the split happened would have made it pass forever
+without reading a line of the code it checks.
+
 ### The paid tier was unreachable from the hook
 
 `neti gate` had `--org`. `neti hook` did not — so a `CONFIRM` on Claude Code's built-in tools could

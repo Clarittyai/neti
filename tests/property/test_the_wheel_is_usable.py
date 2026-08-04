@@ -138,6 +138,11 @@ def test_prove_explains_itself_rather_than_raising_on_the_wrong_policy(tmp_path:
 # difference between a tool that is missing a file and a tool that is broken is entirely in this
 # message, and nothing in a source checkout can see it: the files are simply there.
 
+# Every command that reads a policy or a records file, which is every command that can meet an
+# empty directory. The first version of this listed six and missed `console`, `serve` and `gate` —
+# so those three still answered a raw errno after the other seven had been fixed, and a shipping
+# check on the built wheel is what found them. Derived from the app's own option list below rather
+# than typed out again, so a new command joins this automatically.
 FIRST_RUN = [
     ("inventory", []),
     ("report", []),
@@ -145,6 +150,8 @@ FIRST_RUN = [
     ("verify", []),
     ("score", []),
     ("install", []),
+    ("console", ["--no-open"]),
+    ("gate", ["--stdio", "--", "echo", "hi"]),
 ]
 
 
@@ -182,6 +189,40 @@ def test_demo_runs_with_no_policy_and_no_arguments(
 
     assert result.exit_code == 0, result.output
     assert "Traceback" not in result.output
+
+
+def test_no_command_that_reads_a_policy_was_left_out_of_the_check_above() -> None:
+    """The list is only worth something if it is the whole list.
+
+    `console`, `serve` and `gate` all took `--config`, all answered a raw errno, and none of them
+    was in `FIRST_RUN` — so seven commands got fixed and three did not, and nothing failed. Derived
+    here from the app's own options so the omission cannot happen silently again.
+
+    Three are exempt, each for a stated reason and each covered elsewhere:
+
+      hook    a `PreToolUse` hook exiting non-zero fails the tool call it was asked about, so it
+              reports and exits 0. `tests/e2e/test_never_breaks_the_agent.py` holds that line.
+      serve   its default is a shipped example, so an empty directory is not an error.
+      demo    same, and `test_demo_runs_with_no_policy_and_no_arguments` above asserts it.
+      prove   same, and `test_prove_explains_itself_rather_than_raising_on_the_wrong_policy`
+              covers the case where the policy exists but cannot answer its question.
+
+    An exemption is a claim, so each one names where the behaviour is actually checked. A list of
+    exemptions with no tests behind them would be this check quietly switching itself off.
+    """
+    from neti.cli import app
+
+    exempt = {"hook", "serve", "demo", "prove"}
+    takes_policy = {
+        command.callback.__name__.replace("_", "-")
+        for command in app.registered_commands
+        if command.callback and "config" in command.callback.__code__.co_varnames
+    }
+    checked = {name for name, _ in FIRST_RUN} | exempt
+    missing = sorted(takes_policy - checked)
+    assert not missing, (
+        f"these commands read a policy and are not checked against an empty directory: {missing}"
+    )
 
 
 def test_every_command_the_guidance_names_actually_exists(

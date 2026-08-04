@@ -589,7 +589,7 @@ def gate(
         raise typer.Exit(2)
 
     try:
-        policy = _apply_mode(load_policy(config), mode_override)
+        policy = _apply_mode(load_policy(resolve_policy(config)), mode_override)
         resolvers, client = _build_resolvers(
             demo=demo,
             timeout_ms=timeout_ms,
@@ -767,7 +767,10 @@ def hook(
 
     try:
         event = read_event(sys.stdin.read())
-        policy = _apply_mode(load_policy(config), mode_override)
+        # `resolve_policy(..., fatal=False)` returns rather than exiting. A `PreToolUse` hook
+        # that exits non-zero fails the tool call it was asked about, so the guidance every
+        # other command prints has to arrive here without the exit that carries it.
+        policy = _apply_mode(load_policy(resolve_policy(config, fatal=False)), mode_override)
         resolvers, client = _build_resolvers(
             demo=demo,
             timeout_ms=timeout_ms,
@@ -1125,7 +1128,7 @@ def serve(
     from neti.api.state import build_state
 
     try:
-        state = build_state(config=config, records=records, demo=demo)
+        state = build_state(config=str(resolve_policy(config)), records=records, demo=demo)
     except (OSError, RuntimeError, ValueError) as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from exc
@@ -1189,7 +1192,7 @@ def console(
         raise typer.Exit(2)
 
     try:
-        state = build_state(config=config, records=records, demo=demo)
+        state = build_state(config=str(resolve_policy(config)), records=records, demo=demo)
     except (OSError, RuntimeError, ValueError) as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from exc
@@ -1437,7 +1440,7 @@ def verify(
     from neti.insight.replay import format_replay, replay
 
     try:
-        policy = _apply_mode(load_policy(config), mode_override)
+        policy = _apply_mode(load_policy(resolve_policy(config)), mode_override)
     except (PolicyError, OSError, KeyError) as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from exc
@@ -1599,7 +1602,7 @@ def version() -> None:
 EXAMPLES = ("coding-agent", "entra", "data-agent", "infra-agent")
 
 
-def resolve_policy(config: str) -> Path:
+def resolve_policy(config: str, *, fatal: bool = True) -> Path:
     """A policy path, or an exit that says how to get one. Never a raw errno.
 
     Walking the documented flow on a clean install turned up four commands answering things like
@@ -1620,6 +1623,13 @@ def resolve_policy(config: str) -> Path:
     packaged = _packaged_example(config)
     if packaged is not None:
         return packaged
+
+    # `fatal=False` is for `neti hook`, and only for it. A `PreToolUse` hook that exits non-zero
+    # fails the tool call it was asked about, so it needs the sentence without the exit: the caller
+    # then lets its own handler report the missing file and exit 0, saying out loud that nothing was
+    # gated. Everywhere else, stopping is the right answer.
+    if not fatal:
+        return Path(config)
 
     typer.secho(f"error: no policy at {config}", fg=typer.colors.RED, err=True)
     typer.echo(
