@@ -374,7 +374,7 @@ def inventory(
     from neti.resolvers.base import ResolveContext, ResolverError
 
     try:
-        policy = load_policy(config)
+        policy = load_policy(resolve_policy(config))
         resolvers, client = _build_resolvers(
             demo=demo,
             timeout_ms=timeout_ms,
@@ -844,7 +844,7 @@ def report(
     from neti.store.jsonl import read_records
 
     try:
-        rows = read_records(records)
+        rows = read_records(resolve_records(records, what="`neti report`"))
         if since is not None:
             rows = within(rows, parse_since(since))
         summary = build_report(rows)
@@ -885,7 +885,7 @@ def propose(
     from neti.store.jsonl import read_records
 
     try:
-        rows = read_records(records)
+        rows = read_records(resolve_records(records, what="`neti propose`"))
         if since is not None:
             rows = within(rows, parse_since(since))
         summary = build_report(rows)
@@ -1012,8 +1012,12 @@ def console(
         # rather than starting a server that answers every page with a 404.
         typer.secho("error: this install has no built console.", fg=typer.colors.RED, err=True)
         typer.echo(
-            "\nFrom a source checkout:  cd web && npm install && npm run build && just console-sync"
-            "\nOr run the API alone:     neti serve      (then cd web && npm run dev)",
+            "\nThe console is a web app built at package time. An install from source (a git\n"
+            "checkout, or `pip install` from a repository URL) does not carry one; the published\n"
+            "package does.\n\n"
+            "  neti serve                     the same API with no UI, on this machine\n"
+            "  neti report                    the same numbers, in the terminal\n"
+            "\nTo build it here:  cd web && npm install && npm run build && just console-sync",
             err=True,
         )
         raise typer.Exit(2)
@@ -1066,10 +1070,7 @@ def prove(
 
     path = Path(records)
     path.parent.mkdir(parents=True, exist_ok=True)
-    resolved = _packaged_example(config) if not Path(config).exists() else Path(config)
-    if resolved is None:
-        typer.secho(f"error: no policy at {config}", fg=typer.colors.RED, err=True)
-        raise typer.Exit(2)
+    resolved = resolve_policy(config)
 
     # `prove` drives one fixed call against the built-in synthetic tenant, because the question it
     # answers is whether the doors agree — not what your policy says. A policy that does not gate
@@ -1148,7 +1149,7 @@ def score(
     # blind-spot list are useful before anything is configured, which is most of the point.
     summary = None
     with contextlib.suppress(OSError, ValueError):
-        summary = build_report(read_records(records))
+        summary = build_report(read_records(resolve_records(records, what="`neti score`")))
 
     policy = None
     with contextlib.suppress(PolicyError, OSError):
@@ -1208,7 +1209,7 @@ def verify(
     from neti.store.jsonl import read_records
 
     try:
-        chain = list(read_records(records))
+        chain = list(read_records(resolve_records(records, what="`neti verify`")))
     except (OSError, ValueError) as exc:
         typer.secho(f"error: {exc}", fg=typer.colors.RED, err=True)
         raise typer.Exit(2) from exc
@@ -1291,7 +1292,7 @@ def demo(
         _demo_here(config=config, repo=repo, corpus=corpus)
         return
 
-    payload = demo_json(config)
+    payload = demo_json(str(resolve_policy(config)))
     if out == "-":
         typer.echo(payload)
         return
@@ -1403,6 +1404,71 @@ def version() -> None:
 
 
 EXAMPLES = ("coding-agent", "entra", "data-agent", "infra-agent")
+
+
+def resolve_policy(config: str) -> Path:
+    """A policy path, or an exit that says how to get one. Never a raw errno.
+
+    Walking the documented flow on a clean install turned up four commands answering things like
+
+        error: [Errno 2] No such file or directory: 'neti.yaml'
+
+    and one — `neti demo` — handing the default string straight to `open()` and ending in a
+    `FileNotFoundError` traceback. Every one of those is somebody's first run, and the difference
+    between a tool that is missing a file and a tool that is broken is entirely in this message.
+
+    Falls back to the shipped example, so the defaults that name one (`examples/entra.yaml`) work on
+    an install as well as in a checkout.
+    """
+    path = Path(config)
+    if path.exists():
+        return path
+
+    packaged = _packaged_example(config)
+    if packaged is not None:
+        return packaged
+
+    typer.secho(f"error: no policy at {config}", fg=typer.colors.RED, err=True)
+    typer.echo(
+        "\nWrite one first:\n"
+        "  neti init                            from the MCP servers on this machine\n"
+        "  neti init --example coding-agent     Claude Code's Read, Edit, Glob, Grep, Bash\n"
+        "  neti init --example entra            a directory: Microsoft 365 / Entra ID\n"
+        f"\nOr point --config at one you already have. Shipped examples: {', '.join(EXAMPLES)}.",
+        err=True,
+    )
+    raise typer.Exit(2)
+
+
+def _records_flag(what: str) -> str:
+    """`\u0060neti report\u0060` -> `neti report`, so the follow-up command is copy-pasteable."""
+    return what.strip("`")
+
+
+def resolve_records(records: str, *, what: str) -> Path:
+    """A records path, or an exit that says how to get some.
+
+    `report`, `propose` and `verify` all read a file the gate writes as it decides, and all three
+    answered a bare `Errno 2` before anyone had run the gate — which is the exact moment a reader
+    decides whether this product works.
+    """
+    path = Path(records)
+    if path.exists():
+        return path
+
+    typer.secho(f"error: no decision records at {records}", fg=typer.colors.RED, err=True)
+    typer.echo(
+        f"\n{what} reads what the gate wrote as it decided, and nothing has been decided yet.\n\n"
+        "  neti install                        wire the hook into Claude Code, then work\n"
+        "                                      normally for an afternoon\n"
+        "  neti prove                          one call through every door here, right now.\n"
+        "                                      Writes out/proof.ndjson, so follow it with\n"
+        f"                                      {_records_flag(what)} -r out/proof.ndjson\n"
+        "\nNothing to record yet, and want a number anyway? `neti demo --here` measures what an\n"
+        "agent could reach on this machine with no traffic and no credentials at all.",
+        err=True,
+    )
+    raise typer.Exit(2)
 
 
 def _probe_call(tool: str, args: dict[str, Any]) -> str:

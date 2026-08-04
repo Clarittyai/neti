@@ -1,3 +1,14 @@
 $ neti verify -r nope.ndjson
 [exit 2]
-error: [Errno 2] No such file or directory: 'nope.ndjson'
+error: no decision records at nope.ndjson
+
+`neti verify` reads what the gate wrote as it decided, and nothing has been decided yet.
+
+  neti install                        wire the hook into Claude Code, then work
+                                      normally for an afternoon
+  neti prove                          one call through every door here, right now.
+                                      Writes out/proof.ndjson, so follow it with
+                                      neti verify -r out/proof.ndjson
+
+Nothing to record yet, and want a number anyway? `neti demo --here` measures what an
+agent could reach on this machine with no traffic and no credentials at all.

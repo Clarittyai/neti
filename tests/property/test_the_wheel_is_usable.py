@@ -128,3 +128,91 @@ def test_prove_explains_itself_rather_than_raising_on_the_wrong_policy(tmp_path:
     assert "Traceback" not in result.output
     assert "does not gate remove_group_members" in result.output
     assert "neti prove" in result.output, "it has to say what to run instead"
+
+
+# ---------------------------------------------------------------------------- the empty directory
+#
+# What a stranger meets. Every one of these was reached by installing the package into a clean
+# virtualenv and running the documented flow, and every one of them used to answer with a raw
+# `[Errno 2] No such file or directory` or, for `neti demo`, a FileNotFoundError traceback. The
+# difference between a tool that is missing a file and a tool that is broken is entirely in this
+# message, and nothing in a source checkout can see it: the files are simply there.
+
+FIRST_RUN = [
+    ("inventory", []),
+    ("report", []),
+    ("propose", []),
+    ("verify", []),
+    ("score", []),
+    ("install", []),
+]
+
+
+@pytest.mark.parametrize("command, extra", FIRST_RUN, ids=lambda v: v if isinstance(v, str) else "")
+def test_a_first_run_in_an_empty_directory_explains_itself(
+    command: str, extra: list[str], tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from typer.testing import CliRunner
+
+    from neti.cli import app
+
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(app, [command, *extra])
+
+    assert result.exit_code == 2, f"expected a clean refusal, got {result.exit_code}"
+    assert "Traceback" not in result.output, "a first run must never show a stack trace"
+    assert "Errno" not in result.output, "a raw errno is not an explanation"
+    assert "neti " in result.output, "it has to name a command to run instead"
+
+
+def test_demo_runs_with_no_policy_and_no_arguments(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`neti demo` defaults to a shipped example and must not need anything from the directory.
+
+    It handed the default string straight to `open()` and ended in a FileNotFoundError traceback on
+    every install, which is a poor thing for a command called `demo` to do.
+    """
+    from typer.testing import CliRunner
+
+    from neti.cli import app
+
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(app, ["demo", "--out", "-"])
+
+    assert result.exit_code == 0, result.output
+    assert "Traceback" not in result.output
+
+
+def test_every_command_the_guidance_names_actually_exists(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """The messages above tell people what to run. Those have to be real commands.
+
+    A dead end that points at another dead end is worse than the original error, and this is the
+    check that stops the advice drifting away from the CLI it describes. It is how
+    `cp examples/coding-agent.yaml neti.yaml` survived: nothing was comparing the words to the
+    program.
+    """
+    import re
+
+    from typer.testing import CliRunner
+
+    from neti.cli import app
+
+    real = {c.name for c in app.registered_commands if c.name} | {
+        c.callback.__name__.replace("_", "-") for c in app.registered_commands if c.callback
+    }
+    assert "inventory" in real and "prove" in real, f"could not read the command list: {real}"
+
+    monkeypatch.chdir(tmp_path)
+    runner = CliRunner()
+    output = "".join(
+        runner.invoke(app, [command]).output for command in ("inventory", "report", "install")
+    )
+
+    named = set(re.findall(r"\bneti ([a-z][a-z-]+)", output))
+    assert named, "the guidance named no commands at all, so this test is checking nothing"
+
+    unknown = sorted(named - real)
+    assert not unknown, f"the guidance names commands that do not exist: {unknown}"

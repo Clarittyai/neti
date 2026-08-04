@@ -6,13 +6,13 @@
 # `neti propose`, and declare numbers that came from your own traffic. A ceiling nobody chose is a
 # ceiling nobody will defend at 2am when it fires.
 #
-#   neti inventory -c examples/coding-agent.yaml     what your agent can reach, right now
+#   neti inventory                                   what your agent can reach, right now
 #   neti demo --here                                 the same thing, narrated
 #
 # Install it in .claude/settings.json:
 #
 #   {"hooks": {"PreToolUse": [{"matcher": "*",
-#     "hooks": [{"type": "command", "command": "neti hook -c examples/coding-agent.yaml"}]}]}}
+#     "hooks": [{"type": "command", "command": "neti hook -c neti.yaml"}]}]}}
 
 version: 1
 mode: observe # observe | enforce. Observe cannot block anything; start here.

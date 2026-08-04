@@ -5,7 +5,7 @@
 # `neti propose`, and declare numbers that came from your own traffic. A ceiling nobody chose is a
 # ceiling nobody will defend at 2am when it fires.
 #
-#   neti inventory -c examples/data-agent.yaml     what this agent can reach, right now
+#   neti inventory                                 what this agent can reach, right now
 #
 # Two credentials, both read-only and both optional — a policy that binds only one resolver never
 # needs the other:
