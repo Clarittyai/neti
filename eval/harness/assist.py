@@ -52,6 +52,12 @@ class Arm:
     missed: int = 0
     extra: int = 0
     over_claimed: int = 0
+    unassisted: int = 0
+    """Parameters no answer was obtained for.
+
+    Reported separately, because a miss and a question never asked are different things and only
+    one of them says anything about the model.
+    """
     detail: list[dict[str, str]] = field(default_factory=list)
 
 
@@ -115,7 +121,17 @@ def run(client: Any, *, batch_size: int, limit: int | None) -> Arm:
     groups = batches(eligible(specs), size=batch_size)
     for index, group in enumerate(groups, start=1):
         print(f"  batch {index}/{len(groups)} ({len(group)} parameters)", file=sys.stderr)
-        answer = client.ask(SYSTEM, json.dumps(payload(group), sort_keys=True), schema())
+        # One bad batch must not lose the run. A local runner closing a connection twenty minutes
+        # in used to raise straight out of here and discard every batch that had already worked,
+        # which is a bad way to spend half an hour. The CLI already survived this; the harness did
+        # not, and an eval that cannot finish produces no number at all.
+        try:
+            answer = client.ask(SYSTEM, json.dumps(payload(group), sort_keys=True), schema())
+        except Exception as exc:
+            arm.unassisted += len(group)
+            arm.detail.append({"batch_failed": f"{index}/{len(groups)}", "why": str(exc)[:160]})
+            print(f"    failed, continuing: {str(exc)[:90]}", file=sys.stderr)
+            continue
         got, bad = parse(answer.text, group)
         for suggestion in got:
             claimed[(suggestion.tool, suggestion.parameter)] = suggestion.resolver
@@ -153,7 +169,11 @@ def main() -> int:
     parser.add_argument("--base-url", default=None, help="For --provider local.")
     parser.add_argument("--timeout", type=float, default=None, help="Seconds per request.")
     parser.add_argument("--model", default=None)
-    parser.add_argument("--batch-size", type=int, default=8)
+    # Larger than the CLI's default on purpose: a local model re-reads the whole
+    # system prompt every request, so a run is dominated by the number of requests
+    # rather than by their size. Twelve batches of 8 took 25 minutes; three of 40
+    # take a fraction of that for the same work.
+    parser.add_argument("--batch-size", type=int, default=40)
     parser.add_argument("--limit", type=int, default=None, help="First N gated tools only.")
     args = parser.parse_args()
 

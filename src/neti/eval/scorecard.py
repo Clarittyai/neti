@@ -524,7 +524,14 @@ def format_scorecard(card: Scorecard) -> str:
         a = card.assist
         out.append("M12 MODEL-ASSISTED SUGGESTION (can a model do what the rule table cannot?)")
         out.append(f"    evidence: {EVIDENCE['M12']}")
-        out.append(f"    {a.model} via {a.provider}, run with somebody's own key")
+        # A local run has no key at all, and saying otherwise on a card whose whole point is
+        # precision would be a small lie about the one thing a reader is checking.
+        how = (
+            "on this machine, no key and nothing sent anywhere"
+            if a.provider.startswith("local") or "(local)" in a.provider
+            else "run with somebody's own key"
+        )
+        out.append(f"    {a.model} via {a.provider} — {how}")
         # The wrong count first. This is the same rule the incident table follows, and it matters
         # more here than anywhere else on the card: a recovery rate reads as an endorsement, and the
         # number that decides whether this is worth shipping is how often it is confidently wrong.
