@@ -53,7 +53,7 @@ export default function ConnectPage() {
       lede="Two connections, in this order: the directory the gate asks how big something is, and the agent whose calls it sits in front of."
     >
       <h2 className="mb-3 text-sm font-semibold">The directory</h2>
-      <div className="glass-card max-w-3xl rounded-2xl p-6">
+      <div className="panel max-w-3xl rounded-2xl p-6">
         <div className="flex items-start gap-4">
           <span
             className={cn(
@@ -120,7 +120,7 @@ export default function ConnectPage() {
       </div>
 
       <div className="mt-4 grid max-w-3xl gap-4 sm:grid-cols-2">
-        <div className="glass-card rounded-2xl p-5">
+        <div className="panel rounded-2xl p-5">
           <h3 className="flex items-center gap-1.5 text-sm font-semibold">
             <KeyRound className="h-4 w-4 text-muted-foreground" /> What it asks for
           </h3>
@@ -131,7 +131,7 @@ export default function ConnectPage() {
             No mailbox, no files, no write scope of any kind.
           </p>
         </div>
-        <div className="glass-card rounded-2xl p-5">
+        <div className="panel rounded-2xl p-5">
           <h3 className="flex items-center gap-1.5 text-sm font-semibold">
             <ShieldCheck className="h-4 w-4 text-muted-foreground" /> How connecting is verified
           </h3>

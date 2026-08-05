@@ -117,7 +117,7 @@ export function Install() {
         learns that a call was too big, which is a thing it already knows how to handle.
       </p>
 
-      <div className="glass-card mt-3 rounded-xl p-4">
+      <div className="panel mt-3 rounded-xl p-4">
         <p className="text-[13px] leading-relaxed text-muted-foreground">
           Or skip the reading:{" "}
           <code className="font-mono text-[12px] text-foreground">neti init</code> finds the MCP
@@ -144,7 +144,7 @@ export function Install() {
         ))}
       </div>
 
-      <div className="glass-card mt-3 rounded-2xl p-5">
+      <div className="panel mt-3 rounded-2xl p-5">
         <p className="font-mono text-[11px] text-muted-foreground">{target.where}</p>
         <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-muted-foreground">
           {target.blurb}

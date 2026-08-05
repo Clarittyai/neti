@@ -157,24 +157,23 @@
   /* The house signature, lifted from clarity-platform. Four layers, always together: translucent
      fill + backdrop blur + hairline border + inset ring. `backdrop-saturate-150` is the part that
      matters — blur alone reads grey, saturate makes it read as frosted glass. */
-  .glass-card {
-    @apply bg-white/60 dark:bg-white/[0.05] backdrop-blur-2xl backdrop-saturate-150;
-    @apply border border-slate-900/[0.08] dark:border-white/10;
-    @apply ring-1 ring-inset ring-slate-900/[0.06] dark:ring-white/[0.08];
-  }
-  .glass-card-elevated {
-    @apply glass-card;
-    box-shadow:
-      0 1px 2px rgba(15, 23, 42, 0.04),
-      0 4px 12px -2px rgba(15, 23, 42, 0.08);
-  }
-  .dark .glass-card-elevated {
-    box-shadow: 0 10px 40px -12px rgba(0, 0, 0, 0.5);
+  /* `panel`, and it is flat.
+   *
+   * This was `glass-card`: backdrop blur, saturation, a translucent fill and an inset ring, with a
+   * `glass-card-elevated` variant that added two drop shadows. Liquid glass is the *Claritty
+   * platform's* default surface and neti inherited it wholesale — but neti's own rules say the
+   * opposite (DESIGN.md: no shadows, do not default to cards), so this class was the seam the wrong
+   * rule leaked through, on twenty-one elements, invisible to a test that only grepped components
+   * for `shadow-` utilities.
+   *
+   * A panel is now a plain surface with a hairline. Use it only where something genuinely needs
+   * separating from the page — a table that scrolls, a block of code. A number does not need one. */
+  .panel {
+    @apply border border-border bg-card;
   }
   .glass-button {
-    @apply bg-white/60 dark:bg-white/[0.05] hover:bg-white/80 dark:hover:bg-white/[0.08];
-    @apply backdrop-blur-xl backdrop-saturate-150;
-    @apply ring-1 ring-inset ring-slate-900/[0.06] dark:ring-white/[0.08];
+    @apply bg-card hover:bg-secondary;
+    @apply border border-border;
     @apply transition-colors;
   }
 }

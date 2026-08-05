@@ -74,7 +74,7 @@ export default function AuditPage() {
             <div className="grid gap-4 sm:grid-cols-3">
               <div
                 className={cn(
-                  "glass-card rounded-2xl p-5 ring-1 ring-inset",
+                  "panel rounded-2xl p-5 ring-1 ring-inset",
                   data.ok
                     ? "ring-[hsl(var(--verdict-allow))]/30"
                     : "ring-[hsl(var(--verdict-block))]/40",
@@ -102,7 +102,7 @@ export default function AuditPage() {
                 </p>
               </div>
               <Stat value={n(data.count)} label="sealed decisions" />
-              <div className="glass-card rounded-2xl p-5">
+              <div className="panel rounded-2xl p-5">
                 <div className="text-sm text-muted-foreground">head</div>
                 <code className="mt-1 block break-all font-mono text-xs">{data.head}</code>
                 <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
@@ -111,7 +111,7 @@ export default function AuditPage() {
               </div>
             </div>
 
-            <div className="glass-card mt-6 overflow-hidden rounded-2xl">
+            <div className="panel mt-6 overflow-hidden rounded-2xl">
               <div className="border-b border-border/50 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
                 The chain, oldest first
               </div>

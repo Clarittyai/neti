@@ -200,7 +200,7 @@ function ScenarioCard({
   onPick: (id: string) => void;
 }) {
   return (
-    <div className="glass-card mt-6 rounded-2xl p-5">
+    <div className="panel mt-6 rounded-2xl p-5">
       {scenarios.length > 1 ? (
         <div className="mb-4 flex flex-wrap gap-1.5 border-b border-border/50 pb-4">
           {scenarios.map((s) => (
@@ -313,7 +313,7 @@ function ManualCall({
   onFire: () => void;
 }) {
   return (
-    <div className="glass-card h-fit rounded-2xl p-5">
+    <div className="panel h-fit rounded-2xl p-5">
       <h3 className="text-sm font-semibold">Fire your own</h3>
       <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
         Same endpoint, same engine. Pick anything — including a target the gate cannot size.

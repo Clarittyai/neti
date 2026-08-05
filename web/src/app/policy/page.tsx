@@ -60,7 +60,7 @@ export default function PolicyPage() {
         <div className="space-y-6">
           <div className="space-y-4">
             {Object.entries(data.tools).map(([tool, gates]) => (
-              <div key={tool} className="glass-card overflow-hidden rounded-2xl">
+              <div key={tool} className="panel overflow-hidden rounded-2xl">
                 <div className="flex flex-wrap items-center gap-3 border-b border-border/50 px-5 py-3">
                   <span className="font-mono text-sm font-medium">{tool}</span>
                   <span className="text-xs text-muted-foreground">
@@ -88,7 +88,7 @@ export default function PolicyPage() {
               {data.session_budgets.map((b) => (
                 <div
                   key={`${b.unit}-${b.tools.join()}`}
-                  className="glass-card flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl px-4 py-3"
+                  className="panel flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl px-4 py-3"
                 >
                   <span className="font-mono text-[13px]">{b.tools.join(", ")}</span>
                   <span className="text-xs text-muted-foreground">cumulative {b.unit}</span>
@@ -105,7 +105,7 @@ export default function PolicyPage() {
             </div>
           </section>
 
-          <section className="glass-card rounded-2xl p-5">
+          <section className="panel rounded-2xl p-5">
             <h2 className="text-sm font-semibold">Defaults</h2>
             <dl className="mt-3 space-y-2 text-[13px]">
               <div className="flex flex-wrap gap-2">

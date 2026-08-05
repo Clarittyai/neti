@@ -2,6 +2,24 @@
 
 ## Unreleased
 
+### Liquid glass was Claritty's rule, not neti's, and it hid inside a class name
+
+`glass-card` — backdrop blur, saturation, a translucent fill and an inset ring, with an `-elevated`
+variant carrying two drop shadows — sat in `globals.css` applying all of that to twenty-one
+elements. Liquid glass is the *Claritty platform's* default surface. neti's `DESIGN.md` says the
+opposite: no shadows, do not default to cards. The class was the seam the wrong rule leaked through.
+
+It is `.panel` now, and it is flat: a hairline border and a surface fill, for the places where
+something genuinely needs separating from the page. Renamed rather than redefined, because a class
+called `glass-card` that is not glass is the next person's confusion.
+
+**It survived because the test only looked where somebody remembered to look.**
+`test_nothing_casts_a_shadow` greps components for `shadow-*` utilities and had never read the
+stylesheet, so every component-level check passed while the CSS applied blur and two box-shadows.
+`globals.css` is now asserted directly to declare no `backdrop-blur`, `backdrop-saturate` or
+`box-shadow` — with comments stripped first, since the prose explaining why glass was removed
+naturally contains the words.
+
 ### It was never a demo, and calling it one was also a data bug
 
 The console branded every install without Entra credentials **"Demo tenant"**. That was wrong in two

@@ -222,6 +222,28 @@ def test_nothing_reaches_for_a_card() -> None:
     )
 
 
+def test_the_stylesheet_itself_obeys_the_no_shadow_rule() -> None:
+    """The gap that let liquid glass survive the rule that forbids it.
+
+    `test_nothing_casts_a_shadow` greps components for `shadow-*` utilities. It never looked at the
+    stylesheet, so `.glass-card` — backdrop blur, saturation, a translucent fill, an inset ring, and
+    an `-elevated` variant carrying two drop shadows — sat in `globals.css` applying all of it to
+    twenty-one elements while every component-level check passed.
+
+    Liquid glass is the *Claritty platform's* default surface. It is not neti's, and DESIGN.md says
+    so. A rule that only checks the places somebody remembered to look is not a rule.
+    """
+    # Comments stripped properly rather than line-by-line: the prose explaining *why* liquid glass
+    # was removed says "backdrop blur", and a check that cannot tell a declaration from a sentence
+    # about a declaration fails on its own documentation.
+    body = re.sub(r"/\*.*?\*/", "", GLOBALS.read_text(encoding="utf-8"), flags=re.S)
+    for banned in ("backdrop-blur", "box-shadow", "backdrop-saturate"):
+        assert banned not in body, (
+            f"`{banned}` is declared in globals.css. Depth is not this product's idea (DESIGN.md), "
+            "and a utility class is exactly where that rule stops being enforced."
+        )
+
+
 def test_nothing_draws_a_dashed_box() -> None:
     """DESIGN.md, verbatim: an empty state is open space with something living in it, not a plate.
 

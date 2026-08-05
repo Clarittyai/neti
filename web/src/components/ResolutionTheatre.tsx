@@ -86,7 +86,7 @@ export function ResolutionTheatre({
   return (
     <div
       className={cn(
-        "glass-card-elevated overflow-hidden rounded-2xl transition-shadow duration-500",
+        "panel overflow-hidden rounded-2xl transition-shadow duration-500",
         settled && result.verdict === "block" && "ring-[hsl(var(--verdict-block))]/40",
         settled && result.verdict === "allow" && "ring-[hsl(var(--verdict-allow))]/30",
       )}
@@ -343,7 +343,7 @@ function UpstreamLane({ result, settled }: { result: GateResult; settled: boolea
 
 function TheatreIdle() {
   return (
-    <div className="glass-card flex min-h-[320px] flex-col items-center justify-center rounded-2xl p-10 text-center">
+    <div className="panel flex min-h-[320px] flex-col items-center justify-center rounded-2xl p-10 text-center">
       <span className="grid h-11 w-11 place-items-center rounded-full bg-accent/10 text-accent">
         <Zap className="h-5 w-5" />
       </span>

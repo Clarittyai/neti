@@ -210,7 +210,7 @@ function PendingCard({
   const ceiling = row.evidence.ceiling;
 
   return (
-    <div className="glass-card rounded-2xl border-l-2 border-l-[hsl(var(--verdict-confirm))] p-5">
+    <div className="panel rounded-2xl border-l-2 border-l-[hsl(var(--verdict-confirm))] p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           {/* The number first and largest: it is what makes this a decision rather than a prompt. */}
@@ -289,7 +289,7 @@ function SettledRow({ row }: { row: ApprovalRow }) {
         : "text-muted-foreground";
 
   return (
-    <div className="glass-card flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl px-4 py-3 text-[13px]">
+    <div className="panel flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl px-4 py-3 text-[13px]">
       <span className={cn("font-medium capitalize", tone)}>{row.state}</span>
       <span className="font-mono">{row.evidence.tool ?? "—"}</span>
       <span className="tnum text-muted-foreground">
