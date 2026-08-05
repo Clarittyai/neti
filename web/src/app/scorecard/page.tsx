@@ -65,7 +65,7 @@ export default function ScorecardPage() {
             <Stat
               value={`${Math.round(data.friction.interrupt_rate * 100)}%`}
               label="of gated calls were interrupted"
-              hint={`${data.friction.stopped} of ${data.friction.calls} in this session — ${data.friction.blocked} blocked, ${data.friction.confirmed} sent for approval. A demo session, not a measurement of your traffic.`}
+              hint={`${data.friction.stopped} of ${data.friction.calls} in this session — ${data.friction.blocked} blocked, ${data.friction.confirmed} sent for approval. A scripted session, not a measurement of your own traffic.`}
             />
             <Stat
               value={n(data.unresolved_parameters)}
@@ -174,7 +174,7 @@ function IncidentCard({ incident }: { incident: Incident }) {
   return (
     <div
       className={cn(
-        "panel rounded-xl p-4",
+        "border-t border-border py-4",
         // Only the catches get an accent edge. Tinting a miss would be the console editorialising
         // about a row whose whole job is to say "this one gets past us".
         caught && "border-l-2 border-l-[hsl(var(--verdict-allow))]",

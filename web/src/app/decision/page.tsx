@@ -81,7 +81,7 @@ function Decision() {
 
       {data ? (
         <div className="space-y-4">
-          <div className="panel rounded-2xl p-5">
+          <div className="border-t border-border py-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
                 <h2 className="text-base font-semibold">
@@ -115,7 +115,7 @@ function Decision() {
             ) : null}
           </div>
 
-          <section className="panel rounded-2xl p-5">
+          <section className="border-t border-border py-5">
             <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               <Eye className="h-3.5 w-3.5" /> What it measured
             </h3>
@@ -132,7 +132,7 @@ function Decision() {
             </div>
           </section>
 
-          <section className="panel rounded-2xl p-5">
+          <section className="border-t border-border py-5">
             <h3 className="flex items-center gap-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-muted-foreground">
               <ShieldCheck className="h-3.5 w-3.5" /> Provenance
             </h3>
@@ -160,7 +160,7 @@ function Decision() {
             </p>
           </section>
 
-          <div className="panel rounded-2xl p-5">
+          <div className="border-t border-border py-5">
             <button
               onClick={() => setRaw((r) => !r)}
               className="flex items-center gap-1.5 text-xs text-muted-foreground transition-colors hover:text-foreground"

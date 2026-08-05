@@ -80,7 +80,7 @@ INCIDENTS: tuple[Incident, ...] = (
     Incident(
         id="remove-group-members",
         date="—",
-        actor="the demo",
+        actor="the shipped scenario",
         what_one_call_did="remove_group_members on a nested all-engineering group",
         magnitude=41_203,
         unit=Unit.PRINCIPALS,

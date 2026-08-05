@@ -200,7 +200,7 @@ function ScenarioCard({
   onPick: (id: string) => void;
 }) {
   return (
-    <div className="panel mt-6 rounded-2xl p-5">
+    <div className="mt-6 border-t border-border py-5">
       {scenarios.length > 1 ? (
         <div className="mb-4 flex flex-wrap gap-1.5 border-b border-border/50 pb-4">
           {scenarios.map((s) => (

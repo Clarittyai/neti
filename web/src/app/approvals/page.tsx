@@ -210,7 +210,7 @@ function PendingCard({
   const ceiling = row.evidence.ceiling;
 
   return (
-    <div className="panel rounded-2xl border-l-2 border-l-[hsl(var(--verdict-confirm))] p-5">
+    <div className="border-t border-border border-l-2 border-l-[hsl(var(--verdict-confirm))] p-5">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="min-w-0">
           {/* The number first and largest: it is what makes this a decision rather than a prompt. */}

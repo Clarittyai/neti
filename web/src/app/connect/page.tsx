@@ -120,7 +120,7 @@ export default function ConnectPage() {
       </div>
 
       <div className="mt-4 grid max-w-3xl gap-4 sm:grid-cols-2">
-        <div className="panel rounded-2xl p-5">
+        <div className="border-t border-border py-5">
           <h3 className="flex items-center gap-1.5 text-sm font-semibold">
             <KeyRound className="h-4 w-4 text-muted-foreground" /> What it asks for
           </h3>
@@ -131,7 +131,7 @@ export default function ConnectPage() {
             No mailbox, no files, no write scope of any kind.
           </p>
         </div>
-        <div className="panel rounded-2xl p-5">
+        <div className="border-t border-border py-5">
           <h3 className="flex items-center gap-1.5 text-sm font-semibold">
             <ShieldCheck className="h-4 w-4 text-muted-foreground" /> How connecting is verified
           </h3>

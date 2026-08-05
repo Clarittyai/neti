@@ -2,6 +2,23 @@
 
 ## Unreleased
 
+### The pre-flight pass, actually done
+
+`DESIGN.md` ends with a checklist and I had twice reported the console as finished without running
+it. Running it found the rest of the cards: twenty-one `panel rounded-2xl` wrappers across seven
+pages, flat since liquid glass was removed but still boxes — a plate around a decision's detail, a
+plate around the policy table, a plate around each scorecard incident. They are sections now: a rule
+above, space below, and the content unwrapped.
+
+Looking at the pages also caught copy the rename had missed. The scorecard said *"A demo session,
+not a measurement of your traffic"* and the incident corpus attributed one entry to *"the demo"*.
+Neither is a demo — one is a scripted session and the other a shipped scenario, and both now say so.
+That is the third place "demo" was hiding after the badge and the record flag, which is a fair
+argument for having grepped harder the first time.
+
+`/policy`, `/decisions`, `/approvals` and `/scorecard` have now been opened and looked at rather
+than merely built.
+
 ### A walkthrough, and pills
 
 **`docs/TUTORIAL.md`** — the product in the order it actually happens, because "install it and read

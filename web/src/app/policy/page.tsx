@@ -60,7 +60,7 @@ export default function PolicyPage() {
         <div className="space-y-6">
           <div className="space-y-4">
             {Object.entries(data.tools).map(([tool, gates]) => (
-              <div key={tool} className="panel overflow-hidden rounded-2xl">
+              <div key={tool} className="overflow-hidden border-t border-border">
                 <div className="flex flex-wrap items-center gap-3 border-b border-border/50 px-5 py-3">
                   <span className="font-mono text-sm font-medium">{tool}</span>
                   <span className="text-xs text-muted-foreground">
@@ -105,7 +105,7 @@ export default function PolicyPage() {
             </div>
           </section>
 
-          <section className="panel rounded-2xl p-5">
+          <section className="border-t border-border py-5">
             <h2 className="text-sm font-semibold">Defaults</h2>
             <dl className="mt-3 space-y-2 text-[13px]">
               <div className="flex flex-wrap gap-2">
