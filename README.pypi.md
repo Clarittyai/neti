@@ -538,6 +538,25 @@ cannot ask a model to overturn a judgement somebody already made. And it is scor
 measures it against the committed answer key and reports what the model got **wrong** before what it
 got right. `SCOPE.md` carries the one contamination path that does exist rather than hiding it.
 
+**What it actually scored**, on a local 8B model, nothing leaving the machine:
+
+| | |
+|---|---|
+| gates the rule table already makes | recovered **33 of 34**, zero wrong resolvers |
+| parameters it declined *with a written reason* | claimed **19 of 41** — all wrong by construction, and never sent |
+| the 401 no rule claims | **92** claims on things that are not sets, **7** gates genuinely found |
+
+Both halves of that last row are the point. The seven are real: `filename` on seven browser tools
+is a path on *this* machine, `fs.paths` ships and would answer it, and the rule table's name rule
+simply does not know the word. It found every one that exists. It also cost ninety-nine wrong
+claims to do it — roughly six percent of what it said was right.
+
+That is why the output arrives commented out, with empty bands, in a file the gate never loads. A
+suggestion here is a reading prompt, not an answer, and the number saying so is printed on `neti
+score` rather than left for you to discover. The answer key for that last row is an opinion
+([`eval/answers/adjudicate.py`](https://github.com/Neti-Security/neti/blob/main/eval/answers/adjudicate.py)), written as rules with reasons so you
+can disagree with it and see exactly which parameters move.
+
 ## Contributing
 
 The highest-value contribution is **a resolver**: something that turns a tool's parameter into a
