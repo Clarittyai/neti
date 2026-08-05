@@ -88,7 +88,7 @@ export default function PolicyPage() {
               {data.session_budgets.map((b) => (
                 <div
                   key={`${b.unit}-${b.tools.join()}`}
-                  className="panel flex flex-wrap items-center gap-x-4 gap-y-2 rounded-xl px-4 py-3"
+                  className="panel flex flex-wrap items-center gap-x-4 gap-y-2 rounded-full px-4 py-3"
                 >
                   <span className="font-mono text-[13px]">{b.tools.join(", ")}</span>
                   <span className="text-xs text-muted-foreground">cumulative {b.unit}</span>
@@ -155,7 +155,7 @@ function BandChip({ band }: { band: Band }) {
   return (
     <span
       className={cn(
-        "tnum rounded-md px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
+        "tnum rounded-full px-2 py-0.5 text-[11px] font-medium ring-1 ring-inset",
         band.verdict === "block" &&
           "bg-[hsl(var(--verdict-block))]/10 text-[hsl(var(--verdict-block))] ring-[hsl(var(--verdict-block))]/30",
         band.verdict === "confirm" &&

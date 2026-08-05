@@ -117,7 +117,7 @@ export function Install() {
         learns that a call was too big, which is a thing it already knows how to handle.
       </p>
 
-      <div className="panel mt-3 rounded-xl p-4">
+      <div className="panel mt-3 rounded-full p-4">
         <p className="text-[13px] leading-relaxed text-muted-foreground">
           Or skip the reading:{" "}
           <code className="font-mono text-[12px] text-foreground">neti init</code> finds the MCP
@@ -133,7 +133,7 @@ export function Install() {
             key={t.id}
             onClick={() => setActive(t.id)}
             className={cn(
-              "rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors",
+              "rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors",
               t.id === active
                 ? "bg-accent/10 text-accent"
                 : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
@@ -144,7 +144,7 @@ export function Install() {
         ))}
       </div>
 
-      <div className="panel mt-3 rounded-2xl p-5">
+      <div className="panel mt-3 rounded-full p-5">
         <p className="font-mono text-[11px] text-muted-foreground">{target.where}</p>
         <p className="mt-2 max-w-3xl text-[13px] leading-relaxed text-muted-foreground">
           {target.blurb}
@@ -196,7 +196,7 @@ function Snippet({ label, code, muted }: { label: string; code: string; muted?: 
       </div>
       <pre
         className={cn(
-          "overflow-x-auto rounded-xl border p-3.5 font-mono text-[11.5px] leading-relaxed",
+          "overflow-x-auto rounded-full border p-3.5 font-mono text-[11.5px] leading-relaxed",
           muted
             ? "border-border/50 bg-muted/30 text-muted-foreground"
             : "border-accent/25 bg-accent/[0.05]",

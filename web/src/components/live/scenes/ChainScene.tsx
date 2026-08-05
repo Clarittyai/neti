@@ -48,7 +48,7 @@ export function ChainScene() {
         {Array.from({ length: LINKS }, (_, i) => (
           <motion.span
             key={i}
-            className="absolute flex h-[22px] w-[22px] items-center justify-center rounded-md border border-accent/40 bg-accent/10"
+            className="absolute flex h-[22px] w-[22px] items-center justify-center rounded-full border border-accent/40 bg-accent/10"
             style={{ left: EDGE + i * GAP - 11, top: 61 }}
             initial={{ opacity: 0, y: -8 }}
             animate={{ opacity: i < sealed ? 1 : 0.15, y: 0 }}

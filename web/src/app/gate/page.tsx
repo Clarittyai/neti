@@ -171,7 +171,7 @@ function ModeToggle({
           key={m}
           onClick={() => onChange(m)}
           className={cn(
-            "rounded-[6px] px-3 py-1.5 font-medium capitalize transition-colors",
+            "rounded-full px-3 py-1.5 font-medium capitalize transition-colors",
             (m === "enforce") === enforcing
               ? "bg-accent text-accent-foreground"
               : "text-muted-foreground hover:text-foreground",
@@ -209,7 +209,7 @@ function ScenarioCard({
               onClick={() => onPick(s.id)}
               disabled={running}
               className={cn(
-                "rounded-lg px-3 py-1.5 text-[13px] font-medium transition-colors disabled:opacity-50",
+                "rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors disabled:opacity-50",
                 s.id === scenario.id
                   ? "bg-accent/10 text-accent"
                   : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
@@ -313,7 +313,7 @@ function ManualCall({
   onFire: () => void;
 }) {
   return (
-    <div className="panel h-fit rounded-2xl p-5">
+    <div className="panel h-fit rounded-full p-5">
       <h3 className="text-sm font-semibold">Fire your own</h3>
       <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
         Same endpoint, same engine. Pick anything — including a target the gate cannot size.

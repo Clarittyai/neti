@@ -53,11 +53,11 @@ export default function ConnectPage() {
       lede="Two connections, in this order: the directory the gate asks how big something is, and the agent whose calls it sits in front of."
     >
       <h2 className="mb-3 text-sm font-semibold">The directory</h2>
-      <div className="panel max-w-3xl rounded-2xl p-6">
+      <div className="panel max-w-3xl rounded-full p-6">
         <div className="flex items-start gap-4">
           <span
             className={cn(
-              "grid h-11 w-11 flex-shrink-0 place-items-center rounded-xl",
+              "grid h-11 w-11 flex-shrink-0 place-items-center rounded-full",
               connected
                 ? "bg-[hsl(var(--verdict-allow))]/10 text-[hsl(var(--verdict-allow))]"
                 : "bg-accent/10 text-accent",

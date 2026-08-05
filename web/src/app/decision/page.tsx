@@ -107,7 +107,7 @@ function Decision() {
               />
             </div>
             {data.mode === "observe" ? (
-              <p className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-[13px] leading-relaxed text-muted-foreground">
+              <p className="mt-3 rounded-full bg-muted/50 px-3 py-2 text-[13px] leading-relaxed text-muted-foreground">
                 Recorded in <strong className="font-medium text-foreground">observe</strong> mode —
                 the verdict was reached but the call was forwarded anyway. Enforcement changes
                 whether a decision is acted on, not what it is.
@@ -146,7 +146,7 @@ function Decision() {
               <Field label="source" value={data.synthetic ? "built-in tenant" : "provider"} />
             </dl>
             {data.synthetic ? (
-              <p className="mt-3 rounded-lg bg-muted/50 px-3 py-2 text-[13px] leading-relaxed text-muted-foreground">
+              <p className="mt-3 rounded-full bg-muted/50 px-3 py-2 text-[13px] leading-relaxed text-muted-foreground">
                 The magnitudes above came from the{" "}
                 <strong className="font-medium text-foreground">built-in tenant</strong>, not from a
                 provider. They are exact, confident and invented — this demonstrates behaviour and
@@ -177,7 +177,7 @@ function Decision() {
                 >
                   <Copy className="h-3.5 w-3.5" />
                 </button>
-                <pre className="max-h-[420px] overflow-auto rounded-lg bg-muted/60 p-3 font-mono text-[11px] leading-relaxed">
+                <pre className="max-h-[420px] overflow-auto rounded-full bg-muted/60 p-3 font-mono text-[11px] leading-relaxed">
                   {JSON.stringify(data, null, 2)}
                 </pre>
               </div>
@@ -194,7 +194,7 @@ function CauseCard({ cause }: { cause: Cause }) {
   return (
     <div
       className={cn(
-        "rounded-xl border p-4",
+        "rounded-full border p-4",
         cause.verdict === "block"
           ? "border-[hsl(var(--verdict-block))]/30 bg-[hsl(var(--verdict-block))]/[0.04]"
           : "border-border/60",

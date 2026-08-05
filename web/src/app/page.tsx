@@ -20,6 +20,7 @@ import { AlertTriangle } from "lucide-react";
 import { Failed, Loading, Page, Stat, Stats, useAsync } from "@/components/Page";
 import { Activity } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { CloudSlides } from "@/components/CloudSlides";
 import { ReachScene } from "@/components/live/scenes/ReachScene";
 import { api, type InventoryRow } from "@/lib/api";
 import { cn, n } from "@/lib/utils";
@@ -155,6 +156,7 @@ export default function OverviewPage() {
           dists.map((d) => <StripPlot key={`${d.tool}${d.pointer}`} dist={d} />)
         )}
       </section>
+      <CloudSlides />
     </Page>
   );
 }

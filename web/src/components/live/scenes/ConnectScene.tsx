@@ -42,13 +42,13 @@ export function ConnectScene() {
         </svg>
 
         {/* The gate, always there. */}
-        <div className="absolute left-[52px] top-[56px] flex h-7 w-[42px] items-center justify-center rounded-md border border-border text-[10px] font-medium text-muted-foreground">
+        <div className="absolute left-[52px] top-[56px] flex h-7 w-[42px] items-center justify-center rounded-full border border-border text-[10px] font-medium text-muted-foreground">
           gate
         </div>
 
         {/* The provider, arriving. */}
         <motion.div
-          className="absolute top-[56px] flex h-7 items-center justify-center rounded-md border px-2.5 text-[10px] font-medium"
+          className="absolute top-[56px] flex h-7 items-center justify-center rounded-full border px-2.5 text-[10px] font-medium"
           style={{ left: 248 }}
           initial={false}
           animate={{

@@ -181,7 +181,7 @@ function NotAttached({ reason }: { reason?: string | null }) {
         is no such person to reach, so the gate stops the call and says so — which is correct, and is
         exactly what it will keep doing if you never attach one.
       </p>
-      <pre className="mt-4 max-w-xl overflow-x-auto rounded-xl border border-accent/25 bg-accent/[0.05] p-3.5 font-mono text-[11.5px] leading-relaxed">
+      <pre className="mt-4 max-w-xl overflow-x-auto rounded-full border border-accent/25 bg-accent/[0.05] p-3.5 font-mono text-[11.5px] leading-relaxed">
         {`neti-cloud serve --key $KEY          # the control plane
 neti login --url http://… --key $KEY  # this machine
 neti gate --stdio --org -- <server>   # escalate a confirm`}
@@ -240,14 +240,14 @@ function PendingCard({
           <button
             onClick={() => onDecide(false)}
             disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--verdict-block))]/40 px-4 py-2 text-sm font-medium text-[hsl(var(--verdict-block))] transition-colors hover:bg-[hsl(var(--verdict-block))]/10 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--verdict-block))]/40 px-4 py-2 text-sm font-medium text-[hsl(var(--verdict-block))] transition-colors hover:bg-[hsl(var(--verdict-block))]/10 disabled:opacity-50"
           >
             <X className="h-4 w-4" /> Deny
           </button>
           <button
             onClick={() => onDecide(true)}
             disabled={busy}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[hsl(var(--verdict-allow))]/40 px-4 py-2 text-sm font-medium text-[hsl(var(--verdict-allow))] transition-colors hover:bg-[hsl(var(--verdict-allow))]/10 disabled:opacity-50"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[hsl(var(--verdict-allow))]/40 px-4 py-2 text-sm font-medium text-[hsl(var(--verdict-allow))] transition-colors hover:bg-[hsl(var(--verdict-allow))]/10 disabled:opacity-50"
           >
             <Check className="h-4 w-4" /> Approve
           </button>
@@ -289,7 +289,7 @@ function SettledRow({ row }: { row: ApprovalRow }) {
         : "text-muted-foreground";
 
   return (
-    <div className="panel flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl px-4 py-3 text-[13px]">
+    <div className="panel flex flex-wrap items-center gap-x-4 gap-y-1 rounded-full px-4 py-3 text-[13px]">
       <span className={cn("font-medium capitalize", tone)}>{row.state}</span>
       <span className="font-mono">{row.evidence.tool ?? "—"}</span>
       <span className="tnum text-muted-foreground">

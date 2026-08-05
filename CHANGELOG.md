@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### No badge, everything pressable is a pill, and the overview says what a second machine adds
+
+**The chip is gone.** A pill pinned over every screen reading "Local · this machine" announced a
+non-fact: which version you installed is not a state the product needs to keep telling you about,
+and it was chrome spent saying so. It had already been wrong once — as "Demo tenant" — and the
+honest end of that thread is not a better label but no label.
+
+**Everything pressable is a pill.** The earlier sweep only caught accent buttons and toggle rails;
+chips, tabs, segment controls and icon buttons were still rectangles, which defeats the point —
+reserving one shape for *press me* only works while it is reserved. Thirteen files. The exceptions
+are deliberate and narrow: text inputs, and the icon plate on an empty state.
+
+**`CloudSlides`, at the foot of the overview.** A slow rotation of what the hosted tier adds, under
+your own numbers rather than in front of them, linking to neti.security. Four slides, and every one
+of them names something a single machine genuinely cannot do — a confirm that reaches a human, one
+policy across a fleet, many machines' decisions in one place, a reviewed catalogue. It says
+"everything on this page stays free", because that is true and because the rest of this repository
+would make a different claim embarrassing.
+
+A rotation rather than a grid of feature cards: DESIGN.md forbids the card grid, and a grid asks you
+to read four pitches at once where a rotation asks for one. Motion runs on the live-scene kernel, so
+it is gated on reduced motion, tab visibility and viewport like every other moving thing here.
+
 ### The pre-flight pass, actually done
 
 `DESIGN.md` ends with a checklist and I had twice reported the console as finished without running

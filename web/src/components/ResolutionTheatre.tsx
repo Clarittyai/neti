@@ -86,7 +86,7 @@ export function ResolutionTheatre({
   return (
     <div
       className={cn(
-        "panel overflow-hidden rounded-2xl transition-shadow duration-500",
+        "panel overflow-hidden rounded-full transition-shadow duration-500",
         settled && result.verdict === "block" && "ring-[hsl(var(--verdict-block))]/40",
         settled && result.verdict === "allow" && "ring-[hsl(var(--verdict-allow))]/30",
       )}
@@ -128,7 +128,7 @@ function CallZone({ result }: { result: GateResult }) {
           {/* The same object leaves here and arrives in the magnitude zone. One layoutId. */}
           <motion.span
             layoutId="target-chip"
-            className="inline-block rounded-md bg-accent/15 px-1.5 py-0.5 text-accent ring-1 ring-inset ring-accent/30"
+            className="inline-block rounded-full bg-accent/15 px-1.5 py-0.5 text-accent ring-1 ring-inset ring-accent/30"
           >
             &quot;{String(value)}&quot;
           </motion.span>
@@ -213,9 +213,9 @@ function MagnitudeZone({
       <div className="mt-3 flex-1">
         {magnitude === null && !unresolvedReason ? (
           // Width reserved so the digits do not shove the layout when they land.
-          <div className="h-[52px] w-40 animate-pulse rounded-lg bg-muted/60" />
+          <div className="h-[52px] w-40 animate-pulse rounded-full bg-muted/60" />
         ) : magnitude === null ? (
-          <div className="hatched rounded-lg px-3 py-4 ring-1 ring-inset ring-border">
+          <div className="hatched rounded-full px-3 py-4 ring-1 ring-inset ring-border">
             <p className="text-lg font-semibold">Could not size</p>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
               The gate does not guess, and a failed lookup is never read as zero.
@@ -343,7 +343,7 @@ function UpstreamLane({ result, settled }: { result: GateResult; settled: boolea
 
 function TheatreIdle() {
   return (
-    <div className="panel flex min-h-[320px] flex-col items-center justify-center rounded-2xl p-10 text-center">
+    <div className="panel flex min-h-[320px] flex-col items-center justify-center rounded-full p-10 text-center">
       <span className="grid h-11 w-11 place-items-center rounded-full bg-accent/10 text-accent">
         <Zap className="h-5 w-5" />
       </span>

@@ -100,7 +100,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       >
         <div className="flex h-16 items-center border-b border-border/50 px-4">
           <Link href="/" className="flex items-center gap-3">
-            <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-lg bg-accent">
+            <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-full bg-accent">
               <ShieldCheck className="h-[18px] w-[18px] text-accent-foreground" strokeWidth={2.5} />
             </span>
             <motion.span variants={item} className="whitespace-nowrap text-[15px] font-semibold tracking-tight">
@@ -117,7 +117,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 key={href}
                 href={href}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-lg py-2.5 pl-[14px] pr-3 transition-colors duration-150",
+                  "flex w-full items-center gap-3 rounded-full py-2.5 pl-[14px] pr-3 transition-colors duration-150",
                   active
                     ? "bg-accent/10 text-accent"
                     : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
@@ -135,52 +135,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       </motion.aside>
 
       <main className="min-h-[100dvh] flex-1 md:ml-16">{children}</main>
-      <ModeChip />
     </div>
   );
 }
 
-/**
- * Which tenant, and whether the gate can actually stop anything.
- *
- * It lives outside the rail, pinned to the viewport, because the rail is collapsed by default and a
- * chip that only appears on hover is a chip nobody sees. Both facts are load-bearing and both are
- * easy to lose track of, and where a number came from is stated plainly rather than softened:
- * presenting fixture numbers as a finding about a real directory is exactly the overclaim the rest
- * of this codebase is built to avoid.
- *
- * **This used to say "Demo tenant" for every install without Entra credentials, and that was wrong
- * twice.** A local install is not a demo — it is the whole gate, resolving real magnitudes off a
- * real machine and sealing real records. And a coding-agent policy never asks a directory anything,
- * so on those installs there is no fixture involved at all and every number on screen was measured.
- * The chip names the *source of the numbers* now, which is the only thing it was ever for.
- */
-function ModeChip() {
-  const { state } = useConsole();
-  if (!state) return null;
-
-  const demo = state.mode === "demo";
-  const enforcing = state.policy_mode === "enforce";
-
-  return (
-    <div className="pointer-events-none fixed bottom-4 left-4 z-50 md:left-[76px]">
-      {/* The tenant pill is genuinely detachable — it floats over the page — so it keeps a
-          border. It does not keep a shadow: depth is not this product's idea. */}
-      <div className="flex items-center gap-2.5 rounded-full border border-border bg-card py-1.5 pl-3 pr-4">
-        <span
-          className={cn(
-            "h-2 w-2 flex-shrink-0 rounded-full",
-            enforcing ? "bg-[hsl(var(--verdict-allow))]" : "bg-muted-foreground/60",
-          )}
-          aria-hidden
-        />
-        <span className="whitespace-nowrap text-xs font-medium">
-          {demo ? `Sample directory · ${state.tenant}` : `Local · ${state.tenant}`}
-        </span>
-        <span className="whitespace-nowrap text-[11px] text-muted-foreground">
-          {enforcing ? "enforcing" : "observing — nothing is blocked"}
-        </span>
-      </div>
-    </div>
-  );
-}
