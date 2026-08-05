@@ -198,6 +198,9 @@ from neti.adapters.pydantic_ai    import neti_hooks      # Pydantic AI
 from neti.adapters.google_adk     import neti_plugin     # Google ADK
 from neti.adapters.autogen_tools  import gate_workbench  # AutoGen
 from neti.adapters.crewai_hooks   import gate_tools      # CrewAI
+from neti.adapters.llamaindex_tools import gate_tools    # LlamaIndex
+from neti.adapters.smolagents_tools import gate_tools    # smolagents
+from neti.adapters.semantic_kernel_filters import neti_filter  # Semantic Kernel
 
 runner = client.beta.messages.tool_runner(tools=gate_tools(pf, TOOLS), ...)
 agent  = create_react_agent(model, gate_tools(pf, TOOLS))          # LangGraph
@@ -205,8 +208,8 @@ agent  = Agent("anthropic:claude-opus-4-5", capabilities=[neti_hooks(pf)])   # P
 app    = App(name="ops", root_agent=agent, plugins=[neti_plugin(pf)])        # ADK
 ```
 
-Three of the seven need nothing wrapped: ADK, Pydantic AI and OpenAI Agents each have a
-before-tool callback the gate attaches to. The other four wrap the one method that executes, and
+Four of the ten need nothing wrapped: ADK, Pydantic AI, OpenAI Agents and Semantic Kernel each have
+a callback or filter the gate attaches to. The other six wrap the one method that executes, and
 copy name, description and schema across verbatim — an agent must not be able to tell a gated tool
 from an ungated one by looking at it, or the gate leaks into the prompt and into what the model
 believes it may attempt. One `neti.yaml` governs a tool whichever runtime it arrives through,
@@ -263,15 +266,16 @@ handed `Tool execution blocked by hook. Tool: Glob` with no number in it at all.
 
 ### Which runtime is yours
 
-`neti score` prints the full list. The short version: nine runtimes have an adapter here, and
+`neti score` prints the full list. The short version: twelve runtimes have an adapter here, and
 everything that speaks **MCP** — Cursor, Claude Desktop, Windsurf, Cline, Continue, VS Code, Zed,
-Goose, LlamaIndex, Semantic Kernel, Strands, smolagents — is reached without neti knowing they
-exist, because the gate goes in front of the MCP server and whatever launched it launches
-`neti gate` instead.
+Goose, Strands, OpenAI's Codex CLI, OpenClaw — is reached without neti knowing they exist, because
+the gate goes in front of the MCP server and whatever launched it launches `neti gate` instead.
 
 Those two claims are not equally strong and the card keeps them apart. An adapter row was *driven*
-by the seam table. An MCP client was not run at all: what is tested is that neti gates a real MCP
-server, and that Cursor speaks MCP is a fact about Cursor.
+by the seam table. An MCP client is *reached*: `tests/e2e/test_real_mcp_client.py` connects the
+official SDK's own client to `neti gate` over a real pipe and watches an oversized call refused —
+so the protocol is tested at the version those clients ship, and that Cursor speaks it is a fact
+about Cursor rather than something claimed here.
 
 What it does not reach, also on the card: an agent whose tools are in-process functions in a
 language this package cannot wrap and which does not go through MCP — a Vercel AI SDK or Mastra app

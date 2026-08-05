@@ -532,6 +532,135 @@ def via_tool_loop(world: worlds.World, tmp_path: Path, case: Case, approver: Any
     return Outcome(_verdict_of(str(result)), _magnitude_of(str(result)), str(result))
 
 
+def _named_forward(names: tuple[str, ...], ran: list[bool]) -> Any:
+    """Build a function whose *signature* is `names`, because two frameworks read it.
+
+    smolagents validates that `forward`'s parameters match the keys of `inputs`, and Semantic
+    Kernel builds its function metadata from the annotations. Neither accepts `**kwargs`. The cases
+    in this table carry different argument names, so the callable has to be constructed per case
+    rather than written once — and constructing it is better than dropping those two seams to a
+    single hand-picked argument shape, which would stop them exercising `no-args` and `null-arg`
+    at all.
+    """
+    parameters = ", ".join(f"{name}: str = None" for name in names)
+    namespace: dict[str, Any] = {"ran": ran}
+    # The names come from this file's own case table and never from input.
+    exec(
+        f"def forward(self, {parameters}):\n    ran.append(True)\n    return 'ran'\n",
+        namespace,
+    )
+    return namespace["forward"]
+
+
+def via_llamaindex(
+    world: worlds.World, tmp_path: Path, case: Case, approver: Any = None
+) -> Outcome:
+    """The wrapped tool. A denial is a `ToolOutput` carrying `is_error=True`.
+
+    `acall` rather than `call`: `FunctionAgent` and `AgentWorkflow` both take the async path, so
+    that is the one an agent actually reaches, and gating only the sync one would leave the seam
+    open on every real agent while looking covered here.
+    """
+    from llama_index.core.tools import FunctionTool
+
+    from neti.adapters.llamaindex_tools import gate_tool
+
+    ran: list[bool] = []
+
+    def run(**kwargs: Any) -> str:
+        ran.append(True)
+        return "ran"
+
+    inner = FunctionTool.from_defaults(fn=run, name=case.tool, description="Do the thing.")
+    gated = gate_tool(build_preflight(world, tmp_path, approver), inner)
+    result = asyncio.run(gated.acall(**dict(case.args)))
+    if ran:
+        return Outcome("allow", None, "")
+    text = str(result.content)
+    return Outcome(_verdict_of(text), _magnitude_of(text), text)
+
+
+def via_smolagents(
+    world: worlds.World, tmp_path: Path, case: Case, approver: Any = None
+) -> Outcome:
+    """The wrapped tool object. A denial is the return value.
+
+    smolagents validates `inputs` at construction and rejects `__` in a tool name, so the inner tool
+    is built with a sanitised name and told the real one afterwards — the policy has to see the tool
+    exactly as it arrives, MCP prefix and all.
+    """
+    from smolagents import Tool as SmolTool
+
+    from neti.adapters.smolagents_tools import gate_tool
+
+    ran: list[bool] = []
+    arguments = dict(case.args)
+    schema = {
+        key: {"type": "string", "description": "an argument", "nullable": True} for key in arguments
+    }
+
+    if not schema:
+        schema = {"unused": {"type": "string", "description": "none", "nullable": True}}
+
+    Inner = type(
+        "Inner",
+        (SmolTool,),
+        {
+            "name": case.tool.replace("__", "_") or "tool",
+            "description": "Do the thing.",
+            "inputs": schema,
+            "output_type": "string",
+            "forward": _named_forward(tuple(schema), ran),
+        },
+    )
+    inner = Inner()
+    inner.name = case.tool
+    gated = gate_tool(build_preflight(world, tmp_path, approver), inner)
+    result = str(gated(**arguments))
+    if ran:
+        return Outcome("allow", None, "")
+    return Outcome(_verdict_of(result), _magnitude_of(result), result)
+
+
+def via_semantic_kernel(
+    world: worlds.World, tmp_path: Path, case: Case, approver: Any = None
+) -> Outcome:
+    """The filter. A block is *not* awaiting `next`; the sentence goes in `context.result`."""
+    from semantic_kernel import Kernel
+    from semantic_kernel.filters import FilterTypes
+    from semantic_kernel.functions import kernel_function
+
+    from neti.adapters.semantic_kernel_filters import neti_filter
+
+    ran: list[bool] = []
+    arguments = dict(case.args)
+    # Not sanitised. A Semantic Kernel function name is an ordinary Python identifier and
+    # `mcp__entra__remove_group_members` is one, so the MCP prefix survives to the policy exactly
+    # as it arrives — which is the whole point of the `mcp-prefixed` rows.
+    name = case.tool or "tool"
+
+    Plugin = type(
+        "Plugin",
+        (),
+        {
+            "run": kernel_function(name=name, description="Do the thing.")(
+                _named_forward(tuple(arguments) or ("unused",), ran)
+            )
+        },
+    )
+
+    kernel = Kernel()
+    kernel.add_plugin(Plugin(), plugin_name="p")
+    kernel.add_filter(
+        FilterTypes.FUNCTION_INVOCATION, neti_filter(build_preflight(world, tmp_path, approver))
+    )
+    result = asyncio.run(kernel.invoke(plugin_name="p", function_name=name, **arguments))
+    if ran:
+        return Outcome("allow", None, "")
+    text = str(result)
+    return Outcome(_verdict_of(text), _magnitude_of(text), text)
+
+
 SEAMS = {
     "preflight": via_preflight,
     "tool-loop": via_tool_loop,
@@ -545,6 +674,9 @@ SEAMS = {
     "pydantic-ai": via_pydantic_ai,
     "crewai": via_crewai,
     "autogen": via_autogen,
+    "llamaindex": via_llamaindex,
+    "smolagents": via_smolagents,
+    "semantic-kernel": via_semantic_kernel,
 }
 
 NEEDS_SDK = {
@@ -555,6 +687,9 @@ NEEDS_SDK = {
     "pydantic-ai": "pydantic_ai",
     "crewai": "crewai",
     "autogen": "autogen_core",
+    "llamaindex": "llama_index.core",
+    "smolagents": "smolagents",
+    "semantic-kernel": "semantic_kernel",
 }
 
 
@@ -671,6 +806,9 @@ def test_the_seam_table_covers_every_shipped_adapter() -> None:
         "pydantic_ai",
         "crewai_hooks",
         "autogen_tools",
+        "llamaindex_tools",
+        "smolagents_tools",
+        "semantic_kernel_filters",
     }
     assert shipped == covered, (
         f"adapters with no seam-equivalence row: {sorted(shipped - covered)}. "

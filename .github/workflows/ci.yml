@@ -46,7 +46,7 @@ jobs:
         run: cd web && npm ci --silent && npm run build
       - run: cp -R web/out src/neti/console
       - run: uv venv --python 3.12
-      - run: uv pip install -e '.[dev,cli,graph,mcp,console,sdks,sdks-extended,storage,database]'
+      - run: uv pip install -e '.[dev,cli,graph,mcp,console,sdks,sdks-extended,sdks-more,storage,database]'
       - run: uv run pytest -q
 
   gates:
@@ -55,7 +55,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
       - run: uv venv --python 3.12
-      - run: uv pip install -e '.[dev,cli,graph,mcp,console,sdks,sdks-extended,storage,database]'
+      - run: uv pip install -e '.[dev,cli,graph,mcp,console,sdks,sdks-extended,sdks-more,storage,database]'
       - name: types
         run: uv run mypy
       - name: lint

@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+### Three more runtimes, and the seam each one actually offers
+
+LlamaIndex, smolagents and Semantic Kernel have adapters now, so they move from *reached because
+they speak MCP* to *driven by an adapter* — on the card, in the README and in the seam table, which
+compares fifteen doors and finds them byte-identical.
+
+Each one's seam was chosen by reading the framework rather than by pattern-matching the last
+adapter:
+
+- **LlamaIndex** carries `call` and `acall`, and `FunctionAgent` and `AgentWorkflow` both take the
+  async one. Gating only the sync path would have left every real agent open while looking covered.
+  Both are gated; a denial is a `ToolOutput` with `is_error=True`, without which the model reads a
+  refusal as a successful call that happened to return that text.
+- **Semantic Kernel** ships a filter pipeline, so nothing is wrapped at all — the gate is a
+  registration. A filter blocks by *not* awaiting `next`, and the sentence goes in `context.result`.
+  Deliberately `FUNCTION_INVOCATION` rather than `AUTO_FUNCTION_INVOCATION`: the second sees only
+  functions the model chose automatically, and a plugin invoked by another plugin would walk past
+  it. Cardinality is a property of the call, not of who proposed it.
+- **smolagents** wraps the tool object, and comes with a limit written down rather than discovered:
+  `CodeAgent` does not emit tool calls, it writes Python and runs it. Wrapping the tool gates every
+  call that goes *through* the tool and gates nothing the generated code does directly — `open`,
+  `os.remove`, a subprocess. No gate at a tool boundary can see those, and the thing that bounds
+  them is the executor's sandbox.
+
+Two defects on the way. `neti prove` died with a bare `KeyError: 'llamaindex'` under a traceback,
+because a seam can be registered in `NEEDS` and `WHAT` and forgotten in `DRIVERS`; the three tables
+are asserted equal now. And `prove`'s CrewAI driver was still running the disproved hook pair, so it
+was demonstrating a control flow CrewAI does not have.
+
+`sdks-more` is a third extra rather than growth in the other two, and its cost is measured the same
+way: installing all three took the environment from 206 packages to 262.
+
 ### A real MCP client had never driven the gate
 
 `tests/e2e/test_real_mcp_server.py` puts neti in front of a real MCP server. The client in it is

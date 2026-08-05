@@ -100,6 +100,16 @@ sdks-extended = [
     # 1.7 is where plugin-level `before_tool_callback` arrives; `App(plugins=...)` needs 1.14.
     "google-adk>=1.14",
 ]
+# Three more runtimes, kept out of both lines above and measured the same way: installing these
+# three on top of everything else took the environment from 206 packages to 262. That is cheaper
+# than `sdks-extended` and still not something to hand somebody who wanted to gate a coding agent,
+# so it is its own line. CI installs it, and `tests/e2e/test_no_silent_skips.py` requires all three
+# to import under NETI_REQUIRE_SDKS — otherwise three seams skip silently.
+sdks-more = [
+    "llama-index-core>=0.12",
+    "smolagents>=1.0",
+    "semantic-kernel>=1.0",
+]
 dev = [
     "pytest>=8.3",
     "types-pyyaml>=6.0",
@@ -180,7 +190,7 @@ disallow_any_explicit = false   # Resolution.evidence is deliberately dict[str, 
 # on which optional extras happen to be in the venv. That is the same failure `test_no_silent_skips`
 # exists to prevent, one layer up — a gate whose result depends on the machine it ran on.
 [[tool.mypy.overrides]]
-module = ["psycopg.*", "boto3.*", "botocore.*"]
+module = ["psycopg.*", "boto3.*", "botocore.*", "smolagents.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

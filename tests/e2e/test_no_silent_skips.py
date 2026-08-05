@@ -28,6 +28,9 @@ REPO = Path(__file__).resolve().parents[2]
 REQUIRED = {
     "anthropic": "the Anthropic tool_runner adapter",
     "langchain": "the LangChain conformance row, which builds a real create_agent",
+    "llama_index.core": "the LlamaIndex adapter",
+    "smolagents": "the smolagents adapter",
+    "semantic_kernel": "the Semantic Kernel adapter",
     "agents": "the OpenAI Agents SDK adapter",
     "langchain_core": "the LangChain adapter",
     "langgraph": "the LangGraph ToolNode path — the only thing that caught the ToolMessage defect",

@@ -71,6 +71,9 @@ NEEDS: dict[str, str | None] = {
     "pydantic-ai": "pydantic_ai",
     "autogen": "autogen_core",
     "google-adk": "google.adk",
+    "llamaindex": "llama_index.core",
+    "smolagents": "smolagents",
+    "semantic-kernel": "semantic_kernel",
 }
 
 WHAT: dict[str, str] = {
@@ -86,6 +89,9 @@ WHAT: dict[str, str] = {
     "pydantic-ai": "Pydantic AI",
     "autogen": "AutoGen",
     "google-adk": "Google ADK",
+    "llamaindex": "LlamaIndex",
+    "smolagents": "smolagents",
+    "semantic-kernel": "Semantic Kernel",
 }
 
 PROVEN_BY = "tests/e2e/test_seam_equivalence.py"
@@ -298,46 +304,27 @@ def _langchain(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
 
 
 def _crewai(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
-    from crewai.hooks import (
-        ToolCallHookContext,
-        clear_all_tool_call_hooks,
-        get_after_tool_call_hooks,
-        get_before_tool_call_hooks,
-    )
+    """The wrapped tool, not the hook pair.
 
-    from neti.adapters.crewai_hooks import install
+    This used to drive `before_tool_call` and then run the after-hooks over CrewAI's fixed string,
+    which is a control flow CrewAI does not have: it returns the instant a before-hook blocks, so
+    the after-hook never runs and the model is told "blocked by hook" with no number in it. The
+    gate is a wrapped `BaseTool` now, and this drives that.
+    """
+    from crewai.tools import BaseTool
+
+    from neti.adapters.crewai_hooks import gate_tool
     from neti.preflight import Preflight
 
-    clear_all_tool_call_hooks()
-    try:
-        install(Preflight(engine=engine, sink=sink))
-        # `tool`, `agent` and `task` are the crew's own objects and the gate reads none of them —
-        # it needs the name and the arguments. Building a whole crew to prove a verdict would be
-        # proving the crew.
-        context = ToolCallHookContext(
-            tool_name=TOOL,
-            tool_input=dict(ARGS),
-            tool=None,  # type: ignore[arg-type]
-            agent=None,
-            task=None,
-        )
-        blocked = any(hook(context) is False for hook in get_before_tool_call_hooks())
-        text = f"Tool execution blocked by hook. Tool: {TOOL}" if blocked else ""
-        for hook in get_after_tool_call_hooks():
-            after = ToolCallHookContext(
-                tool_name=TOOL,
-                tool_input=dict(ARGS),
-                tool=None,  # type: ignore[arg-type]
-                agent=None,
-                task=None,
-                tool_result=text,
-            )
-            replaced = hook(after)
-            if isinstance(replaced, str):
-                text = replaced
-        return _classify(text)
-    finally:
-        clear_all_tool_call_hooks()
+    class Inner(BaseTool):
+        name: str = TOOL
+        description: str = "Do the thing."
+
+        def _run(self, **kwargs: Any) -> str:
+            raise AssertionError("the gate let the call through")
+
+    gated = gate_tool(Preflight(engine=engine, sink=sink), Inner())
+    return _classify(str(gated.run(**dict(ARGS))))
 
 
 def _pydantic_ai(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
@@ -412,6 +399,72 @@ def _classify(sentence: str) -> tuple[str, int | None, str]:
     return verdict, int(found.group(1).replace(",", "")) if found else None, sentence
 
 
+def _llamaindex(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+    import asyncio
+
+    from llama_index.core.tools import FunctionTool
+
+    from neti.adapters.llamaindex_tools import gate_tool
+    from neti.preflight import Preflight
+
+    def run(**kwargs: Any) -> str:
+        raise AssertionError("the gate let the call through")
+
+    inner = FunctionTool.from_defaults(fn=run, name=TOOL, description="Do the thing.")
+    gated = gate_tool(Preflight(engine=engine, sink=sink), inner)
+    return _classify(str(asyncio.run(gated.acall(**dict(ARGS))).content))
+
+
+def _smolagents(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+    from smolagents import Tool as SmolTool
+
+    from neti.adapters.smolagents_tools import gate_tool
+    from neti.preflight import Preflight
+
+    def forward(self: Any, group: str = "") -> str:
+        raise AssertionError("the gate let the call through")
+
+    inner = type(
+        "Inner",
+        (SmolTool,),
+        {
+            "name": TOOL,
+            "description": "Do the thing.",
+            "inputs": {
+                "group": {"type": "string", "description": "a group", "nullable": True},
+            },
+            "output_type": "string",
+            "forward": forward,
+        },
+    )()
+    gated = gate_tool(Preflight(engine=engine, sink=sink), inner)
+    return _classify(str(gated(**dict(ARGS))))
+
+
+def _semantic_kernel(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+    import asyncio
+
+    from semantic_kernel import Kernel
+    from semantic_kernel.filters import FilterTypes
+    from semantic_kernel.functions import kernel_function
+
+    from neti.adapters.semantic_kernel_filters import neti_filter
+    from neti.preflight import Preflight
+
+    class Plugin:
+        @kernel_function(name=TOOL, description="Do the thing.")
+        def run(self, group: str = "") -> str:
+            raise AssertionError("the gate let the call through")
+
+    kernel = Kernel()
+    kernel.add_plugin(Plugin(), plugin_name="p")
+    kernel.add_filter(
+        FilterTypes.FUNCTION_INVOCATION, neti_filter(Preflight(engine=engine, sink=sink))
+    )
+    result = asyncio.run(kernel.invoke(plugin_name="p", function_name=TOOL, **dict(ARGS)))
+    return _classify(str(result))
+
+
 DRIVERS: dict[str, Any] = {
     "preflight": _preflight,
     "tool-loop": _tool_loop,
@@ -425,6 +478,9 @@ DRIVERS: dict[str, Any] = {
     "pydantic-ai": _pydantic_ai,
     "autogen": _autogen,
     "google-adk": _google_adk,
+    "llamaindex": _llamaindex,
+    "smolagents": _smolagents,
+    "semantic-kernel": _semantic_kernel,
 }
 
 

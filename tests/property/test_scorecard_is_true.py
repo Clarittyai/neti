@@ -126,6 +126,9 @@ def test_every_shipped_adapter_appears_on_the_card() -> None:
         "pydantic_ai": "pydantic-ai",
         "autogen_tools": "autogen",
         "google_adk": "google-adk",
+        "llamaindex_tools": "llamaindex",
+        "smolagents_tools": "smolagents",
+        "semantic_kernel_filters": "semantic-kernel",
     }
     assert shipped == set(by_module), (
         f"adapters with no scorecard row: {sorted(shipped - set(by_module))}. `neti score` would "

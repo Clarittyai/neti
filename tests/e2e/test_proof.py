@@ -138,3 +138,21 @@ def test_it_names_a_verify_command_that_actually_works(ran: P.Proof, tmp_path: P
     assert "chain intact" in out.stdout
     assert f"{len(ran.driven)} decision(s) replay to the same verdict" in out.stdout
     assert "SYNTHETIC" in out.stdout, "the auditor's command must still report provenance"
+
+
+def test_every_seam_prove_names_is_a_seam_prove_can_drive() -> None:
+    """Three tables describe the doors, and a key in one of them but not the others is a crash.
+
+    Found by adding three adapters and updating two of the three: `neti prove` died with a bare
+    `KeyError: 'llamaindex'` under a rich traceback, which reads as a broken product rather than as
+    a half-finished registration. The tables are small and the mistake is invisible in review, so
+    it is asserted instead.
+    """
+    from neti.eval.proof import DRIVERS, NEEDS, WHAT
+
+    assert set(NEEDS) == set(DRIVERS) == set(WHAT), (
+        "these tables disagree about which seams exist:\n"
+        f"  in NEEDS but not DRIVERS: {sorted(set(NEEDS) - set(DRIVERS))}\n"
+        f"  in DRIVERS but not NEEDS: {sorted(set(DRIVERS) - set(NEEDS))}\n"
+        f"  in NEEDS but not WHAT:    {sorted(set(NEEDS) - set(WHAT))}"
+    )

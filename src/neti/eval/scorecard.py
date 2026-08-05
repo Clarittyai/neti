@@ -71,10 +71,13 @@ SEAMS: dict[str, str] = {
     "anthropic": "the Anthropic `tool_runner`",
     "openai-agents": "the OpenAI Agents SDK, via `tool_input_guardrails`",
     "langchain": "LangChain and LangGraph",
-    "crewai": "CrewAI, via a `before_tool_call` / `after_tool_call` pair",
+    "crewai": "CrewAI, by wrapping the tool — its hooks cannot carry the sentence",
     "pydantic-ai": "Pydantic AI, via `before_tool_execute`",
     "autogen": "AutoGen, by wrapping the workbench",
     "google-adk": "Google ADK, via a plugin `before_tool_callback`",
+    "llamaindex": "LlamaIndex, by wrapping `call` and `acall`",
+    "smolagents": "smolagents, by wrapping the tool object",
+    "semantic-kernel": "Semantic Kernel, via a function-invocation filter",
 }
 """M8 — every door a call can arrive through, and therefore every place a verdict could diverge.
 
@@ -101,6 +104,9 @@ RUNTIMES: dict[str, str] = {
     "Pydantic AI": "pydantic-ai",
     "AutoGen": "autogen",
     "Google ADK": "google-adk",
+    "LlamaIndex": "llamaindex",
+    "smolagents": "smolagents",
+    "Semantic Kernel": "semantic-kernel",
     # Reached because they speak MCP, and the gate sits in front of an MCP server. Nothing about
     # these is neti-specific: whatever launches the server launches `neti gate` instead.
     "Cursor": "mcp-stdio",
@@ -111,10 +117,7 @@ RUNTIMES: dict[str, str] = {
     "VS Code (Copilot agent mode)": "mcp-stdio",
     "Zed": "mcp-stdio",
     "Goose": "mcp-stdio",
-    "LlamaIndex": "mcp-stdio",
-    "Semantic Kernel": "mcp-stdio",
     "Strands Agents": "mcp-stdio",
-    "smolagents": "mcp-stdio",
     "a remote / hosted MCP server": "mcp-http",
     "anything else, one tool at a time": "preflight",
 }
