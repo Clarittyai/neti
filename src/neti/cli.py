@@ -94,11 +94,118 @@ except ModuleNotFoundError:  # pragma: no cover - exercised by test_the_cli_with
 app = typer.Typer(
     add_completion=False,
     help="A preflight gate for agent tool calls: resolve what an action will touch, "
-    "block it if it exceeds a declared ceiling.",
+    "block it if it exceeds a declared ceiling.\n\n"
+    "New here? Run `neti start`.",
+    # A person meeting this tool used to be shown nineteen commands in one flat list, with
+    # `measure` — an internal Graph-latency benchmark — second. The five evaluation commands
+    # (`measure`, `check`, `score`, `prove`, `serve`) are hidden rather than removed: they still
+    # run, so every doc and golden transcript that names them still works, but they are not part of
+    # anybody's first screen.
+    no_args_is_help=False,
 )
 
 
-@app.command()
+@app.command(rich_help_panel="Start here")
+def start(
+    config: Annotated[
+        str, typer.Option("--config", "-c", help="Where to write the policy.")
+    ] = "neti.yaml",
+) -> None:
+    """New here? Run this. It sets neti up and shows you what your agent can reach.
+
+    The first run used to be nineteen commands in a flat list and a policy file asking for a
+    ceiling — a number nobody has on day one. This is the path instead: find the agent, write a
+    policy that blocks nothing, and measure *this* machine so the first thing you see is a fact
+    about your own repository rather than an example about somebody else's.
+
+    Nothing here enforces anything. That is deliberate: you cannot pick a ceiling before you have
+    seen your own numbers, so day one is measurement and day two is the ceiling.
+    """
+    from neti.config.policy import PolicyError, load_policy
+    from neti.insight.discover import find_clients
+    from neti.insight.inventory import build_inventory
+    from neti.resolvers.base import ResolveContext, ResolverError
+
+    here = Path.cwd()
+    typer.secho("\nneti — first run", bold=True)
+    typer.echo(f"  in {here}\n")
+
+    # ---------------------------------------------------------------- 1. what is on this machine
+    typer.secho("1. Looking for an agent", bold=True)
+    try:
+        servers = find_clients(cwd=here)
+    except Exception:  # discovery must never be the thing that stops a first run
+        servers = []
+    if servers:
+        names = ", ".join(sorted({s.name for s in servers})[:6])
+        typer.echo(f"   {len(servers)} MCP server(s) configured here: {names}")
+    else:
+        typer.echo("   No MCP servers configured here — that is fine, and common.")
+    typer.echo("   Claude Code's own built-in tools are gated through a hook, not MCP.\n")
+
+    # ---------------------------------------------------------------- 2. a policy that blocks
+    typer.secho("2. Writing a policy that blocks nothing", bold=True)
+    destination = Path(config)
+    if destination.exists():
+        typer.echo(f"   {destination} already exists, keeping it.")
+    else:
+        _write_example("coding-agent", destination, quiet=True)
+        typer.echo(f"   wrote {destination} — mode: observe, so every call is recorded and none")
+        typer.echo("   is stopped. You can read the whole thing; it is about thirty lines.")
+    typer.echo("")
+
+    # ---------------------------------------------------------------- 3. the number
+    typer.secho("3. Measuring this machine", bold=True)
+    reached: int | None = None
+    try:
+        policy = load_policy(str(destination))
+        providers = {
+            **policy.providers,
+            "fs": {**(policy.providers.get("fs") or {}), "root": str(here)},
+        }
+        policy = policy.model_copy(update={"providers": providers})
+        resolvers, client = _build_resolvers(
+            demo=True, timeout_ms=4000, needs_entra=False, providers=policy.providers
+        )
+        try:
+            rows = build_inventory(policy, resolvers, ResolveContext(timeout_ms=4000))
+        finally:
+            if client is not None:
+                client.close()
+        # `reachable` is a Resolution, and its magnitude is None unless it actually resolved —
+        # that validator is the reason a directory we could not read never reads as zero here.
+        sizes = [
+            r.reachable.magnitude
+            for r in rows
+            if r.reachable is not None and r.reachable.magnitude is not None
+        ]
+        reached = max(sizes) if sizes else None
+    except (PolicyError, OSError, ResolverError, ValueError):
+        reached = None
+
+    if reached is not None:
+        typer.echo("   The largest set one gated call could touch, right now, here:\n")
+        typer.secho(f"      {reached:,} objects", bold=True, fg=typer.colors.CYAN)
+        typer.echo("\n   That is capability, not an incident. Nothing has gone wrong — it is the")
+        typer.echo("   answer to a question nothing else in your stack asks.")
+    else:
+        typer.echo("   Could not measure from here yet. `neti inventory` will say why.")
+    typer.echo("")
+
+    # ---------------------------------------------------------------- 4. what happens next
+    typer.secho("4. What to do next", bold=True)
+    typer.echo("   Today   neti install          put the gate in front of Claude Code")
+    typer.echo("           ...then work normally. Nothing is blocked; everything is recorded.")
+    typer.echo("")
+    typer.echo("   Tomorrow neti report          what your agent actually touched")
+    typer.echo("            neti propose         ceilings derived from that, for you to review")
+    typer.echo("            neti console         the same thing to look at, in a browser")
+    typer.echo("")
+    typer.echo("   Only once you have committed a ceiling does anything get blocked. The number")
+    typer.echo("   comes from your own traffic, so you are never asked to guess one.\n")
+
+
+@app.command(rich_help_panel="Start here")
 def init(
     out: Annotated[
         str, typer.Option("--out", "-o", help="Where to write the policy.")
@@ -232,7 +339,7 @@ def init(
     )
 
 
-@app.command()
+@app.command(hidden=True)
 def measure(
     group: Annotated[
         list[str],
@@ -261,7 +368,7 @@ def measure(
     typer.echo(format_report(out))
 
 
-@app.command()
+@app.command(hidden=True)
 def check(
     group: Annotated[
         list[str] | None,
@@ -353,7 +460,7 @@ def check(
     typer.echo(format_checks(results))
 
 
-@app.command()
+@app.command(rich_help_panel="Every day")
 def inventory(
     config: Annotated[
         str, typer.Option("--config", "-c", help="Policy file. See examples/entra.yaml.")
@@ -393,7 +500,7 @@ def inventory(
     typer.echo(format_inventory(rows))
 
 
-@app.command()
+@app.command(rich_help_panel="When you need it")
 def login(
     url: Annotated[str, typer.Option("--url", help="Your control plane's base URL.")],
     key: Annotated[str, typer.Option("--key", help="The organisation key.")],
@@ -432,7 +539,7 @@ def login(
     typer.echo("\n  now run the gate with --org:  neti gate --stdio --org -- <your server command>")
 
 
-@app.command()
+@app.command(rich_help_panel="When you need it")
 def logout() -> None:
     """Forget the control plane. The gate falls back to the free tier's behaviour."""
     from neti.cloud import credentials_path
@@ -525,7 +632,10 @@ def _build_resolvers(
     return resolvers_for_client(client, providers), client
 
 
-@app.command(context_settings={"allow_extra_args": True, "ignore_unknown_options": True})
+@app.command(
+    rich_help_panel="When you need it",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
 def gate(
     ctx: typer.Context,
     upstream: Annotated[
@@ -731,7 +841,7 @@ def _gate_stdio(
             print(f"neti: {total} gated, {stopped} stopped", file=sys.stderr)
 
 
-@app.command()
+@app.command(rich_help_panel="When you need it")
 def hook(
     config: Annotated[str, typer.Option("--config", "-c")] = "neti.yaml",
     records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
@@ -833,7 +943,7 @@ def hook(
         typer.echo(json.dumps(response))
 
 
-@app.command()
+@app.command(rich_help_panel="Every day")
 def report(
     records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
     since: Annotated[
@@ -857,7 +967,7 @@ def report(
     typer.echo(format_report(summary))
 
 
-@app.command()
+@app.command(rich_help_panel="When you need it")
 def suggest(
     out: Annotated[
         str, typer.Option("--out", "-o", help="Where to write the fragment.")
@@ -1023,7 +1133,7 @@ def suggest(
     typer.echo("Nothing is active until you delete the `#` in front of it yourself.")
 
 
-@app.command()
+@app.command(rich_help_panel="Every day")
 def propose(
     records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
     since: Annotated[
@@ -1095,7 +1205,7 @@ def propose(
     typer.echo(format_proposals(build(summary)))
 
 
-@app.command()
+@app.command(hidden=True)
 def serve(
     config: Annotated[str, typer.Option("--config", "-c")] = "examples/entra.yaml",
     records: Annotated[str, typer.Option("--records", "-r")] = "out/console.ndjson",
@@ -1146,7 +1256,7 @@ def serve(
         state.close()
 
 
-@app.command()
+@app.command(rich_help_panel="Every day")
 def console(
     config: Annotated[str, typer.Option("--config", "-c")] = "neti.yaml",
     records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
@@ -1217,7 +1327,7 @@ def console(
         state.close()
 
 
-@app.command()
+@app.command(hidden=True)
 def prove(
     config: Annotated[str, typer.Option("--config", "-c")] = "examples/entra.yaml",
     records: Annotated[
@@ -1280,7 +1390,7 @@ def prove(
         raise typer.Exit(1)
 
 
-@app.command()
+@app.command(hidden=True)
 def score(
     records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
     config: Annotated[str, typer.Option("--config", "-c")] = "neti.yaml",
@@ -1411,7 +1521,7 @@ def score(
     typer.echo(scorecard_json(card) if as_json else format_scorecard(card))
 
 
-@app.command()
+@app.command(rich_help_panel="When you need it")
 def verify(
     records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
     config: Annotated[
@@ -1494,7 +1604,7 @@ def verify(
         raise typer.Exit(1)
 
 
-@app.command()
+@app.command(rich_help_panel="Start here")
 def demo(
     config: Annotated[str, typer.Option("--config", "-c")] = "examples/entra.yaml",
     out: Annotated[str, typer.Option("--out", "-o", help="Write JSON here.")] = "-",
@@ -1536,7 +1646,7 @@ def demo(
     typer.secho(f"wrote {path} ({len(payload):,} bytes)", fg=typer.colors.GREEN)
 
 
-@app.command()
+@app.command(rich_help_panel="Start here")
 def install(
     config: Annotated[
         str, typer.Option("--config", "-c", help="Policy to gate with.")
@@ -1630,7 +1740,7 @@ def install(
     )
 
 
-@app.command()
+@app.command(rich_help_panel="When you need it")
 def version() -> None:
     from neti import __version__
 
@@ -1726,7 +1836,7 @@ def _probe_call(tool: str, args: dict[str, Any]) -> str:
     return f"{tool}({', '.join(f'{k}={v!r}' for k, v in args.items())})"
 
 
-def _write_example(name: str, target: Path) -> None:
+def _write_example(name: str, target: Path, *, quiet: bool = False) -> None:
     """Copy a shipped policy into place, for the machine discovery cannot help.
 
     `neti init` reads MCP client configs, and plenty of people have none: a Claude Code user gating
@@ -1746,6 +1856,11 @@ def _write_example(name: str, target: Path) -> None:
         raise typer.Exit(2)
 
     target.write_text(source.read_text(encoding="utf-8"), encoding="utf-8")
+    if quiet:
+        # `neti start` narrates the whole first run itself. Letting this print its own "Next:"
+        # block in the middle of that gave a newcomer two competing sets of instructions three
+        # lines apart, which is precisely the confusion `start` exists to remove.
+        return
     typer.secho(f"Wrote {target}", bold=True)
     typer.echo(
         f"  from the shipped {name} example, in observe mode with every ceiling blank.\n"

@@ -44,7 +44,26 @@ answer a different question; none of them answers *how big is this*.
 
 ```console
 $ pip install "neti[all]"
+$ neti start
 ```
+
+`neti start` is the whole first run: it finds your agent, writes a policy that **blocks nothing**,
+and measures *this* machine — so the first thing you see is a number about your own repository
+rather than an example about somebody else's.
+
+```
+3. Measuring this machine
+   The largest set one gated call could touch, right now, here:
+
+      23,583 objects
+
+   That is capability, not an incident.
+```
+
+Then you work normally for a day while it records, and `neti propose` turns your own traffic into
+ceilings you review. **You are never asked to guess a number.** That ordering is the point: a policy
+that says `above: 300` is unanswerable on day one, so day one is measurement and day two is the
+ceiling.
 
 `[all]` is everything one machine needs, which is the entire free tier; a bare install leaves a
 `neti` command with no CLI behind it, and says so rather than failing obscurely.

@@ -206,13 +206,17 @@ def test_no_command_that_reads_a_policy_was_left_out_of_the_check_above() -> Non
       demo    same, and `test_demo_runs_with_no_policy_and_no_arguments` above asserts it.
       prove   same, and `test_prove_explains_itself_rather_than_raising_on_the_wrong_policy`
               covers the case where the policy exists but cannot answer its question.
+      start   an empty directory is the case it is FOR — it writes the policy rather than refusing,
+              so the exit-2 assertion below is the wrong shape for it entirely.
+              `tests/e2e/test_first_run_orients.py` drives it in an empty directory and checks it
+              measures something, blocks nothing, and says what to do next.
 
     An exemption is a claim, so each one names where the behaviour is actually checked. A list of
     exemptions with no tests behind them would be this check quietly switching itself off.
     """
     from neti.cli import app
 
-    exempt = {"hook", "serve", "demo", "prove"}
+    exempt = {"hook", "serve", "demo", "prove", "start"}
     takes_policy = {
         command.callback.__name__.replace("_", "-")
         for command in app.registered_commands

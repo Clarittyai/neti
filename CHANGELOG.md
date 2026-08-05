@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+### There was no way in
+
+The feedback was *"I don't understand how to use it, or why I'd pay"*, and running the thing as a
+stranger showed it was fair on every count.
+
+Bare `neti` answered `Missing command.` — no orientation. `neti --help` printed **nineteen commands
+in one flat list**, with `measure` — an internal Graph-latency benchmark — second. The four commands
+that are actually somebody's path were numbers 1, 11, 13 and 19, in no order and with nothing saying
+which came first. The one command that shows the point in ten seconds, `neti demo --here`, was last,
+described as "Run the whole narrative and emit it".
+
+And underneath all of that, **the product asked for a number nobody has**. A policy says
+`above: 300, verdict: block`. On day one you cannot know whether 300 is generous or absurd for your
+repository, so the first real step demanded the one thing a new user cannot supply. The loop that
+solves it — observe, then `neti propose` from your own traffic — existed and worked, and nothing
+told you it was there. You had to already understand the product to find the on-ramp.
+
+**`neti start`** is the way in. It finds your agent, writes a policy that blocks nothing, measures
+*this* machine, and ends by saying what to do today and what to do tomorrow. The first thing it
+prints is a fact about your own repository:
+
+    The largest set one gated call could touch, right now, here:
+       23,583 objects
+    That is capability, not an incident.
+
+The five evaluation commands (`measure`, `check`, `score`, `prove`, `serve`) are hidden rather than
+removed — they still run, so every doc, justfile recipe and golden transcript that names them still
+works, but they are not on anybody's first screen. What is left is grouped into `Start here`,
+`Every day` and `When you need it`, in the order somebody needs them.
+
+`tests/e2e/test_first_run_orients.py` holds it: the first screen carries no evaluation command,
+`Start here` is the first panel, the first run measures something, writes a policy in observe mode,
+names the next three commands, and is safe to run twice without overwriting a policy you have since
+edited. "I don't understand how to use it" is a bug, and bugs get tests.
+
+Writing it caught one immediately: `_write_example` printed its own "Next:" block in the middle of
+step 2, so a newcomer got two competing sets of instructions three lines apart — the exact confusion
+the command exists to remove.
+
 ### DESIGN.md, one primary, and no cards
 
 The console was skinned from Claritty once and then drifted, because there was nothing written down
