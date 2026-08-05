@@ -908,7 +908,7 @@ def suggest(
         batches,
         eligible,
         parse,
-        payload,
+        question,
         render_fragment,
         schema,
     )
@@ -954,7 +954,7 @@ def suggest(
         typer.echo(SYSTEM)
         for index, group in enumerate(groups, start=1):
             typer.echo(f"--- request {index} of {len(groups)} ---")
-            typer.echo(json.dumps(payload(group), indent=2, sort_keys=True))
+            typer.echo(question(group, indent=2))
         typer.echo("--- nothing was sent ---")
         return
 
@@ -980,7 +980,7 @@ def suggest(
     with typer.progressbar(groups, label="asking") as progress:
         for group in progress:
             try:
-                answer = client.ask(SYSTEM, json.dumps(payload(group), sort_keys=True), schema())
+                answer = client.ask(SYSTEM, question(group), schema())
             except ModuleNotFoundError:
                 typer.secho(
                     f"\nerror: the {provider} SDK is not installed.\n"
@@ -1355,18 +1355,29 @@ def score(
     assist = None
     with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
         raw = json.loads(Path(assist_results).read_text(encoding="utf-8"))
-        recovery = raw["recovery"]
+        # Every arm is optional: `--arm unclaimed` produces a file with no recovery in it, and a
+        # card that vanished because one arm was not run would be reporting on the harness rather
+        # than on the model.
+        recovery = raw.get("recovery") or {}
         over = raw.get("over_claim") or {}
+        unclaimed = raw.get("unclaimed") or {}
+        if not (recovery or over or unclaimed):
+            raise ValueError("no arm was run")
         assist = Assist(
             model=str(raw.get("model", "")),
             provider=str(raw.get("provider", "")),
-            of=int(recovery["of"]),
-            recovered=int(recovery["recovered"]),
-            wrong_resolver=int(recovery["wrong_resolver"]),
-            missed=int(recovery["missed"]),
-            extra=int(recovery["extra"]),
+            of=int(recovery.get("of", 0)),
+            recovered=int(recovery.get("recovered", 0)),
+            wrong_resolver=int(recovery.get("wrong_resolver", 0)),
+            missed=int(recovery.get("missed", 0)),
+            extra=int(recovery.get("extra", 0)),
             contested=int(over.get("of", 0)),
             over_claimed=int(over.get("over_claimed", 0)),
+            unclaimed_of=int(unclaimed.get("of", 0)),
+            unclaimed_found=int(unclaimed.get("found", 0)),
+            unclaimed_false=int(unclaimed.get("false_claim", 0)),
+            unclaimed_forced=int(unclaimed.get("forced_near_miss", 0)),
+            unclaimed_unadjudicated=int(unclaimed.get("unadjudicated", 0)),
         )
 
     card = build_scorecard(summary, policy, wild=wild, live=live, assist=assist)

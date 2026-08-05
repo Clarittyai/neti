@@ -1,0 +1,1908 @@
+{
+  "counts": {
+    "fs.paths": 7,
+    "no_shipped_resolver": 30,
+    "not_a_set": 351,
+    "unadjudicated": 13
+  },
+  "labels": {
+    "API-create-a-comment": {
+      "parent": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "rich_text": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-create-a-data-source": {
+      "parent": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "properties": {
+        "label": "unadjudicated",
+        "why": "the schema in front of me does not settle this, and a guess would look like a judgement"
+      },
+      "title": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-delete-a-block": {
+      "block_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-get-block-children": {
+      "block_id": {
+        "label": "no_shipped_resolver",
+        "why": "the id names one object but the call reaches everything under it"
+      },
+      "page_size": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "start_cursor": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-get-user": {
+      "user_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-get-users": {
+      "page_size": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "start_cursor": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-list-data-source-templates": {
+      "data_source_id": {
+        "label": "unadjudicated",
+        "why": "the schema in front of me does not settle this, and a guess would look like a judgement"
+      },
+      "page_size": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "start_cursor": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-move-page": {
+      "page_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "parent": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-patch-block-children": {
+      "after": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "block_id": {
+        "label": "no_shipped_resolver",
+        "why": "the id names one object but the call reaches everything under it"
+      },
+      "children": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      }
+    },
+    "API-patch-page": {
+      "archived": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "cover": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "icon": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "in_trash": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "page_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "properties": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-post-page": {
+      "children": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "cover": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "icon": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "parent": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "properties": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-post-search": {
+      "filter": {
+        "label": "unadjudicated",
+        "why": "the schema in front of me does not settle this, and a guess would look like a judgement"
+      },
+      "page_size": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "sort": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "start_cursor": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-query-data-source": {
+      "archived": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "data_source_id": {
+        "label": "no_shipped_resolver",
+        "why": "the id names one object but the call reaches everything under it"
+      },
+      "filter": {
+        "label": "unadjudicated",
+        "why": "the schema in front of me does not settle this, and a guess would look like a judgement"
+      },
+      "filter_properties": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "in_trash": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "page_size": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "sorts": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "start_cursor": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-retrieve-a-block": {
+      "block_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-retrieve-a-comment": {
+      "block_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "page_size": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "start_cursor": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-retrieve-a-data-source": {
+      "data_source_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-retrieve-a-database": {
+      "database_id": {
+        "label": "unadjudicated",
+        "why": "the schema in front of me does not settle this, and a guess would look like a judgement"
+      }
+    },
+    "API-retrieve-a-page": {
+      "filter_properties": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "page_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-retrieve-a-page-property": {
+      "page_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "page_size": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "property_id": {
+        "label": "unadjudicated",
+        "why": "the schema in front of me does not settle this, and a guess would look like a judgement"
+      },
+      "start_cursor": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-retrieve-page-markdown": {
+      "include_transcript": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "page_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-update-a-block": {
+      "archived": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "block_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "type": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-update-a-data-source": {
+      "data_source_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "description": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "properties": {
+        "label": "unadjudicated",
+        "why": "the schema in front of me does not settle this, and a guess would look like a judgement"
+      },
+      "title": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "API-update-page-markdown": {
+      "insert_content": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "page_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "replace_content": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "replace_content_range": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "type": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "update_content": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "Bash": {
+      "command": {
+        "label": "unadjudicated",
+        "why": "the schema in front of me does not settle this, and a guess would look like a judgement"
+      },
+      "description": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "run_in_background": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "timeout": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "Edit": {
+      "new_string": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "old_string": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "replace_all": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "Grep": {
+      "head_limit": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "output_mode": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "NotebookEdit": {
+      "cell_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "cell_type": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "edit_mode": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "new_source": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "Read": {
+      "limit": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "offset": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "Task": {
+      "description": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "prompt": {
+        "label": "unadjudicated",
+        "why": "the schema in front of me does not settle this, and a guess would look like a judgement"
+      },
+      "subagent_type": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "WebFetch": {
+      "prompt": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "Write": {
+      "content": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "add_issue_comment": {
+      "body": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "issue_number": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "add_observations": {
+      "observations": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      }
+    },
+    "brave_local_search": {
+      "count": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "brave_web_search": {
+      "count": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "offset": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "browser_click": {
+      "button": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "doubleClick": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "element": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "modifiers": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "target": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "browser_console_messages": {
+      "all": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "filename": {
+        "label": "fs.paths",
+        "why": "a path on this machine that the call writes to or reads from; fs.paths ships and would answer, but its name-rule does not know `filename`"
+      },
+      "level": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "browser_drag": {
+      "endElement": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "endTarget": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "startElement": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "startTarget": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "browser_drop": {
+      "data": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "element": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "target": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "browser_evaluate": {
+      "element": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "filename": {
+        "label": "fs.paths",
+        "why": "a path on this machine that the call writes to or reads from; fs.paths ships and would answer, but its name-rule does not know `filename`"
+      },
+      "function": {
+        "label": "unadjudicated",
+        "why": "the schema in front of me does not settle this, and a guess would look like a judgement"
+      },
+      "target": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "browser_fill_form": {
+      "fields": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      }
+    },
+    "browser_find": {
+      "regex": {
+        "label": "no_shipped_resolver",
+        "why": "the call answers with a result set whose size is real and reportable; deliberately not db.rows, which is the error arm B measures"
+      },
+      "text": {
+        "label": "no_shipped_resolver",
+        "why": "the call answers with a result set whose size is real and reportable; deliberately not db.rows, which is the error arm B measures"
+      }
+    },
+    "browser_handle_dialog": {
+      "accept": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "promptText": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "browser_hover": {
+      "element": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "target": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "browser_network_request": {
+      "filename": {
+        "label": "fs.paths",
+        "why": "a path on this machine that the call writes to or reads from; fs.paths ships and would answer, but its name-rule does not know `filename`"
+      },
+      "index": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "part": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "browser_network_requests": {
+      "filename": {
+        "label": "fs.paths",
+        "why": "a path on this machine that the call writes to or reads from; fs.paths ships and would answer, but its name-rule does not know `filename`"
+      },
+      "filter": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "static": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "browser_press_key": {
+      "key": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "browser_resize": {
+      "height": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "width": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "browser_run_code_unsafe": {
+      "code": {
+        "label": "unadjudicated",
+        "why": "the schema in front of me does not settle this, and a guess would look like a judgement"
+      },
+      "filename": {
+        "label": "fs.paths",
+        "why": "a path on this machine that the call writes to or reads from; fs.paths ships and would answer, but its name-rule does not know `filename`"
+      }
+    },
+    "browser_select_option": {
+      "element": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "target": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "values": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      }
+    },
+    "browser_snapshot": {
+      "boxes": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "depth": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "filename": {
+        "label": "fs.paths",
+        "why": "a path on this machine that the call writes to or reads from; fs.paths ships and would answer, but its name-rule does not know `filename`"
+      },
+      "target": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "browser_tabs": {
+      "action": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "index": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "browser_take_screenshot": {
+      "element": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "filename": {
+        "label": "fs.paths",
+        "why": "a path on this machine that the call writes to or reads from; fs.paths ships and would answer, but its name-rule does not know `filename`"
+      },
+      "fullPage": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "scale": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "target": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "type": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "browser_type": {
+      "element": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "slowly": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "submit": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "target": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "text": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "browser_wait_for": {
+      "text": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "textGone": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "time": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "click": {
+      "dblClick": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "includeSnapshot": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "uid": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "close_page": {
+      "pageId": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "create_branch": {
+      "branch": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "from_branch": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "create_entities": {
+      "entities": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      }
+    },
+    "create_issue": {
+      "assignees": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      },
+      "body": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "labels": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      },
+      "milestone": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "title": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "create_or_update_file": {
+      "branch": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "content": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "message": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "sha": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "create_pull_request": {
+      "base": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "body": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "draft": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "head": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "maintainer_can_modify": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "title": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "create_pull_request_review": {
+      "body": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "comments": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      },
+      "commit_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "event": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "pull_number": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "create_relations": {
+      "relations": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      }
+    },
+    "create_repository": {
+      "autoInit": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "description": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "name": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "private": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "delete_entities": {
+      "entityNames": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      }
+    },
+    "delete_observations": {
+      "deletions": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      }
+    },
+    "delete_relations": {
+      "relations": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "directory_tree": {
+      "excludePatterns": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "drag": {
+      "from_uid": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "includeSnapshot": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "to_uid": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "echo": {
+      "message": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "edit_file": {
+      "dryRun": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "edits": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      }
+    },
+    "emulate": {
+      "colorScheme": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "cpuThrottlingRate": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "extraHttpHeaders": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "geolocation": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "networkConditions": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "userAgent": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "viewport": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "evaluate_script": {
+      "args": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "dialogAction": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "function": {
+        "label": "unadjudicated",
+        "why": "the schema in front of me does not settle this, and a guess would look like a judgement"
+      }
+    },
+    "fill": {
+      "includeSnapshot": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "uid": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "value": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "fill_form": {
+      "elements": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      },
+      "includeSnapshot": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "fork_repository": {
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "get-annotated-message": {
+      "includeImage": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "messageType": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "get-resource-links": {
+      "count": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "get-resource-reference": {
+      "resourceId": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "resourceType": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "get-structured-content": {
+      "location": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "get-sum": {
+      "a": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "b": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "get_console_message": {
+      "msgid": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "get_file_contents": {
+      "branch": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "get_issue": {
+      "issue_number": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "get_network_request": {
+      "reqid": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "get_pull_request": {
+      "pull_number": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "get_pull_request_comments": {
+      "pull_number": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "get_pull_request_files": {
+      "pull_number": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "get_pull_request_reviews": {
+      "pull_number": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "get_pull_request_status": {
+      "pull_number": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "gzip-file-as-resource": {
+      "data": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "name": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "outputType": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "handle_dialog": {
+      "action": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "promptText": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "hover": {
+      "includeSnapshot": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "uid": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "lighthouse_audit": {
+      "device": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "mode": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "list_commits": {
+      "page": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "perPage": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "sha": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "list_console_messages": {
+      "includePreservedMessages": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "pageIdx": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "pageSize": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "serviceWorkerId": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "types": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "list_directory_with_sizes": {
+      "sortBy": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "list_issues": {
+      "direction": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "labels": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      },
+      "page": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "per_page": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "since": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "sort": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "state": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "list_network_requests": {
+      "includePreservedRequests": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "pageIdx": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "pageSize": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "resourceTypes": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "list_pull_requests": {
+      "base": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "direction": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "head": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "page": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "per_page": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "sort": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "state": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "merge_pull_request": {
+      "commit_message": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "commit_title": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "merge_method": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "pull_number": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "navigate_page": {
+      "handleBeforeUnload": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "ignoreCache": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "initScript": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "timeout": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "type": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "new_page": {
+      "background": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "isolatedContext": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "timeout": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "open_nodes": {
+      "names": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      }
+    },
+    "performance_analyze_insight": {
+      "insightName": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "insightSetId": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "performance_start_trace": {
+      "autoStop": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "reload": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "press_key": {
+      "includeSnapshot": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "key": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "puppeteer_click": {
+      "selector": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "puppeteer_evaluate": {
+      "script": {
+        "label": "unadjudicated",
+        "why": "the schema in front of me does not settle this, and a guess would look like a judgement"
+      }
+    },
+    "puppeteer_fill": {
+      "selector": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "value": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "puppeteer_hover": {
+      "selector": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "puppeteer_navigate": {
+      "allowDangerous": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "launchOptions": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "puppeteer_screenshot": {
+      "encoded": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "height": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "name": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "selector": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "width": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "puppeteer_select": {
+      "selector": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "value": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "push_files": {
+      "branch": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "files": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      },
+      "message": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "query-docs": {
+      "libraryId": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "read_file": {
+      "head": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "tail": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "read_text_file": {
+      "head": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "tail": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "resize_page": {
+      "height": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "width": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "resolve-library-id": {
+      "libraryName": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "search_code": {
+      "order": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "page": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "per_page": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "q": {
+        "label": "no_shipped_resolver",
+        "why": "the call answers with a result set whose size is real and reportable; deliberately not db.rows, which is the error arm B measures"
+      }
+    },
+    "search_files": {
+      "excludePatterns": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "search_issues": {
+      "order": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "page": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "per_page": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "q": {
+        "label": "no_shipped_resolver",
+        "why": "the call answers with a result set whose size is real and reportable; deliberately not db.rows, which is the error arm B measures"
+      },
+      "sort": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "search_repositories": {
+      "page": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "perPage": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "search_users": {
+      "order": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "page": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "per_page": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "q": {
+        "label": "no_shipped_resolver",
+        "why": "the call answers with a result set whose size is real and reportable; deliberately not db.rows, which is the error arm B measures"
+      },
+      "sort": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "select_page": {
+      "bringToFront": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "pageId": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "sequentialthinking": {
+      "branchFromThought": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "branchId": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "isRevision": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "needsMoreThoughts": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "nextThoughtNeeded": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "revisesThought": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "thought": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "thoughtNumber": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "totalThoughts": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "simulate-research-query": {
+      "ambiguous": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "topic": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "slack_add_reaction": {
+      "channel_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "reaction": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "timestamp": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "slack_get_channel_history": {
+      "channel_id": {
+        "label": "no_shipped_resolver",
+        "why": "a channel names both an audience and a history, and neither is countable by anything that ships"
+      },
+      "limit": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "slack_get_thread_replies": {
+      "channel_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "thread_ts": {
+        "label": "no_shipped_resolver",
+        "why": "a channel names both an audience and a history, and neither is countable by anything that ships"
+      }
+    },
+    "slack_get_user_profile": {
+      "user_id": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "slack_get_users": {
+      "cursor": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "limit": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "slack_list_channels": {
+      "cursor": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "limit": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "slack_post_message": {
+      "channel_id": {
+        "label": "no_shipped_resolver",
+        "why": "a channel names both an audience and a history, and neither is countable by anything that ships"
+      },
+      "text": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "slack_reply_to_thread": {
+      "channel_id": {
+        "label": "no_shipped_resolver",
+        "why": "a channel names both an audience and a history, and neither is countable by anything that ships"
+      },
+      "text": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "thread_ts": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "take_screenshot": {
+      "format": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "fullPage": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "quality": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "uid": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "take_snapshot": {
+      "verbose": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "trigger-long-running-operation": {
+      "duration": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "steps": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "type_text": {
+      "submitKey": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "text": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "update_issue": {
+      "assignees": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      },
+      "body": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "issue_number": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "labels": {
+        "label": "no_shipped_resolver",
+        "why": "a literal array of the things the call acts on: the magnitude is the argument's own length, and nothing that ships counts it"
+      },
+      "milestone": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "state": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "title": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "update_pull_request_branch": {
+      "expected_head_sha": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "pull_number": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "repo": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "upload_file": {
+      "includeSnapshot": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "uid": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "wait_for": {
+      "text": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      },
+      "timeout": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    },
+    "write_file": {
+      "content": {
+        "label": "not_a_set",
+        "why": "an address, a flag, a page size, a cursor, an id for one record, or free text: nothing here addresses a set"
+      }
+    }
+  },
+  "note": "Arm C's answer key: what the 401 parameters no rule claims actually address. Generated by eval/answers/adjudicate.py, where every label carries the rule that produced it. This is one reading, not a fact \u2014 argue with the rules, not the JSON. `unadjudicated` entries are excluded from every rate M12 reports.",
+  "version": 1
+}

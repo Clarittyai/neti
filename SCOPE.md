@@ -38,6 +38,19 @@ deep, and a wrong resolver almost always reports UNRESOLVED rather than a plausi
 surfaces in the first week. It is still a path, and it is written down here rather than left for
 somebody to find.
 
+**How often a suggestion is wrong, measured rather than assumed** (2026-08-05). M12 arm C turns a
+model loose on the 401 parameters no rule claims and scores it against a written adjudication
+(`eval/answers/adjudicate.py`, an opinion, with every label carrying the rule that produced it). A
+local 8B model found 7 gates the rule table genuinely misses — every one that the adjudication says
+exists — and paid for them with 92 claims on parameters that are not sets and 7 sets forced into a
+resolver that cannot size them. Roughly six percent of its claims were right.
+
+That is the number to read the paragraph above against. A suggestion is not a coin flip that
+occasionally misfires; on a small model it is wrong far more often than it is right, and the only
+reason that is tolerable is that every claim arrives commented out, with empty bands, in a file the
+gate never loads. Run it against a larger model and the rate will differ — the harness prints it,
+`neti score` carries it, and neither reports a number nobody measured on this machine.
+
 ## Non-coverage
 
 Numbered so the scorecard, the tests and any external write-up can cite them. `neti score` prints

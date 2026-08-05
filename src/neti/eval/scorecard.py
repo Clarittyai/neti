@@ -295,6 +295,21 @@ class Assist:
     measures what would happen if it did.
     """
 
+    unclaimed_of: int = 0
+    """Arm C's denominator: parameters no rule claims, with an adjudication written down."""
+
+    unclaimed_found: int = 0
+    """Gates the rule table misses and a shipped resolver could make. The upside, measured."""
+
+    unclaimed_false: int = 0
+    """Resolvers claimed for something adjudicated not a set. The cost of the upside."""
+
+    unclaimed_forced: int = 0
+    """A real set, forced into a resolver that cannot size it. `no_shipped_resolver` was there."""
+
+    unclaimed_unadjudicated: int = 0
+    """Pairs the reading could not settle. Excluded from every rate above, and reported anyway."""
+
     @property
     def wrong(self) -> int:
         """Everything that was not a recovery. Reported before the recovery, deliberately."""
@@ -569,6 +584,29 @@ def format_scorecard(card: Scorecard) -> str:
                 "number that measures"
             )
             out.append("    the appetite that exclusion exists to contain.")
+        if a.unclaimed_of:
+            out.append("")
+            out.append(
+                f"    Turned loose on the {a.unclaimed_of} parameters no rule claims at all — the "
+                "question the other two"
+            )
+            out.append(
+                f"    arms exist to earn — it claimed a resolver for {a.unclaimed_false} thing(s) "
+                "adjudicated not a set,"
+            )
+            out.append(
+                f"    and forced {a.unclaimed_forced} real set(s) into a resolver that cannot size "
+                "one. It found"
+            )
+            out.append(
+                f"    {a.unclaimed_found} gate(s) the rule table misses. "
+                f"{a.unclaimed_unadjudicated} pair(s) are unadjudicated and scored nowhere."
+            )
+            out.append(
+                "    The key is a written reading, not a fact: eval/answers/adjudicate.py, where "
+                "every label"
+            )
+            out.append("    carries the rule that produced it. Argue with the rules.")
         out.append("")
         out.append(
             "    Nothing here is a gate. `neti suggest` writes a commented-out fragment to a file "

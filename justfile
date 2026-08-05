@@ -63,9 +63,27 @@ determinism:
 # already gates, with the answer withheld, and scores what comes back against the committed key.
 # If a model cannot recover gates the rules already make, nothing downstream is interpretable.
 #
+# Arm B sends the 41 the rule table declined *with a written reason*, where every claim is wrong by
+# construction. Arm C is the question the other two earn: the 401 no rule touches at all, against
+# the written adjudication in eval/answers/.
+#
+#   just assist                          arms A and B, against Anthropic
+#   just assist local                    the same, against a model on this machine
+#   just assist local "--arm all"        all three, including the 401
+#
 # Your key, your account, your machine. neti never proxies this.
-assist provider="anthropic":
-    uv run python -m eval.harness.assist --provider {{provider}}
+assist provider="anthropic" *ARGS:
+    uv run python -m eval.harness.assist --provider {{provider}} {{ARGS}}
+
+# Arm C's answer key: what the 401 unclaimed parameters actually address.
+#
+# An opinion, written as rules so it can be argued with. Every label carries the rule that produced
+# it, and claimable.json is committed, so the diff of a re-run is the review.
+#
+#   just answers            rewrite it
+#   just answers --check    fail if it is stale
+answers *ARGS:
+    uv run python -m eval.answers.adjudicate {{ARGS}}
 
 # The offline scorecard: incident replay, friction, blind spots, and what is still unmeasured.
 score:

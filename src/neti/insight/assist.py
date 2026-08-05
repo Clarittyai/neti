@@ -158,6 +158,29 @@ def payload(batch: tuple[Candidate, ...], *, scrub: bool = True) -> list[dict[st
     return list(by_tool.values())
 
 
+def question(batch: tuple[Candidate, ...], *, indent: int | None = None) -> str:
+    """The user message: what to judge, and the exact list of answers expected back.
+
+    The payload alone leaves the model to infer which keys it is being asked about, and that
+    inference fails in a specific, measurable way. Asked about `move_file`, a small model answers
+    confidently for `move_file/path` — a parameter the tool does not have. `parse` drops it as
+    `unknown_param`, and the two parameters that *were* asked about, `source` and `destination`, go
+    unanswered. One wrong guess costs three results.
+
+    Enumerating the expected keys turns rule 1 of the system prompt from an instruction into
+    something a model can check its own draft against before returning it. It sends nothing new:
+    every name in the list is already in the payload above it.
+    """
+    asked = tuple(f"{c.tool}/{c.parameter}" for c in batch)
+    listing = "\n".join(f"  {key}" for key in asked)
+    return (
+        json.dumps(payload(batch), indent=indent, sort_keys=True)
+        + f"\n\nReturn exactly {len(asked)} claim(s) — one for each line below, using these exact "
+        + "tool and parameter names, and no others:\n"
+        + listing
+    )
+
+
 def _clean(text: str) -> str:
     """Drop any token that looks like a credential before it leaves the machine.
 

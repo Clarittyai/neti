@@ -1,6 +1,63 @@
 # Changelog
 
-## Unreleased
+## 0.2.0 — 2026-08-05
+
+### The model was never told which questions it was being asked
+
+`neti suggest` sent a model a JSON payload of tools and parameters and relied on a line in the
+system prompt — *answer for every parameter you are shown, exactly once* — to keep the answer
+aligned to the question. Nothing made that checkable, and a small model asked about `move_file`
+answered for `move_file/path`: a parameter the tool does not have. `parse` dropped it as unknown,
+and `source` and `destination` went unanswered. One invented name cost three results.
+
+The request now ends with the exact list of `tool/parameter` keys expected back, built from the
+same batch as the payload so the two cannot disagree. It sends nothing new — every name in the list
+is already in the JSON above it, and a property test asserts exactly that, so the clarification
+cannot quietly become a second channel for things the operator never agreed to send.
+
+Measured on the same model, same corpus, same batch size, changing only the request shape:
+
+    recovery    30 of 34  ->  33 of 34      still 0 wrong resolvers
+    over-claim  28 of 41  ->  19 of 41      the "a search string is SQL" appetite
+
+The over-claim drop is the more interesting half, and it was not aimed at: nothing in the change
+mentions a tool, a resolver or an answer. A model that knows precisely what it is being asked stops
+free-associating about everything else. Stated plainly for the record: the misses were read before
+the change was made, so these are not blind numbers — but the change is content-neutral, and the
+arm B corpus was never touched.
+
+### M12 arm C — the 401, adjudicated
+
+Arms A and B measure a model where somebody already decided: A against gates the rule table makes,
+B against parameters it declined in writing. Neither answers the question `neti suggest` exists for
+— **of the 401 parameters no rule touches at all, which ones actually name a set?**
+
+That needs an answer key, and an answer key here is an opinion. `eval/answers/adjudicate.py` is
+that opinion, written as rules rather than four hundred typed judgements so it can be argued with:
+each rule states the class it covers and why, and `claimable.json` is generated from it and
+committed, so a re-run's diff is the review. Thirteen pairs are labelled `unadjudicated` and scored
+nowhere — a shell command and a subagent prompt can touch anything, and calling that "not a set"
+would understate it badly.
+
+The first number, from a local 8B model with no key and nothing leaving the machine:
+
+    of 388 adjudicated parameters, it claimed a resolver for 92 that are not sets,
+    and forced 7 real sets into a resolver that cannot size one.
+    It found 7 gates the rule table misses. It found all 7 that exist.
+
+Both halves matter. The seven are real: `filename` on seven browser tools is documented as a path
+on this machine to save a screenshot or a snapshot to, `fs.paths` ships and would answer it, and
+the rule table's name rule simply does not know the word `filename`. That is a gap found by asking.
+
+And the cost of finding it was ninety-nine wrong claims, from two systematic errors — `fs.paths`
+onto anything id-shaped (`Read/offset`, `Edit/replace_all`, `Grep/head_limit`), and `github.repos`
+onto `repo` on all twenty-one GitHub tools, where that resolver counts the repositories *under an
+owner* and `repo` is one repository. It never once used `no_shipped_resolver`, the answer that
+exists so it does not have to guess.
+
+Six percent of its claims were right. That is the argument for the shape this command already has
+— a commented-out fragment, empty bands, in a file the gate never loads — and against ever letting
+it near a decision. The number is on `neti score`, wrong count first.
 
 ### The out-of-the-box journey is a command now, not a story
 
@@ -23,6 +80,17 @@ cron and CI read the status and nothing else.
 
 The README and the landing page said to install from git "because the package is not on PyPI yet".
 It is, so they say `pip install "neti[all]"` now.
+
+## 0.1.0 — 2026-08-04, first release on PyPI
+
+Everything below shipped in the published `0.1.0` wheel. It sat under an `Unreleased` heading
+while it was being written and the heading was never moved when the package went out, which made
+the file claim that work nobody could install was still pending and that work everybody could
+install did not exist. Corrected here rather than quietly.
+
+The `v0.1.0` git tag is older than this and does not point at the commit the wheel was built from.
+It is left where it is — a tag that moved once is a tag nobody can trust again — and `0.2.0` is
+the first release whose tag matches its artifact.
 
 ### The first command in the README did not work on a real install
 
@@ -823,7 +891,7 @@ unscoped credential, which is upstream of any magnitude gate.
 latency, both need a directory nobody here has. `neti check` answers both in one command and is
 now itself tested; the tenant is the only thing missing. `neti score` says so.
 
-## 0.1.0 — first release
+### What the first release is, in one paragraph
 
 `neti` resolves what an agent's tool call will actually touch, before it runs, and stops it when
 that exceeds a ceiling you declared. Two distributions: `neti` (Apache-2.0) is the whole gate;

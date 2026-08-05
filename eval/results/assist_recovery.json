@@ -1,24 +1,12 @@
 {
   "detail": [
     {
-      "rejected": "unknown_param",
-      "what": "move_file/path"
-    },
-    {
       "expected": "fs.paths",
       "missed": "Glob/pattern"
     },
     {
-      "expected": "fs.paths",
-      "missed": "get_network_request/responseFilePath"
-    },
-    {
-      "expected": "fs.paths",
-      "missed": "move_file/destination"
-    },
-    {
-      "expected": "fs.paths",
-      "missed": "move_file/source"
+      "extra": "Grep/glob",
+      "got": "fs.paths"
     },
     {
       "because": "a search pattern rather than a set of paths; the tool's path parameter is what bounds this call",
@@ -27,15 +15,15 @@
       "rule_table_rejected": "fs.paths"
     },
     {
-      "because": "a search string on this tool, not a SQL statement",
-      "model_said": "db.rows",
-      "over_claimed": "brave_local_search/query",
-      "rule_table_rejected": "db.rows"
+      "because": "a search pattern rather than a set of paths; the tool's path parameter is what bounds this call",
+      "model_said": "fs.paths",
+      "over_claimed": "Grep/pattern",
+      "rule_table_rejected": "fs.paths"
     },
     {
       "because": "a search string on this tool, not a SQL statement",
       "model_said": "db.rows",
-      "over_claimed": "brave_web_search/query",
+      "over_claimed": "brave_local_search/query",
       "rule_table_rejected": "db.rows"
     },
     {
@@ -51,27 +39,15 @@
       "rule_table_rejected": "fs.paths"
     },
     {
+      "because": "a path inside a repository, not on this disk \u2014 fs.paths would count the wrong tree",
+      "model_said": "fs.paths",
+      "over_claimed": "create_or_update_file/path",
+      "rule_table_rejected": "fs.paths"
+    },
+    {
       "because": "the call names a repository, so the owner is an address and not the target",
       "model_said": "fs.paths",
-      "over_claimed": "create_or_update_file/owner",
-      "rule_table_rejected": "github.repos"
-    },
-    {
-      "because": "the call names a repository, so the owner is an address and not the target",
-      "model_said": "github.repos",
-      "over_claimed": "create_pull_request/owner",
-      "rule_table_rejected": "github.repos"
-    },
-    {
-      "because": "the call names a repository, so the owner is an address and not the target",
-      "model_said": "github.repos",
-      "over_claimed": "create_pull_request_review/owner",
-      "rule_table_rejected": "github.repos"
-    },
-    {
-      "because": "the call names a repository, so the owner is an address and not the target",
-      "model_said": "github.repos",
-      "over_claimed": "fork_repository/owner",
+      "over_claimed": "fork_repository/organization",
       "rule_table_rejected": "github.repos"
     },
     {
@@ -81,63 +57,15 @@
       "rule_table_rejected": "github.repos"
     },
     {
-      "because": "the call names a repository, so the owner is an address and not the target",
-      "model_said": "github.repos",
-      "over_claimed": "get_issue/owner",
-      "rule_table_rejected": "github.repos"
-    },
-    {
-      "because": "the call names a repository, so the owner is an address and not the target",
-      "model_said": "github.repos",
-      "over_claimed": "get_pull_request/owner",
-      "rule_table_rejected": "github.repos"
-    },
-    {
-      "because": "the call names a repository, so the owner is an address and not the target",
-      "model_said": "github.repos",
-      "over_claimed": "get_pull_request_comments/owner",
-      "rule_table_rejected": "github.repos"
-    },
-    {
-      "because": "the call names a repository, so the owner is an address and not the target",
-      "model_said": "github.repos",
-      "over_claimed": "get_pull_request_files/owner",
-      "rule_table_rejected": "github.repos"
-    },
-    {
-      "because": "the call names a repository, so the owner is an address and not the target",
-      "model_said": "github.repos",
-      "over_claimed": "get_pull_request_reviews/owner",
-      "rule_table_rejected": "github.repos"
-    },
-    {
-      "because": "the call names a repository, so the owner is an address and not the target",
-      "model_said": "github.repos",
-      "over_claimed": "get_pull_request_status/owner",
-      "rule_table_rejected": "github.repos"
+      "because": "a path inside a repository, not on this disk \u2014 fs.paths would count the wrong tree",
+      "model_said": "fs.paths",
+      "over_claimed": "get_file_contents/path",
+      "rule_table_rejected": "fs.paths"
     },
     {
       "because": "the call names a repository, so the owner is an address and not the target",
       "model_said": "fs.paths",
       "over_claimed": "list_commits/owner",
-      "rule_table_rejected": "github.repos"
-    },
-    {
-      "because": "the call names a repository, so the owner is an address and not the target",
-      "model_said": "github.repos",
-      "over_claimed": "list_issues/owner",
-      "rule_table_rejected": "github.repos"
-    },
-    {
-      "because": "the call names a repository, so the owner is an address and not the target",
-      "model_said": "github.repos",
-      "over_claimed": "list_pull_requests/owner",
-      "rule_table_rejected": "github.repos"
-    },
-    {
-      "because": "the call names a repository, so the owner is an address and not the target",
-      "model_said": "github.repos",
-      "over_claimed": "merge_pull_request/owner",
       "rule_table_rejected": "github.repos"
     },
     {
@@ -171,6 +99,12 @@
       "rule_table_rejected": "db.rows"
     },
     {
+      "because": "a search string on this tool, not a SQL statement",
+      "model_said": "db.rows",
+      "over_claimed": "API-post-search/query",
+      "rule_table_rejected": "db.rows"
+    },
+    {
       "because": "a URL, and nothing here says it addresses an object store",
       "model_said": "fs.paths",
       "over_claimed": "browser_navigate/url",
@@ -187,6 +121,430 @@
       "model_said": "fs.paths",
       "over_claimed": "puppeteer_navigate/url",
       "rule_table_rejected": "storage.objects"
+    },
+    {
+      "false_claim": "API-create-a-comment/parent",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "API-create-a-data-source/parent",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "API-delete-a-block/block_id",
+      "model_said": "fs.paths"
+    },
+    {
+      "forced_near_miss": "API-get-block-children/block_id",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "API-post-page/children",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "API-post-page/parent",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "API-post-search/sort",
+      "model_said": "db.rows"
+    },
+    {
+      "false_claim": "API-retrieve-a-block/block_id",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "API-retrieve-a-comment/block_id",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "API-retrieve-a-page/page_id",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "API-retrieve-a-page-property/page_id",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "API-retrieve-page-markdown/page_id",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "API-update-a-block/block_id",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "API-update-a-data-source/data_source_id",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "Edit/new_string",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "Edit/old_string",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "Edit/replace_all",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "Grep/head_limit",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "NotebookEdit/cell_id",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "NotebookEdit/new_source",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "Read/limit",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "Read/offset",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "add_issue_comment/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "browser_console_messages/all",
+      "model_said": "fs.paths"
+    },
+    {
+      "found": "browser_console_messages/filename",
+      "resolver": "fs.paths"
+    },
+    {
+      "false_claim": "browser_drag/endElement",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "browser_drag/startElement",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "browser_drop/element",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "browser_evaluate/element",
+      "model_said": "fs.paths"
+    },
+    {
+      "found": "browser_evaluate/filename",
+      "resolver": "fs.paths"
+    },
+    {
+      "forced_near_miss": "browser_fill_form/fields",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "browser_hover/element",
+      "model_said": "fs.paths"
+    },
+    {
+      "found": "browser_network_request/filename",
+      "resolver": "fs.paths"
+    },
+    {
+      "found": "browser_network_requests/filename",
+      "resolver": "fs.paths"
+    },
+    {
+      "found": "browser_run_code_unsafe/filename",
+      "resolver": "fs.paths"
+    },
+    {
+      "false_claim": "browser_select_option/element",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "browser_snapshot/boxes",
+      "model_said": "fs.paths"
+    },
+    {
+      "found": "browser_snapshot/filename",
+      "resolver": "fs.paths"
+    },
+    {
+      "false_claim": "browser_tabs/index",
+      "model_said": "fs.paths"
+    },
+    {
+      "found": "browser_take_screenshot/filename",
+      "resolver": "fs.paths"
+    },
+    {
+      "false_claim": "browser_take_screenshot/target",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "browser_type/element",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "browser_type/text",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "browser_wait_for/time",
+      "model_said": "db.rows"
+    },
+    {
+      "false_claim": "click/dblClick",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "click/uid",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "create_branch/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "create_issue/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "create_or_update_file/branch",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "create_or_update_file/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "create_or_update_file/sha",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "create_pull_request/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "create_pull_request_review/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "directory_tree/excludePatterns",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "drag/from_uid",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "drag/to_uid",
+      "model_said": "fs.paths"
+    },
+    {
+      "forced_near_miss": "edit_file/edits",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "evaluate_script/args",
+      "model_said": "fs.paths"
+    },
+    {
+      "forced_near_miss": "fill_form/elements",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "fork_repository/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "get-annotated-message/includeImage",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "get-resource-reference/resourceId",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "get-structured-content/location",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "get_console_message/msgid",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "get_file_contents/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "get_issue/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "get_pull_request/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "get_pull_request_comments/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "get_pull_request_files/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "get_pull_request_reviews/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "get_pull_request_status/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "gzip-file-as-resource/data",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "lighthouse_audit/device",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "list_commits/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "list_commits/sha",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "list_issues/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "list_pull_requests/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "merge_pull_request/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "performance_start_trace/reload",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "puppeteer_click/selector",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "puppeteer_fill/selector",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "puppeteer_hover/selector",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "puppeteer_screenshot/selector",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "puppeteer_select/selector",
+      "model_said": "fs.paths"
+    },
+    {
+      "forced_near_miss": "push_files/files",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "push_files/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "query-docs/libraryId",
+      "model_said": "entra.principals"
+    },
+    {
+      "false_claim": "read_file/head",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "read_file/tail",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "read_text_file/head",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "read_text_file/tail",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "resize_page/height",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "resize_page/width",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "search_files/excludePatterns",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "select_page/pageId",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "slack_add_reaction/channel_id",
+      "model_said": "fs.paths"
+    },
+    {
+      "forced_near_miss": "slack_get_channel_history/channel_id",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "slack_get_thread_replies/channel_id",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "slack_get_user_profile/user_id",
+      "model_said": "fs.paths"
+    },
+    {
+      "forced_near_miss": "slack_post_message/channel_id",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "take_screenshot/fullPage",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "take_screenshot/uid",
+      "model_said": "fs.paths"
+    },
+    {
+      "false_claim": "update_issue/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "update_pull_request_branch/expected_head_sha",
+      "model_said": "storage.objects"
+    },
+    {
+      "false_claim": "update_pull_request_branch/repo",
+      "model_said": "github.repos"
+    },
+    {
+      "false_claim": "upload_file/uid",
+      "model_said": "fs.paths"
     }
   ],
   "metric": "M12",
@@ -195,19 +553,31 @@
     "extra": 0,
     "missed": 0,
     "of": 41,
-    "over_claimed": 28,
+    "over_claimed": 19,
     "recovered": 0,
     "unassisted": 0,
     "wrong_resolver": 0
   },
   "provider": "local",
   "recovery": {
-    "extra": 0,
-    "missed": 4,
+    "extra": 1,
+    "missed": 1,
     "of": 34,
     "over_claimed": 0,
-    "recovered": 30,
+    "recovered": 33,
     "unassisted": 0,
     "wrong_resolver": 0
+  },
+  "unclaimed": {
+    "agreed_no_resolver": 0,
+    "false_claim": 92,
+    "forced_near_miss": 7,
+    "found": 7,
+    "found_missed": 0,
+    "found_wrong_resolver": 0,
+    "of": 388,
+    "quiet": 282,
+    "unadjudicated": 13,
+    "unassisted": 0
   }
 }

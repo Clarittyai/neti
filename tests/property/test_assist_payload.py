@@ -190,6 +190,43 @@ def test_the_payload_carries_nothing_about_this_machine(forbidden: str) -> None:
     assert forbidden not in body
 
 
+def test_the_question_asks_for_exactly_the_parameters_it_sends() -> None:
+    """The enumeration and the payload cannot disagree, because one is built from the other.
+
+    A model that answers for a parameter the tool does not have loses that answer *and* the
+    parameters it was actually asked about: `parse` drops the unknown name and nothing fills the
+    gap. Measured against `tests/corpus/`, one such guess on `move_file` cost three results.
+    """
+    batch = _candidates()
+    asked = assist.question(batch)
+    for candidate in batch:
+        assert f"{candidate.tool}/{candidate.parameter}" in asked
+    assert f"exactly {len(batch)} claim(s)" in asked
+
+
+def test_the_question_sends_no_name_the_payload_does_not_already_carry() -> None:
+    """The enumeration is a restatement, not a second channel.
+
+    It would be easy to make the ask clearer by adding a type, a default, a sample value or a path —
+    each of which is something the operator never agreed to send. So every identifier in the tail,
+    meaning every token carrying a `/`, `.`, `_` or `-`, has to appear in the payload above it.
+    """
+    import json
+    import re
+
+    batch = _candidates()
+    inside = json.dumps(assist.payload(batch))
+    tail = assist.question(batch).split("\n\n", 1)[1]
+
+    identifiers = [w for w in re.findall(r"[\w./-]+", tail) if re.search(r"[/._-]", w)]
+    assert identifiers, "the enumeration named nothing at all"
+    for word in identifiers:
+        # `tool/parameter` is a composite key, so each half is checked against the payload rather
+        # than the joined form, which by construction appears nowhere in the JSON.
+        for half in word.split("/"):
+            assert half in inside, f"{half!r} is in the ask but not in the payload"
+
+
 def test_the_system_prompt_never_asks_for_a_number() -> None:
     """The model is on the far side of every quantity in the system, and this is where that starts.
 

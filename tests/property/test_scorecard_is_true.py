@@ -436,6 +436,64 @@ def test_m12_reports_what_the_model_got_wrong_before_what_it_got_right() -> None
     assert body.index("got 2 wrong") < body.index("recovered 31")
 
 
+def _arm_c_card() -> str:
+    from neti.eval.scorecard import Assist, build_scorecard, format_scorecard
+
+    return format_scorecard(
+        build_scorecard(
+            assist=Assist(
+                model="a-model",
+                provider="a-provider",
+                of=39,
+                recovered=31,
+                wrong_resolver=2,
+                missed=6,
+                extra=4,
+                unclaimed_of=388,
+                unclaimed_found=7,
+                unclaimed_false=92,
+                unclaimed_forced=7,
+                unclaimed_unadjudicated=13,
+            )
+        )
+    )
+
+
+def test_arm_c_reports_the_false_claims_before_the_finds() -> None:
+    """The same rule again, and it bites hardest here.
+
+    Arm C is the arm with a headline: *it found gates the rule table misses*. That sentence sells
+    the feature, and on the evidence so far it is bought with fifteen wrong claims apiece. Reading
+    order decides which of those two facts a person leaves with.
+    """
+    body = _arm_c_card()
+    body = body[body.index("M12 MODEL-ASSISTED") :]
+    assert body.index("92 thing(s) adjudicated not a set") < body.index("gate(s) the rule table")
+
+
+def test_arm_c_says_its_answer_key_is_an_opinion() -> None:
+    """Arms A and B are scored against the rule table's own committed output. Arm C is not.
+
+    Its key is a reading somebody wrote down, and a number presented without that caveat is a
+    number pretending to more authority than it has. The card names the file and invites the
+    argument, because the alternative is a reader assuming a fact was measured.
+    """
+    body = _arm_c_card()
+    assert "written reading, not a fact" in body
+    assert "eval/answers/adjudicate.py" in body
+
+
+def test_arm_c_reports_what_it_refused_to_adjudicate() -> None:
+    """Excluding the hard cases is defensible. Excluding them silently is not."""
+    assert "13 pair(s) are unadjudicated and scored nowhere" in _arm_c_card()
+
+
+def test_the_card_stays_quiet_about_arm_c_when_nobody_ran_it() -> None:
+    """An arm that was not run must not render as an arm that found nothing."""
+    rendered = _assist_card()
+    assert "no rule claims at all" not in rendered
+
+
 def test_m12_says_out_loud_that_none_of_it_is_a_gate() -> None:
     """The card is where somebody's security team reads about this, so it says the posture there.
 
