@@ -58,6 +58,15 @@ export default function OverviewPage() {
         <Failed error={inventory.error} onRetry={inventory.reload} />
       ) : null}
 
+      {rows.length === 0 && (report.data?.decisions ?? 0) === 0 ? (
+        <EmptyState
+          size="page"
+          scene={<ReachScene />}
+          title="Nothing gated here yet"
+          description="Run `neti start` in a repository and this fills with what your agent can reach, before it reaches it."
+        />
+      ) : null}
+
       <Stats>
         <Stat
           value={n(Math.max(0, ...rows.map((r) => r.reachable ?? 0)))}

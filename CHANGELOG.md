@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### The four live scenes are actually wired now, and the last dashed box is gone
+
+The previous pass built the scenes and wired one. `ReachScene` was an unused import, `GateScene` and
+`ConnectScene` were written and connected to nothing, and `/gate` — the page in the screenshot that
+started this — still had its dashed rectangle. All four are in place:
+
+    /         ReachScene     when there is no policy and no traffic at all
+    /gate     GateScene      a 1,680-object call stopped at the ceiling
+    /audit    ChainScene     records sealing to one another
+    /connect  ConnectScene   the demo-tenant section, which is the not-connected state
+
+The connect page's dashed box turned out not to be an empty state at all — it was an informational
+panel with a table inside it, which is a card. It is a section with a rule now. The last dashed box,
+in `approvals`, went the same way, and `test_design_rules_hold.py` now fails the build on
+`border-dashed` anywhere in `web/src` so it cannot come back.
+
+**The one-accent-action rule caught a second violation, and it was worse than duplication.** `/gate`
+rendered `Connect` in its header *and* `Connect a provider` in the empty state — but the header
+button ran an in-page `connect()` while the empty state's linked to `/connect`. Two different
+actions wearing the same word, three inches apart. The empty state owns the real action now and the
+header has no button, because once connected there is nothing left to connect.
+
 ### There was no way in
 
 The feedback was *"I don't understand how to use it, or why I'd pay"*, and running the thing as a

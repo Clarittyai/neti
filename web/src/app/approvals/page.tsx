@@ -168,7 +168,9 @@ export default function ApprovalsPage() {
 
 function NotAttached({ reason }: { reason?: string | null }) {
   return (
-    <div className="rounded-2xl border border-dashed border-border px-5 py-8">
+    // A section, not a dashed plate (DESIGN.md). This explains the state of the install; it
+    // belongs to the page rather than floating on it.
+    <div className="border-t border-border py-8">
       <h2 className="flex items-center gap-1.5 text-sm font-semibold">
         <ShieldQuestion className="h-4 w-4 text-muted-foreground" />
         This install has nobody to ask

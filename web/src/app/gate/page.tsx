@@ -19,6 +19,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ChevronRight, Loader2, Play, Quote, Send } from "lucide-react";
 
 import { ResolutionTheatre } from "@/components/ResolutionTheatre";
+import { EmptyState } from "@/components/ui/empty-state";
+import { GateScene } from "@/components/live/scenes/GateScene";
 import { VerdictPill } from "@/components/Verdict";
 import { useConsole } from "@/components/ConsoleProvider";
 import { ApiError, api, type GateResult, type Scenario } from "@/lib/api";
@@ -94,30 +96,22 @@ export default function GatePage() {
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <ModeToggle enforcing={enforcing} onChange={(m) => void setMode(m)} />
-            {!connected ? (
-              <button
-                onClick={() => void connect()}
-                className="rounded-lg bg-accent px-3.5 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent-600"
-              >
-                Connect
-              </button>
-            ) : null}
+            {/* No Connect button here. While disconnected the empty state owns that CTA
+                (DESIGN.md: one accent action per view), and once connected there is nothing to
+                connect — so this header never needs one. Two buttons reading "Connect" was two
+                different actions wearing the same word. */}
           </div>
         </div>
       </motion.div>
 
       {!connected ? (
-        <div className="mt-8 rounded-2xl border border-dashed border-border px-5 py-8 text-center">
-          <p className="text-sm font-semibold">Not connected yet</p>
-          <p className="mx-auto mt-1 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
-            Nothing resolves until a provider is connected — the gate refuses to guess rather than
-            inventing a number.{" "}
-            <Link href="/connect" className="text-accent hover:underline">
-              Connect one
-            </Link>
-            .
-          </p>
-        </div>
+        <EmptyState
+          size="page"
+          scene={<GateScene />}
+          title="Not connected yet"
+          description="Nothing resolves until a provider is connected — the gate refuses to guess rather than inventing a number."
+          action={{ label: "Connect a provider", onClick: () => void connect() }}
+        />
       ) : (
         <>
           {scenario ? (
@@ -263,15 +257,13 @@ function ScenarioCard({
 function FiredList({ fired }: { fired: Fired[] }) {
   if (!fired.length) {
     return (
-      <div className="rounded-2xl border border-dashed border-border px-5 py-8 text-center text-[13px] text-muted-foreground">
-        Calls appear here as they are gated.
-      </div>
+      <EmptyState size="inline" title="Calls appear here as they are gated." />
     );
   }
   return (
     <ol className="space-y-2">
       {fired.map(({ narration, result }) => (
-        <li key={result.decision_id} className="glass-card rounded-xl px-4 py-3">
+        <li key={result.decision_id} className="border-b border-border px-1 py-3 last:border-b-0">
           <div className="flex flex-wrap items-center gap-2.5">
             <VerdictPill verdict={result.record.causes.every((c) => c.magnitude === null) && result.record.causes.length > 0 ? "unknown" : result.verdict} />
             <span className="font-mono text-[13px]">{result.record.tool}</span>

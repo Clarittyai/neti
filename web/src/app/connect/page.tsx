@@ -19,6 +19,7 @@ import { Check, KeyRound, Loader2, Plug, ShieldCheck } from "lucide-react";
 import { Failed, Page } from "@/components/Page";
 import { Install } from "@/components/Install";
 import { useConsole } from "@/components/ConsoleProvider";
+import { ConnectScene } from "@/components/live/scenes/ConnectScene";
 import { api } from "@/lib/api";
 import { cn, n } from "@/lib/utils";
 
@@ -142,7 +143,13 @@ export default function ConnectPage() {
       </div>
 
       {demo ? (
-        <div className="mt-4 max-w-3xl rounded-2xl border border-dashed border-border p-5">
+        <div className="mt-6 max-w-3xl border-t border-border pt-6">
+          {/* A section, not a plate. This is the page saying where its numbers come from, so it
+              belongs to the page — a border around it would detach it from what it describes. The
+              scene says what the prose says: nothing resolves until something is connected. */}
+          <div className="mb-5 max-w-sm">
+            <ConnectScene />
+          </div>
           <h3 className="text-sm font-semibold">You are on the demo tenant</h3>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
             There are no credentials in the environment, so the gate is talking to a fixture with

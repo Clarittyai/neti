@@ -222,6 +222,22 @@ def test_nothing_reaches_for_a_card() -> None:
     )
 
 
+def test_nothing_draws_a_dashed_box() -> None:
+    """DESIGN.md, verbatim: an empty state is open space with something living in it, not a plate.
+
+    `/gate` shipped a dashed rounded rectangle for months and it is named in the anti-patterns
+    table, so it gets an assertion rather than a promise.
+    """
+    offenders = []
+    for path in _sources():
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if "border-dashed" in line:
+                offenders.append(f"{path.relative_to(REPO)}:{number}")
+    assert not offenders, (
+        "dashed boxes — use EmptyState, or a section with a rule:\n  " + "\n  ".join(offenders)
+    )
+
+
 def test_nothing_casts_a_shadow() -> None:
     """DESIGN.md: depth is not this product's idea."""
     offenders = []
