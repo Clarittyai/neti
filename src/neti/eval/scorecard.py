@@ -186,6 +186,7 @@ EVIDENCE: dict[str, str] = {
     "M10": "eval/surveys/mcp_coverage.py + tests/corpus/",
     "M11": "tests/live/",
     "M12": "eval/harness/assist.py + tests/corpus/decisions.json",
+    "M13": "tests/conformance/ + eval/results/conformance.json",
     "POLICY": "the policy named by --config",
     "BLIND SPOTS": "SCOPE.md",
     # The one section whose honest answer is "none", and it is not a gap in the rule — it is the
@@ -325,6 +326,13 @@ class Scorecard:
     live: dict[str, dict[str, Any]] | None = None
     """M11's last actual run, from `eval/results/live_verification.json`. `None` when the live tier
     has not been run here, which is a different statement from a resolver having failed it."""
+
+    conformance: dict[str, dict[str, Any]] | None = None
+    """M13, from `eval/results/conformance.json`: each agent runtime's own loop, driven with a
+    scripted model and no provider. `None` means nobody has run `just conformance` here.
+
+    Versions are carried per row on purpose. "tested with LangChain" is a sentence that outlives the
+    version it was true of, and a matrix that cannot name one is a claim nobody can check."""
     policy_digest: str | None = None
     gated_tools: int = 0
     gated_params: int = 0
@@ -349,8 +357,15 @@ def build_scorecard(
     wild: Wild | None = None,
     live: dict[str, dict[str, Any]] | None = None,
     assist: Assist | None = None,
+    conformance: dict[str, dict[str, Any]] | None = None,
 ) -> Scorecard:
-    card = Scorecard(incidents=replay(shipped_units), wild=wild, live=live, assist=assist)
+    card = Scorecard(
+        incidents=replay(shipped_units),
+        wild=wild,
+        live=live,
+        assist=assist,
+        conformance=conformance,
+    )
 
     card.outstanding = [
         "M1 resolution correctness — covered by the offline suite against the synthetic tenant",
@@ -375,6 +390,13 @@ def build_scorecard(
         card.outstanding.append(
             "M10 coverage in the wild — NOT RUN here. `uv run python -m eval.surveys.mcp_coverage` "
             "launches real MCP servers and counts what `neti init` gates."
+        )
+    if not card.conformance:
+        card.outstanding.append(
+            "M13 runtime conformance — NOT RUN here. `just conformance` builds a real agent in "
+            "each installed framework, scripts the model so no key or network is involved, and "
+            "checks the call is stopped with the same sentence everywhere. It is what turns "
+            '"works with LangChain" into something with a version number behind it.'
         )
     if card.assist is None:
         card.outstanding.append(
@@ -517,6 +539,44 @@ def format_scorecard(card: Scorecard) -> str:
         out.append(f"      - {wrapped[0]}")
         out.extend(f"        {line}" for line in wrapped[1:])
     out.append("")
+
+    if card.conformance:
+        rows = card.conformance
+        passed = [n for n, r in rows.items() if r.get("status") == "passed"]
+        loops = [n for n in passed if rows[n].get("depth") == "agent_loop"]
+        out.append(
+            "M13 RUNTIME CONFORMANCE (each framework's own agent loop, with no model at all)"
+        )
+        out.append(f"    evidence: {EVIDENCE['M13']}")
+        out.append(
+            f"    {len(passed)} of {len(rows)} runtime(s) driven here, {len(loops)} through a full "
+            "agent loop. Every row scripts"
+        )
+        out.append(
+            "    the model — a written message, a fake chat model, a mock transport — so what is "
+            "shown is that the"
+        )
+        out.append(
+            "    gate is at the execution seam. The model chooses what to call; this decides "
+            "whether it runs."
+        )
+        for name in sorted(rows):
+            row = rows[name]
+            status = str(row.get("status", "not_run"))
+            mark = {
+                "passed": "driven  ",
+                "failed": " FAILED ",
+                "skipped": "absent  ",
+            }.get(status, "not run ")
+            version = str(row.get("version") or "")
+            at = f" {version}" if version else ""
+            out.append(f"    [{mark}] {name}{at} — {row.get('what', '')}")
+        out.append(
+            "    Each asserts the tool body never ran, the sentence matched Preflight byte for "
+            "byte, and the"
+        )
+        out.append("    decision was sealed. `absent` means the framework is not installed here.")
+        out.append("")
 
     out.append("M11 LIVE PROVIDER VERIFICATION (resolvers run against something real)")
     out.append(f"    evidence: {EVIDENCE['M11']}")

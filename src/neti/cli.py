@@ -1307,6 +1307,13 @@ def score(
             "Absent is normal.",
         ),
     ] = "eval/results/assist_recovery.json",
+    conformance_results: Annotated[
+        str,
+        typer.Option(
+            "--conformance",
+            help="What `just conformance` last proved about each agent runtime. Absent is normal.",
+        ),
+    ] = "eval/results/conformance.json",
 ) -> None:
     """The scorecard: incident replay, friction, blind spots, and what is not yet measured.
 
@@ -1380,7 +1387,15 @@ def score(
             unclaimed_unadjudicated=int(unclaimed.get("unadjudicated", 0)),
         )
 
-    card = build_scorecard(summary, policy, wild=wild, live=live, assist=assist)
+    # Same rule as M10, M11 and M12: an absent file means nobody ran it here, never that a
+    # runtime failed. `just conformance` produces it and needs no key at all.
+    conformance: dict[str, dict[str, Any]] | None = None
+    with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
+        conformance = json.loads(Path(conformance_results).read_text(encoding="utf-8"))["runtimes"]
+
+    card = build_scorecard(
+        summary, policy, wild=wild, live=live, assist=assist, conformance=conformance
+    )
     typer.echo(scorecard_json(card) if as_json else format_scorecard(card))
 
 

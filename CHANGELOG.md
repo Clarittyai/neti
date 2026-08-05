@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### M13, and a compatibility table generated from the run that produced it
+
+`neti score` carries runtime conformance now, and README.md's table is written by `just matrix`
+from `eval/results/conformance.json` rather than typed. A hand-maintained compatibility matrix is
+the most quoted thing in a README and the least diffed: it goes on saying "works with CrewAI" long
+after the version that was true of, and the part a reader actually wants — which version, and what
+exactly ran — is the part that rots first. `tests/property/test_media_is_current.py` fails the build
+when the table and the recorded run disagree, and a second test fails when a recorded version is
+not the version installed here, so an upgrade cannot leave the claim standing.
+
+Absent is *not run here*, never *failed*, the same as M7, M10, M11 and M12 — it matters more on this
+section than any other, because it is the one a reader consults to find out whether their framework
+works, and a blank row must not read like a bad one. A framework that is not installed renders as
+`absent`, never as driven.
+
+Two README paragraphs were wrong as of the CrewAI fix and are corrected: the gate is a wrapped tool
+there now, not a pair of hooks, so it is three of the seven runtimes that need nothing wrapped
+rather than four.
+
+The rows were checked against a negative control by hand: built without any neti wiring, every one
+of the eight frameworks executes the tool. So `the tool body never ran` is a real signal on all of
+them and not an artifact of the harness. (A first attempt at that control passed a malformed
+`Preflight` stub and made two frameworks fail before execution, which looked briefly like a hole in
+those rows and was a hole in the stub.)
+
 ### CrewAI told the model "blocked by hook" and never told it the number
 
 Found by running `Crew.kickoff()` instead of imitating it.

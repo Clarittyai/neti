@@ -86,6 +86,13 @@ assist provider="anthropic" *ARGS:
 conformance:
     uv run pytest -q tests/conformance
 
+# Rewrite README.md's runtime-conformance table from the run that produced it.
+#
+#   just matrix            rewrite it
+#   just matrix --check    fail if it is stale
+matrix *ARGS:
+    uv run python tools/make_matrix.py {{ARGS}}
+
 # Arm C's answer key: what the 401 unclaimed parameters actually address.
 #
 # An opinion, written as rules so it can be argued with. Every label carries the rule that produced

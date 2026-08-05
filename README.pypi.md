@@ -198,7 +198,7 @@ from neti.adapters.langchain_tools import gate_tools     # LangChain + LangGraph
 from neti.adapters.pydantic_ai    import neti_hooks      # Pydantic AI
 from neti.adapters.google_adk     import neti_plugin     # Google ADK
 from neti.adapters.autogen_tools  import gate_workbench  # AutoGen
-from neti.adapters.crewai_hooks   import install         # CrewAI
+from neti.adapters.crewai_hooks   import gate_tools      # CrewAI
 
 runner = client.beta.messages.tool_runner(tools=gate_tools(pf, TOOLS), ...)
 agent  = create_react_agent(model, gate_tools(pf, TOOLS))          # LangGraph
@@ -206,17 +206,18 @@ agent  = Agent("anthropic:claude-opus-4-5", capabilities=[neti_hooks(pf)])   # P
 app    = App(name="ops", root_agent=agent, plugins=[neti_plugin(pf)])        # ADK
 ```
 
-Four of the seven need nothing wrapped: ADK, Pydantic AI, CrewAI and OpenAI Agents each have a
-before-tool callback the gate attaches to. The other three wrap the one method that executes, and
+Three of the seven need nothing wrapped: ADK, Pydantic AI and OpenAI Agents each have a
+before-tool callback the gate attaches to. The other four wrap the one method that executes, and
 copy name, description and schema across verbatim — an agent must not be able to tell a gated tool
 from an ungated one by looking at it, or the gate leaks into the prompt and into what the model
 believes it may attempt. One `neti.yaml` governs a tool whichever runtime it arrives through,
 because names are normalised the same way everywhere.
 
-Two of these are less obvious than they look, and the adapters say so where they live. CrewAI's
-`before_tool_call` can block a call but substitutes a fixed "blocked by hook" string for the reason,
-so the gate is a *pair* of hooks — the second one puts the number back. AutoGen has no before-tool
-callback at all, so it is the workbench that gets wrapped.
+Two of these are less obvious than they look, and the adapters say so where they live. CrewAI has a
+`before_tool_call` hook that can block a call, and it is *not* the seam: CrewAI substitutes a fixed
+"blocked by hook" string for the reason and returns immediately, so the number never reaches the
+model and no after-hook runs to put it back. The tool gets wrapped instead. AutoGen has no
+before-tool callback at all, so it is the workbench that gets wrapped.
 
 They agree. `tests/e2e/test_seam_equivalence.py` drives all twelve seams — including `neti gate` and
 the hook — across all five resolver families, and asserts the same verdict, the same magnitude and
@@ -225,6 +226,41 @@ a bug in the product, not in the adapter.
 
 `neti prove` runs that same comparison on your machine, against whatever is installed, and hands you
 the chain to re-check.
+
+### Run the framework the way you run it, with no model at all
+
+The seam table proves each adapter honours its framework's contract. It does that by calling the
+integration point directly, which leaves a different question open: *when the framework executes
+the tool its own way, is the gate in the path?* `just conformance` answers it by building a real
+agent in each installed framework and running it.
+
+**None of these rows has a model.** Each one scripts the response — a hand-written message, a fake
+chat model, a mock HTTP transport — because that is what shows the gate is at the execution seam:
+the model chooses *what* to call, and the gate decides *whether it runs*. No key, no network, no
+provider, no cost, and the same answer every time, so it runs in CI on every push.
+
+<!-- BEGIN CONFORMANCE -->
+
+| runtime | version | what was driven | depth | |
+|---|---|---|---|---|
+| `anthropic` | 0.120.2 | the Anthropic tool_runner, read off the wire | full agent loop | driven |
+| `autogen` | 0.7.5 | AutoGen AssistantAgent.run over a workbench | full agent loop | driven |
+| `crewai` | 1.6.1 | a real Crew.kickoff, read from the agent's observation | full agent loop | driven |
+| `google-adk` | 2.6.1 | an ADK App run by InMemoryRunner | full agent loop | driven |
+| `langchain` | 1.3.14 | langchain.agents.create_agent, via the model interface | full agent loop | driven |
+| `langgraph` | 1.2.10 | a compiled StateGraph executing a ToolNode | full agent loop | driven |
+| `openai-agents` | 0.19.2 | the OpenAI Agents SDK Runner | full agent loop | driven |
+| `pydantic-ai` | 2.22.0 | a Pydantic AI Agent over FunctionModel | full agent loop | driven |
+
+<!-- END CONFORMANCE -->
+
+Each row asserts the tool body never executed, that the sentence the agent was shown is byte-for-
+byte what `Preflight` produced, and that the decision was sealed. Versions are recorded, because
+"works with LangChain" is a sentence that outlives the version it was true of.
+
+It earns its keep. The CrewAI row above is the reason CrewAI's gate is a wrapped tool: driving the
+hook pair by hand reported a perfect denial, and running `Crew.kickoff()` showed the agent being
+handed `Tool execution blocked by hook. Tool: Glob` with no number in it at all.
 
 ### Which runtime is yours
 

@@ -204,3 +204,56 @@ def test_the_packaged_readme_is_the_generated_one() -> None:
 
     config = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))
     assert config["project"]["readme"] == "README.pypi.md"
+
+
+# ---------------------------------------------------------------------------- the runtime matrix
+#
+# A compatibility table is the single most quoted thing in a README and the least diffed. This one
+# is generated from `eval/results/conformance.json`, so the same rule that holds for the images
+# holds for it: edit it by hand and the build fails.
+
+make_matrix = _load("make_matrix")
+
+
+def test_the_conformance_table_is_what_the_recorded_run_produces() -> None:
+    assert make_matrix.README.read_text(encoding="utf-8") == make_matrix.expected(), (
+        "README.md's runtime table no longer matches eval/results/conformance.json.\n"
+        "Run `just conformance` then `just matrix`, and commit both."
+    )
+
+
+def test_every_version_in_the_table_is_the_version_installed_here() -> None:
+    """The claim the table exists to make, checked against reality rather than against itself.
+
+    "tested with LangChain 1.3.14" is only worth reading while 1.3.14 is what the suite runs on.
+    Upgrade the framework, and the recorded evidence quietly becomes a statement about a version
+    nobody exercised — which is exactly the failure a version number is supposed to prevent.
+
+    Absent versions are skipped rather than failed: a framework that is not installed here was
+    recorded as `skipped`, and the table already says so.
+    """
+    import json
+    from importlib.metadata import PackageNotFoundError, version
+
+    from tests.conformance.conftest import DISTRIBUTION
+
+    if not make_matrix.RESULTS.exists():
+        pytest.skip("nobody has run `just conformance` here")
+
+    rows = json.loads(make_matrix.RESULTS.read_text(encoding="utf-8"))["runtimes"]
+    drifted = []
+    for name, row in sorted(rows.items()):
+        recorded = row.get("version") or ""
+        if not recorded:
+            continue
+        try:
+            installed = version(DISTRIBUTION.get(name, name))
+        except PackageNotFoundError:
+            continue
+        if installed != recorded:
+            drifted.append(f"{name}: table says {recorded}, installed is {installed}")
+    assert not drifted, (
+        "the runtime table is making claims about versions that are not the ones here:\n  "
+        + "\n  ".join(drifted)
+        + "\nRun `just conformance` then `just matrix`."
+    )

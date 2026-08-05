@@ -265,6 +265,14 @@ def _full_card() -> str:
             missed=6,
             extra=4,
         ),
+        conformance={
+            "langgraph": {
+                "status": "passed",
+                "depth": "agent_loop",
+                "what": "a compiled StateGraph",
+                "version": "1.2.10",
+            }
+        },
     )
     return format_scorecard(card)
 
@@ -555,3 +563,73 @@ def test_m12_omits_the_over_claim_line_when_arm_b_has_not_run() -> None:
     assert "written reason" not in section
     assert "wrong by construction" not in section
     assert "never sends them" not in section
+
+
+# ---------------------------------------------------------------------------- M13
+
+
+def test_m13_is_outstanding_until_somebody_runs_it() -> None:
+    """An absent conformance file means "not run here", never "a runtime failed".
+
+    The same rule as M7, M10, M11 and M12. It matters more here than most: this is the section a
+    reader consults to find out whether their framework works, and a blank one must not be
+    mistakable for a bad one.
+    """
+    from neti.eval.scorecard import build_scorecard, format_scorecard
+
+    card = build_scorecard()
+    assert card.conformance is None
+    assert any(item.startswith("M13") for item in card.outstanding)
+    assert "M13 RUNTIME CONFORMANCE" not in format_scorecard(card)
+
+
+def test_m13_never_shows_an_absent_framework_as_driven() -> None:
+    """`skipped` is a framework that is not installed, and it is a different fact from a pass.
+
+    A matrix that renders both the same way is how "we tested with eight runtimes" becomes true of
+    a machine where two of them were never present.
+    """
+    from neti.eval.scorecard import build_scorecard, format_scorecard
+
+    rendered = format_scorecard(
+        build_scorecard(
+            conformance={
+                "langgraph": {
+                    "status": "passed",
+                    "depth": "agent_loop",
+                    "what": "a graph",
+                    "version": "1.2.10",
+                },
+                "crewai": {
+                    "status": "skipped",
+                    "depth": "agent_loop",
+                    "what": "a crew",
+                    "version": "",
+                },
+            }
+        )
+    )
+    body = rendered[rendered.index("M13 RUNTIME CONFORMANCE") :]
+    assert "1 of 2 runtime(s) driven here" in body
+    assert "[absent  ] crewai" in body
+    assert "[driven  ] langgraph 1.2.10" in body
+
+
+def test_m13_says_no_model_was_involved() -> None:
+    """The whole claim. A reader who misses it will assume these rows cost tokens and a key."""
+    from neti.eval.scorecard import build_scorecard, format_scorecard
+
+    body = format_scorecard(
+        build_scorecard(
+            conformance={
+                "langgraph": {
+                    "status": "passed",
+                    "depth": "agent_loop",
+                    "what": "a graph",
+                    "version": "1.2.10",
+                }
+            }
+        )
+    )
+    assert "with no model at all" in body
+    assert "scripts" in body
