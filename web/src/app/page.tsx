@@ -82,6 +82,8 @@ export default function OverviewPage() {
         />
       </Stats>
 
+      <CloudSlides />
+
       {uncapped.length > 0 ? (
         <div className="mt-4 flex flex-wrap items-center gap-2.5 border-l-2 border-[hsl(var(--verdict-confirm))] bg-[hsl(var(--verdict-confirm))]/[0.06] py-3 pl-3.5 pr-4 text-[13px]">
           <AlertTriangle className="h-4 w-4 flex-shrink-0 text-[hsl(var(--verdict-confirm))]" />
@@ -156,7 +158,6 @@ export default function OverviewPage() {
           dists.map((d) => <StripPlot key={`${d.tool}${d.pointer}`} dist={d} />)
         )}
       </section>
-      <CloudSlides />
     </Page>
   );
 }
