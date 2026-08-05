@@ -30,8 +30,8 @@ SITE = REPO / "site" / "page.html"
 WEB_SRC = REPO / "web" / "src"
 BUILT_CSS = REPO / "src" / "neti" / "console" / "_next" / "static" / "css"
 
-ACCENT = "#3B82F6"
-"""neti's primary. Claritty's `--info`, deliberately not Claritty's brand `#5B7FFF`."""
+ACCENT = "#4568F3"
+"""neti's primary: Fireblocks' brand accent, read off their own site rather than eyeballed."""
 
 RESERVED = {"block": "#EF4444", "confirm": "#F59E0B", "allow": "#10B981"}
 

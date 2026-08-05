@@ -2,8 +2,11 @@
    than imported on purpose: neti is a standalone repo and a build-time dependency on the monorepo
    would undo that. See DESIGN.md at the repo root for the rules these tokens serve.
 
-   THE ACCENT IS #3B82F6 — Claritty's own `--info`, and its dark-mode `--primary`. A real Claritty
-   colour, deliberately not Claritty's brand accent #5B7FFF, which keeps meaning Claritty.
+   THE ACCENT IS #4568F3 — Fireblocks' brand accent, read off their own site's computed styles
+   rather than eyeballed. It is the system's colour, so neti wears it.
+
+   It was briefly #3B82F6 (Claritty's `--info`) and before that violet. Both are recorded in
+   CHANGELOG.md; what matters here is that the current one was measured, not chosen by taste.
 
    This header used to say the accent "was CHOSEN BY RUNNING THE PALETTE VALIDATOR, not by taste",
    and cited cyan failing at ΔE 12.5 against the reserved emerald. No such validator existed
@@ -12,9 +15,11 @@
    finding in itself, so the measurement moved into a test:
    `tests/property/test_design_rules_hold.py` recomputes every pair on every run.
 
-   Measured, ΔE2000, floor of 15: accent vs block #EF4444 is 45.4, vs confirm #F59E0B is 60.6,
-   vs allow #10B981 is 51.4. The accent sits 6.4° of hue from Claritty's #5B7FFF, which is close on
-   purpose — neti is meant to look like it ships from the same company.
+   Measured, ΔE2000, floor of 15: accent vs block #EF4444 is 43.8, vs confirm #F59E0B is 62.8,
+   vs allow #10B981 is 50.6. Comfortably clear of all three, which matters because those three are
+   reserved: a reader who has learned that amber means "hit your ceiling" must never meet an amber
+   that means something else. An orange brand accent would have failed exactly there — #F5A623 sits
+   ΔE 2.4 from confirm — which is why this was measured before it was adopted rather than after.
 
    The verdict scale is RESERVED and identical in both modes. Brightening it for dark mode — the
    obvious move — closes the gap between red and emerald. Every verdict ships with an icon and a
@@ -44,7 +49,7 @@
     --muted: 210 40% 96%;              /* #F1F5F9 */
     --muted-foreground: 215 16% 47%;
 
-    --accent: 217 91% 60%;             /* #3B82F6 — see header, and DESIGN.md */
+    --accent: 228 88% 61%;             /* #4568F3 — Fireblocks. See header, DESIGN.md */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;          /* #EF4444 */
@@ -68,7 +73,7 @@
 
     --status-success: 152 81% 39%;     /* emerald-500 */
     --status-error: 0 84% 60%;         /* red-500 (matches --destructive in light) */
-    --status-running: 217 91% 60%;     /* matches --accent */
+    --status-running: 228 88% 61%;     /* matches --accent */
     --status-idle: 215 16% 47%;        /* matches --muted-foreground */
     --canvas-grid: 214 32% 91%;        /* matches --border */
     --canvas-bg: 220 20% 98%;          /* page bg + 1% accent tint */
@@ -103,7 +108,7 @@
     --muted: 240 4% 16%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 217 91% 60%;             /* #3B82F6 — see header, and DESIGN.md */
+    --accent: 228 88% 61%;             /* #4568F3 — Fireblocks. See header, DESIGN.md */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 63% 31%;          /* #DC2626 darker for dark mode */
@@ -134,7 +139,7 @@
 
     --status-success: 158 64% 52%;     /* emerald-400 */
     --status-error: 0 91% 71%;         /* red-400 */
-    --status-running: 217 91% 60%;     /* matches --accent */
+    --status-running: 228 88% 61%;     /* matches --accent */
     --status-idle: 215 20% 65%;        /* matches --muted-foreground */
     --canvas-grid: 240 4% 20%;         /* dim grid on dark canvas */
     --canvas-bg: 240 6% 5%;            /* slightly darker than page bg */

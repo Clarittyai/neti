@@ -1,7 +1,7 @@
 # neti — design rules
 
-The design language is [Claritty's](https://github.com/) — same tokens, same neutrals, same
-structural instincts — with one primary of neti's own. This file exists because that was true once
+The design language is Claritty's — same neutrals, same structural instincts — with the system's
+own primary, Fireblocks' `#4568F3`. This file exists because that was true once
 and then stopped being true: the console re-skinned itself to violet while the website kept
 Claritty's indigo, the console filled up with cards the website never had, and every "nothing here
 yet" moment got hand-rolled a different way. None of that was disagreement. There was simply nothing
@@ -32,8 +32,8 @@ catch it.
 
 ## Colour
 
-**The primary is `#3B82F6`.** It is Claritty's `--info` and its dark-mode `--primary` — a real
-Claritty colour, deliberately *not* Claritty's brand accent `#5B7FFF`, which keeps meaning Claritty.
+**The primary is `#4568F3`** — Fireblocks' brand accent, read off their own site's computed styles
+rather than eyeballed from a screenshot. neti is part of that system, so it wears that colour.
 
 The neutrals are Claritty's, unchanged: `#0F0F10` background, `#1A1A1C` surface, `#27272A` border,
 `#F8FAFC` foreground, `#94A3B8` muted, and `--surface-deep` `#0d1117` for code, which is identical in
@@ -54,12 +54,12 @@ learned that red means blocked must never be shown a red that means something el
 scale survives colour blindness, a monochrome print and a screenshot in a bug report.
 
 **Measured, not asserted.** The primary clears a **ΔE2000 floor of 15** against all three reserved
-verdicts — measured minimum **45.4**, against `#EF4444`. `test_design_rules_hold.py` recomputes this,
+verdicts — measured minimum **43.8**, against `#EF4444`. `test_design_rules_hold.py` recomputes this,
 so the claim fails the build rather than aging in a comment. It replaces a header comment that
 claimed a validator had been run against a validator that was never committed.
 
 **Tokens only, never a hex.** `bg-accent`, `text-muted-foreground`, `border-border`. A hardcoded
-`#3B82F6` in a component is a light-mode-only bug waiting to happen, and it is the exact mistake that
+`#4568F3` in a component is a light-mode-only bug waiting to happen, and it is the exact mistake that
 let the two surfaces drift apart.
 
 ---
@@ -148,7 +148,7 @@ screen instead of clipping it.
 
 | ❌ what happened | ✅ what should have |
 |---|---|
-| The console re-skinned to violet `#8B5CF6` while `site/page.html` kept `#5B7FFF`, so neti had two identities and one of them was Claritty's | One `--accent`, `#3B82F6`, asserted equal in both files by a test |
+| The console re-skinned to violet `#8B5CF6` while `site/page.html` kept `#5B7FFF`, so neti had two identities and one of them was Claritty's | One `--accent`, `#4568F3`, asserted equal in both files by a test |
 | `globals.css` claimed the accent "was CHOSEN BY RUNNING THE PALETTE VALIDATOR" — no validator existed anywhere in the repo, and its cited number could not be reproduced | The measurement lives in a test that recomputes it |
 | `/gate`'s empty state was a dashed rounded rectangle | `EmptyState`, open space, a live scene |
 | The overview was three bordered boxes stacked on a bordered table | Sections separated by rules |

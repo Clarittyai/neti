@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### The primary is Fireblocks' #4568F3, and it was read rather than guessed
+
+neti belongs to the Fireblocks system, so it wears that system's accent.
+
+**I had the colour wrong before I looked.** Asked for it, I assumed Fireblocks was orange and
+measured the objection first: an orange accent would collide with the reserved verdict scale, badly
+— `#F5A623` sits ΔE 2.4 from `confirm`, which is indistinguishable, and `#FF5100` fails against
+`block` at 13.8. That would have broken the product's whole vocabulary, where amber means "hit your
+ceiling" and nothing else.
+
+Fireblocks is not orange. Read off their own site's computed styles rather than eyeballed from a
+screenshot: accent `#4568F3`, navy `#212647`, secondary text `#415080`, dark surface `#27455C`,
+muted `#C2C8D8`, light surfaces `#F4F5F7` / `#ECEFF4`. The accent is an indigo, and it clears the
+floor comfortably — ΔE 43.8 against block, 50.6 against allow, 62.8 against confirm.
+
+So there was no trade-off to make, and the objection cost nothing to raise. Measuring before
+adopting is the point: had it been the orange, the collision would have shipped and shown up later
+as a scale nobody could read.
+
+The neutrals are unchanged for now — Fireblocks' navy `#212647` is a different dark family from the
+`#0F0F10` the console and site share, and swapping the whole surface system is a bigger change than
+an accent swap and wants looking at rather than asserting.
+
 ### Liquid glass was Claritty's rule, not neti's, and it hid inside a class name
 
 `glass-card` — backdrop blur, saturation, a translucent fill and an inset ring, with an `-elevated`
