@@ -20,7 +20,8 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ArrowLeft, ChevronDown, ChevronRight, Copy, Eye, ShieldCheck } from "lucide-react";
 
-import { Empty, Failed, Loading, Page, useAsync } from "@/components/Page";
+import { Failed, Loading, Page, useAsync } from "@/components/Page";
+import { EmptyState } from "@/components/ui/empty-state";
 import { VerdictPill } from "@/components/Verdict";
 import { api, type Cause } from "@/lib/api";
 import { cn, n } from "@/lib/utils";
@@ -51,14 +52,11 @@ function Decision() {
   if (!id) {
     return (
       <Page title="Decision" width="narrow">
-        <Empty
+        <EmptyState
+            size="inline"
           title="No decision named"
-          body="This page shows the evidence behind one decision. Pick one from the list."
-          action={
-            <Link href="/decisions" className="text-sm font-medium text-accent hover:underline">
-              All decisions
-            </Link>
-          }
+          description="This page shows the evidence behind one decision. Pick one from the list."
+          secondary={<Link href="/decisions" className="text-accent hover:underline">All decisions</Link>}
         />
       </Page>
     );

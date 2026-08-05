@@ -17,7 +17,10 @@
 import Link from "next/link";
 import { AlertTriangle } from "lucide-react";
 
-import { Empty, Failed, Loading, Page, Stat, useAsync } from "@/components/Page";
+import { Failed, Loading, Page, Stat, Stats, useAsync } from "@/components/Page";
+import { Activity } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ReachScene } from "@/components/live/scenes/ReachScene";
 import { api, type InventoryRow } from "@/lib/api";
 import { cn, n } from "@/lib/utils";
 
@@ -55,7 +58,7 @@ export default function OverviewPage() {
         <Failed error={inventory.error} onRetry={inventory.reload} />
       ) : null}
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <Stats>
         <Stat
           value={n(Math.max(0, ...rows.map((r) => r.reachable ?? 0)))}
           label="reachable in one call"
@@ -67,7 +70,7 @@ export default function OverviewPage() {
           label="would have been blocked"
           tone={(report.data?.verdicts?.block ?? 0) > 0 ? "block" : undefined}
         />
-      </div>
+      </Stats>
 
       {uncapped.length > 0 ? (
         <div className="mt-4 flex flex-wrap items-center gap-2.5 rounded-xl border border-[hsl(var(--verdict-confirm))]/30 bg-[hsl(var(--verdict-confirm))]/[0.06] px-4 py-3 text-[13px]">
@@ -125,14 +128,12 @@ export default function OverviewPage() {
           </div>
         ) : dists.length === 0 ? (
           <div className="mt-3">
-            <Empty
+            <EmptyState
+              size="section"
+              icon={Activity}
               title="No traffic yet"
-              body="Run the scenario and the distribution of what your agents actually touch appears here."
-              action={
-                <Link href="/gate" className="text-sm font-medium text-accent hover:underline">
-                  Go to the live gate
-                </Link>
-              }
+              description="Run a call through the gate and the distribution of what your agents actually touch appears here, against the ceiling you declared."
+              action={{ label: "Go to the live gate", href: "/gate" }}
             />
           </div>
         ) : (

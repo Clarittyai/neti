@@ -14,7 +14,9 @@
 import Link from "next/link";
 import { ChevronRight } from "lucide-react";
 
-import { Empty, Failed, Loading, Page } from "@/components/Page";
+import { Failed, Loading, Page } from "@/components/Page";
+import { ListChecks } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { VerdictPill } from "@/components/Verdict";
 import { useAsync } from "@/components/Page";
 import { api, type DecisionSummary } from "@/lib/api";
@@ -33,14 +35,12 @@ export default function DecisionsPage() {
 
       {data ? (
         data.decisions.length === 0 ? (
-          <Empty
+          <EmptyState
+            size="section"
+            icon={ListChecks}
             title="Nothing gated yet"
-            body="Decisions appear here the moment a tool call goes through the gate."
-            action={
-              <Link href="/gate" className="text-sm font-medium text-accent hover:underline">
-                Go to the live gate
-              </Link>
-            }
+            description="Decisions appear here the moment a tool call goes through the gate."
+            action={{ label: "Go to the live gate", href: "/gate" }}
           />
         ) : (
           <ol className="space-y-2">

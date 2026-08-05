@@ -2,6 +2,46 @@
 
 ## Unreleased
 
+### DESIGN.md, one primary, and no cards
+
+The console was skinned from Claritty once and then drifted, because there was nothing written down
+to drift against. Three symptoms, one cause:
+
+The **palette had split in two**. `site/page.html` used Claritty's brand accent `#5B7FFF` directly
+while the console re-skinned itself to violet `#8B5CF6`, so neti had two identities and one of them
+belonged to another product. The primary is now **`#3B82F6`** — Claritty's own `--info`, so a real
+Claritty colour, deliberately not its brand accent, which keeps meaning Claritty.
+
+**The palette validator did not exist.** `globals.css` opened with *"The accent was CHOSEN BY
+RUNNING THE PALETTE VALIDATOR, not by taste"* and cited cyan failing at ΔE 12.5 against the reserved
+emerald. Nothing in the repository could re-run that, and the number does not reproduce — cyan
+measures 28.8 under CIEDE2000. A comment asserting a measurement nobody can check is the failure
+this project keeps finding in itself, so the measurement moved into
+`tests/property/test_design_rules_hold.py`, which recomputes every pair on every run. `#3B82F6`
+clears the floor of 15 with a minimum of 45.4, and sits 6.4° of hue from Claritty's brand — close on
+purpose.
+
+**Everything was a card.** Forty-five bordered, rounded, blurred wrappers, including a `Card`
+primitive with glassmorphism and drop shadows that **nothing imported** — dead code shipping three
+rule violations. The overview was three bordered plates stacked on a bordered table: four boxes to
+say three numbers. Structure comes from hairline rules and spacing now, and the test fails on a card
+import, a hardcoded hex, a `shadow-*` or a `hover:scale`.
+
+**Empty states are one primitive.** `Empty` in `Page.tsx`, a hand-rolled dashed rectangle in
+`gate/page.tsx`, and nothing at all on seven other pages, replaced by `EmptyState` with three
+densities — the same collapse clarity-platform recorded making. Four pages get a **live scene**
+(`ReachScene`, `GateScene`, `ChainScene`, `ConnectScene`) built on a ported kernel whose rules are
+strict: motion gated on reduced-motion, visibility and viewport; a composed final frame rather than
+a blank box when it is off; timers only, no rAF, no canvas, no network assets.
+
+All of it is written down in **`DESIGN.md`**, with an anti-patterns table naming the four real
+mistakes above, so the next person has something to cite.
+
+Following that file's own pre-flight list immediately caught a fifth: the audit page rendered two
+accent buttons at once — "Verify chain" in the header and the empty state's CTA — against its own
+one-accent-action rule. The header now hides its button while the chain is empty, which is also more
+honest: there is nothing to verify before anything is recorded.
+
 ### The console told every coding agent it could reach nothing
 
 `neti console` built its resolvers with `resolvers_for_client(client)` and never passed the policy's

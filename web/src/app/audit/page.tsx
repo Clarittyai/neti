@@ -18,7 +18,9 @@ import { useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Link2, RefreshCw, ShieldAlert } from "lucide-react";
 
-import { Empty, Failed, Loading, Page, Stat, useAsync } from "@/components/Page";
+import { Failed, Loading, Page, Stat, useAsync } from "@/components/Page";
+import { EmptyState } from "@/components/ui/empty-state";
+import { ChainScene } from "@/components/live/scenes/ChainScene";
 import { VerdictPill } from "@/components/Verdict";
 import { api } from "@/lib/api";
 import { cn, n } from "@/lib/utils";
@@ -39,15 +41,20 @@ export default function AuditPage() {
     <Page
       title="Audit"
       lede="Every decision is sealed into a hash chain. Verifying recomputes each link from the stored record — it is not a stored result."
+      // One accent action per view (DESIGN.md). While the chain is empty the empty state owns the
+      // CTA, so the header hides its own — two accent buttons on one screen is two answers to
+      // "what should I do here", and there is nothing to verify before anything is recorded.
       actions={
-        <button
-          onClick={() => void verify()}
-          disabled={verifying || loading}
-          className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent-600 disabled:opacity-60"
-        >
-          <RefreshCw className={cn("h-4 w-4", verifying && "animate-spin")} />
-          {verifying ? "Verifying" : "Verify chain"}
-        </button>
+        data && data.count > 0 ? (
+          <button
+            onClick={() => void verify()}
+            disabled={verifying || loading}
+            className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent-600 disabled:opacity-60"
+          >
+            <RefreshCw className={cn("h-4 w-4", verifying && "animate-spin")} />
+            {verifying ? "Verifying" : "Verify chain"}
+          </button>
+        ) : null
       }
     >
       {loading && !data ? <Loading label="Reading records" /> : null}
@@ -55,14 +62,12 @@ export default function AuditPage() {
 
       {data ? (
         data.count === 0 ? (
-          <Empty
+          <EmptyState
+            size="page"
+            scene={<ChainScene />}
             title="No decisions recorded yet"
-            body="Run something through the gate and every verdict lands here, sealed to the one before it."
-            action={
-              <Link href="/gate" className="text-sm font-medium text-accent hover:underline">
-                Go to the live gate
-              </Link>
-            }
+            description="Run something through the gate and every verdict lands here, sealed to the one before it."
+            action={{ label: "Go to the live gate", href: "/gate" }}
           />
         ) : (
           <>

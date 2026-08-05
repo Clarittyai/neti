@@ -11,7 +11,7 @@
  * for a product whose entire claim is that what you see is what the gate did.
  */
 
-import { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { AlertTriangle, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
 
@@ -59,8 +59,10 @@ export function Page({
 }
 
 export function Loading({ label = "Loading" }: { label?: string }) {
+  // No box. Waiting is not a thing on the page, it is the page not being there yet — so it reads
+  // as a quiet line in the space the content will occupy. (DESIGN.md: don't default to cards.)
   return (
-    <div className="flex items-center gap-2.5 rounded-xl border border-border/60 bg-card px-4 py-8 text-sm text-muted-foreground">
+    <div className="flex items-center gap-2.5 py-8 text-sm text-muted-foreground">
       <Loader2 className="h-4 w-4 animate-spin" />
       {label}…
     </div>
@@ -69,7 +71,9 @@ export function Loading({ label = "Loading" }: { label?: string }) {
 
 export function Failed({ error, onRetry }: { error: string; onRetry?: () => void }) {
   return (
-    <div className="flex flex-wrap items-center gap-2.5 rounded-xl border border-[hsl(var(--verdict-block))]/30 bg-[hsl(var(--verdict-block))]/[0.06] px-4 py-4 text-sm">
+    // A rule down the left rather than a box around the outside: the failure belongs to the
+    // section it happened in, and a full border would detach it from that.
+    <div className="flex flex-wrap items-center gap-2.5 border-l-2 border-[hsl(var(--verdict-block))] bg-[hsl(var(--verdict-block))]/[0.06] py-3 pl-3.5 pr-4 text-sm">
       <AlertTriangle className="h-4 w-4 flex-shrink-0 text-[hsl(var(--verdict-block))]" />
       <span className="min-w-0 flex-1 text-muted-foreground">{error}</span>
       {onRetry ? (
@@ -77,26 +81,6 @@ export function Failed({ error, onRetry }: { error: string; onRetry?: () => void
           Retry
         </button>
       ) : null}
-    </div>
-  );
-}
-
-export function Empty({
-  title,
-  body,
-  action,
-}: {
-  title: string;
-  body: string;
-  action?: React.ReactNode;
-}) {
-  return (
-    <div className="rounded-2xl border border-dashed border-border px-5 py-10 text-center">
-      <p className="text-sm font-semibold">{title}</p>
-      <p className="mx-auto mt-1 max-w-sm text-[13px] leading-relaxed text-muted-foreground">
-        {body}
-      </p>
-      {action ? <div className="mt-4">{action}</div> : null}
     </div>
   );
 }
@@ -112,8 +96,11 @@ export function Stat({
   hint?: string;
   tone?: "block" | "confirm" | "allow";
 }) {
+  // The overview used to be three of these as bordered, blurred, shadowed plates stacked on top
+  // of a bordered table: four boxes to say three numbers. A number does not need a box — the
+  // figure and its label are the unit, and `Stats` below separates them with a hairline.
   return (
-    <div className="glass-card rounded-2xl p-5">
+    <div className="py-1">
       <div
         className={cn(
           "tnum text-3xl font-semibold tracking-tight",
@@ -125,7 +112,26 @@ export function Stat({
         {value}
       </div>
       <div className="mt-1 text-sm text-muted-foreground">{label}</div>
-      {hint ? <div className="mt-2 text-[11px] text-muted-foreground">{hint}</div> : null}
+      {hint ? (
+        <div className="mt-2 max-w-xs text-[11px] leading-relaxed text-muted-foreground">{hint}</div>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * A row of `Stat`s, separated by hairlines instead of wrapped in plates.
+ *
+ * Structure comes from the rules and the spacing. On a narrow screen the row becomes a column and
+ * the dividers follow it, which a grid of cards cannot do without either squashing or reflowing
+ * into a single column of boxes.
+ */
+export function Stats({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid gap-6 border-y border-border py-6 sm:grid-cols-3 sm:gap-0 sm:divide-x sm:divide-border">
+      {React.Children.map(children, (child, index) => (
+        <div className={cn(index > 0 && "sm:pl-6")}>{child}</div>
+      ))}
     </div>
   );
 }

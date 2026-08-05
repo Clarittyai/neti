@@ -158,7 +158,9 @@ function ModeChip() {
 
   return (
     <div className="pointer-events-none fixed bottom-4 left-4 z-50 md:left-[76px]">
-      <div className="glass-card flex items-center gap-2.5 rounded-full py-1.5 pl-3 pr-4 shadow-lg">
+      {/* The tenant pill is genuinely detachable — it floats over the page — so it keeps a
+          border. It does not keep a shadow: depth is not this product's idea. */}
+      <div className="flex items-center gap-2.5 rounded-full border border-border bg-card py-1.5 pl-3 pr-4">
         <span
           className={cn(
             "h-2 w-2 flex-shrink-0 rounded-full",

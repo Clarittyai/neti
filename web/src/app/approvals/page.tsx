@@ -28,7 +28,9 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { Check, Clock, Inbox, ShieldQuestion, X } from "lucide-react";
 
-import { Empty, Failed, Loading, Page, useAsync } from "@/components/Page";
+import { Failed, Loading, Page, useAsync } from "@/components/Page";
+import { UserCheck } from "lucide-react";
+import { EmptyState } from "@/components/ui/empty-state";
 import { ApiError, api, type ApprovalRow, type OrgState } from "@/lib/api";
 import { cn, n } from "@/lib/utils";
 
@@ -137,9 +139,11 @@ export default function ApprovalsPage() {
               </AnimatePresence>
 
               {rows !== null && pending.length === 0 && busy === null ? (
-                <Empty
+                <EmptyState
+            size="section"
+            icon={UserCheck}
                   title="Nothing waiting"
-                  body="A call whose resolved magnitude lands in a confirm band appears here, with the number a reviewer needs to answer it."
+                  description="A call whose resolved magnitude lands in a confirm band appears here, with the number a reviewer needs to answer it."
                 />
               ) : null}
               {rows === null && !error ? <Loading label="Reading the inbox" /> : null}
