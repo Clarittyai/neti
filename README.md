@@ -47,6 +47,9 @@ $ pip install "neti[all]"
 $ neti start
 ```
 
+**New here? [Read the three-day walkthrough](docs/TUTORIAL.md)** — measure on day one, decide on day
+two, enforce on day three, with real commands and real numbers.
+
 `neti start` is the whole first run: it finds your agent, writes a policy that **blocks nothing**,
 and measures *this* machine — so the first thing you see is a number about your own repository
 rather than an example about somebody else's.

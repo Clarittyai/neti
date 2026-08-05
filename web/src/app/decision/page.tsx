@@ -70,7 +70,7 @@ function Decision() {
       actions={
         <Link
           href="/decisions"
-          className="glass-button inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm"
+          className="glass-button inline-flex items-center gap-1.5 rounded-full px-3 py-2 text-sm"
         >
           <ArrowLeft className="h-4 w-4" /> All decisions
         </Link>
@@ -172,7 +172,7 @@ function Decision() {
               <div className="relative mt-3">
                 <button
                   onClick={() => void navigator.clipboard?.writeText(JSON.stringify(data, null, 2))}
-                  className="glass-button absolute right-2 top-2 rounded-md p-1.5"
+                  className="glass-button absolute right-2 top-2 rounded-full p-1.5"
                   title="Copy"
                 >
                   <Copy className="h-3.5 w-3.5" />

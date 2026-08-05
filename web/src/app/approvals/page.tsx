@@ -88,7 +88,7 @@ export default function ApprovalsPage() {
             value={who}
             onChange={(e) => setWho(e.target.value)}
             placeholder="your name, for the record"
-            className="glass-button w-56 rounded-lg px-3 py-2 text-sm placeholder:text-muted-foreground/70"
+            className="glass-button w-56 rounded-full px-3 py-2 text-sm placeholder:text-muted-foreground/70"
           />
         ) : null
       }

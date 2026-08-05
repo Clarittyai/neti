@@ -260,6 +260,26 @@ def test_nothing_draws_a_dashed_box() -> None:
     )
 
 
+def test_everything_you_press_is_a_pill() -> None:
+    """DESIGN.md: `rounded-full` is reserved for the things you press.
+
+    Reserving one shape for "interactive" only works while it is actually reserved — a single
+    `rounded-lg` button undoes the distinction for every pill on the page, because the reader can no
+    longer tell shape from decoration.
+
+    Inputs are exempt and deliberately so: a pill-shaped textarea reads as a chat box.
+    """
+    offenders = []
+    for path in _sources():
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            interactive = "bg-accent px-" in line or "glass-button" in line
+            if interactive and re.search(r"rounded-(lg|md|xl|2xl|\[)", line):
+                offenders.append(f"{path.relative_to(REPO)}:{number}")
+    assert not offenders, "these look pressable but are not pills (DESIGN.md):\n  " + "\n  ".join(
+        offenders[:10]
+    )
+
+
 def test_nothing_casts_a_shadow() -> None:
     """DESIGN.md: depth is not this product's idea."""
     offenders = []

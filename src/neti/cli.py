@@ -203,6 +203,7 @@ def start(
     typer.echo("")
     typer.echo("   Only once you have committed a ceiling does anything get blocked. The number")
     typer.echo("   comes from your own traffic, so you are never asked to guess one.\n")
+    typer.echo("   The whole walkthrough, with real numbers: docs/TUTORIAL.md\n")
 
 
 @app.command(rich_help_panel="Start here")

@@ -84,6 +84,12 @@ Also out:
   matters most.
 - **One accent action per view.** If an empty state carries the CTA, the page header hides its own.
 
+**Anything you press is a pill.** Buttons, toggle rails and their segments, and tabs are
+`rounded-full`. It is the one shape in the system that says *press me*, and reserving it for that
+makes the distinction carry: a pill is interactive, a rectangle is not. Inputs and text areas keep a
+normal radius — a pill-shaped multi-line field reads as a chat box, which is a promise about what
+happens when you type in it.
+
 ---
 
 ## Empty states

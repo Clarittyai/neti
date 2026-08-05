@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+### A walkthrough, and pills
+
+**`docs/TUTORIAL.md`** — the product in the order it actually happens, because "install it and read
+nineteen commands" is not an onboarding. Day one you measure, day two you decide, day three you
+enforce, and that ordering is the whole argument: a policy asks for a ceiling, and on day one nobody
+knows whether 300 is generous or absurd for their repository. So the number comes first, from your
+own traffic, and you are never asked to guess one.
+
+It also states the two tiers plainly, in one table, because "why would I pay" deserves a straight
+answer. The local install is not a demo, a trial or a reduced mode — resolving, blocking, the sealed
+chain, every adapter and the console are all free and stay free. The rule dividing the tiers is *can
+one machine do this?*, which is why enforcement is free and why what the hosted tier sells is a
+server that is running rather than a secret about how to decide. A `confirm` means somebody other
+than the operator should answer; on one machine there is nobody to ask, so the gate stops the call —
+correct behaviour that a free install keeps doing forever.
+
+**Anything you press is a pill.** Buttons, toggle rails and their segments are `rounded-full` now.
+It is the one shape in the system that says *press me*, and reserving it makes the distinction
+carry — a pill is interactive, a rectangle is not. That only holds while it is actually reserved, so
+a test fails the build on a pressable-looking `rounded-lg`. Inputs and text areas keep a normal
+radius on purpose: a pill-shaped multi-line field reads as a chat box, which is a promise about what
+happens when you type in it.
+
 ### The primary is Fireblocks' #4568F3, and it was read rather than guessed
 
 neti belongs to the Fireblocks system, so it wears that system's accent.

@@ -84,7 +84,7 @@ export default function ConnectPage() {
                 <>
                   <Link
                     href="/gate"
-                    className="rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent-600"
+                    className="rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent-600"
                   >
                     Go to the live gate
                   </Link>
@@ -93,7 +93,7 @@ export default function ConnectPage() {
                       await api.disconnect();
                       await refresh();
                     }}
-                    className="glass-button rounded-lg px-3 py-2 text-sm text-muted-foreground"
+                    className="glass-button rounded-full px-3 py-2 text-sm text-muted-foreground"
                   >
                     Disconnect
                   </button>
@@ -102,7 +102,7 @@ export default function ConnectPage() {
                 <button
                   onClick={() => void onConnect()}
                   disabled={busy}
-                  className="inline-flex items-center gap-2 rounded-lg bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent-600 disabled:opacity-60"
+                  className="inline-flex items-center gap-2 rounded-full bg-accent px-4 py-2 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent-600 disabled:opacity-60"
                 >
                   {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plug className="h-4 w-4" />}
                   {busy ? "Verifying" : "Connect"}

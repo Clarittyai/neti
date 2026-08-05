@@ -47,7 +47,7 @@ export default function PolicyPage() {
       lede="The ceilings you declared. Every verdict is a comparison against a number on this page — nothing here is learned or inferred."
       actions={
         data ? (
-          <code className="glass-button rounded-lg px-3 py-2 font-mono text-xs">
+          <code className="glass-button rounded-full px-3 py-2 font-mono text-xs">
             {data.digest.slice(0, 16)}
           </code>
         ) : null

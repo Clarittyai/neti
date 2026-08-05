@@ -121,7 +121,7 @@ export function EmptyState({
             {action.href ? (
               <Link
                 href={action.href}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90"
               >
                 {action.icon ? <action.icon className="h-4 w-4" /> : null}
                 {action.label}
@@ -129,7 +129,7 @@ export function EmptyState({
             ) : (
               <button
                 onClick={action.onClick}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-lg bg-accent px-4 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90"
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-full bg-accent px-4 text-sm font-semibold text-accent-foreground transition-colors hover:bg-accent/90"
               >
                 {action.icon ? <action.icon className="h-4 w-4" /> : null}
                 {action.label}
