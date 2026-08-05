@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### A real MCP client had never driven the gate
+
+`tests/e2e/test_real_mcp_server.py` puts neti in front of a real MCP server. The client in it is
+always ours. The other direction — a third-party client connecting *to* `neti gate` — is the widest
+claim this project makes and had never been run at all: README names Cursor, Claude Desktop,
+Windsurf, Cline, Continue, VS Code, Zed and Goose as covered, on the reasoning that they speak MCP
+and the gate goes in front of the server. The reasoning is sound. It rested on nothing.
+
+`tests/e2e/test_real_mcp_client.py` connects the official SDK's `ClientSession` to `neti gate
+--stdio` over a real pipe, with a real handshake, against a child server that answers everything —
+so a gate that forwarded a call it should have stopped is caught by the child *replying* rather
+than by an assertion somebody remembered to write. One oversized call is refused with the magnitude
+in the sentence; one that fits reaches the server untouched, which is the half that decides whether
+anybody leaves the gate installed.
+
+What it verifies is the SDK those clients are built on, at the version they ship — OpenClaw bundles
+`@modelcontextprotocol/sdk` 1.29.0, and OpenAI's Codex CLI speaks the same protocol. It is not a
+test of any product's user interface, and the file says so, because `neti score` already keeps
+*driven* and *reached* apart and this must not blur them.
+
 ### M13, and a compatibility table generated from the run that produced it
 
 `neti score` carries runtime conformance now, and README.md's table is written by `just matrix`
