@@ -1,5 +1,78 @@
 # Changelog
 
+## Unreleased
+
+### CrewAI told the model "blocked by hook" and never told it the number
+
+Found by running `Crew.kickoff()` instead of imitating it.
+
+`crewai_hooks` gated through CrewAI's hook pair: `before_tool_call` decides and stashes the
+sentence, `after_tool_call` puts it back in place of the fixed string CrewAI substitutes. The
+module docstring explained the arrangement carefully. It could not work, and never had.
+`crewai/utilities/tool_utils.py` has exactly one call site for the pair, and it returns the moment
+a before-hook answers `False`:
+
+    for hook in before_hooks:
+        if hook(hook_context) is False:
+            return ToolResult(blocked_message, False)   # after-hooks never reached
+
+So on every CrewAI executor path, a blocked call reached the agent as:
+
+    Observation: Tool execution blocked by hook. Tool: Glob
+
+No magnitude, no ceiling, nothing to narrow. On CrewAI the product was a refusal rather than a
+number, which is most of the value gone — the sentence is what makes an agent retry with a smaller
+target instead of giving up or repeating itself.
+
+**It survived because the test imitated the framework rather than running it.** `via_crewai` in the
+seam table called the before-hooks, substituted CrewAI's fixed string *itself*, then ran the
+after-hooks over that string and watched them replace it — a control flow real CrewAI does not
+have. The reproduction was wrong in precisely the way that made the assertion pass, and the seam
+table's byte-for-byte sentence claim was therefore false for CrewAI the whole time.
+
+The gate moved to where every other adapter in this package already puts it: the tool.
+`crewai_hooks.gate_tools` wraps a `BaseTool` and returns the sentence from `_run`, which CrewAI
+hands the model as an ordinary tool result. `install` is kept for recording without touching tool
+objects, and now says plainly that the model will not be told the number. A test asserts CrewAI's
+real behaviour — fixed string, no magnitude — so if a future version runs after-hooks on a blocked
+call, it fails and the design gets reconsidered on purpose.
+
+### Every popular runtime's own agent loop, driven with no model at all
+
+`tests/conformance/` and `just conformance`. The seam table proves each adapter honours its
+framework's contract by calling the integration point directly. That is the right way to compare
+twelve seams, and it leaves the question a user actually has unanswered: *when the framework runs
+the tool its own way, is the gate in the path?* This repository had already shipped one defect of
+that shape — a blocked call raising `TypeError` inside LangGraph's `ToolNode` — and has now shipped
+a second.
+
+Eight runtimes, each built from its own public API and run to the point of tool execution:
+
+    langgraph       a compiled StateGraph executing a ToolNode
+    langchain       langchain.agents.create_agent, via the model interface
+    openai-agents   Runner.run over a Model implementation
+    pydantic-ai     an Agent over FunctionModel
+    google-adk      an App run by InMemoryRunner
+    autogen         AssistantAgent.run over a wrapped workbench
+    anthropic       tool_runner, with the sentence read off the wire
+    crewai          a real Crew.kickoff, read from the agent's observation
+
+**None of them has a model.** Every row scripts the response — an `AIMessage` written by hand, a
+`FunctionModel`, a `BaseChatModel` subclass, a mock HTTP transport. That is the point rather than a
+convenience: it is what demonstrates the gate sits at the execution seam, where the model chooses
+*what* to call and the gate decides *whether it runs*. No key, no network, no provider, no cost,
+the same answer every time — so this runs in CI on every push instead of being a demonstration
+somebody gave once.
+
+Each row asserts the tool body never executed, that the sentence the agent was shown is byte-for-
+byte what `Preflight` produced, and that the decision was sealed. Versions are recorded in
+`eval/results/conformance.json`, because "tested with LangChain" is a sentence that outlives the
+version it was true of.
+
+`langchain` joins the `sdks` extra: 1.x moved `AgentExecutor` out of the package and deprecated
+LangGraph's `create_react_agent` in favour of `langchain.agents.create_agent`, and pinning a
+conformance claim to a legacy constructor would make the row quietly untrue on a current install.
+
 ## 0.2.0 — 2026-08-05
 
 ### The model was never told which questions it was being asked

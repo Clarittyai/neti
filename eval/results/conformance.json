@@ -1,0 +1,55 @@
+{
+  "metric": "M13",
+  "note": "Each runtime's own agent loop, driven with a scripted fake model and no provider. `passed` means the tool body never ran and the sentence the agent was shown matched Preflight byte for byte.",
+  "platform": "Darwin arm64",
+  "runtimes": {
+    "anthropic": {
+      "depth": "agent_loop",
+      "status": "passed",
+      "version": "0.120.2",
+      "what": "the Anthropic tool_runner, read off the wire"
+    },
+    "autogen": {
+      "depth": "agent_loop",
+      "status": "passed",
+      "version": "0.7.5",
+      "what": "AutoGen AssistantAgent.run over a workbench"
+    },
+    "crewai": {
+      "depth": "agent_loop",
+      "status": "passed",
+      "version": "1.6.1",
+      "what": "a real Crew.kickoff, read from the agent's observation"
+    },
+    "google-adk": {
+      "depth": "agent_loop",
+      "status": "passed",
+      "version": "2.6.1",
+      "what": "an ADK App run by InMemoryRunner"
+    },
+    "langchain": {
+      "depth": "agent_loop",
+      "status": "passed",
+      "version": "1.3.14",
+      "what": "langchain.agents.create_agent, via the model interface"
+    },
+    "langgraph": {
+      "depth": "agent_loop",
+      "status": "passed",
+      "version": "1.2.10",
+      "what": "a compiled StateGraph executing a ToolNode"
+    },
+    "openai-agents": {
+      "depth": "agent_loop",
+      "status": "passed",
+      "version": "0.19.2",
+      "what": "the OpenAI Agents SDK Runner"
+    },
+    "pydantic-ai": {
+      "depth": "agent_loop",
+      "status": "passed",
+      "version": "2.22.0",
+      "what": "a Pydantic AI Agent over FunctionModel"
+    }
+  }
+}

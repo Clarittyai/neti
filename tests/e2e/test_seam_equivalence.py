@@ -436,52 +436,39 @@ def via_pydantic_ai(
 
 
 def via_crewai(world: worlds.World, tmp_path: Path, case: Case, approver: Any = None) -> Outcome:
-    """The hook *pair*, driven the way `crew_agent_executor` drives it.
+    """The wrapped tool, invoked the way CrewAI's executor invokes one.
 
-    CrewAI substitutes a fixed "Tool execution blocked by hook" string when a before-hook returns
-    `False`, so the after-hook is what puts the sentence back. Reproducing both halves here is the
-    point: a driver that only called the before-hook would report a verdict and never notice that
-    the model was being handed no number at all.
+    **This used to drive the hook pair, and it was driving a fiction.** It ran the before-hooks,
+    substituted CrewAI's fixed "Tool execution blocked by hook" string itself, then ran the
+    after-hooks over that string and watched them replace it. Real CrewAI returns the instant a
+    before-hook answers `False` — `crewai/utilities/tool_utils.py` has one call site and it does
+    `return ToolResult(blocked_message, False)` — so the after-hook never runs on a blocked call
+    and the sentence never reached the model. The reproduction was wrong in exactly the way that
+    made this test pass, and `tests/conformance/test_conformance.py` caught it by running
+    `Crew.kickoff()` instead of imitating it.
+
+    The gate is a wrapped tool now, so this drives the wrapped tool. `run` rather than `_run`,
+    because `run` is what CrewAI calls.
     """
-    from crewai.hooks import (
-        ToolCallHookContext,
-        clear_all_tool_call_hooks,
-        get_after_tool_call_hooks,
-        get_before_tool_call_hooks,
-    )
+    from crewai.tools import BaseTool
 
-    from neti.adapters.crewai_hooks import install
+    from neti.adapters.crewai_hooks import gate_tool
 
-    clear_all_tool_call_hooks()
-    try:
-        install(build_preflight(world, tmp_path, approver))
+    ran: list[bool] = []
 
-        blocked = False
-        for hook in get_before_tool_call_hooks():
-            context = ToolCallHookContext(
-                tool_name=case.tool, tool_input=dict(case.args), tool=None, agent=None, task=None
-            )
-            if hook(context) is False:
-                blocked = True
-        if not blocked:
-            return Outcome("allow", None, "")
+    class Inner(BaseTool):
+        name: str = case.tool
+        description: str = "Do the thing."
 
-        text = f"Tool execution blocked by hook. Tool: {case.tool}"
-        for hook in get_after_tool_call_hooks():
-            context = ToolCallHookContext(
-                tool_name=case.tool,
-                tool_input=dict(case.args),
-                tool=None,
-                agent=None,
-                task=None,
-                tool_result=text,
-            )
-            replaced = hook(context)
-            if isinstance(replaced, str):
-                text = replaced
-        return Outcome(_verdict_of(text), _magnitude_of(text), text)
-    finally:
-        clear_all_tool_call_hooks()
+        def _run(self, **kwargs: Any) -> str:
+            ran.append(True)
+            return "ran"
+
+    gated = gate_tool(build_preflight(world, tmp_path, approver), Inner())
+    result = str(gated.run(**dict(case.args)))
+    if ran:
+        return Outcome("allow", None, "")
+    return Outcome(_verdict_of(result), _magnitude_of(result), result)
 
 
 def via_autogen(world: worlds.World, tmp_path: Path, case: Case, approver: Any = None) -> Outcome:

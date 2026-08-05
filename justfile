@@ -75,6 +75,17 @@ determinism:
 assist provider="anthropic" *ARGS:
     uv run python -m eval.harness.assist --provider {{provider}} {{ARGS}}
 
+# Every popular agent runtime's OWN loop, driven with no model at all.
+#
+# The seam table proves the adapters honour each framework's contract. This proves the gate is in
+# the path when the framework runs the tool its own way — which is a different claim, and the one
+# that found CrewAI handing the model "blocked by hook" with no number in it.
+#
+# No keys, no network, no provider: every row scripts the model. That is the point rather than a
+# convenience, because it is what shows the gate is at the execution seam and not the model.
+conformance:
+    uv run pytest -q tests/conformance
+
 # Arm C's answer key: what the 401 unclaimed parameters actually address.
 #
 # An opinion, written as rules so it can be argued with. Every label carries the rule that produced
