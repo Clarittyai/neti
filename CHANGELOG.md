@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### The last piece of scaffolding, removed — and a scope limit that was overdue
+
+`just conformance-live` runs a real model, a real agent and a real oversized call, and checks the
+gate stops it. Three runtimes rather than eleven: what it adds over the scripted rows is that a
+model *actually walks into* the gate, and proving that three times with a paid model says as much
+as proving it eleven times and costs less. **You run it** — the key belongs to whoever spends it,
+the same rule as M7 and M12.
+
+It records what the model said next and does not assert on it. Classifying that is M7's question,
+M7 has a harness, and its classifier is pinned by `tests/e2e/test_m7_classifier.py`.
+
+M13 on the card now distinguishes the two halves, because eleven rows reading `driven` is the
+easiest thing on that card to mistake for a finished result. Without a live run it says so out
+loud: *nobody has run it against a real model here*. A live row that skipped for want of a key is
+never counted as proved.
+
+**NC-14, and it should have been written down when the smolagents adapter was.** A code-executing
+agent — `CodeAgent`, and anything shaped like it — does not emit tool calls. It writes Python and
+runs it, and calling a tool is one of the things that Python may do. The adapter gates every call
+that goes through a tool. It does not gate `open(...)`, `os.remove(...)`, a subprocess, or an
+import that reaches the network, because none of those cross a tool boundary and no gate at a tool
+boundary can see them. The thing that bounds them is the executor's own sandbox. A reader who
+assumes otherwise has assumed something dangerous, so it is in the non-coverage table rather than
+in a docstring.
+
 ### Eleven runtimes, all through their own agent loops — and the smolagents adapter did not work
 
 The three new adapters had seam-table rows, which prove the adapter honours the framework's

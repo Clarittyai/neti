@@ -67,7 +67,7 @@ class Runtime:
     drive: Callable[[Preflight, dict[str, Any]], Driven]
 
 
-def _sentence_in(texts: list[str]) -> str:
+def sentence_in(texts: list[str]) -> str:
     """Pull the gate's sentence out of whatever the agent was shown.
 
     Three runtimes hand the denial back inside a transcript rather than as a return value, so the
@@ -688,7 +688,7 @@ def _llamaindex(preflight: Preflight, args: dict[str, Any]) -> Driven:
         await agent.run("go")
 
     asyncio.run(go())
-    return Driven(ran=bool(ran), sentence=_sentence_in(seen))
+    return Driven(ran=bool(ran), sentence=sentence_in(seen))
 
 
 def _smolagents(preflight: Preflight, args: dict[str, Any]) -> Driven:
@@ -755,7 +755,7 @@ def _smolagents(preflight: Preflight, args: dict[str, Any]) -> Driven:
     observations = [
         str(step.observations) for step in agent.memory.steps if getattr(step, "observations", None)
     ]
-    return Driven(ran=bool(ran), sentence=_sentence_in(observations))
+    return Driven(ran=bool(ran), sentence=sentence_in(observations))
 
 
 def _semantic_kernel(preflight: Preflight, args: dict[str, Any]) -> Driven:
@@ -843,7 +843,7 @@ def _semantic_kernel(preflight: Preflight, args: dict[str, Any]) -> Driven:
         )
 
     asyncio.run(go())
-    return Driven(ran=bool(ran), sentence=_sentence_in(seen))
+    return Driven(ran=bool(ran), sentence=sentence_in(seen))
 
 
 RUNTIMES: tuple[Runtime, ...] = (

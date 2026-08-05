@@ -636,3 +636,55 @@ def test_m13_says_no_model_was_involved() -> None:
     )
     assert "with no model at all" in body
     assert "scripts" in body
+
+
+def test_m13_does_not_imply_a_real_model_was_ever_involved() -> None:
+    """The live half is the easiest thing on this card to read as done when it is not.
+
+    Every scripted row says `driven`, and a reader skimming eleven of them will take the section
+    for a complete result. It is a complete result about the *seam*; it says nothing about a real
+    provider until somebody spends a key. So the card says which of the two it is looking at.
+    """
+    from neti.eval.scorecard import build_scorecard, format_scorecard
+
+    rows = {
+        "langgraph": {
+            "status": "passed",
+            "depth": "agent_loop",
+            "what": "a graph",
+            "version": "1.2.10",
+        }
+    }
+    scripted = format_scorecard(build_scorecard(conformance=rows))
+    assert "Nobody has run it against a real model here" in scripted
+
+    lived = format_scorecard(
+        build_scorecard(
+            conformance=rows,
+            conformance_live={"anthropic": {"status": "passed", "model": "claude-opus-4-5"}},
+        )
+    )
+    assert "With a real model behind it: anthropic" in lived
+    assert "claude-opus-4-5" in lived
+    assert "Nobody has run it" not in lived
+
+
+def test_m13_never_counts_a_skipped_live_row_as_proved() -> None:
+    """A row that skipped for want of a key is the whole reason the file records skips at all."""
+    from neti.eval.scorecard import build_scorecard, format_scorecard
+
+    body = format_scorecard(
+        build_scorecard(
+            conformance={
+                "langgraph": {
+                    "status": "passed",
+                    "depth": "agent_loop",
+                    "what": "a graph",
+                    "version": "1.2.10",
+                }
+            },
+            conformance_live={"anthropic": {"status": "skipped", "why": "no key"}},
+        )
+    )
+    assert "Nobody has run it against a real model here" in body
+    assert "With a real model behind it" not in body

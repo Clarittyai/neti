@@ -229,6 +229,10 @@ NON_COVERAGE = {
         "a record chain with a gap: an unwritable records path loses the evidence, not the "
         "verdict — the call is still gated, and `neti verify` reports the break"
     ),
+    "NC-14": (
+        "what a code-executing agent's generated code does directly: a CodeAgent writes Python "
+        "and runs it, and `open` or `subprocess` crosses no tool boundary for a gate to sit on"
+    ),
 }
 
 
@@ -336,6 +340,10 @@ class Scorecard:
 
     Versions are carried per row on purpose. "tested with LangChain" is a sentence that outlives the
     version it was true of, and a matrix that cannot name one is a claim nobody can check."""
+    conformance_live: dict[str, dict[str, Any]] | None = None
+    """M13's live half, from `eval/results/conformance_live.json`: the same runtimes with a real
+    provider behind them. Absent means nobody has spent a key here, which is the normal state."""
+
     policy_digest: str | None = None
     gated_tools: int = 0
     gated_params: int = 0
@@ -361,6 +369,7 @@ def build_scorecard(
     live: dict[str, dict[str, Any]] | None = None,
     assist: Assist | None = None,
     conformance: dict[str, dict[str, Any]] | None = None,
+    conformance_live: dict[str, dict[str, Any]] | None = None,
 ) -> Scorecard:
     card = Scorecard(
         incidents=replay(shipped_units),
@@ -368,6 +377,7 @@ def build_scorecard(
         live=live,
         assist=assist,
         conformance=conformance,
+        conformance_live=conformance_live,
     )
 
     card.outstanding = [
@@ -574,6 +584,26 @@ def format_scorecard(card: Scorecard) -> str:
             version = str(row.get("version") or "")
             at = f" {version}" if version else ""
             out.append(f"    [{mark}] {name}{at} — {row.get('what', '')}")
+        live = card.conformance_live or {}
+        proved = sorted(name for name, row in live.items() if row.get("status") == "passed")
+        out.append("")
+        if proved:
+            out.append(
+                f"    With a real model behind it: {', '.join(proved)}. Same call, same refusal, "
+                "no scripting left."
+            )
+            for name in proved:
+                out.append(f"      {name} — {live[name].get('model', '')}")
+        else:
+            out.append(
+                "    Nobody has run it against a real model here. `just conformance-live` needs a "
+                "key and costs"
+            )
+            out.append(
+                "    tokens; the rows above need neither, which is why those are the ones that run "
+                "on every push."
+            )
+        out.append("")
         out.append(
             "    Each asserts the tool body never ran, the sentence matched Preflight byte for "
             "byte, and the"

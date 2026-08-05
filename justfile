@@ -86,6 +86,16 @@ assist provider="anthropic" *ARGS:
 conformance:
     uv run pytest -q tests/conformance
 
+# The same claim with the last scaffolding removed: a real model, a real agent, a real blocked call.
+#
+#   ANTHROPIC_API_KEY=... just conformance-live
+#   OPENAI_API_KEY=...    just conformance-live
+#
+# Your key, your account, your machine — neti never proxies it, and this is not in CI because it
+# costs tokens. Rows without a key are recorded as skipped, never as passed.
+conformance-live:
+    uv run pytest -q tests/live/test_frameworks_live.py
+
 # Rewrite README.md's runtime-conformance table from the run that produced it.
 #
 #   just matrix            rewrite it

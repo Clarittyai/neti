@@ -1,0 +1,19 @@
+{
+  "metric": "M13-live",
+  "note": "A real model, a real agent, a real oversized call. The scripted rows in eval/results/conformance.json prove the gate is in the path; these prove a model actually walks into it. `model_said_next` is recorded, not asserted \u2014 classifying it is M7's question.",
+  "platform": "Darwin arm64",
+  "runtimes": {
+    "anthropic": {
+      "status": "skipped",
+      "why": "ANTHROPIC_API_KEY is not available"
+    },
+    "openai-agents": {
+      "status": "skipped",
+      "why": "OPENAI_API_KEY is not available"
+    },
+    "pydantic-ai": {
+      "status": "skipped",
+      "why": "ANTHROPIC_API_KEY is not available"
+    }
+  }
+}

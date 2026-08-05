@@ -1393,8 +1393,20 @@ def score(
     with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
         conformance = json.loads(Path(conformance_results).read_text(encoding="utf-8"))["runtimes"]
 
+    conformance_live: dict[str, dict[str, Any]] | None = None
+    with contextlib.suppress(OSError, ValueError, KeyError, TypeError):
+        conformance_live = json.loads(
+            Path(conformance_results).with_name("conformance_live.json").read_text(encoding="utf-8")
+        )["runtimes"]
+
     card = build_scorecard(
-        summary, policy, wild=wild, live=live, assist=assist, conformance=conformance
+        summary,
+        policy,
+        wild=wild,
+        live=live,
+        assist=assist,
+        conformance=conformance,
+        conformance_live=conformance_live,
     )
     typer.echo(scorecard_json(card) if as_json else format_scorecard(card))
 
