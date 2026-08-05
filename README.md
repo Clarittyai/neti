@@ -412,6 +412,12 @@ tools at once.
 
 ## When a `confirm` needs an actual human
 
+**The local install is not a demo.** It resolves real magnitudes off your real machine, enforces
+real verdicts, and seals a real hash chain you can re-verify. There is no reduced mode, no trial and
+no watermark on the numbers. If you never install anything else, the gate is doing its whole job.
+
+The one thing a single machine genuinely cannot do is ask somebody else.
+
 A `confirm` band means *somebody other than the agent's operator should decide this one*. On one
 machine there is nobody to ask, so the gate stops the call and says so. That is correct, and it is
 what a free install will keep doing.

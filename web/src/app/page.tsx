@@ -82,7 +82,7 @@ export default function OverviewPage() {
       </Stats>
 
       {uncapped.length > 0 ? (
-        <div className="mt-4 flex flex-wrap items-center gap-2.5 rounded-xl border border-[hsl(var(--verdict-confirm))]/30 bg-[hsl(var(--verdict-confirm))]/[0.06] px-4 py-3 text-[13px]">
+        <div className="mt-4 flex flex-wrap items-center gap-2.5 border-l-2 border-[hsl(var(--verdict-confirm))] bg-[hsl(var(--verdict-confirm))]/[0.06] py-3 pl-3.5 pr-4 text-[13px]">
           <AlertTriangle className="h-4 w-4 flex-shrink-0 text-[hsl(var(--verdict-confirm))]" />
           <span className="text-muted-foreground">
             {uncapped.length} gated parameter{uncapped.length === 1 ? "" : "s"} have no ceiling
@@ -104,7 +104,10 @@ export default function OverviewPage() {
             <Loading label="Reading the directory" />
           </div>
         ) : (
-          <div className="glass-card mt-3 overflow-x-auto rounded-2xl">
+          <div className="mt-3 overflow-x-auto border-t border-border">
+            {/* No plate: the table's own header rule is the structure (DESIGN.md). The overflow
+                wrapper stays, because a wide table must scroll inside itself rather than push the
+                page sideways. */}
             <table className="w-full min-w-[640px] text-sm">
               <thead>
                 <tr className="border-b border-border/50 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
@@ -195,7 +198,7 @@ function StripPlot({ dist }: { dist: Distribution }) {
     2 + (Math.log10(Math.max(v, 1)) / Math.log10(Math.max(max, 10))) * 96;
 
   return (
-    <div className="glass-card mt-3 rounded-2xl p-5">
+    <div className="mt-3 border-t border-border py-5">
       <div className="flex flex-wrap items-baseline gap-x-5 gap-y-1 text-[13px]">
         <span className="font-mono">{dist.tool}</span>
         <span className="font-mono text-muted-foreground">{dist.pointer}</span>

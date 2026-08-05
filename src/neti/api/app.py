@@ -5,7 +5,10 @@ already tested — `Engine.gate`, `build_inventory`, `build_report`, `propose`, 
 `build_scorecard`. The API adds no judgement of its own, which is what lets the console claim that
 what it shows is what the gate does.
 
-Bound to localhost, no auth, single process. It is a demo console, not a control plane.
+Bound to localhost, no auth, single process. It is a fully operating local console — it resolves
+real magnitudes, enforces real verdicts and seals a real chain — and it is not a control plane:
+there is no org, no shared policy and nobody else to ask for an approval. That is what the hosted
+version adds, and it is a difference in reach rather than in whether this one works.
 """
 
 from __future__ import annotations

@@ -7,7 +7,7 @@
  * same call the inventory makes. A connect button that only stores a secret has demonstrated
  * nothing, and the first time it mattered you would find out at the wrong moment.
  *
- * The demo/live distinction is stated plainly rather than softened. A console that let a viewer
+ * Where the numbers come from is stated plainly rather than softened. A console that let a viewer
  * believe fixture numbers were a finding about their own directory would be committing exactly the
  * overclaim the rest of this codebase is built to avoid.
  */
@@ -150,11 +150,13 @@ export default function ConnectPage() {
           <div className="mb-5 max-w-sm">
             <ConnectScene />
           </div>
-          <h3 className="text-sm font-semibold">You are on the demo tenant</h3>
+          <h3 className="text-sm font-semibold">Directory numbers come from a sample</h3>
           <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
-            There are no credentials in the environment, so the gate is talking to a fixture with
-            known contents rather than a real directory. The engine, the decision procedure and the
-            records are identical either way — only the numbers differ. Export{" "}
+            This install is fully operating: it resolves, decides, enforces and seals records
+            exactly as it will with a directory behind it. What it does not have yet is a directory
+            — there are no credentials in the environment, so group sizes come from a fixture with
+            known contents. The engine, the decision procedure and the records are identical either
+            way; only those numbers differ. Export{" "}
             <code className="font-mono text-[12px]">NETI_TENANT_ID</code>,{" "}
             <code className="font-mono text-[12px]">NETI_CLIENT_ID</code> and{" "}
             <code className="font-mono text-[12px]">NETI_CLIENT_SECRET</code> and restart{" "}

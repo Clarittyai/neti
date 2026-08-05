@@ -330,3 +330,59 @@ def test_the_console_configures_its_resolvers_from_the_policy(tmp_path: Path) ->
         "which is the number the overview leads with"
     )
     assert reachable.magnitude == 12, reachable
+
+
+def test_a_filesystem_policy_is_not_called_a_demo(tmp_path: Path) -> None:
+    """A coding-agent install has no directory to ask, so nothing about it is a fixture.
+
+    The console branded every session without Entra credentials a "Demo tenant", which was wrong
+    twice: a local install is the whole gate, and a policy gated on `fs.paths` produces magnitudes
+    measured off real files. Worse, that same flag stamped `synthetic=True` onto those records —
+    marking a real measurement as invented, which is the exact lie the flag exists to prevent,
+    pointing the other way.
+    """
+    from neti.api.state import build_state
+
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    (tree / "a.txt").write_text("x\n", encoding="utf-8")
+
+    config = tmp_path / "neti.yaml"
+    config.write_text(
+        "version: 1\nmode: observe\nproviders:\n  fs:\n"
+        f"    root: {tree}\n"
+        "tools:\n  Glob:\n    gate:\n      /pattern:\n"
+        "        resolver: fs.paths\n        bands: []\n",
+        encoding="utf-8",
+    )
+
+    state = build_state(config=config, records=tmp_path / "out.ndjson", demo=True)
+
+    assert not state.demo, "a filesystem-only policy has no fixture in it and is not a demo"
+    assert state.engine.synthetic is False, (
+        "records would be stamped synthetic although every magnitude was measured from real files"
+    )
+    assert "machine" in state.tenant_label, state.tenant_label
+
+
+def test_an_entra_policy_with_no_credentials_still_says_so(tmp_path: Path) -> None:
+    """The other direction, and the reason the flag exists at all.
+
+    Renaming the demo away must not quietly turn fixture group sizes into findings about a real
+    directory. When the policy does bind an Entra resolver and there is no credential, the numbers
+    genuinely come from the fixture and both the label and the record must say it.
+    """
+    from neti.api.state import build_state
+
+    config = tmp_path / "neti.yaml"
+    config.write_text(
+        "version: 1\nmode: observe\ntools:\n  remove_group_members:\n    gate:\n      /group:\n"
+        "        resolver: entra.principals\n        bands: []\n",
+        encoding="utf-8",
+    )
+
+    state = build_state(config=config, records=tmp_path / "out.ndjson", demo=True)
+
+    assert state.demo, "an Entra policy on the fixture must still be marked"
+    assert state.engine.synthetic is True
+    assert "sample" in state.tenant_label.lower(), state.tenant_label

@@ -127,11 +127,18 @@ def build_state(
     if demo is None:
         demo = not have_creds
 
+    # Does this policy actually ask a directory anything? A coding agent gated on `fs.paths` never
+    # does, and every magnitude it produces is measured from real files on this machine — so a
+    # session with no Entra credentials is not a demo, it is a filesystem gate doing its whole job.
+    # Branding it "Demo tenant" was wrong twice over: it undersold a fully operating install, and it
+    # stamped `synthetic=True` on records whose numbers were measured.
+    on_fixture = demo and policy.binds_entra()
+
     tenant: SyntheticTenant | None = None
     if demo:
         tenant = default_tenant()
         client = GraphClient(DEMO_CREDENTIAL, transport=tenant.transport(), timeout_ms=timeout_ms)
-        label = "Contoso (synthetic fixture)"
+        label = "Contoso (sample directory)" if policy.binds_entra() else "this machine"
     else:
         if not have_creds:
             missing = ", ".join(n for n, v in creds.items() if not v)
@@ -156,11 +163,11 @@ def build_state(
         resolvers=resolvers_for_client(client, policy.providers),
         ctx=ResolveContext(timeout_ms=timeout_ms),
         last_digest=chain_head(records_path),
-        # The console defaults to demo whenever there is no credential, which is most of the time
-        # somebody is looking at it. Without this it writes confident, invented magnitudes into an
-        # ordinary record chain with nothing saying so — the same defect as `--demo` on the CLI, in
-        # the surface built specifically for showing people numbers.
-        synthetic=demo,
+        # `on_fixture`, not `demo`. The flag means "these magnitudes came from the fixture rather
+        # than a provider", and that is only true when the policy actually binds an Entra resolver.
+        # Marking a filesystem gate's real measurements synthetic is the same class of lie as the
+        # one this flag exists to prevent, pointing the other way.
+        synthetic=on_fixture,
     )
 
     return ConsoleState(
@@ -169,7 +176,7 @@ def build_state(
         policy=policy,
         sink=JsonlSink(records_path),
         records_path=records_path,
-        demo=demo,
+        demo=on_fixture,
         tenant_label=label,
         tenant=tenant,
     )

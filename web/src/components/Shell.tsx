@@ -145,9 +145,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
  *
  * It lives outside the rail, pinned to the viewport, because the rail is collapsed by default and a
  * chip that only appears on hover is a chip nobody sees. Both facts are load-bearing and both are
- * easy to lose track of mid-demo, and "Demo tenant" is stated plainly rather than softened —
+ * easy to lose track of, and where a number came from is stated plainly rather than softened:
  * presenting fixture numbers as a finding about a real directory is exactly the overclaim the rest
  * of this codebase is built to avoid.
+ *
+ * **This used to say "Demo tenant" for every install without Entra credentials, and that was wrong
+ * twice.** A local install is not a demo — it is the whole gate, resolving real magnitudes off a
+ * real machine and sealing real records. And a coding-agent policy never asks a directory anything,
+ * so on those installs there is no fixture involved at all and every number on screen was measured.
+ * The chip names the *source of the numbers* now, which is the only thing it was ever for.
  */
 function ModeChip() {
   const { state } = useConsole();
@@ -169,7 +175,7 @@ function ModeChip() {
           aria-hidden
         />
         <span className="whitespace-nowrap text-xs font-medium">
-          {demo ? "Demo tenant" : `Live · ${state.tenant}`}
+          {demo ? `Sample directory · ${state.tenant}` : `Local · ${state.tenant}`}
         </span>
         <span className="whitespace-nowrap text-[11px] text-muted-foreground">
           {enforcing ? "enforcing" : "observing — nothing is blocked"}

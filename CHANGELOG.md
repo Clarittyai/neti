@@ -2,6 +2,35 @@
 
 ## Unreleased
 
+### It was never a demo, and calling it one was also a data bug
+
+The console branded every install without Entra credentials **"Demo tenant"**. That was wrong in two
+directions at once.
+
+A local install is not a demo. It resolves real magnitudes off a real machine, enforces real
+verdicts and seals a real chain you can re-verify. There is no reduced mode and no watermark on the
+numbers — if nothing else is ever installed, the gate is doing its whole job. What one machine
+cannot do is ask somebody else, and that is what the hosted tier adds: a difference in reach, not in
+whether this one works.
+
+**And the flag driving that label was also stamping records.** `Engine(synthetic=demo)` marked
+records synthetic whenever no Entra credential was present — including on a coding-agent policy
+where every magnitude was measured from real files on disk. Marking a real measurement as invented
+is the same class of lie the flag exists to prevent, pointing the other way.
+
+The predicate is `demo and policy.binds_entra()` now. A policy that never asks a directory anything
+has no fixture in it, so:
+
+    filesystem policy, no credentials    Local · this machine       records: measured
+    Entra policy, no credentials         Sample directory · …       records: synthetic
+    Entra policy, real credentials       Local · <tenant>           records: measured
+
+`tests/integration/test_api.py` asserts both directions, because renaming the demo away must not
+quietly turn fixture group sizes into findings about a real directory.
+
+The overview lost its last three plates as well: the reach table, the distribution plots and the
+uncapped-parameter notice are sections and rules now rather than boxes.
+
 ### The four live scenes are actually wired now, and the last dashed box is gone
 
 The previous pass built the scenes and wired one. `ReachScene` was an unused import, `GateScene` and
