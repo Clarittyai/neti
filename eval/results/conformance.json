@@ -39,6 +39,12 @@
       "version": "1.2.10",
       "what": "a compiled StateGraph executing a ToolNode"
     },
+    "llamaindex": {
+      "depth": "agent_loop",
+      "status": "passed",
+      "version": "0.14.23",
+      "what": "a LlamaIndex FunctionAgent over a FunctionCallingLLM"
+    },
     "openai-agents": {
       "depth": "agent_loop",
       "status": "passed",
@@ -50,6 +56,18 @@
       "status": "passed",
       "version": "2.22.0",
       "what": "a Pydantic AI Agent over FunctionModel"
+    },
+    "semantic-kernel": {
+      "depth": "agent_loop",
+      "status": "passed",
+      "version": "1.36.0",
+      "what": "Semantic Kernel's auto function-calling loop"
+    },
+    "smolagents": {
+      "depth": "agent_loop",
+      "status": "passed",
+      "version": "1.26.0",
+      "what": "a smolagents ToolCallingAgent"
     }
   }
 }

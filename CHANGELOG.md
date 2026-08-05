@@ -2,6 +2,34 @@
 
 ## Unreleased
 
+### Eleven runtimes, all through their own agent loops — and the smolagents adapter did not work
+
+The three new adapters had seam-table rows, which prove the adapter honours the framework's
+contract when you call it directly. Building a real agent out of each one found that for smolagents
+that was not the same thing:
+
+    AssertionError: All elements must be instance of BaseTool (or a subclass)
+
+`gate_tool` returned a plain object that copied the four attributes and delegated the rest. It
+passed every direct test and `ToolCallingAgent` would not accept it, so the adapter could not be
+used to build an agent at all — which is the only thing anybody would want it for. It is a real
+`Tool` subclass now, with `skip_forward_signature_validation`, the flag smolagents sets on its own
+wrapper tools (`from_langchain`, `from_gradio`) for exactly this reason.
+
+That is the second adapter this directory has caught and the same shape both times: correct against
+its own tests, wrong when the framework runs it.
+
+All three now drive a full agent loop with no model:
+
+    llamaindex        a FunctionAgent over a FunctionCallingLLM
+    smolagents        a ToolCallingAgent over a scripted Model
+    semantic-kernel   the auto function-calling loop over a scripted chat service
+
+Semantic Kernel needed `SUPPORTS_FUNCTION_CALLING` declared on the client: without it the kernel
+skips automatic invocation, the function is never reached, and the row would have passed on *the
+tool never ran* while proving nothing at all. That is why every row asserts the sentence the agent
+was shown as well — an untouched tool is not evidence when the loop never got there.
+
 ### Three more runtimes, and the seam each one actually offers
 
 LlamaIndex, smolagents and Semantic Kernel have adapters now, so they move from *reached because

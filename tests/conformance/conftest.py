@@ -34,6 +34,9 @@ DISTRIBUTION = {
     "autogen": "autogen-agentchat",
     "anthropic": "anthropic",
     "crewai": "crewai",
+    "llamaindex": "llama-index-core",
+    "smolagents": "smolagents",
+    "semantic-kernel": "semantic-kernel",
 }
 
 _OUTCOMES: dict[str, str] = {}

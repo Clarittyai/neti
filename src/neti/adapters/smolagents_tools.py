@@ -36,42 +36,43 @@ __all__ = ["gate_tool", "gate_tools"]
 def gate_tool(preflight: Preflight, tool: Any) -> Any:
     """Wrap one smolagents tool so its execution goes through the gate.
 
-    The instance is wrapped rather than subclassed: smolagents builds `Tool` subclasses with class
-    attributes (`name`, `description`, `inputs`, `output_type`) and validates them at construction,
-    so a generic subclass would have to invent values for all four and would then be describing
-    itself rather than the tool it stands in front of. Delegating leaves the description the model
-    is shown byte-identical.
+    **A real `Tool` subclass, not a delegating object.** The first version of this was a plain class
+    that copied the four attributes and forwarded everything else, which passed every direct test
+    and then failed the moment an agent was built with it: `ToolCallingAgent` asserts *All elements
+    must be instance of BaseTool*. A gate that cannot be handed to the framework's own agent is not
+    an integration.
+
+    `forward` therefore takes `**kwargs`, and smolagents validates that a tool's `forward`
+    parameters match the keys of its `inputs` — so this sets `skip_forward_signature_validation`,
+    which is the flag smolagents sets on its own wrapper tools (`from_langchain`, `from_gradio`)
+    for exactly this reason. The inner tool still validates its own arguments when the call
+    proceeds, so nothing is skipped that anybody was relying on.
+
+    Name, description, `inputs` and `output_type` are copied verbatim: an agent must not be able to
+    tell a gated tool from an ungated one by looking at it, or the gate leaks into the prompt and
+    into what the model believes it may attempt.
     """
+    from smolagents import Tool
+
     from neti.adapters.claude_code import normalise_tool
     from neti.core.types import unreadable_arguments
 
-    class GatedTool:
-        # Everything the model is shown comes from the inner tool, unchanged.
+    # smolagents ships no py.typed, so `Tool` is `Any` to mypy and subclassing it is an
+    # error it cannot check either way.
+    class GatedTool(Tool):  # type: ignore[misc]
         name = tool.name
         description = tool.description
         inputs = tool.inputs
         output_type = tool.output_type
+        skip_forward_signature_validation = True
 
-        def __getattr__(self, item: str) -> Any:
-            """Anything smolagents asks for that is not the call itself."""
-            return getattr(tool, item)
-
-        def __call__(self, *args: Any, **kwargs: Any) -> Any:
+        def forward(self, *args: Any, **kwargs: Any) -> Any:
             verdict = preflight.check(
                 normalise_tool(str(tool.name)), unreadable_arguments(dict(kwargs))
             )
             if not verdict.proceeds:
                 return verdict.message
             return tool(*args, **kwargs)
-
-        def forward(self, *args: Any, **kwargs: Any) -> Any:
-            """`__call__` is what agents use, but a caller reaching past it must not escape.
-
-            smolagents' own `__call__` delegates here, so a wrapper that gated only `__call__` would
-            be bypassed by anything that called `forward` directly — including a tool that another
-            tool calls internally.
-            """
-            return self(*args, **kwargs)
 
     return GatedTool()
 

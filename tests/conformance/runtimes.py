@@ -32,7 +32,7 @@ from __future__ import annotations
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, ClassVar
 
 from neti.preflight import Preflight
 
@@ -65,6 +65,25 @@ class Runtime:
     depth: str
     what: str
     drive: Callable[[Preflight, dict[str, Any]], Driven]
+
+
+def _sentence_in(texts: list[str]) -> str:
+    """Pull the gate's sentence out of whatever the agent was shown.
+
+    Three runtimes hand the denial back inside a transcript rather than as a return value, so the
+    only place that proves it *travelled* is the text the model saw on its next turn. Asserting on
+    a framework's final output instead would be asserting on the scripted reply.
+    """
+    import re
+
+    for text in reversed(texts):
+        # Stops at a quote, a backslash or a `<`: Semantic Kernel serialises its chat history as
+        # XML, so an unbounded match swallows `</function_result></message>` and the row fails on
+        # the transcript's markup rather than on the product's words.
+        found = re.search(r"Preflight blocked[^'\"<\\]*", text)
+        if found:
+            return found.group(0).strip()
+    return ""
 
 
 # --------------------------------------------------------------------------- the drivers
@@ -577,6 +596,256 @@ def _crewai(preflight: Preflight, args: dict[str, Any]) -> Driven:
     return Driven(ran=bool(ran), sentence=sentence)
 
 
+def _llamaindex(preflight: Preflight, args: dict[str, Any]) -> Driven:
+    """A real `FunctionAgent`, over a `FunctionCallingLLM` that emits one tool call.
+
+    The sentence is read out of the chat history the agent shows the model on its next turn, which
+    is the only place that proves the denial travelled — an assertion on the agent's final output
+    would be asserting on the scripted second turn.
+    """
+    import asyncio
+    from collections.abc import AsyncGenerator
+
+    from llama_index.core.agent.workflow import FunctionAgent
+    from llama_index.core.base.llms.types import ChatMessage, ChatResponse, LLMMetadata, MessageRole
+    from llama_index.core.llms.function_calling import FunctionCallingLLM
+    from llama_index.core.tools import FunctionTool, ToolSelection
+
+    from neti.adapters.llamaindex_tools import gate_tools
+
+    ran: list[str] = []
+    seen: list[str] = []
+
+    def Glob(pattern: str) -> str:
+        ran.append(pattern)
+        return "ran"
+
+    class Scripted(FunctionCallingLLM):
+        turns: int = 0
+
+        @property
+        def metadata(self) -> LLMMetadata:
+            return LLMMetadata(model_name="scripted", is_function_calling_model=True)
+
+        def _prepare_chat_with_tools(self, tools: Any, **kw: Any) -> dict[str, Any]:
+            return {"messages": kw.get("chat_history") or []}
+
+        def get_tool_calls_from_response(self, response: Any, **kw: Any) -> list[Any]:
+            return list(getattr(response, "_selections", []))
+
+        async def achat_with_tools(
+            self, tools: Any, user_msg: Any = None, chat_history: Any = None, **kw: Any
+        ) -> Any:
+            self.turns += 1
+            seen.append(str(chat_history))
+            content = "" if self.turns == 1 else "stopped"
+            response = ChatResponse(
+                message=ChatMessage(role=MessageRole.ASSISTANT, content=content)
+            )
+            response._selections = (
+                [ToolSelection(tool_id="c1", tool_name=TOOL, tool_kwargs=dict(args))]
+                if self.turns == 1
+                else []
+            )
+            return response
+
+        async def astream_chat_with_tools(self, tools: Any, **kw: Any) -> Any:
+            response = await self.achat_with_tools(tools, **kw)
+
+            async def one() -> AsyncGenerator[Any, None]:
+                yield response
+
+            return one()
+
+        def chat(self, *a: Any, **k: Any) -> Any:
+            raise NotImplementedError
+
+        def complete(self, *a: Any, **k: Any) -> Any:
+            raise NotImplementedError
+
+        def stream_chat(self, *a: Any, **k: Any) -> Any:
+            raise NotImplementedError
+
+        def stream_complete(self, *a: Any, **k: Any) -> Any:
+            raise NotImplementedError
+
+        async def achat(self, *a: Any, **k: Any) -> Any:
+            raise NotImplementedError
+
+        async def acomplete(self, *a: Any, **k: Any) -> Any:
+            raise NotImplementedError
+
+        async def astream_chat(self, *a: Any, **k: Any) -> Any:
+            raise NotImplementedError
+
+        async def astream_complete(self, *a: Any, **k: Any) -> Any:
+            raise NotImplementedError
+
+    tool = FunctionTool.from_defaults(fn=Glob, name=TOOL, description="Match files.")
+    agent = FunctionAgent(tools=gate_tools(preflight, [tool]), llm=Scripted())
+
+    async def go() -> None:
+        await agent.run("go")
+
+    asyncio.run(go())
+    return Driven(ran=bool(ran), sentence=_sentence_in(seen))
+
+
+def _smolagents(preflight: Preflight, args: dict[str, Any]) -> Driven:
+    """A real `ToolCallingAgent`, over a scripted `Model`.
+
+    This row caught the adapter returning something the framework would not accept: the first
+    version wrapped the tool in a plain delegating object, which passed every direct test and made
+    `ToolCallingAgent` raise *All elements must be instance of BaseTool*. The observation the agent
+    records is the sentence, so that is what is read here.
+    """
+    from smolagents import Tool as SmolTool
+    from smolagents import ToolCallingAgent
+    from smolagents.models import (
+        ChatMessage,
+        ChatMessageToolCall,
+        ChatMessageToolCallFunction,
+        Model,
+    )
+
+    from neti.adapters.smolagents_tools import gate_tools
+
+    ran: list[str] = []
+
+    class GlobTool(SmolTool):
+        name = TOOL
+        description = "Match files."
+        # smolagents reads these as class attributes; ClassVar is the annotation that says so.
+        inputs: ClassVar[dict[str, Any]] = {"pattern": {"type": "string", "description": "a glob"}}
+        output_type = "string"
+
+        def forward(self, pattern: str) -> str:
+            ran.append(pattern)
+            return "ran"
+
+    def call(name: str, arguments: dict[str, Any], identifier: str) -> ChatMessage:
+        return ChatMessage(
+            role="assistant",
+            content="",
+            tool_calls=[
+                ChatMessageToolCall(
+                    id=identifier,
+                    type="function",
+                    function=ChatMessageToolCallFunction(name=name, arguments=arguments),
+                )
+            ],
+        )
+
+    class Scripted(Model):
+        def __init__(self) -> None:
+            super().__init__()
+            self.turns = 0
+
+        def generate(self, messages: Any, **kw: Any) -> ChatMessage:
+            self.turns += 1
+            if self.turns == 1:
+                return call(TOOL, dict(args), "c1")
+            return call("final_answer", {"answer": "stopped"}, "c2")
+
+    agent = ToolCallingAgent(
+        tools=gate_tools(preflight, [GlobTool()]), model=Scripted(), max_steps=3
+    )
+    agent.run("go")
+
+    observations = [
+        str(step.observations) for step in agent.memory.steps if getattr(step, "observations", None)
+    ]
+    return Driven(ran=bool(ran), sentence=_sentence_in(observations))
+
+
+def _semantic_kernel(preflight: Preflight, args: dict[str, Any]) -> Driven:
+    """Semantic Kernel's auto function-calling loop, over a scripted chat service.
+
+    `SUPPORTS_FUNCTION_CALLING` has to be declared on the client: without it the kernel skips
+    automatic invocation entirely, the function is never called, and the row would pass on `ran`
+    while proving nothing. That is why this asserts the sentence as well — an untouched tool is not
+    evidence when the loop never reached it.
+    """
+    import asyncio
+
+    from semantic_kernel import Kernel
+    from semantic_kernel.connectors.ai.chat_completion_client_base import ChatCompletionClientBase
+    from semantic_kernel.connectors.ai.function_choice_behavior import FunctionChoiceBehavior
+    from semantic_kernel.contents import ChatHistory, ChatMessageContent, FunctionCallContent
+    from semantic_kernel.contents.utils.author_role import AuthorRole
+    from semantic_kernel.filters import FilterTypes
+    from semantic_kernel.functions import kernel_function
+
+    from neti.adapters.semantic_kernel_filters import neti_filter
+
+    ran: list[str] = []
+    seen: list[str] = []
+
+    class Plugin:
+        @kernel_function(name=TOOL, description="Match files.")
+        def glob(self, pattern: str) -> str:
+            ran.append(pattern)
+            return "ran"
+
+    class Scripted(ChatCompletionClientBase):
+        # Un-annotated on purpose: annotating it makes pydantic treat it as a field that shadows
+        # the parent's, and the warning is an error here. Without it set at all, the kernel skips
+        # automatic invocation and the function is never called — which is why the sentence is
+        # asserted below and not just `ran`.
+        SUPPORTS_FUNCTION_CALLING = True
+
+        turns: int = 0
+
+        async def _inner_get_chat_message_contents(
+            self, chat_history: Any, settings: Any
+        ) -> list[Any]:
+            self.turns += 1
+            seen.append(str(chat_history))
+            if self.turns == 1:
+                return [
+                    ChatMessageContent(
+                        role=AuthorRole.ASSISTANT,
+                        items=[
+                            FunctionCallContent(
+                                id="c1",
+                                name=f"fs-{TOOL}",
+                                plugin_name="fs",
+                                function_name=TOOL,
+                                arguments=dict(args),
+                            )
+                        ],
+                    )
+                ]
+            return [ChatMessageContent(role=AuthorRole.ASSISTANT, content="stopped")]
+
+        async def _inner_get_streaming_chat_message_contents(self, *a: Any, **k: Any) -> Any:
+            raise NotImplementedError
+
+        @property
+        def service_id(self) -> str:
+            return "scripted"
+
+    kernel = Kernel()
+    kernel.add_plugin(Plugin(), plugin_name="fs")
+    kernel.add_filter(FilterTypes.FUNCTION_INVOCATION, neti_filter(preflight))
+    service = Scripted(ai_model_id="scripted")
+    kernel.add_service(service)
+
+    settings = service.get_prompt_execution_settings_class()(
+        function_choice_behavior=FunctionChoiceBehavior.Auto()
+    )
+    history = ChatHistory()
+    history.add_user_message("go")
+
+    async def go() -> None:
+        await service.get_chat_message_contents(
+            chat_history=history, settings=settings, kernel=kernel
+        )
+
+    asyncio.run(go())
+    return Driven(ran=bool(ran), sentence=_sentence_in(seen))
+
+
 RUNTIMES: tuple[Runtime, ...] = (
     Runtime(
         "langgraph",
@@ -633,5 +902,26 @@ RUNTIMES: tuple[Runtime, ...] = (
         AGENT_LOOP,
         "a real Crew.kickoff, read from the agent's observation",
         _crewai,
+    ),
+    Runtime(
+        "llamaindex",
+        ("llama_index.core",),
+        AGENT_LOOP,
+        "a LlamaIndex FunctionAgent over a FunctionCallingLLM",
+        _llamaindex,
+    ),
+    Runtime(
+        "smolagents",
+        ("smolagents",),
+        AGENT_LOOP,
+        "a smolagents ToolCallingAgent",
+        _smolagents,
+    ),
+    Runtime(
+        "semantic-kernel",
+        ("semantic_kernel",),
+        AGENT_LOOP,
+        "Semantic Kernel's auto function-calling loop",
+        _semantic_kernel,
     ),
 )

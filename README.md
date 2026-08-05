@@ -251,8 +251,11 @@ provider, no cost, and the same answer every time, so it runs in CI on every pus
 | `google-adk` | 2.6.1 | an ADK App run by InMemoryRunner | full agent loop | driven |
 | `langchain` | 1.3.14 | langchain.agents.create_agent, via the model interface | full agent loop | driven |
 | `langgraph` | 1.2.10 | a compiled StateGraph executing a ToolNode | full agent loop | driven |
+| `llamaindex` | 0.14.23 | a LlamaIndex FunctionAgent over a FunctionCallingLLM | full agent loop | driven |
 | `openai-agents` | 0.19.2 | the OpenAI Agents SDK Runner | full agent loop | driven |
 | `pydantic-ai` | 2.22.0 | a Pydantic AI Agent over FunctionModel | full agent loop | driven |
+| `semantic-kernel` | 1.36.0 | Semantic Kernel's auto function-calling loop | full agent loop | driven |
+| `smolagents` | 1.26.0 | a smolagents ToolCallingAgent | full agent loop | driven |
 
 <!-- END CONFORMANCE -->
 
