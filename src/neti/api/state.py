@@ -148,7 +148,12 @@ def build_state(
 
     engine = Engine(
         policy=policy,
-        resolvers=resolvers_for_client(client),
+        # `policy.providers`, which every other caller passes and this one did not. Without it
+        # `fs.paths` has no declared root, so it declines to report a reachable maximum — and the
+        # console's headline number, "reachable in one call", read 0 for every filesystem policy.
+        # That is the most common policy there is: a coding agent gated on `fs.paths` saw the UI
+        # report that its agent could reach nothing.
+        resolvers=resolvers_for_client(client, policy.providers),
         ctx=ResolveContext(timeout_ms=timeout_ms),
         last_digest=chain_head(records_path),
         # The console defaults to demo whenever there is no credential, which is most of the time

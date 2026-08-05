@@ -282,3 +282,51 @@ def test_the_decision_list_says_which_rows_are_synthetic(connected: Any) -> None
     assert all(row["synthetic"] is True for row in rows), (
         "the console is running on the synthetic tenant and recorded its magnitudes as measured"
     )
+
+
+def test_the_console_configures_its_resolvers_from_the_policy(tmp_path: Path) -> None:
+    """The console read `providers:` from nowhere, so every filesystem policy looked empty.
+
+    `resolvers_for_client` takes the policy's `providers:` block and uses it to bound what a
+    resolver can reach — without a declared root, `fs.paths` has no bound to report and declines.
+    Every caller passed it except this one, and the consequence was not subtle: the console's
+    headline number, *reachable in one call*, read **0** for a coding-agent policy, and the whole
+    "what each tool can reach" table read `—`. The most common policy there is, and the surface
+    built specifically for showing people numbers, showing none.
+
+    Asserted through `build_state` rather than by reading the call, because what matters is that a
+    resolver ends up bounded, not that an argument was passed.
+    """
+    from neti.api.state import build_state
+
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    for index in range(12):
+        (tree / f"f{index}.txt").write_text("x\n", encoding="utf-8")
+
+    config = tmp_path / "neti.yaml"
+    config.write_text(
+        "version: 1\n"
+        "mode: observe\n"
+        "providers:\n"
+        "  fs:\n"
+        f"    root: {tree}\n"
+        "tools:\n"
+        "  Glob:\n"
+        "    gate:\n"
+        "      /pattern:\n"
+        "        resolver: fs.paths\n"
+        "        bands: []\n",
+        encoding="utf-8",
+    )
+
+    state = build_state(config=config, records=tmp_path / "out.ndjson", demo=True)
+    from neti.resolvers.base import ResolveContext
+
+    reachable = state.engine.resolvers["fs.paths"].reachable_max(ResolveContext())
+
+    assert reachable is not None, (
+        "fs.paths has no declared root, so the console cannot say what a call could reach — "
+        "which is the number the overview leads with"
+    )
+    assert reachable.magnitude == 12, reachable

@@ -2,6 +2,22 @@
 
 ## Unreleased
 
+### The console told every coding agent it could reach nothing
+
+`neti console` built its resolvers with `resolvers_for_client(client)` and never passed the policy's
+`providers:` block. Every other caller passes it — `preflight.py`, `cli.py`, `eval/here.py` — and
+without it `fs.paths` has no declared root, so it has no bound to report and declines.
+
+The consequence was not subtle. The console's headline number is *reachable in one call*, and on a
+filesystem policy it read **0**, with the whole "what each tool can reach" table showing `—`. That
+is the most common policy there is, on the one surface built specifically for showing people
+numbers. Pointed at a 1,680-file tree it now reads 1,680.
+
+Found by running the UI to look at it, which is the only way this class of defect surfaces: every
+API test passed, because they assert the shape of the response rather than whether a resolver was
+given the configuration that lets it answer. The regression test goes through `build_state` and
+checks a resolver comes out *bounded*, not that an argument was passed.
+
 ### The last piece of scaffolding, removed — and a scope limit that was overdue
 
 `just conformance-live` runs a real model, a real agent and a real oversized call, and checks the
