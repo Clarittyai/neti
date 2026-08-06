@@ -203,6 +203,15 @@ def create_app(
                     # beside a measured one, with the same confident magnitude and nothing to tell
                     # them apart, is the defect `neti.decision.v2` exists to close, one layer up.
                     "synthetic": r.synthetic,
+                    # What the agent said it was doing. `Bash` and `Task` both carry a
+                    # `description`, and it has been inside the chained payload all along — sealed,
+                    # tamper-evident, and never shown. Beside the magnitude it becomes the finding:
+                    # "clean up build artifacts", 22,794 objects.
+                    #
+                    # Recorded, never trusted. It is evidence for a human and an input to nothing.
+                    "said": (r.args.get("description") or None)
+                    if isinstance(r.args, dict)
+                    else None,
                     "magnitudes": [
                         {"pointer": c["pointer"], "magnitude": c["magnitude"], "unit": c["unit"]}
                         for c in r.causes

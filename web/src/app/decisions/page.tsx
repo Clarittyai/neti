@@ -69,6 +69,15 @@ function Row({ decision }: { decision: DecisionSummary }) {
         <VerdictPill verdict={unsizeable ? "unknown" : decision.verdict} />
         <span className="font-mono text-[13px]">{decision.tool}</span>
 
+        {/* What the agent said it was doing, next to what it would have touched. The pairing is
+            the finding — "clean up build artifacts", 22,794 objects — and it is why this is shown
+            in the row rather than buried in the detail view. */}
+        {decision.said ? (
+          <span className="max-w-[22rem] truncate text-[13px] italic text-muted-foreground">
+            “{decision.said}”
+          </span>
+        ) : null}
+
         {/* A row whose magnitude was invented has to say so beside the number, not somewhere a
             reader has to go looking. The console defaults to the built-in tenant whenever there is
             no credential, which is most of the time anybody is looking at it. */}

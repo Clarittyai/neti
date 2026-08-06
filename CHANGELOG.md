@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### The claim, beside the number
+
+`/decisions` now reads:
+
+    Blocked        Bash  "clean up build artifacts"   22,794 objects
+    Allowed        Bash  "remove the old package"        211 objects
+    Allowed        Bash  "tidy the working tree"           3 objects
+    Could not size Bash  "run the tests"            unsizeable
+
+Every row is what the agent said it was doing, next to what the call would actually have touched.
+The pairing is the finding, and it needed no new data at all — `description` has been sealed inside
+the chained record since the first `Bash` call was ever recorded. Nothing had ever put the two
+facts on the same line.
+
+It is in the row rather than the detail view on purpose: the mismatch is the thing worth seeing at a
+glance, and a mismatch you have to click into is one nobody finds.
+
+Recorded, never trusted. It is evidence for a human and an input to nothing.
+
 ### `shell.paths` — the level a coding agent actually acts at
 
 `Bash` was not gated. The shipped policy covered `Glob`, `Grep`, `Read`, `Edit`, `Write` and three

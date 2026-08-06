@@ -120,6 +120,8 @@ export interface DecisionRecord {
   // True when the magnitudes came from the built-in tenant rather than a provider. Inside the
   // record's digest, so it is evidence of provenance and not a label anyone can strip.
   synthetic: boolean;
+  /** What the agent said it was doing. Recorded, never trusted. */
+  said?: string | null;
   prev_digest: string | null;
   record_digest: string;
 }
@@ -188,6 +190,10 @@ export interface DecisionSummary {
   mode: Mode;
   session_id: string | null;
   synthetic: boolean;
+  /** What the agent said it was doing — `Bash` and `Task` both carry a `description`. Sealed in
+   *  the chained record all along. Recorded, never trusted: evidence for a human, input to
+   *  nothing. */
+  said?: string | null;
   magnitudes: { pointer: string; magnitude: number | null; unit: string }[];
 }
 
