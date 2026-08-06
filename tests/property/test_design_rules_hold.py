@@ -430,6 +430,40 @@ def test_nothing_that_is_not_a_control_wears_a_pill() -> None:
     )
 
 
+def test_the_nav_item_matches_the_shape_it_was_copied_from() -> None:
+    """The sidebar row is copied from clarity-platform's `Sidebar.tsx`, and it had drifted.
+
+    DESIGN.md says these primitives are **copied, not imported** — a build-time dependency on the
+    Claritty monorepo would undo neti being a standalone repository — and that the cost is drift
+    the tests have to catch. Nothing was catching this one:
+
+        claritty   ... py-2.5 rounded-lg ... isActive ? "dark:bg-blue-500/15" ...
+        neti       ... py-2.5            ... active   ? "bg-accent/10"        ...
+
+    No radius at all against its `rounded-lg`, and a 10% active tint against its 15%. The square
+    corner is the one that shows: a full-bleed bar reads as a section header rather than a selected
+    row, which is the opposite of what the state means. Measured in the browser at `0px`.
+
+    Asserted on the source rather than against the Claritty checkout, because that checkout is not
+    a dependency and will not exist on CI. The values are the contract; this is where they live.
+    """
+    shell = (REPO / "web/src/components/Shell.tsx").read_text(encoding="utf-8")
+    # Comments stripped first. The first version of this assertion passed against markup with the
+    # radius deleted, because the comment *explaining* the radius says `rounded-lg` — so the test
+    # was reading prose rather than classes. A test that passes for the wrong reason is worse than
+    # no test: it reports a property nobody is holding.
+    nav = "\n".join(
+        line
+        for line in shell[shell.index("{NAV.map(") : shell.index("</nav>")].splitlines()
+        if not line.strip().startswith("//")
+    )
+
+    assert "rounded-lg" in nav, "the active row has no radius; clarity-platform uses rounded-lg"
+    assert "py-2.5" in nav and "pl-[14px] pr-3" in nav, "the row metrics moved away from the source"
+    assert "dark:bg-accent/15" in nav, "the active tint is weaker than the 15% it was copied from"
+    assert "duration-150" in nav, "the transition length is part of the copied shape"
+
+
 def test_the_shell_main_can_shrink_below_its_content() -> None:
     """`<main>` is a flex child, and a flex child defaults to `min-width: auto`.
 

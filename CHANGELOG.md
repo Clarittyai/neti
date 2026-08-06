@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### The sidebar row had drifted from the one it was copied from
+
+Measured against `clarity-platform/src/components/Sidebar.tsx` rather than guessed at:
+
+    claritty   "w-full flex items-center gap-3 py-2.5 rounded-lg"
+               isActive ? "bg-blue-50 dark:bg-blue-500/15 …"
+    neti       "flex w-full items-center gap-3 py-2.5"
+               active   ? "bg-accent/10 …"
+
+No radius at all against its `rounded-lg` — the browser reported `borderRadius: 0px` — and a 10%
+active tint against its 15% in dark. The square corner is the one that shows: a full-bleed bar reads
+as a section header rather than a selected row, which is the opposite of what the state means.
+
+DESIGN.md says these primitives are **copied, not imported**, because a build-time dependency on the
+Claritty monorepo would undo neti being a standalone repository, and that the cost is drift the tests
+have to catch. Nothing was catching this one. Now something is.
+
+Worth recording how that test first failed: it passed against markup with the radius deleted, because
+the comment *explaining* the radius contains the string `rounded-lg`. It was reading prose, not
+classes. Comments are stripped before matching now, and both assertions were re-checked by deleting
+the thing they guard.
+
 ### The live gate was unusable for a coding agent, and its trace was inventing provenance
 
 Second in the nav, the page the product is demonstrated on, and against

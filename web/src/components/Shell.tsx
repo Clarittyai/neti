@@ -123,11 +123,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
               <Link
                 key={href}
                 href={href}
+                // Copied from clarity-platform's `Sidebar.tsx`, and it had drifted in three
+                // places: no radius at all against its `rounded-lg`, a 10% active tint against its
+                // 15% in dark, and a `foreground/5` hover against its `primary/10`. The square
+                // corner is the one that shows — a full-bleed bar reads as a section header rather
+                // than a selected row, which is the opposite of what the state means.
+                //
+                // DESIGN.md says these are *copied, not imported*, and that the cost is drift the
+                // tests have to catch. This is what that drift looks like when nothing catches it.
                 className={cn(
-                  "flex w-full items-center gap-3 py-2.5 pl-[14px] pr-3 transition-colors duration-150",
+                  "flex w-full items-center gap-3 rounded-lg py-2.5 pl-[14px] pr-3 transition-colors duration-150",
                   active
-                    ? "bg-accent/10 text-accent"
-                    : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
+                    ? "bg-accent/10 text-accent dark:bg-accent/15"
+                    : "text-muted-foreground hover:bg-primary/10 hover:text-foreground",
                 )}
               >
                 <Icon className="h-5 w-5 flex-shrink-0" />
