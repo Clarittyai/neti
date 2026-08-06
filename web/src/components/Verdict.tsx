@@ -92,7 +92,7 @@ export function VerdictPill({
 export function VerdictPlate({ verdict, rule }: { verdict: Tone; rule?: string }) {
   const { label, Icon, fg, bg, ring } = SPEC[verdict];
   return (
-    <div className={cn("rounded-full px-5 py-4 ring-1 ring-inset", bg, ring)}>
+    <div className={cn(" px-5 py-4 ring-1 ring-inset", bg, ring)}>
       <div className={cn("flex items-center gap-2.5", fg)}>
         <Icon className="h-6 w-6" strokeWidth={2.5} />
         <span className="text-xl font-semibold tracking-tight">{label}</span>

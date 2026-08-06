@@ -43,7 +43,7 @@ export default function DecisionsPage() {
             action={{ label: "Go to the live gate", href: "/gate" }}
           />
         ) : (
-          <ol className="space-y-2">
+          <ol className="border-t border-border">
             {data.decisions.map((d) => (
               <Row key={d.decision_id} decision={d} />
             ))}
@@ -64,7 +64,7 @@ function Row({ decision }: { decision: DecisionSummary }) {
     <li>
       <Link
         href={`/decision?id=${decision.decision_id}`}
-        className="panel flex flex-wrap items-center gap-x-4 gap-y-2 rounded-full px-4 py-3 transition-colors hover:bg-foreground/[0.04]"
+        className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-border px-1 py-2.5 transition-colors hover:bg-foreground/[0.03]"
       >
         <VerdictPill verdict={unsizeable ? "unknown" : decision.verdict} />
         <span className="font-mono text-[13px]">{decision.tool}</span>

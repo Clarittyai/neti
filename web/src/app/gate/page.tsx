@@ -165,7 +165,7 @@ function ModeToggle({
   onChange: (m: "observe" | "enforce") => void;
 }) {
   return (
-    <div className="glass-button flex rounded-full p-0.5 text-sm">
+    <div className="glass-button flex p-0.5 text-sm">
       {(["observe", "enforce"] as const).map((m) => (
         <button
           key={m}
@@ -313,7 +313,7 @@ function ManualCall({
   onFire: () => void;
 }) {
   return (
-    <div className="panel h-fit rounded-full p-5">
+    <div className="panel h-fit p-5">
       <h3 className="text-sm font-semibold">Fire your own</h3>
       <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
         Same endpoint, same engine. Pick anything — including a target the gate cannot size.
@@ -325,7 +325,7 @@ function ManualCall({
       <select
         value={tool}
         onChange={(e) => onTool(e.target.value)}
-        className="glass-button mt-1 w-full rounded-full px-3 py-2 text-sm"
+        className="glass-button mt-1 w-full px-3 py-2 text-sm"
       >
         <option value="remove_group_members">remove_group_members</option>
         <option value="delete_group">delete_group</option>
@@ -339,7 +339,7 @@ function ManualCall({
       <select
         value={target}
         onChange={(e) => onTarget(e.target.value)}
-        className="glass-button mt-1 w-full rounded-full px-3 py-2 text-sm"
+        className="glass-button mt-1 w-full px-3 py-2 text-sm"
       >
         {(fixture ?? []).map((g) => (
           <option key={g.id} value={g.id}>
@@ -351,7 +351,7 @@ function ManualCall({
       <button
         onClick={onFire}
         disabled={disabled}
-        className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-full px-4 py-2 text-sm font-semibold glass-button disabled:opacity-60"
+        className="mt-4 inline-flex w-full items-center justify-center gap-2 px-4 py-2 text-sm font-semibold glass-button disabled:opacity-60"
       >
         <Send className="h-4 w-4" /> Send it through the gate
       </button>

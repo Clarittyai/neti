@@ -117,7 +117,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                 key={href}
                 href={href}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-full py-2.5 pl-[14px] pr-3 transition-colors duration-150",
+                  "flex w-full items-center gap-3 py-2.5 pl-[14px] pr-3 transition-colors duration-150",
                   active
                     ? "bg-accent/10 text-accent"
                     : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",

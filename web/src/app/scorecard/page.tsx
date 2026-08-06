@@ -110,7 +110,7 @@ export default function ScorecardPage() {
               These are not bugs and they are not roadmap. They are the boundary of the claim, and
               they are written down so nobody has to discover them during an incident.
             </p>
-            <div className="panel mt-3 grid gap-x-8 gap-y-2 rounded-full p-5 sm:grid-cols-2">
+            <div className="panel mt-3 grid gap-x-8 gap-y-2 p-5 sm:grid-cols-2">
               {Object.entries(data.known_blind_spots).map(([id, text]) => (
                 <div key={id} className="flex gap-2.5 text-[13px]">
                   <span className="flex-shrink-0 font-mono text-[11px] leading-5 text-muted-foreground">
@@ -132,7 +132,7 @@ export default function ScorecardPage() {
               figure in the design documents is modelled, and no published Graph percentile exists to
               model it against.
             </p>
-            <ul className="panel mt-3 space-y-2 rounded-full p-5">
+            <ul className="panel mt-3 space-y-2 p-5">
               {data.not_yet_measured.map((m) => {
                 const blocked = /REQUIRES|UNVERIFIED/.test(m);
                 return (

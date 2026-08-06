@@ -76,7 +76,10 @@ export function EmptyState({
     <div
       className={cn(
         "relative flex flex-col items-center text-center",
-        isPage ? "min-h-[46vh] justify-center px-6 py-10" : "px-6 py-12",
+        // Fill the space it is given. At 46vh a `page` empty state sat in the top half of the
+        // screen with a screenful of nothing under it, which is the dead space the whole complaint
+        // was about.
+        isPage ? "min-h-[68vh] justify-center px-6 py-10" : "px-6 py-12",
         className,
       )}
     >

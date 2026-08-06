@@ -45,9 +45,11 @@ export default function PolicyPage() {
     <Page
       title="Policy"
       lede="The ceilings you declared. Every verdict is a comparison against a number on this page — nothing here is learned or inferred."
+      // The policy digest, not a control. It looked like a button and did nothing when pressed,
+      // which is the same lie as a pill that is not pressable.
       actions={
         data ? (
-          <code className="glass-button rounded-full px-3 py-2 font-mono text-xs">
+          <code className="rounded-lg border border-border px-3 py-2 font-mono text-xs text-muted-foreground">
             {data.digest.slice(0, 16)}
           </code>
         ) : null
@@ -88,7 +90,7 @@ export default function PolicyPage() {
               {data.session_budgets.map((b) => (
                 <div
                   key={`${b.unit}-${b.tools.join()}`}
-                  className="panel flex flex-wrap items-center gap-x-4 gap-y-2 rounded-full px-4 py-3"
+                  className="panel flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3"
                 >
                   <span className="font-mono text-[13px]">{b.tools.join(", ")}</span>
                   <span className="text-xs text-muted-foreground">cumulative {b.unit}</span>

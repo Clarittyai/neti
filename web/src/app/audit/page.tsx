@@ -18,7 +18,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { CheckCircle2, Link2, RefreshCw, ShieldAlert } from "lucide-react";
 
-import { Failed, Loading, Page, Stat, useAsync } from "@/components/Page";
+import { Failed, Loading, Page, Stat, Stats, useAsync } from "@/components/Page";
 import { EmptyState } from "@/components/ui/empty-state";
 import { ChainScene } from "@/components/live/scenes/ChainScene";
 import { VerdictPill } from "@/components/Verdict";
@@ -71,15 +71,8 @@ export default function AuditPage() {
           />
         ) : (
           <>
-            <div className="grid gap-4 sm:grid-cols-3">
-              <div
-                className={cn(
-                  "border-t border-border py-5 ring-1 ring-inset",
-                  data.ok
-                    ? "ring-[hsl(var(--verdict-allow))]/30"
-                    : "ring-[hsl(var(--verdict-block))]/40",
-                )}
-              >
+            <Stats>
+              <div className="py-1">
                 <div
                   className={cn(
                     "flex items-center gap-2 text-lg font-semibold",
@@ -95,21 +88,24 @@ export default function AuditPage() {
                   )}
                   {data.ok ? "Chain intact" : "Chain broken"}
                 </div>
-                <p className="mt-1.5 text-[13px] leading-relaxed text-muted-foreground">
+                {/* The status carries colour on the word, not a border around it: three facts of
+                    equal weight, rendered the same way. This used to be one boxed item beside two
+                    unboxed numbers. */}
+                <p className="mt-1.5 max-w-xs text-[13px] leading-relaxed text-muted-foreground">
                   {data.ok
-                    ? "Every record's digest matches its predecessor. The chain continues across process restarts."
-                    : `First mismatch at ${data.broken_at}. A record was altered, removed or reordered after it was written.`}
+                    ? "Every record's digest matches its predecessor, across process restarts."
+                    : `First mismatch at ${data.broken_at}.`}
                 </p>
               </div>
               <Stat value={n(data.count)} label="sealed decisions" />
-              <div className="border-t border-border py-5">
-                <div className="text-sm text-muted-foreground">head</div>
-                <code className="mt-1 block break-all font-mono text-xs">{data.head}</code>
-                <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
-                  Publish this and any retroactive edit to any earlier record becomes detectable.
+              <div className="py-1">
+                <code className="block break-all font-mono text-xs">{data.head}</code>
+                <div className="mt-1 text-sm text-muted-foreground">head</div>
+                <p className="mt-2 max-w-xs text-[11px] leading-relaxed text-muted-foreground">
+                  Publish this and any retroactive edit becomes detectable.
                 </p>
               </div>
-            </div>
+            </Stats>
 
             <div className="mt-6 overflow-hidden border-t border-border">
               <div className="border-b border-border/50 px-5 py-3 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">

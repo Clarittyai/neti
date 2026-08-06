@@ -280,6 +280,50 @@ def test_everything_you_press_is_a_pill() -> None:
     )
 
 
+def test_nothing_that_is_not_a_control_wears_a_pill() -> None:
+    """The assertion that was missing, and the reason a bad build shipped.
+
+    `test_everything_you_press_is_a_pill` checks that pressable things *are* pills. It never checked
+    the inverse, so when a blanket regex turned every `rounded-*` into `rounded-full` the suite
+    stayed green while the console rendered: a 1,500px stadium wrapped around the gate's empty
+    state, a pill-shaped three-line `<pre>`, and a decision log of fourteen chat bubbles.
+
+    A shape that means "press me" only means it while nothing else wears it. So a line carrying
+    `rounded-full` has to carry a control signal too — a button, a click handler, an accent fill, a
+    chip's padding, or one of the small fixed-size dots and rings that are round by nature.
+    """
+    signals = (
+        "<button",
+        "onClick",
+        "bg-accent px-",
+        "px-2 py-0.5",
+        "px-2.5 py-0.5",
+        "px-3 py-1.5",
+        "place-items-center",
+        "min-h-11 items-center",
+        "min-h-9 items-center",
+        "blur-3xl",
+        "p-1.5",
+        "rounded-full bg-accent",
+        "rounded-full bg-border",
+        "rounded-full bg-muted",
+        "h-1.5",
+        "h-2 w-2",
+        "h-2.5 w-2.5",
+        "h-3 w-3",
+        "h-11 w-11",
+    )
+    offenders = []
+    for path in _sources():
+        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+            if "rounded-full" in line and not any(s in line for s in signals):
+                offenders.append(f"{path.relative_to(REPO)}:{number}: {line.strip()[:70]}")
+    assert not offenders, (
+        "these wear a control's shape without being controls — a container, a row or a code block "
+        "with `rounded-full` (DESIGN.md):\n  " + "\n  ".join(offenders[:10])
+    )
+
+
 def test_nothing_casts_a_shadow() -> None:
     """DESIGN.md: depth is not this product's idea."""
     offenders = []

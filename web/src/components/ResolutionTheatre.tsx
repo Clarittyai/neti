@@ -86,7 +86,7 @@ export function ResolutionTheatre({
   return (
     <div
       className={cn(
-        "panel overflow-hidden rounded-full transition-shadow duration-500",
+        "panel overflow-hidden transition-shadow duration-500",
         settled && result.verdict === "block" && "ring-[hsl(var(--verdict-block))]/40",
         settled && result.verdict === "allow" && "ring-[hsl(var(--verdict-allow))]/30",
       )}
@@ -213,9 +213,9 @@ function MagnitudeZone({
       <div className="mt-3 flex-1">
         {magnitude === null && !unresolvedReason ? (
           // Width reserved so the digits do not shove the layout when they land.
-          <div className="h-[52px] w-40 animate-pulse rounded-full bg-muted/60" />
+          <div className="h-[52px] w-40 animate-pulse bg-muted/60" />
         ) : magnitude === null ? (
-          <div className="hatched rounded-full px-3 py-4 ring-1 ring-inset ring-border">
+          <div className="hatched px-3 py-4 ring-1 ring-inset ring-border">
             <p className="text-lg font-semibold">Could not size</p>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
               The gate does not guess, and a failed lookup is never read as zero.
@@ -276,13 +276,13 @@ function CeilingMeter({
   const multiple = magnitude / Math.max(ceiling, 1);
   return (
     <div className="mt-4">
-      <div className="relative h-2 overflow-hidden rounded-full bg-muted">
+      <div className="relative h-2 overflow-hidden bg-muted">
         <motion.div
           initial={{ width: 0 }}
           animate={{ width: "100%" }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1], delay: 0.15 }}
           className={cn(
-            "absolute inset-y-0 left-0 rounded-full",
+            "absolute inset-y-0 left-0",
             over ? "bg-[hsl(var(--verdict-block))]" : "bg-[hsl(var(--verdict-allow))]",
           )}
           style={{
@@ -343,7 +343,7 @@ function UpstreamLane({ result, settled }: { result: GateResult; settled: boolea
 
 function TheatreIdle() {
   return (
-    <div className="panel flex min-h-[320px] flex-col items-center justify-center rounded-full p-10 text-center">
+    <div className="panel flex min-h-[320px] flex-col items-center justify-center p-10 text-center">
       <span className="grid h-11 w-11 place-items-center rounded-full bg-accent/10 text-accent">
         <Zap className="h-5 w-5" />
       </span>

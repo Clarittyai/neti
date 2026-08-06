@@ -60,8 +60,8 @@ export function GateScene() {
             <span
               className={
                 call.blocked
-                  ? "tnum rounded-full bg-[hsl(var(--verdict-block))]/15 px-2.5 py-1 text-xs font-semibold text-[hsl(var(--verdict-block))]"
-                  : "tnum rounded-full bg-[hsl(var(--verdict-allow))]/15 px-2.5 py-1 text-xs font-semibold text-[hsl(var(--verdict-allow))]"
+                  ? "tnum bg-[hsl(var(--verdict-block))]/15 px-2.5 py-1 text-xs font-semibold text-[hsl(var(--verdict-block))]"
+                  : "tnum bg-[hsl(var(--verdict-allow))]/15 px-2.5 py-1 text-xs font-semibold text-[hsl(var(--verdict-allow))]"
               }
             >
               {call.size.toLocaleString()}

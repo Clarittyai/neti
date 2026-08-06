@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+### Undoing a regression I shipped without looking at a single page
+
+Five screenshots, and they were right. Most of what was wrong was mine, and it got in because I ran
+a blanket regex over `web/src` and rebuilt without opening the console.
+
+"Everything you press is a pill" is a good rule. The implementation was
+`re.sub(r"rounded-(md|lg|xl|2xl)", "rounded-full", line)` on every line with a radius class, which
+cannot tell a control from a container. So it pilled things nobody presses:
+
+- `/gate` — the empty-state container became a **1,500px stadium** wrapped around the whole page,
+  and the "Fire your own" panel became a second one, clipped off-screen.
+- `/approvals` — a three-line `<pre>` code block became a pill.
+- `/decisions` — **every row** became a stadium, so a decision log read like a chat thread. Fourteen
+  bubbles where seventeen scannable rows belong.
+
+**The test passed the entire time**, because it asserted that pressable things *are* pills and never
+the inverse. That assertion exists now: a line carrying `rounded-full` must also carry a control
+signal — a button, a click handler, an accent fill, a chip's padding — or it is a container wearing
+a control's shape. It immediately caught a `<code>` on `/policy` styled as a button that did nothing
+when pressed, which is the same lie in the other direction.
+
+Radii are assigned by what a thing *is* now: controls and chips are pills; rows carry no radius and
+are separated by rules; code blocks and inputs get `rounded-lg`; section wrappers get none.
+
+**Dead space.** `/approvals` rendered a short block and then eight hundred pixels of nothing. It is
+an `EmptyState` at `page` density now, with a live scene and one action — and `page` density fills
+68vh rather than 46, because an empty state that sits in the top half of the screen is the dead
+space it was supposed to solve.
+
+**`/audit`** showed three facts of equal weight three different ways: "Chain intact" in a box beside
+two stats that were not. One row now, colour on the word rather than a border around it.
+
 ### No badge, everything pressable is a pill, and the overview says what a second machine adds
 
 **The chip is gone.** A pill pinned over every screen reading "Local · this machine" announced a

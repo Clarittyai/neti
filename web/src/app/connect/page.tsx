@@ -53,7 +53,7 @@ export default function ConnectPage() {
       lede="Two connections, in this order: the directory the gate asks how big something is, and the agent whose calls it sits in front of."
     >
       <h2 className="mb-3 text-sm font-semibold">The directory</h2>
-      <div className="panel max-w-3xl rounded-full p-6">
+      <div className="panel max-w-3xl p-6">
         <div className="flex items-start gap-4">
           <span
             className={cn(
@@ -93,7 +93,7 @@ export default function ConnectPage() {
                       await api.disconnect();
                       await refresh();
                     }}
-                    className="glass-button rounded-full px-3 py-2 text-sm text-muted-foreground"
+                    className="glass-button px-3 py-2 text-sm text-muted-foreground"
                   >
                     Disconnect
                   </button>

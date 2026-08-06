@@ -31,6 +31,7 @@ import { Check, Clock, Inbox, ShieldQuestion, X } from "lucide-react";
 import { Failed, Loading, Page, useAsync } from "@/components/Page";
 import { UserCheck } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ConnectScene } from "@/components/live/scenes/ConnectScene";
 import { ApiError, api, type ApprovalRow, type OrgState } from "@/lib/api";
 import { cn, n } from "@/lib/utils";
 
@@ -88,7 +89,7 @@ export default function ApprovalsPage() {
             value={who}
             onChange={(e) => setWho(e.target.value)}
             placeholder="your name, for the record"
-            className="glass-button w-56 rounded-full px-3 py-2 text-sm placeholder:text-muted-foreground/70"
+            className="glass-button w-56 px-3 py-2 text-sm placeholder:text-muted-foreground/70"
           />
         ) : null
       }
@@ -167,33 +168,30 @@ export default function ApprovalsPage() {
 }
 
 function NotAttached({ reason }: { reason?: string | null }) {
+  // `page` density, because this is the page — not a block stranded at the top of 800px of
+  // nothing, which is what it was. An empty state centres in the viewport and gives the reader
+  // one thing to look at and one thing to do.
   return (
-    // A section, not a dashed plate (DESIGN.md). This explains the state of the install; it
-    // belongs to the page rather than floating on it.
-    <div className="border-t border-border py-8">
-      <h2 className="flex items-center gap-1.5 text-sm font-semibold">
-        <ShieldQuestion className="h-4 w-4 text-muted-foreground" />
-        This install has nobody to ask
-      </h2>
-      <p className="mt-2 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
-        A <strong className="font-medium text-foreground">confirm</strong> band means the call should
-        be decided by a person other than whoever is running the agent. Without a control plane there
-        is no such person to reach, so the gate stops the call and says so — which is correct, and is
-        exactly what it will keep doing if you never attach one.
-      </p>
-      <pre className="mt-4 max-w-xl overflow-x-auto rounded-full border border-accent/25 bg-accent/[0.05] p-3.5 font-mono text-[11.5px] leading-relaxed">
-        {`neti-cloud serve --key $KEY          # the control plane
-neti login --url http://… --key $KEY  # this machine
-neti gate --stdio --org -- <server>   # escalate a confirm`}
-      </pre>
-      <p className="mt-3 text-[11px] text-muted-foreground">
-        {reason ? `${reason}. ` : ""}
-        Everything else on this console keeps working exactly as it does now.{" "}
-        <Link href="/connect" className="text-accent hover:underline">
-          The tiers, in full
-        </Link>
-      </p>
-    </div>
+    <EmptyState
+      size="page"
+      scene={<ConnectScene />}
+      title="This install has nobody to ask"
+      description={
+        <>
+          A <strong className="font-medium text-foreground">confirm</strong> band means the call
+          should be decided by somebody other than whoever is running the agent. On one machine
+          there is no such person to reach, so the gate stops the call and says so — which is
+          correct, and is exactly what it keeps doing if you never attach a control plane.
+        </>
+      }
+      action={{ label: "How to attach one", href: "/connect" }}
+      secondary={
+        <>
+          {reason ? `${reason}. ` : ""}Everything else on this console keeps working exactly as it
+          does now.
+        </>
+      }
+    />
   );
 }
 
@@ -289,7 +287,7 @@ function SettledRow({ row }: { row: ApprovalRow }) {
         : "text-muted-foreground";
 
   return (
-    <div className="panel flex flex-wrap items-center gap-x-4 gap-y-1 rounded-full px-4 py-3 text-[13px]">
+    <div className="panel flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-3 text-[13px]">
       <span className={cn("font-medium capitalize", tone)}>{row.state}</span>
       <span className="font-mono">{row.evidence.tool ?? "—"}</span>
       <span className="tnum text-muted-foreground">
