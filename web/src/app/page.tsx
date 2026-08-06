@@ -21,6 +21,7 @@ import { Failed, Loading, Page, Stat, Stats, useAsync } from "@/components/Page"
 import { Activity } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CloudSlides } from "@/components/CloudSlides";
+import { VerdictSplit } from "@/components/VerdictSplit";
 import { ReachScene } from "@/components/live/scenes/ReachScene";
 import { api, type InventoryRow } from "@/lib/api";
 import { cn, n } from "@/lib/utils";
@@ -81,6 +82,8 @@ export default function OverviewPage() {
           tone={(report.data?.verdicts?.block ?? 0) > 0 ? "block" : undefined}
         />
       </Stats>
+
+      <VerdictSplit verdicts={report.data?.verdicts} total={report.data?.decisions ?? 0} />
 
       <CloudSlides />
 

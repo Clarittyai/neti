@@ -312,6 +312,10 @@ def test_nothing_that_is_not_a_control_wears_a_pill() -> None:
         "h-2.5 w-2.5",
         "h-3 w-3",
         "h-11 w-11",
+        # A 2px-tall proportional bar has rounded ends because it is a bar, the same way the status
+        # dots above are circles. Caught by this very rule the day it was written, which is the
+        # rule working: the exemption is now stated rather than assumed.
+        "h-2 w-full",
     )
     offenders = []
     for path in _sources():

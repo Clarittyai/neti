@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### The overview is an analytics home now
+
+Asked for three times, delivered on the third. `VerdictSplit` sits under the three totals: one
+proportional bar in the reserved verdict colours, the counts, and a sentence saying what the shape
+means — 11 allowed, 2 needs approval, 4 blocked, and *a session nearly all green is a policy costing
+nobody anything; one nearly all red is a ceiling set below how the agent actually works.*
+
+That is the question anybody asks of a policy they just wrote, and answering it used to mean reading
+three separate totals and doing arithmetic. A bar rather than a donut: a donut asks you to compare
+arc lengths and collapses into a single coloured circle when a session is all one verdict, where a
+bar degrades into one honest full-width segment.
+
+Order above the fold is now: your three numbers, what the gate did with them, what a second machine
+would add, then the reach table and distributions. Your own data first, the pitch after it.
+
+The pill rule from the previous change caught the new bar on the day it was written — a 2px
+proportional bar has round ends because it is a bar, like the status dots. The exemption is stated
+in the test rather than assumed, which is the rule working rather than failing.
+
 ### Undoing a regression I shipped without looking at a single page
 
 Five screenshots, and they were right. Most of what was wrong was mine, and it got in because I ran
