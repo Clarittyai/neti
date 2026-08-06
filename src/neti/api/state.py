@@ -45,8 +45,14 @@ class ConsoleState:
     check the resolver's answers against the ground truth rather than taking them on trust."""
 
     connected: bool = False
-    """A console starts disconnected even in demo mode, so the connect flow is a real flow rather
-    than a decoration. Nothing resolves until it is true."""
+    """Whether the resolvers this policy binds can actually answer.
+
+    A console that binds a *directory* starts disconnected even in demo mode, so the connect flow is
+    a real flow rather than a decoration. A console that binds none — a coding agent gated on
+    `fs.paths`, which needs no credential and nothing to connect to — starts connected, because it
+    is. `build_state` decides which case this is; the flag used to mean "somebody pressed Connect
+    and `entra.principals` answered", which left the live gate permanently unusable for the most
+    common install there is."""
 
     _rebuild: Any = field(default=None, repr=False)
 
@@ -136,8 +142,15 @@ def build_state(
 
     tenant: SyntheticTenant | None = None
     if demo:
-        tenant = default_tenant()
-        client = GraphClient(DEMO_CREDENTIAL, transport=tenant.transport(), timeout_ms=timeout_ms)
+        # The client is still the fixture-backed one — the engine needs *a* Graph client to build —
+        # but the tenant is only *published* when the policy actually asks a directory anything.
+        # `as_json` puts it in `fixture`, which the live gate renders as its target list, so a
+        # filesystem policy was offering "All Engineering (nested) — 41,203" as something to point
+        # `Glob` at. Groups that do not exist, in a picker headed "fire your own".
+        tenant = default_tenant() if policy.binds_entra() else None
+        client = GraphClient(
+            DEMO_CREDENTIAL, transport=default_tenant().transport(), timeout_ms=timeout_ms
+        )
         label = "Contoso (sample directory)" if policy.binds_entra() else "this machine"
     else:
         if not have_creds:
@@ -179,4 +192,8 @@ def build_state(
         demo=on_fixture,
         tenant_label=label,
         tenant=tenant,
+        # A policy with no directory in it has nothing to connect to, so it is connected. Asking a
+        # coding-agent install to press Connect — a button whose whole job is to probe Entra — left
+        # the live gate showing "Not connected yet" forever on a gate that worked perfectly.
+        connected=not policy.binds_entra(),
     )

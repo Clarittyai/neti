@@ -2,6 +2,32 @@
 
 ## Unreleased
 
+### The live gate was unusable on the most common install there is
+
+Three faults, one assumption: that a gate needs a directory.
+
+**`connected` meant "`entra.principals` answered".** So a coding-agent policy — gated on `fs.paths`,
+needing no credential and having nothing to connect *to* — could never become connected, and
+`/gate` opened on *"Not connected yet"* and stopped. For an install whose gate was working
+perfectly. It now means *the resolvers this policy binds can answer*, via a new
+`Policy.bound_resolvers()`, and a policy that binds no directory starts connected because it is.
+`directory_size` still reports Entra specifically, since that is what its name says.
+
+**The tool picker was four hardcoded Entra names.** "Fire your own" offered `remove_group_members`
+and `delete_group` to a policy that gates `Glob` and `Read`. It reads `gated_tools`, which the state
+payload already carried and the page ignored, and defaults to the policy's first tool rather than a
+name that may not exist there.
+
+**The target picker offered groups that do not exist.** The synthetic tenant was attached whenever
+demo mode was on, so `fixture` was published — and the gate renders it as the target list. A
+filesystem policy was invited to point `Glob` at *"All Engineering (nested) — 41,203"*. The tenant is
+published only when the policy actually asks a directory something now.
+
+Against the real repository: `connected: True`, tools `['Glob', 'Read']`, fixture `None`.
+
+Same root as the "Demo tenant" badge and the console that ignored `providers:` — each found by
+running the thing rather than reading it.
+
 ### Pointed at a real repository, and it found something a fixture never could
 
 Five calls through the real `neti hook` binary, against this repository — 59,148 files, nothing

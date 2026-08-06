@@ -150,6 +150,17 @@ class Policy(Frozen):
             for gate in tool.gate.values()
         )
 
+    def bound_resolvers(self) -> set[str]:
+        """Every resolver this policy actually binds.
+
+        `binds_entra` above answers one question about that set; this is the set itself, because
+        "can this console resolve anything?" is not an Entra question and was being asked as one.
+        The live gate probed `entra.principals` unconditionally, so a policy gating only `fs.paths`
+        — needing no directory and no credential — could never report itself connected, and the
+        page opened on "Not connected yet" for an install whose gate was working perfectly.
+        """
+        return {gate.resolver for tool in self.tools.values() for gate in tool.gate.values()}
+
     def match_tool(self, tool: str) -> str | None:
         """The policy key governing this call, or `None` if it is ungated.
 

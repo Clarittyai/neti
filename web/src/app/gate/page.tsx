@@ -40,7 +40,7 @@ export default function GatePage() {
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [target, setTarget] = useState("g-eng-all");
-  const [tool, setTool] = useState("remove_group_members");
+  const [tool, setTool] = useState("");
 
   useEffect(() => {
     api.scenarios().then((r) => setScenarios(r.scenarios)).catch(() => undefined);
@@ -82,6 +82,13 @@ export default function GatePage() {
   }, [scenario, fire]);
 
   const connected = state?.connected ?? false;
+
+  // The first tool this policy gates, once state arrives. Defaulting to a hardcoded Entra name
+  // meant the picker opened on a tool the policy might not have.
+  const gatedTools = state?.gated_tools ?? [];
+  useEffect(() => {
+    if (!tool && gatedTools.length) setTool(gatedTools[0]!);
+  }, [tool, gatedTools]);
   const enforcing = state?.policy_mode === "enforce";
 
   return (
@@ -165,6 +172,7 @@ export default function GatePage() {
               target={target}
               disabled={running}
               fixture={state?.fixture ?? null}
+              tools={state?.gated_tools ?? []}
               onTool={setTool}
               onTarget={setTarget}
               onFire={() =>
@@ -321,6 +329,7 @@ function ManualCall({
   target,
   disabled,
   fixture,
+  tools,
   onTool,
   onTarget,
   onFire,
@@ -329,6 +338,7 @@ function ManualCall({
   target: string;
   disabled: boolean;
   fixture: { id: string; name: string; members: number }[] | null;
+  tools: string[];
   onTool: (v: string) => void;
   onTarget: (v: string) => void;
   onFire: () => void;
@@ -348,10 +358,14 @@ function ManualCall({
         onChange={(e) => onTool(e.target.value)}
         className="glass-button mt-1 w-full px-3 py-2 text-sm"
       >
-        <option value="remove_group_members">remove_group_members</option>
-        <option value="delete_group">delete_group</option>
-        <option value="send_email">send_email</option>
-        <option value="read_group">read_group (ungated)</option>
+        {/* The tools THIS policy gates. These four were hardcoded Entra names, so a coding-agent
+            install was offered `remove_group_members` and `delete_group` — tools it does not have,
+            in its own console, under a heading that says "fire your own". */}
+        {(tools ?? []).map((t) => (
+          <option key={t} value={t}>
+            {t}
+          </option>
+        ))}
       </select>
 
       <label className="mt-3 block text-[11px] font-medium uppercase tracking-wide text-muted-foreground">

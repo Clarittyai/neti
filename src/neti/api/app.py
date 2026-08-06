@@ -81,16 +81,36 @@ def create_app(
         reachable maximum, which is the same call the inventory makes, so "connected" means "we
         successfully counted something" rather than "the form submitted".
         """
-        resolver = st.engine.resolvers.get("entra.principals")
-        if resolver is None:
-            raise HTTPException(500, "entra.principals resolver is not registered")
-        probe = resolver.reachable_max(st.engine.ctx)
-        st.connected = probe.state.name == "RESOLVED"
+        # The resolvers THIS policy binds, not `entra.principals`.
+        #
+        # This probed Entra unconditionally, so a coding-agent policy — gating `fs.paths`, needing
+        # no directory and no credential at all — could never become connected. The live gate
+        # therefore opened on "Not connected yet" and stopped, for an install whose gate was working
+        # perfectly. Same Entra-centric assumption as the old "Demo tenant" badge and the console
+        # that ignored `providers:`.
+        wanted = sorted(st.policy.bound_resolvers())
+        probes = [
+            (name, st.engine.resolvers[name].reachable_max(st.engine.ctx))
+            for name in wanted
+            if name in st.engine.resolvers
+        ]
+        st.connected = bool(probes) and all(p.state.name == "RESOLVED" for _, p in probes)
+        # The failure worth reporting is the one that stopped the connection; otherwise anything.
+        probe = next((p for _, p in probes if p.state.name != "RESOLVED"), None) or (
+            probes[0][1] if probes else None
+        )
+        if probe is None:
+            raise HTTPException(500, "this policy binds no resolver that can be probed")
+
+        # `directory_size` stays what its name says: the directory. Reporting whichever resolver
+        # happened to sort first would have made it the *filesystem* count on a policy that binds
+        # both, under a key every caller reads as "how big is the tenant".
+        directory = dict(probes).get("entra.principals")
         return {
             "connected": st.connected,
             "mode": st.mode,
             "tenant": st.tenant_label,
-            "directory_size": probe.magnitude,
+            "directory_size": directory.magnitude if directory else None,
             "reason": None if st.connected else probe.evidence.get("reason"),
         }
 
