@@ -316,6 +316,10 @@ def test_nothing_that_is_not_a_control_wears_a_pill() -> None:
         # dots above are circles. Caught by this very rule the day it was written, which is the
         # rule working: the exemption is now stated rather than assumed.
         "h-2 w-full",
+        # A segmented control's rail. It holds the segments and is pressed through, so it is a
+        # control and takes the control's shape — a pill segment floating inside a rectangle was
+        # what the de-pilling sweep left behind, and it looked exactly as odd as it sounds.
+        "p-0.5",
     )
     offenders = []
     for path in _sources():

@@ -2,6 +2,28 @@
 
 ## Unreleased
 
+### The gate stops offering scenarios about tools you do not have
+
+`/api/scenarios` returned the shipped Entra scenarios unconditionally, so a filesystem install —
+gating `Glob`, `Read` and `delete_files` — was offered *"Offboard the Q3 contractors"*, which drives
+`remove_group_members`. A tool that policy does not gate, a group that does not exist, presented
+inside somebody's own console. That is mock data wearing the clothes of real data, which is the one
+thing this project is least entitled to ship.
+
+A scenario is offered only when the policy gates every tool it drives. The filesystem policy in the
+demo workspace now returns **none of them** and the page drives the gate with that policy's own
+tools instead.
+
+**And `/gate` explains itself now.** It opened with a toggle, a form and an empty box, none of which
+said what was about to happen or how the three relate — the reaction was *"I'm not sure what this
+does and how it connects"*, which is the page's fault. Three numbered steps across the top, in the
+order the page works: pick a call from your own policy, watch it resolve against the provider, see
+the number compared to your ceiling.
+
+**The Observe/Enforce toggle** was a pill segment floating inside a rectangle — the de-pilling sweep
+had stripped the rail because it carried no control signal of its own. A segmented rail is a
+control: it is a pill again, and the test now knows why.
+
 ### The featured band, at the top
 
 `CloudSlides` moved to the head of the overview and grew into what it should have been: one large

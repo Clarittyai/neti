@@ -114,6 +114,27 @@ export default function GatePage() {
         />
       ) : (
         <>
+          {/* The page explains itself before it asks anything of you. Somebody arriving here sees a
+              toggle, a form and an empty box, and none of it says what is about to happen or how
+              the three relate. Three sentences, in the order the page works. */}
+          <ol className="mb-6 grid gap-3 border-b border-border pb-6 text-[13px] sm:grid-cols-3">
+            {[
+              ["Pick a call", "Choose a tool from your own policy and give it a target — a glob, a path, a group."],
+              ["Watch it resolve", "The gate asks the provider how many things that target names, before anything runs."],
+              ["See the verdict", "The number is compared to the ceiling you declared. Over it, the call never executes."],
+            ].map(([title, body], i) => (
+              <li key={title} className="flex gap-3">
+                <span className="tnum flex h-6 w-6 flex-shrink-0 items-center justify-center rounded-full bg-accent/10 text-[11px] font-semibold text-accent">
+                  {i + 1}
+                </span>
+                <span>
+                  <span className="font-medium text-foreground">{title}</span>
+                  <span className="mt-0.5 block leading-relaxed text-muted-foreground">{body}</span>
+                </span>
+              </li>
+            ))}
+          </ol>
+
           {scenario ? (
             <ScenarioCard
               scenario={scenario}
@@ -165,7 +186,7 @@ function ModeToggle({
   onChange: (m: "observe" | "enforce") => void;
 }) {
   return (
-    <div className="glass-button flex p-0.5 text-sm">
+    <div className="flex rounded-full border border-border bg-card p-0.5 text-sm">
       {(["observe", "enforce"] as const).map((m) => (
         <button
           key={m}

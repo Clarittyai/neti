@@ -378,7 +378,18 @@ def create_app(
 
     @app.get("/api/scenarios")
     def scenarios() -> dict[str, Any]:
-        return {"scenarios": [s.as_json() for s in SCENARIOS.values()]}
+        """Only the scenarios this policy can actually run.
+
+        The shipped scenarios drive Entra tools. Offering "Offboard the Q3 contractors" to somebody
+        whose policy gates `Glob`, `Read` and `delete_files` is showing them a story about a tool
+        they do not have — mock data wearing the clothes of their own console. A scenario is offered
+        only when the policy gates the tool it drives, and a filesystem install therefore sees none
+        of them and drives the gate with its own tools instead.
+        """
+        st = state()
+        gated = set(st.policy.tools)
+        runnable = [s for s in SCENARIOS.values() if all(step.tool in gated for step in s.steps)]
+        return {"scenarios": [s.as_json() for s in runnable]}
 
     @app.get("/api/scenarios/{scenario_id}")
     def scenario(scenario_id: str) -> dict[str, Any]:
