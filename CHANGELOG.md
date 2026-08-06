@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### `neti report` says what the agent called it
+
+The terminal half of the same finding. A breach now reads:
+
+    Bash /command   n=3   p50=211   p95=22,794   max=22,794  [objects]
+        3 could not be resolved
+        ▸ 1 call(s) exceeded a declared ceiling
+            22,794 objects against a ceiling of 500   (c40f32fa)
+                the agent said: "clean up build artifacts"
+
+`ReportSummary` carries a `stated` map keyed by decision id rather than widening the `over_ceiling`
+tuple, which the API and the console both read — a fourth element there would have been a breaking
+change to something already shipped, for a field only the printer needs.
+
+Also visible above, and worth reading honestly: **three of six commands could not be resolved.**
+`npm test` and `git status` should not be, and `cat list.txt | xargs rm` genuinely is destructive and
+was declined. Shell coverage is a floor, not a ceiling, and the number of declines is printed rather
+than hidden so nobody mistakes silence for safety.
+
 ### The claim, beside the number
 
 `/decisions` now reads:

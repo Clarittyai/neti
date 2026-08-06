@@ -104,6 +104,17 @@ class ReportSummary:
     modes: set[str] = field(default_factory=set)
     policies: set[str] = field(default_factory=set)
 
+    stated: dict[str, str] = field(default_factory=dict)
+    """What the agent said it was doing, by decision id.
+
+    `Bash` and `Task` both carry a `description`, and it has been sealed inside the chained record
+    all along. Kept beside the magnitudes so a breach can be printed as what it *was* next to what
+    it was *called* — "clean up build artifacts", 22,794 objects.
+
+    Recorded, never trusted. Nothing reads this to decide anything; it is here so a person reading
+    a breach does not have to go and find the record themselves.
+    """
+
     synthetic: int = 0
     """How many of these decisions came from `--demo` rather than from a provider.
 
@@ -160,6 +171,9 @@ def build_report(records: Iterable[DecisionRecord]) -> ReportSummary:
                     dist.over_ceiling.append(
                         (record.decision_id, int(magnitude), int(breach["above"]))
                     )
+                    said = (record.args or {}).get("description")
+                    if isinstance(said, str) and said.strip():
+                        summary.stated[record.decision_id] = said.strip()
 
     return summary
 
@@ -214,4 +228,10 @@ def format_report(summary: ReportSummary, *, window: str = "all recorded") -> st
                     f"        {observed:,} {dist.unit} against a ceiling of {ceiling:,}"
                     f"   ({decision_id[:8]})"
                 )
+                said = summary.stated.get(decision_id)
+                if said:
+                    # What the agent called it, under what it would have done. The gap between the
+                    # two is the thing worth a person's attention, and it is free — the words were
+                    # already in the sealed record.
+                    out.append(f'            the agent said: "{said}"')
     return "\n".join(out)
