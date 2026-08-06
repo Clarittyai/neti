@@ -386,3 +386,38 @@ def test_an_entra_policy_with_no_credentials_still_says_so(tmp_path: Path) -> No
     assert state.demo, "an Entra policy on the fixture must still be marked"
     assert state.engine.synthetic is True
     assert "sample" in state.tenant_label.lower(), state.tenant_label
+
+
+def test_scenarios_are_only_offered_when_the_policy_gates_them(tmp_path: Path) -> None:
+    """A console must not tell somebody a story about a tool they do not have.
+
+    `/api/scenarios` returned the shipped Entra scenarios unconditionally, so a filesystem install
+    gating `Glob`, `Read` and `delete_files` was offered "Offboard the Q3 contractors" — which
+    drives `remove_group_members` against a group that does not exist. Mock data wearing the clothes
+    of real data, inside the operator's own console.
+
+    Also a regression test for calling it at all: the first version of the filter used `state()` on
+    an object that is not callable, so the endpoint 500'd on every request and the change shipped
+    because nothing here had ever asked it a question.
+    """
+    from neti.api.state import build_state
+
+    tree = tmp_path / "tree"
+    tree.mkdir()
+    (tree / "a.txt").write_text("x\n", encoding="utf-8")
+    config = tmp_path / "neti.yaml"
+    config.write_text(
+        "version: 1\nmode: observe\nproviders:\n  fs:\n"
+        f"    root: {tree}\n"
+        "tools:\n  Glob:\n    gate:\n      /pattern:\n"
+        "        resolver: fs.paths\n        bands: []\n",
+        encoding="utf-8",
+    )
+
+    state = build_state(config=config, records=tmp_path / "out.ndjson", demo=True)
+    client = TestClient(create_app(state))
+
+    response = client.get("/api/scenarios")
+    assert response.status_code == 200, response.text
+    names = [s["id"] for s in response.json()["scenarios"]]
+    assert names == [], f"a filesystem policy was offered scenarios it cannot run: {names}"

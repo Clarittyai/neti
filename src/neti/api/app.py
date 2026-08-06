@@ -386,7 +386,6 @@ def create_app(
         only when the policy gates the tool it drives, and a filesystem install therefore sees none
         of them and drives the gate with its own tools instead.
         """
-        st = state()
         gated = set(st.policy.tools)
         runnable = [s for s in SCENARIOS.values() if all(step.tool in gated for step in s.steps)]
         return {"scenarios": [s.as_json() for s in runnable]}
