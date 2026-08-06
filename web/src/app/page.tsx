@@ -60,6 +60,12 @@ export default function OverviewPage() {
         <Failed error={inventory.error} onRetry={inventory.reload} />
       ) : null}
 
+      {/* The featured band, at the top. Your own numbers follow immediately under it — a page that
+          led with a pitch and buried the data would be the wrong trade, and this is a rotation
+          rather than a wall of feature cards precisely so it can sit here without taking the page
+          over. */}
+      <CloudSlides />
+
       {rows.length === 0 && (report.data?.decisions ?? 0) === 0 ? (
         <EmptyState
           size="page"
@@ -84,8 +90,6 @@ export default function OverviewPage() {
       </Stats>
 
       <VerdictSplit verdicts={report.data?.verdicts} total={report.data?.decisions ?? 0} />
-
-      <CloudSlides />
 
       {uncapped.length > 0 ? (
         <div className="mt-4 flex flex-wrap items-center gap-2.5 border-l-2 border-[hsl(var(--verdict-confirm))] bg-[hsl(var(--verdict-confirm))]/[0.06] py-3 pl-3.5 pr-4 text-[13px]">

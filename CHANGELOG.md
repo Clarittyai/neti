@@ -2,6 +2,26 @@
 
 ## Unreleased
 
+### The featured band, at the top
+
+`CloudSlides` moved to the head of the overview and grew into what it should have been: one large
+slide at a time, an eyebrow, a headline you can read across the room, a **live scene**, and a single
+action — the App Store's featured row, in neti's language.
+
+Each slide now carries the scene that depicts its claim rather than describing it in prose:
+approvals gets `GateScene` (a call stopped at a ceiling), fleet policy gets `ReachScene`, central
+records gets `ChainScene`, the catalogue gets `ConnectScene`.
+
+**No plate, which is the one place this departs from the App Store.** Those features sit on rounded
+cards; neti's rules do not (DESIGN.md: do not default to cards, no shadows). The prominence comes
+from scale and space instead — big type, a wide scene, a spotlight rather than a frame, and a rule
+under the band separating it from your own numbers. It reads as featured without becoming the one
+card on a page that has none.
+
+Your three totals and the verdict split sit immediately beneath it, which keeps the trade honest: a
+page that led with a pitch and buried the data would be the wrong order, and a rotation — rather
+than a wall of feature cards — is what lets this sit on top without taking the page over.
+
 ### The overview is an analytics home now
 
 Asked for three times, delivered on the third. `VerdictSplit` sits under the three totals: one
