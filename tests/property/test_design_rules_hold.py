@@ -354,3 +354,45 @@ def test_design_md_exists_and_names_the_accent() -> None:
     assert ACCENT in design
     for colour in RESERVED.values():
         assert colour in design, f"{colour} is reserved but DESIGN.md does not say so"
+
+
+# ---------------------------------------------------------------------------- motion
+
+
+SCENES = sorted((REPO / "web" / "src" / "components" / "live" / "scenes").glob("*.tsx"))
+
+
+def test_there_are_scenes_to_check() -> None:
+    """Guards the two tests below against silently becoming no-ops."""
+    assert len(SCENES) >= 4, "the live scenes have moved or vanished"
+
+
+@pytest.mark.parametrize("scene", SCENES, ids=lambda p: p.stem)
+def test_every_scene_composes_a_frame_when_motion_is_off(scene: Path) -> None:
+    """DESIGN.md: reduced motion still renders a composed final frame, never a blank box.
+
+    A CSS `prefers-reduced-motion` rule cannot stop a JS timer, so the kernel gates the loop and
+    each scene has to choose what to show when the loop is not running. A scene that simply renders
+    its initial state disappears for exactly the people who asked for less movement, which is not
+    accessible — it is absent.
+
+    Checked structurally rather than by screenshot: the scene must branch on `live`, so the frozen
+    state is a deliberate choice somebody made rather than whatever index a counter happened to
+    start at.
+    """
+    body = scene.read_text(encoding="utf-8")
+    assert "useLiveGate" in body or "useSceneRoot" in body, (
+        f"{scene.name} does not gate its motion at all"
+    )
+    assert re.search(r"live\s*\?", body), (
+        f"{scene.name} never branches on `live`, so with motion off it renders whatever its "
+        "counter started at — usually an empty stage. Pick the frozen frame deliberately."
+    )
+
+
+@pytest.mark.parametrize("scene", SCENES, ids=lambda p: p.stem)
+def test_no_scene_reaches_for_a_frame_loop_or_the_network(scene: Path) -> None:
+    """Timers only. A scene must be safe in a cold, offline launch."""
+    body = scene.read_text(encoding="utf-8")
+    for banned in ("requestAnimationFrame", "getContext(", "fetch(", "new Image("):
+        assert banned not in body, f"{scene.name} uses {banned}"
