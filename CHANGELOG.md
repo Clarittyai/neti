@@ -2,6 +2,36 @@
 
 ## Unreleased
 
+### Pointed at a real repository, and it found something a fixture never could
+
+Five calls through the real `neti hook` binary, against this repository — 59,148 files, nothing
+simulated:
+
+    Read src/neti/engine.py                    allowed, silent
+    Glob src/neti/adapters/*.py                allowed, silent
+    Glob src/**/*.py                           allowed, silent
+    Glob **/*                    22,940        DENIED
+    Glob web/node_modules/**/*.js 12,082       DENIED
+
+The fourth and fifth are the point, and the fifth especially: an agent asked to look at the JS files
+writes a glob that pulls **twelve thousand `node_modules` files** into context. Nothing else in the
+stack stops that — the agent may read files, the path is inside the project, nothing is malicious.
+It is simply enormous, and the size is the only thing wrong with it. The first three stayed silent,
+which is the half that decides whether anybody keeps it installed.
+
+Five records, chain intact. Flipping one verdict gave `CHAIN BROKEN at decision 50f0103f…`, and
+restoring it returned the identical head.
+
+**And the honest finding.** The console reported *59,181 reachable in one call* — dominated by
+`node_modules` and `.git`, where the repository proper is 35,563. The instinct is to add an ignore
+list, and it is wrong: excluding directories would make the magnitude *under*-count, and
+under-counting is the one error this gate must never make. You may block on a floor; you may never
+allow on one. A glob really can reach those files.
+
+So the number stays and the console now says what it counts, as does the tutorial. Narrowing
+`providers.fs.root` is how you scope it. That gap was invisible against a fixture tree and obvious
+within one command against a real one.
+
 ### The gate stops offering scenarios about tools you do not have
 
 `/api/scenarios` returned the shipped Entra scenarios unconditionally, so a filesystem install —

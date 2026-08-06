@@ -107,7 +107,11 @@ export default function OverviewPage() {
       <section className="mt-8">
         <h2 className="text-sm font-semibold">What each tool can reach</h2>
         <p className="mt-1 text-[13px] text-muted-foreground">
-          No traffic required — this is read straight from the directory.
+          No traffic required — this is read straight from the directory. It counts everything
+          under the root you declared, vendored directories included: pointed at a repository with
+          `node_modules`, most of the number is `node_modules`, because that is genuinely what one
+          call could touch. Narrow <code className="font-mono text-[12px]">providers.fs.root</code>{" "}
+          to scope it.
         </p>
         {inventory.loading && !inventory.data ? (
           <div className="mt-3">

@@ -33,6 +33,13 @@ measures the machine you are standing on:
 the directory. No traffic needed, nothing observed yet. If your agent can run `Glob`, this is how
 wide one `Glob` can be.
 
+**It counts everything under the root you declared.** Pointed at a repository with `node_modules`
+and `.git`, most of that number is `node_modules` — the real neti repo measures 59,181 with them and
+35,563 without. That is not a bug: a glob really can reach those files, and a count that quietly
+skipped them would be *under*-counting, which is the one error this gate must never make. You may
+block on a floor; you may never allow on one. Narrow `providers.fs.root` if you want the number
+scoped to your source.
+
 **What it is not.** It is not an incident, an alert or a score. Nothing has gone wrong. It is a fact
 about your capability surface that nothing else measures — authorization answers *may you*,
 sandboxing answers *where*, approval answers *did a human say yes*. None of them answers **how big**.
