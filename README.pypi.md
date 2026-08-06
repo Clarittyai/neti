@@ -41,146 +41,207 @@ An agent asks to do one thing. That one thing turns out to be a million things. 
 until after. Alignment, authorization, provenance, sandboxing, anomaly detection and rollback all
 answer a different question; none of them answers *how big is this*.
 
-## The first minute
+## Getting value from it
+
+Four steps over about a week. Each one gives you something before the next one is worth doing, and
+**you are never asked to guess a number** — that ordering is the whole design.
+
+| | you run | you get | it takes |
+|---|---|---|---|
+| **1. Measure** | `neti start` | one number nothing else in your stack reports | 30 seconds |
+| **2. Observe** | `neti install`, then work normally | your agent's real distribution | a few days |
+| **3. Decide** | `neti propose` | ceilings derived from *your* traffic, with their impact | 10 minutes |
+| **4. Enforce** | `mode: enforce` | oversized calls stopped, ordinary work untouched | forever |
+
+Prefer to be walked through it? `neti console` opens on **Getting started** — the same four steps,
+read live off your machine, with your paths in the commands. Each step ticks itself as you do it.
+
+---
+
+### 1. Measure — what could one call touch?
 
 ```console
 $ pip install "neti[all]"
 $ neti start
 ```
 
-**New here? [Read the three-day walkthrough](https://github.com/Neti-Security/neti/blob/main/docs/TUTORIAL.md)** — measure on day one, decide on day
-two, enforce on day three, with real commands and real numbers.
-
-`neti start` is the whole first run: it finds your agent, writes a policy that **blocks nothing**,
-and measures *this* machine — so the first thing you see is a number about your own repository
-rather than an example about somebody else's.
+That is the whole first run. It finds your agent, writes a policy that **blocks nothing**, and
+measures the machine you are standing on:
 
 ```
 3. Measuring this machine
    The largest set one gated call could touch, right now, here:
 
-      23,583 objects
+      5,011 objects
 
    That is capability, not an incident.
 ```
 
-Then you work normally for a day while it records, and `neti propose` turns your own traffic into
-ceilings you review. **You are never asked to guess a number.** That ordering is the point: a policy
-that says `above: 300` is unanswerable on day one, so day one is measurement and day two is the
-ceiling.
+**Why this is worth something on its own.** Authorization answers *may you*. Sandboxing answers
+*where*. Approval answers *did a human say yes*. **None of them answers *how big*.** That number is
+the first time anyone has told you the blast radius of a single tool call in this repository — no
+credentials, no configuration, no traffic to wait for.
 
-`[all]` is everything one machine needs, which is the entire free tier; a bare install leaves a
-`neti` command with no CLI behind it, and says so rather than failing obscurely.
+It is not an alert. Nothing has gone wrong. It is a fact about your capability surface that you
+could not previously obtain.
 
-That install is checked rather than asserted. [`tools/verify_install.py`](https://github.com/Neti-Security/neti/blob/main/tools/verify_install.py)
-builds a fresh virtualenv, installs the published wheel into it, generates a tree with a known file
-count and walks this whole page — measure, gate, block, seal, tamper, verify, serve — asserting the
-numbers. Run `just e2e` and watch twenty-two checks go green, or `just e2e --local` against a
-checkout. Four defects in this project were only ever visible from outside the repository.
-
-Then one command, in a repository you already have. It measures *this* machine — no credentials, no
-config, no traffic to wait for.
+### 2. Observe — what does your agent actually do?
 
 ```console
-$ neti demo --here
-
-── 2. REACH ────────────────────────────────────────────  MEASURED here, no traffic needed
-   fs.paths                       35,871 objects
-     bound by 8: Edit/file_path, Glob/pattern, Grep/path, Read/file_path, …
-
-   An agent working here reaches 35,871 objects, across 8 gated parameter(s).
-   It bounds what one credential can address here; it does not measure any single
-   call. Nothing in a permission system reports either number — it answers
-   whether, not how many.
+$ neti install        # adds a PreToolUse hook to .claude/settings.json
 ```
 
-Check it yourself with `find . \( -type f -o -type l \) | wc -l`. On a tree too large to walk it
-reports `≥` and says the count stopped at its cap, because a cap presented as a total is a lie in
-the flattering direction.
+It merges into whatever is there, backs the file up, and shows you the change before writing. The
+policy is in `observe` mode: every call is sized and recorded, **nothing is blocked**. Worst case of
+installing it is one hop of latency.
 
-That is acts 1 and 2. Give it traffic — install the hook, work normally for an afternoon — and the
-same command runs the rest: report, propose ceilings from what you actually did, enforce them
-against the same calls, and verify the chain. `neti demo` without `--here` runs the identical
-narrative against a synthetic tenant, and says so.
+Then work normally for a few days. After ~270 calls in a real project:
 
-<img src="https://raw.githubusercontent.com/Neti-Security/neti/main/docs/media/demo_here_full.svg" alt="the six acts of neti demo --here: discover, reach, observe, report and propose, enforce, audit">
+```
+Read  /file_path   n=94  p50 1      max 1
+Edit  /file_path   n=42  p50 1      max 1
+Glob  /pattern     n=38  p50 24     max 1,091
+Grep  /path        n=33  p50 30     max 5,009
+```
 
-Six acts, one machine, no credentials: what an agent can reach here, what it actually did, the
-ceilings that follow from it, the same calls re-run with those ceilings on, and a chain that
-re-derives every verdict offline.
+**This is the payoff of the whole exercise.** Your agent's reads are one file, essentially always —
+until the one that is the entire repository. You would set very different ceilings for `Read` and
+for `Glob`, and now you can see which, instead of arguing about it.
 
-## Installing it
+### 3. Decide — turn that into numbers you can defend
 
 ```console
-$ neti install
-Will write .claude/settings.json:   # merged into what is already there, and backed up
-  Policy is in observe mode: nothing will be blocked, everything recorded.
+$ neti propose
 ```
 
-Idempotent, and it refuses rather than guessing: settings it cannot parse are left alone, and a
-policy that parses but cannot *construct* — a misspelled resolver, an unread provider key — is
-rejected before it is wired in. That last one matters more than it looks: the hook catches its own
-exceptions and exits 0, so a broken policy would leave every session working perfectly and nothing
-ever gated.
+It reads your own recorded traffic and suggests ceilings, showing its working:
 
-## The first hour
+```
+Glob /pattern:
+  observed  n=38  p50=24  max=1,091 [objects]
+  proposed  confirm above 50   block above 500
+  rationale 2x and 10x the observed p50 (24). p95 was 1,091 here — your large calls are
+            more than 5% of the traffic, so they *are* the p95, and multiplying it proposes
+            a ceiling above everything you have ever done. Anchored on the median instead
+  IMPACT    over the observed window this would have blocked 2 call(s) and asked about 0
+```
 
-Two commands, from a directory with nothing in it. No YAML to write, no traffic to wait for, and no
-ceilings to guess at.
+Three things make this trustworthy rather than magic. It **states the impact** on traffic you
+already have, so you know the cost before you commit. It **argues against itself** when the
+statistics disagree. And it **prints a fragment, it does not edit your policy** — nothing computed
+is ever read at decision time, so the gate stays a static integer comparison you can audit.
+
+It also refuses when it does not have the evidence: *"only 4 observations; 30 needed before a
+ceiling means anything."* That refusal is the feature.
+
+You can also declare a ceiling from the console: `/policy` shows the distribution beside the field,
+tells you how many recorded calls it would have stopped, shows you the diff, and backs up the file.
+
+### 4. Enforce — the part that stops something
+
+Change `mode: observe` to `mode: enforce`. The same session, re-run:
+
+```
+Read(package.json)          silent
+Glob(src/routes/*.ts)       silent
+Bash(npm test)              silent
+Glob(**/*)                  BLOCKED — 1,093 objects, above the declared ceiling of 500
+Grep(.)                     BLOCKED — 5,011 objects, above the declared ceiling of 500
+```
+
+270 allowed, 2 blocked. **Ordinary work never notices it is there.**
+
+And the agent gets back a *number*, not a refusal:
+
+> Preflight blocked this call: `/pattern` resolves to 1,093 objects, above the declared ceiling of
+> 500. Narrow the target and try again.
+
+That sentence is why it retries with a narrower target instead of giving up or routing around. It is
+byte-for-byte identical on all fifteen seams, so the door a call arrives through never changes the
+answer.
+
+Two things you now have for free:
+
+```console
+$ neti verify        # recompute the hash chain over every decision
+$ neti report        # the distribution, any time
+```
+
+---
+
+### One thing to know before you rely on it
+
+**Deletions through `Bash` need a ceiling you set by hand.** `shell.paths` sizes `rm -rf`,
+`find -delete`, `git clean -fd` and `git checkout -- .` correctly — but deletions are *rare*, so
+they never accumulate the 30 observations `neti propose` wants, and it will keep saying "keep
+observing" forever. Until you declare a `Bash` ceiling yourself, a sized `rm -rf node_modules` is
+recorded and **allowed**.
+
+A command it recognises as destructive but cannot size — `cat list.txt | xargs rm` — comes back
+**flagged**: the call runs, and it appears in `neti report` under *unmeasured deletions* with what
+the agent said it was doing. What escapes entirely is a wrapper: `./cleanup.sh` deletes and no
+textual signal will ever see it ([`SCOPE.md`](https://github.com/Neti-Security/neti/blob/main/SCOPE.md) NC-15).
+
+Stated here rather than discovered later, because a gap you know about is a decision and a gap you
+do not is a surprise.
+
+---
+
+### If your agent talks to a directory, not a filesystem
+
+The path above assumes a coding agent. For an MCP server against Entra, GitHub, a database or object
+storage, `neti init` reads the MCP client configs already on your machine, launches each server the
+way its client does, asks `tools/list`, and writes a policy matching the tools it found:
 
 ```console
 $ neti init
 Found 1 MCP server(s):
   entra    npx -y @acme/entra-mcp     (Claude Code (project))
 
-Asking each one what tools it exposes…
-
-  gated   delete_group           /group → entra.principals, /group#apps → entra.apps
   gated   remove_group_members   /group → entra.principals, /group#apps → entra.apps
-  gated   send_email             /to → entra.principals
   ungated search_directory       nothing here can be sized
 
-Wrote neti.yaml
-  3 tool(s) gated, every ceiling left blank on purpose.
+Wrote neti.yaml — 3 tool(s) gated, every ceiling left blank on purpose.
 ```
-
-It reads the MCP client configs already on the machine, launches each server the way its client
-does, asks `tools/list`, and writes a policy matching the tools it found. It declares **no ceilings**
-— every band is empty and the mode is `observe`, so nothing can be blocked. Those numbers are meant
-to arrive a week later out of your own traffic; a ceiling nobody chose is a ceiling nobody will
-defend the first time it fires.
 
 Then, still with no traffic:
 
 ```console
 $ neti inventory
 tool                  param        resolver          max reachable  risk
-remove_group_members  /group       entra.principals         52,400  no ceiling declared — up to 52,400 principals in one call
-send_email            /to          entra.principals         52,400  no ceiling declared — up to 52,400 principals in one call
-remove_group_members  /group#apps  entra.apps                  214  no ceiling declared — up to 214 apps in one call
-
-5 of 5 gated parameters have no ceiling declared. They resolve and record, but they cannot block.
+remove_group_members  /group       entra.principals         52,400  no ceiling declared
+send_email            /to          entra.principals         52,400  no ceiling declared
 ```
 
 <img src="https://raw.githubusercontent.com/Neti-Security/neti/main/docs/media/inventory_rows.svg" alt="neti inventory listing each gated parameter, its resolver, and the maximum it could reach in one call">
 
-That is the finding, on day one: *this agent holds a credential that can, in one call, reach 52,400
-people and 214 applications, and nothing today would stop it.*
+That is the day-one finding for a directory: *this agent holds a credential that can, in one call,
+reach 52,400 people, and nothing today would stop it.*
 
-Add `--demo` to `neti inventory` or `neti gate` to run the whole path against a synthetic tenant with
-no credentials at all — same engine, same records, only the numbers differ.
+Add `--demo` to any command to run the whole path against a synthetic tenant with no credentials at
+all — same engine, same records, only the numbers differ.
 
-## Install
+---
 
-Three steps, no code change.
+### Want the whole arc in one command?
 
-1. Register an Entra app and grant one permission — `GroupMember.Read.All`, Microsoft's documented
-   least-privilege choice for the count endpoint. Admin-consent it.
-2. `neti init`, then put the command it prints into your client's config.
-3. Nothing else. Uninstall is reverting that one line.
+```console
+$ neti demo --here
+```
 
-The default mode is `observe`: a pass-through that resolves and records and **cannot block
-anything**. The worst case of installing it is one hop.
+Six acts against your own machine, no credentials: what an agent can reach here, what it actually
+did, the ceilings that follow, the same calls re-run with those ceilings on, and a chain that
+re-derives every verdict offline.
+
+<img src="https://raw.githubusercontent.com/Neti-Security/neti/main/docs/media/demo_here_full.svg" alt="the six acts of neti demo --here: discover, reach, observe, report and propose, enforce, audit">
+
+`[all]` is everything one machine needs, which is the entire free tier. A bare install leaves a
+`neti` command with no CLI behind it, and says so rather than failing obscurely.
+
+That install is checked rather than asserted. [`tools/verify_install.py`](https://github.com/Neti-Security/neti/blob/main/tools/verify_install.py)
+builds a fresh virtualenv, installs the published wheel into it, and walks this whole page — measure,
+gate, block, seal, tamper, verify, serve — asserting the numbers. Four defects in this project were
+only ever visible from outside the repository.
 
 ## Putting it in front of an agent
 
@@ -341,33 +402,20 @@ the gate instead.
 Add `--demo` to either command to rehearse the whole thing against the synthetic tenant with no
 credentials at all. Same engine, same decision procedure, same records — only the numbers differ.
 
-## The first week
+## The audit trail
 
-```console
-$ neti report --since 7d
-send_email /to        n=1,284   p50=3   p95=41   p99=112   max=8,900
-  ▸ 4 calls exceeded 500 recipients
-
-$ neti propose
-send_email /to:  confirm above 150   block above 1,000     # 2× observed p99
-```
-
-You edit the numbers and commit them. `neti propose` is a config-authoring aid read by a human —
-nothing learned ever reaches the decision path, so the gate stays a static integer comparison.
-
-<img src="https://raw.githubusercontent.com/Neti-Security/neti/main/docs/media/propose_bimodal.svg" alt="neti propose deriving ceilings from observed traffic, with the rationale and the impact of each">
-
-It shows its working, including when the statistics disagree with themselves: above, the p95 *is*
-the outlier, so multiplying it would propose a ceiling above everything that has ever happened. It
-anchors on the median instead and tells you to expect a higher interrupt rate. Then it prints what
-those numbers would have done to the traffic you already have.
-
-And the record it all came from re-derives, offline, forever:
+Every decision is sealed into a hash chain as it is made, and the chain re-derives offline, forever:
 
 <img src="https://raw.githubusercontent.com/Neti-Security/neti/main/docs/media/verify_intact.svg" alt="neti verify reporting the record chain intact">
 
-`neti verify --config` goes further and replays each decision against the policy, so "the chain is
-unbroken" becomes "and every verdict in it still follows from its evidence".
+`neti verify --config` goes further and replays each decision against the policy, so *"the chain is
+unbroken"* becomes *"and every verdict in it still follows from its evidence"*. Alter one byte of one
+record and it names the decision it broke at.
+
+`neti propose` shows the same working on a busier window — here the p95 *is* the outlier, so
+multiplying it would propose a ceiling above everything that has ever happened:
+
+<img src="https://raw.githubusercontent.com/Neti-Security/neti/main/docs/media/propose_bimodal.svg" alt="neti propose deriving ceilings from observed traffic, with the rationale and the impact of each">
 
 ## What it costs to run
 

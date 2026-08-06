@@ -144,6 +144,11 @@ people hit first:
   gate cannot see that, and says so.
 - **Code-executing agents.** An agent that writes and runs Python calls tools *and* can touch the
   filesystem directly. Wrapping the tool gates the tool; the sandbox is what bounds the rest.
+- **Deletions through `Bash` need a ceiling you set by hand.** `shell.paths` sizes `rm -rf`,
+  `find -delete` and `git clean -fd` correctly — but deletions are *rare*, so they never accumulate
+  the 30 observations `neti propose` wants, and it will keep saying "keep observing" forever. Until
+  you declare a `Bash` ceiling yourself, a sized `rm -rf node_modules` is recorded and **allowed**.
+  Set one from judgement: above your ordinary work, below the thing you would not want to lose.
 - **Most of the shell.** `Bash` is gated, but only where a number is readable from the command:
   `rm`, `find -delete`, `git clean -fd`, `git checkout -- .`. A pipeline or a wrapper script is not,
   and guessing would be worse than declining. What you get instead is that the boundary is visible:
