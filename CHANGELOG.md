@@ -2,6 +2,45 @@
 
 ## Unreleased
 
+### `shell.paths` — the level a coding agent actually acts at
+
+`Bash` was not gated. The shipped policy covered `Glob`, `Grep`, `Read`, `Edit`, `Write` and three
+directory tools, and everything else fell through `unknown_tool: allow` — so `rm -rf`,
+`find . -delete`, `git clean -fd` and `git checkout -- .` were invisible. An agent that wants to
+delete something does not reach for `Write`.
+
+Against this repository, through the real hook binary:
+
+    block   22,794  rm -rf web/node_modules     said: "clean up build artifacts"
+    allow      211  rm -rf src/neti             said: "remove the old package"
+    allow        3  git clean -fd               said: "tidy the working tree"
+    allow  unresolved  npm test                 said: "run the tests"
+    allow  unresolved  cat list.txt | xargs rm   said: "delete listed files"
+
+The first line is the whole argument. The agent's own words sit beside the measurement, and they
+needed no schema change: `description` is one of the call's arguments, and `args` is already inside
+the chained payload — the claim was always sealed, there was simply never a magnitude to read it
+against. **It is recorded, never trusted.** A confident sentence must not buy a large action, and
+`SCOPE.md`'s claim that no model drifts in the decision path stays literally true.
+
+**It declines far more than it claims, and that is the design.** Pipelines, subshells, backticks,
+`$(…)`, shell variables, unknown binaries, wrapper scripts, `find` without `-delete`, `git status` —
+all UNRESOLVED, and the declared `on_unresolved` decides. `find . -name '*.log' -delete` is sized as
+the whole of `.` rather than the matching files, because honouring the filter would make the number
+*smaller* than the truth, and one target it cannot read fails the entire command rather than
+reporting the half it could count. Over-counting is sound; under-counting lets a large deletion
+through under a ceiling.
+
+**A deliberate decision was overturned, not deleted.** `test_bash_is_ungated_on_purpose_and_says_so`
+argued that sizing `Bash` means *"a gate guessing at a string's meaning rather than reading a
+value"*, and cited `rm -rf "$X/../.."`. That objection is now the specification rather than a
+refusal: the test asserts `Bash` is gated *and* that this exact command is still declined. The
+standard did not move; the coverage did.
+
+`on_unresolved: allow` ships by default, which is the difference between a gate people keep and one
+they remove on Friday: `npm test` and `git status` pass in silence, and only a command that can be
+read literally gets a number.
+
 ### The live gate was unusable on the most common install there is
 
 Three faults, one assumption: that a gate needs a directory.

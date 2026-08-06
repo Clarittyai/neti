@@ -47,6 +47,7 @@ RESOLVERS = frozenset(
         "entra.guests",
         "entra.principals_with_guests",
         "fs.paths",
+        "shell.paths",
         "db.rows",
         "storage.objects",
         "github.repos",

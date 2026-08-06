@@ -127,10 +127,10 @@ LAYERS: tuple[Layer, ...] = (
     # These are the layers where an agent acts and nothing here measures it.
     Layer(
         name="shell",
-        resolver="",
-        unit="",
-        what="what a command would delete — a grammar, not a value (NC-09, NC-10)",
-        covered=False,
+        resolver="shell.paths",
+        unit="objects",
+        what="rm, find -delete and git clean, sized before they run; anything else declines",
+        covered=True,
     ),
     Layer(
         name="messaging",

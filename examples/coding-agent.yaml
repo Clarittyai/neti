@@ -33,6 +33,21 @@ tools:
   # These are the calls where one short argument addresses an unbounded number of files. `**/*` is
   # eleven characters and it is the whole repository.
 
+  # The level a coding agent actually acts at. An agent that wants to delete something does not
+  # reach for Write — it runs `rm -rf`, `find . -delete` or `git clean -fd`, and until this existed
+  # every one of them fell through `unknown_tool: allow` unseen.
+  #
+  # `on_unresolved: allow` is deliberate and is the difference between a gate people keep and one
+  # they remove on Friday. `npm test`, `git status` and every other ordinary command are not
+  # recognised as destructive, resolve to nothing, and pass in silence. Only a command this can
+  # actually read gets a number. Tighten it to `confirm` if you want the stricter posture.
+  Bash:
+    gate:
+      /command:
+        resolver: shell.paths
+        on_unresolved: allow
+        on_unbounded: confirm
+
   Glob:
     gate:
       /pattern:

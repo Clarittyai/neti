@@ -22,6 +22,7 @@ from neti.resolvers.graph_entra import (
     EntraPrincipalsResolver,
     PrincipalsWithGuestBreakdown,
 )
+from neti.resolvers.shell import ShellPathsResolver
 from neti.resolvers.storage import ObjectStoreResolver, S3Lister
 from neti.resolvers.terraform import TerraformPlanResolver
 
@@ -93,6 +94,13 @@ def resolvers_for_client(
         "terraform.destroy": TerraformPlanResolver(),
         "fs.paths": FilesystemResolver(
             root=None if fs_root is None else Path(str(fs_root)),
+            **({} if fs_cap is None else {"cap": int(fs_cap)}),
+        ),
+        # The same root and cap as `fs.paths`, because it delegates every count to it. This is the
+        # level a coding agent actually acts at: `rm -rf`, `find -delete` and `git clean` all arrive
+        # as `Bash`, which the shipped policy did not gate at all.
+        "shell.paths": ShellPathsResolver(
+            root=None if fs_root is None else str(fs_root),
             **({} if fs_cap is None else {"cap": int(fs_cap)}),
         ),
         # Registered unconditionally even though it needs boto3, because the import is deferred to

@@ -12,13 +12,13 @@ neti demo — measured on <path>
    dark        object storage              — export AWS_ACCESS_KEY_ID
    dark        directory                   — export NETI_TENANT_ID
    listening   infrastructure              — reachable_max_requires_terraform_state
-   no resolver shell                       — what a command would delete — a grammar, not a value (NC-09, NC-10)
+   listening   shell                      32 objects
    no resolver messaging                   — Slack, Teams, outbound email outside a directory
    no resolver SaaS records                — CRM objects, tickets, documents in a vendor's own store
 
-   2 layer(s) listening · 4 dark for want of a credential · 3 with no resolver at all
+   3 layer(s) listening · 4 dark for want of a credential · 2 with no resolver at all
 
-   An agent working here reaches 32 objects, across 8 gated parameter(s).
+   An agent working here reaches 32 objects, across 1 gated parameter(s).
    It bounds what one credential can address here; it does not measure any single call. Nothing in a permission system reports either number — it answers whether, not how many.
 
 ── 3. OBSERVE ──────────────────────────────────────────  YOUR files, a captured session's shape

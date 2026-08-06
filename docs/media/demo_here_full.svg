@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 952 1038" width="952" height="1038" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace" font-size="14">
-<rect width="952" height="1038" rx="12" fill="#0d1117"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 952 1016" width="952" height="1016" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace" font-size="14">
+<rect width="952" height="1016" rx="12" fill="#0d1117"/>
 <text x="22" y="36.93" fill="#94a3b8" xml:space="preserve">$ neti demo --here --repo &lt;path&gt; -c &lt;path&gt; --corpus &lt;path&gt;</text>
 <text x="22" y="58.63" fill="#c9d1d9" xml:space="preserve">neti demo — measured on &lt;path&gt;</text>
 <text x="22" y="80.33" fill="#c9d1d9" xml:space="preserve"></text>
@@ -13,37 +13,36 @@
 <text x="22" y="253.93" fill="#c9d1d9" xml:space="preserve">   dark        object storage              — export AWS_ACCESS_KEY_ID</text>
 <text x="22" y="275.63" fill="#c9d1d9" xml:space="preserve">   dark        directory                   — export NETI_TENANT_ID</text>
 <text x="22" y="297.33" fill="#c9d1d9" xml:space="preserve">   listening   infrastructure              — reachable_max_requires_terraform_state</text>
-<text x="22" y="319.03" fill="#c9d1d9" xml:space="preserve">   no resolver shell                       — what a command would delete — a grammar, not a value (NC-09,</text>
-<text x="22" y="340.73" fill="#c9d1d9" xml:space="preserve">NC-10)</text>
-<text x="22" y="362.43" fill="#c9d1d9" xml:space="preserve">   no resolver messaging                   — Slack, Teams, outbound email outside a directory</text>
-<text x="22" y="384.13" fill="#c9d1d9" xml:space="preserve">   no resolver SaaS records                — CRM objects, tickets, documents in a vendor's own store</text>
-<text x="22" y="405.83" fill="#c9d1d9" xml:space="preserve"></text>
-<text x="22" y="427.53" fill="#c9d1d9" xml:space="preserve">   2 layer(s) listening · 4 dark for want of a credential · 3 with no resolver at all</text>
-<text x="22" y="449.23" fill="#c9d1d9" xml:space="preserve"></text>
-<text x="22" y="470.93" fill="#c9d1d9" xml:space="preserve">   An agent working here reaches 32 objects, across 8 gated parameter(s).</text>
-<text x="22" y="492.63" fill="#c9d1d9" xml:space="preserve">   It bounds what one credential can address here; it does not measure any single call. Nothing in a</text>
-<text x="22" y="514.33" fill="#c9d1d9" xml:space="preserve">permission system reports either number — it answers whether, not how many.</text>
-<text x="22" y="536.03" fill="#c9d1d9" xml:space="preserve"></text>
-<text x="22" y="557.73" fill="#c9d1d9" xml:space="preserve">── 3. OBSERVE ──────────────────────────────────────────  YOUR files, a captured session's shape</text>
-<text x="22" y="579.43" fill="#c9d1d9" xml:space="preserve">   40 calls re-run · 40 allowed, nothing blocked (observe mode)</text>
-<text x="22" y="601.13" fill="#c9d1d9" xml:space="preserve"></text>
-<text x="22" y="622.83" fill="#c9d1d9" xml:space="preserve">── 4. REPORT &amp; PROPOSE ─────────────────────────────────  from the traffic above</text>
-<text x="22" y="644.53" fill="#c9d1d9" xml:space="preserve">   Grep /path  n=40  p95=24  max=24</text>
-<text x="22" y="666.23" fill="#c9d1d9" xml:space="preserve">     proposed  confirm above 50   block above 500</text>
-<text x="22" y="687.93" fill="#c9d1d9" xml:space="preserve"></text>
-<text x="22" y="709.63" fill="#c9d1d9" xml:space="preserve">── 5. ENFORCE ──────────────────────────────────────────  the same calls, ceilings on</text>
-<text x="22" y="731.33" fill="#c9d1d9" xml:space="preserve">   blocked 0 · asked about 0 · allowed 40</text>
-<text x="22" y="753.03" fill="#c9d1d9" xml:space="preserve">   Nothing in this traffic exceeded the block ceiling — these numbers came from it,</text>
-<text x="22" y="774.73" fill="#c9d1d9" xml:space="preserve">   so they bind on what has not happened yet rather than on what has.</text>
-<text x="22" y="796.43" fill="#c9d1d9" xml:space="preserve"></text>
-<text x="22" y="818.13" fill="#c9d1d9" xml:space="preserve">── 6. AUDIT ────────────────────────────────────────────  offline, forever</text>
-<text x="22" y="839.83" fill="#c9d1d9" xml:space="preserve">   40 records, chain intact · 40 decisions re-derive to the same verdict</text>
-<text x="22" y="861.53" fill="#c9d1d9" xml:space="preserve"></text>
-<text x="22" y="883.23" fill="#c9d1d9" xml:space="preserve">Measured on this machine. The magnitudes are yours — every one was produced by walking these files, through</text>
-<text x="22" y="904.93" fill="#c9d1d9" xml:space="preserve">the same decision path the gate uses in production. The *sequence* of calls in act 3 is a captured</text>
-<text x="22" y="926.63" fill="#c9d1d9" xml:space="preserve">session's, not yours: the numbers are real, the story is borrowed.</text>
-<text x="22" y="948.33" fill="#c9d1d9" xml:space="preserve"></text>
-<text x="22" y="970.03" fill="#c9d1d9" xml:space="preserve">Six acts about one runtime. `neti prove` runs one call through every door this machine</text>
-<text x="22" y="991.73" fill="#c9d1d9" xml:space="preserve">has — the hook, both MCP transports, and whichever agent SDKs are installed — and shows</text>
-<text x="22" y="1013.43" fill="#c9d1d9" xml:space="preserve">they reach the same verdict, the same magnitude and the same sentence.</text>
+<text x="22" y="319.03" fill="#c9d1d9" xml:space="preserve">   listening   shell                      32 objects</text>
+<text x="22" y="340.73" fill="#c9d1d9" xml:space="preserve">   no resolver messaging                   — Slack, Teams, outbound email outside a directory</text>
+<text x="22" y="362.43" fill="#c9d1d9" xml:space="preserve">   no resolver SaaS records                — CRM objects, tickets, documents in a vendor's own store</text>
+<text x="22" y="384.13" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="405.83" fill="#c9d1d9" xml:space="preserve">   3 layer(s) listening · 4 dark for want of a credential · 2 with no resolver at all</text>
+<text x="22" y="427.53" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="449.23" fill="#c9d1d9" xml:space="preserve">   An agent working here reaches 32 objects, across 1 gated parameter(s).</text>
+<text x="22" y="470.93" fill="#c9d1d9" xml:space="preserve">   It bounds what one credential can address here; it does not measure any single call. Nothing in a</text>
+<text x="22" y="492.63" fill="#c9d1d9" xml:space="preserve">permission system reports either number — it answers whether, not how many.</text>
+<text x="22" y="514.33" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="536.03" fill="#c9d1d9" xml:space="preserve">── 3. OBSERVE ──────────────────────────────────────────  YOUR files, a captured session's shape</text>
+<text x="22" y="557.73" fill="#c9d1d9" xml:space="preserve">   40 calls re-run · 40 allowed, nothing blocked (observe mode)</text>
+<text x="22" y="579.43" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="601.13" fill="#c9d1d9" xml:space="preserve">── 4. REPORT &amp; PROPOSE ─────────────────────────────────  from the traffic above</text>
+<text x="22" y="622.83" fill="#c9d1d9" xml:space="preserve">   Grep /path  n=40  p95=24  max=24</text>
+<text x="22" y="644.53" fill="#c9d1d9" xml:space="preserve">     proposed  confirm above 50   block above 500</text>
+<text x="22" y="666.23" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="687.93" fill="#c9d1d9" xml:space="preserve">── 5. ENFORCE ──────────────────────────────────────────  the same calls, ceilings on</text>
+<text x="22" y="709.63" fill="#c9d1d9" xml:space="preserve">   blocked 0 · asked about 0 · allowed 40</text>
+<text x="22" y="731.33" fill="#c9d1d9" xml:space="preserve">   Nothing in this traffic exceeded the block ceiling — these numbers came from it,</text>
+<text x="22" y="753.03" fill="#c9d1d9" xml:space="preserve">   so they bind on what has not happened yet rather than on what has.</text>
+<text x="22" y="774.73" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="796.43" fill="#c9d1d9" xml:space="preserve">── 6. AUDIT ────────────────────────────────────────────  offline, forever</text>
+<text x="22" y="818.13" fill="#c9d1d9" xml:space="preserve">   40 records, chain intact · 40 decisions re-derive to the same verdict</text>
+<text x="22" y="839.83" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="861.53" fill="#c9d1d9" xml:space="preserve">Measured on this machine. The magnitudes are yours — every one was produced by walking these files, through</text>
+<text x="22" y="883.23" fill="#c9d1d9" xml:space="preserve">the same decision path the gate uses in production. The *sequence* of calls in act 3 is a captured</text>
+<text x="22" y="904.93" fill="#c9d1d9" xml:space="preserve">session's, not yours: the numbers are real, the story is borrowed.</text>
+<text x="22" y="926.63" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="948.33" fill="#c9d1d9" xml:space="preserve">Six acts about one runtime. `neti prove` runs one call through every door this machine</text>
+<text x="22" y="970.03" fill="#c9d1d9" xml:space="preserve">has — the hook, both MCP transports, and whichever agent SDKs are installed — and shows</text>
+<text x="22" y="991.73" fill="#c9d1d9" xml:space="preserve">they reach the same verdict, the same magnitude and the same sentence.</text>
 </svg>

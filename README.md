@@ -469,6 +469,7 @@ A seam without a resolver is a place to write `allow`, so this list is the real 
 | resolver | unit | one call resolves | cost |
 |---|---|---|---|
 | `fs.paths` | objects | a path, directory or glob | local walk, capped |
+| `shell.paths` | objects | a shell command's destructive targets | reads `rm`, `find -delete`, `git clean`; declines everything else |
 | `db.rows` | rows | `DELETE`/`UPDATE` → `select count(*)` | one scan |
 | `storage.objects` | objects | `s3://bucket/prefix` | paginated list, capped |
 | `github.repos` | repositories | `owner` → every repo in the org | one request |

@@ -86,16 +86,36 @@ def test_the_coding_agent_example_actually_gates_this_repository(tmp_path: Path)
     assert cause["unit"] == "objects"
 
 
-def test_bash_is_ungated_on_purpose_and_says_so() -> None:
-    """The most load-bearing omission in the file.
+def test_bash_is_gated_only_where_the_command_can_be_read_literally() -> None:
+    """This file used to assert that `Bash` stayed **out** of the policy, and the reasoning was
+    sound: *"sizing Bash means parsing a shell command to work out what `rm -rf "$X/../.."` removes
+    — a gate guessing at a string's meaning rather than reading a value."* A gate that guesses makes
+    a weaker claim than this product advertises.
 
-    Sizing `Bash` means parsing a shell command to work out what `rm -rf "$X/../.."` removes — a
-    gate guessing at a string's meaning rather than reading a value. If somebody quietly adds it,
-    the product starts making a weaker claim than it advertises, so the reasoning has to survive in
-    the file next to the gap it explains.
+    `Bash` is gated now, and the objection is not dismissed — it is the specification. `shell.paths`
+    reads a small, explicit set of destructive forms and **declines everything else**, including the
+    exact command that argument was built on. What changed is coverage, not the standard: an agent
+    that wants to delete something runs `rm -rf`, not `Write`, and leaving the one tool it actually
+    destroys through unmeasured was the largest hole in the file.
+
+    So the assertion moved from "Bash is absent" to "Bash is sized only where sizing is honest",
+    which is the property the original test was protecting.
     """
-    text = (EXAMPLES / "coding-agent.yaml").read_text(encoding="utf-8")
-    policy = load_policy(EXAMPLES / "coding-agent.yaml")
+    from neti.resolvers.shell import targets_of
 
-    assert "Bash" not in policy.tools, "Bash must stay out of scope (NC-09)"
-    assert "NC-09" in text and "NC-10" in text, "the reasoning must stay with the omission"
+    policy = load_policy(EXAMPLES / "coding-agent.yaml")
+    text = (EXAMPLES / "coding-agent.yaml").read_text(encoding="utf-8")
+
+    assert "Bash" in policy.tools, "the tool an agent actually destroys through must be gated"
+    assert policy.tools["Bash"].gate["/command"].resolver == "shell.paths"
+
+    # The command the original objection was written about. It must still be declined.
+    assert not targets_of('rm -rf "$X/../.."').understood, (
+        "the resolver claimed a command containing a shell variable — that is the guessing this "
+        "was never allowed to do"
+    )
+
+    # And the posture that keeps it usable: an unreadable command is the operator's call, not the
+    # parser's. Anything stricter than `allow` here would put every `npm test` in front of a human.
+    assert policy.tools["Bash"].gate["/command"].on_unresolved.name.lower() == "allow"
+    assert "on_unresolved: allow" in text, "the reasoning must stay with the decision"
