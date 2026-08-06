@@ -22,6 +22,8 @@ import { motion, type Variants } from "framer-motion";
 import {
   Activity,
   FileCheck,
+  Compass,
+  Cpu,
   Gauge,
   Plug,
   ScrollText,
@@ -36,12 +38,17 @@ import { useConsole } from "@/components/ConsoleProvider";
 
 const NAV = [
   { href: "/", label: "Overview", icon: Gauge },
+  // Second, not last. Somebody who needs it needs it before anything else on this list, and
+  // somebody who does not will never look — the overview stops showing the walkthrough the moment
+  // their first call is recorded, so this is the only way back to it.
+  { href: "/start", label: "Getting started", icon: Compass },
   { href: "/gate", label: "Live gate", icon: Activity },
   { href: "/decisions", label: "Decisions", icon: ScrollText },
   { href: "/policy", label: "Policy", icon: SlidersHorizontal },
   { href: "/approvals", label: "Approvals", icon: UserCheck },
   { href: "/audit", label: "Audit", icon: FileCheck },
   { href: "/scorecard", label: "Scorecard", icon: Target },
+  { href: "/models", label: "Models", icon: Cpu },
   { href: "/connect", label: "Connect", icon: Plug },
 ];
 
@@ -134,7 +141,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
 
       </motion.aside>
 
-      <main className="min-h-[100dvh] flex-1 md:ml-16">{children}</main>
+      {/* `min-w-0`, and it is load-bearing twice over.
+          A flex child defaults to `min-width: auto`, so it refuses to shrink below its content —
+          which means `flex-1` sized this to the full row *and* `md:ml-16` then pushed it 64px
+          further, making the document 64px wider than the viewport on every page in the console.
+          The body scrolled sideways everywhere, which DESIGN.md forbids and nothing had measured.
+          It also stops a wide child — a long command line, a table — from doing the same thing
+          from the inside. */}
+      <main className="min-h-[100dvh] min-w-0 flex-1 md:ml-16">{children}</main>
     </div>
   );
 }

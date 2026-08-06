@@ -75,23 +75,29 @@ export default function ScorecardPage() {
             />
           </div>
 
-          <div className="space-y-5">
+          {/* `space-y` between rows that each carry a `border-t` is what made this look cut: the
+              rule floats detached 8px above its own content, so every incident read as a slab that
+              had lost its top. A list is continuous — one rule between neighbours, none floating —
+              and the space goes where it means something, above the bucket heading. */}
+          <div>
             {BUCKETS.map((b) => {
               const rows = data.incidents[b.key] ?? [];
               if (!rows.length) return null;
               return (
-                <section key={b.key}>
+                <section key={b.key} className="mt-10 first:mt-0">
                   <div className="flex flex-wrap items-baseline gap-x-3">
-                    <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+                    <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight">
                       <BucketIcon coverage={b.key} />
                       {b.title}
                     </h2>
-                    <span className="tnum text-xs text-muted-foreground">{rows.length}</span>
+                    <span className="tnum text-xs text-muted-foreground">
+                      {rows.length} {rows.length === 1 ? "incident" : "incidents"}
+                    </span>
                   </div>
-                  <p className="mt-1 max-w-3xl text-[13px] leading-relaxed text-muted-foreground">
+                  <p className="mt-1.5 max-w-3xl text-[13px] leading-relaxed text-muted-foreground">
                     {b.blurb}
                   </p>
-                  <div className="mt-3 space-y-2">
+                  <div className="mt-4 border-b border-border">
                     {rows.map((i) => (
                       <IncidentCard key={i.id} incident={i} />
                     ))}
@@ -101,8 +107,8 @@ export default function ScorecardPage() {
             })}
           </div>
 
-          <section>
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+          <section className="pt-2">
+            <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight">
               <CircleSlash className="h-4 w-4 text-muted-foreground" />
               What it does not see, by construction
             </h2>
@@ -110,7 +116,7 @@ export default function ScorecardPage() {
               These are not bugs and they are not roadmap. They are the boundary of the claim, and
               they are written down so nobody has to discover them during an incident.
             </p>
-            <div className="panel mt-3 grid gap-x-8 gap-y-2 p-5 sm:grid-cols-2">
+            <div className="mt-4 grid gap-x-10 gap-y-3 border-t border-border pt-4 sm:grid-cols-2">
               {Object.entries(data.known_blind_spots).map(([id, text]) => (
                 <div key={id} className="flex gap-2.5 text-[13px]">
                   <span className="flex-shrink-0 font-mono text-[11px] leading-5 text-muted-foreground">
@@ -122,8 +128,8 @@ export default function ScorecardPage() {
             </div>
           </section>
 
-          <section>
-            <h2 className="flex items-center gap-1.5 text-sm font-semibold">
+          <section className="pt-2">
+            <h2 className="flex items-center gap-2 text-base font-semibold tracking-tight">
               <Clock className="h-4 w-4 text-muted-foreground" />
               Not yet measured
             </h2>
@@ -132,7 +138,7 @@ export default function ScorecardPage() {
               figure in the design documents is modelled, and no published Graph percentile exists to
               model it against.
             </p>
-            <ul className="panel mt-3 space-y-2 p-5">
+            <ul className="mt-4 space-y-2.5 border-t border-border pt-4">
               {data.not_yet_measured.map((m) => {
                 const blocked = /REQUIRES|UNVERIFIED/.test(m);
                 return (
@@ -174,10 +180,11 @@ function IncidentCard({ incident }: { incident: Incident }) {
   return (
     <div
       className={cn(
-        "border-t border-border py-4",
+        "border-t border-border py-5",
         // Only the catches get an accent edge. Tinting a miss would be the console editorialising
-        // about a row whose whole job is to say "this one gets past us".
-        caught && "border-l-2 border-l-[hsl(var(--verdict-allow))]",
+        // about a row whose whole job is to say "this one gets past us". `pl-4` because a rule
+        // with text flush against it reads as a crop rather than a marker.
+        caught ? "border-l-2 border-l-[hsl(var(--verdict-allow))] pl-4" : "pl-[18px]",
       )}
     >
       <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">

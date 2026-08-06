@@ -193,17 +193,25 @@ def start(
     typer.echo("")
 
     # ---------------------------------------------------------------- 4. what happens next
+    #
+    # `neti console` is named first and named as the walkthrough, because it *is* one now: it opens
+    # on five steps read live off this machine, with this policy's path in the commands and every
+    # agent it found here listed by name, and each step ticks itself as you do it. Pointing somebody
+    # at `docs/TUTORIAL.md` instead was pointing them at a repository path that a `pip install` does
+    # not have — the walkthrough was outside the product, which is the whole thing that was wrong.
     typer.secho("4. What to do next", bold=True)
-    typer.echo("   Today   neti install          put the gate in front of Claude Code")
-    typer.echo("           ...then work normally. Nothing is blocked; everything is recorded.")
+    typer.echo("   Walk it   neti console         five steps, checked live against this machine")
+    typer.echo("             The console opens on Getting started and ticks each step off as you")
+    typer.echo("             do it. Everything below is on that page, with your own paths in it.")
     typer.echo("")
-    typer.echo("   Tomorrow neti report          what your agent actually touched")
-    typer.echo("            neti propose         ceilings derived from that, for you to review")
-    typer.echo("            neti console         the same thing to look at, in a browser")
+    typer.echo("   Today     neti install         put the gate in front of Claude Code")
+    typer.echo("             ...then work normally. Nothing is blocked; everything is recorded.")
+    typer.echo("")
+    typer.echo("   Tomorrow  neti report          what your agent actually touched")
+    typer.echo("             neti propose         ceilings derived from that, for you to review")
     typer.echo("")
     typer.echo("   Only once you have committed a ceiling does anything get blocked. The number")
     typer.echo("   comes from your own traffic, so you are never asked to guess one.\n")
-    typer.echo("   The whole walkthrough, with real numbers: docs/TUTORIAL.md\n")
 
 
 @app.command(rich_help_panel="Start here")

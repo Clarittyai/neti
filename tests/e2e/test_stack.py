@@ -81,7 +81,7 @@ def test_a_layer_without_its_credential_is_dark_and_names_the_variable(
     assert variable in row.note  # type: ignore[attr-defined]
 
 
-@pytest.mark.parametrize("layer", ["shell", "messaging", "SaaS records"])
+@pytest.mark.parametrize("layer", ["messaging", "SaaS records"])
 def test_the_layers_with_no_resolver_are_listed_too(layer: str, bare: Path) -> None:
     """The honest half. These are where an agent acts and nothing here measures it — naming them
     beside the numbers is what stops the table reading as a clean bill of health."""
@@ -91,15 +91,20 @@ def test_the_layers_with_no_resolver_are_listed_too(layer: str, bare: Path) -> N
     assert row.layer.what, "an uncovered layer still has to say what it is"  # type: ignore[attr-defined]
 
 
-def test_the_shell_row_carries_its_reasoning(bare: Path) -> None:
-    """`Bash` is the most consequential gap and the one most likely to be read as an oversight.
+def test_the_shell_row_says_what_it_covers_and_what_it_declines(bare: Path) -> None:
+    """`Bash` is the most consequential layer and the one most likely to be over-read.
 
-    It is a decision: sizing it means parsing a shell command to work out what `rm -rf "$X/../.."`
-    removes, which is a gate guessing at a string rather than reading a value.
+    `shell.paths` sizes a small, explicit set of forms and declines the rest — a pipeline, a
+    subshell, a wrapper script. A row that said only "covered" would claim the whole shell, which
+    is exactly the false comfort the survey exists to prevent, so the row has to carry the limit
+    next to the coverage.
     """
     row = by_name(survey(bare))["shell"]
 
-    assert "NC-09" in row.layer.what and "NC-10" in row.layer.what  # type: ignore[attr-defined]
+    assert row.state is State.LISTENING  # type: ignore[attr-defined]
+    what = row.layer.what.lower()  # type: ignore[attr-defined]
+    assert "rm" in what, "the row has to say which forms it can actually size"
+    assert "declines" in what, "and that everything else is declined rather than covered"
 
 
 def test_a_credential_lights_a_layer_up(bare: Path, monkeypatch: pytest.MonkeyPatch) -> None:

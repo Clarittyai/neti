@@ -154,7 +154,7 @@ limit: neti gates a call at a seam it can occupy, and an agent whose tools never
 is not gated — which SCOPE.md NC-09 already says about ungated tools, applied to whole runtimes.
 """
 
-_RESOLVER_FAMILIES = ("entra", "fs", "db", "storage", "terraform")
+_RESOLVER_FAMILIES = ("entra", "fs", "db", "storage", "terraform", "shell")
 """The worlds `tests/e2e/worlds.py` drives every seam against.
 
 Named rather than counted for the same reason as `SEAMS`, and pinned by the same property test.
@@ -233,6 +233,11 @@ NON_COVERAGE = {
     "NC-14": (
         "what a code-executing agent's generated code does directly: a CodeAgent writes Python "
         "and runs it, and `open` or `subprocess` crosses no tool boundary for a gate to sit on"
+    ),
+    "NC-15": (
+        "a shell command whose destruction is not visible in the string: `./cleanup.sh` deletes "
+        "and no textual signal will ever see it. `on_unsized_risk` surfaces the recognised-but-"
+        "unsizeable half; a wrapper hides the verb outright"
     ),
 }
 

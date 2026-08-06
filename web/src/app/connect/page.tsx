@@ -31,6 +31,12 @@ export default function ConnectPage() {
 
   const demo = state?.mode === "demo";
   const connected = state?.connected ?? false;
+  // Does this policy ask a directory anything at all? A coding agent gated on `fs.paths` does not,
+  // and this page led with a "Microsoft 365 · Entra ID — Connected to this machine" card for one:
+  // a product name over a status that was not about it, for a credential the install neither has
+  // nor needs. The same wrong assumption that once branded a filesystem gate a "Demo tenant",
+  // surviving in the one place a new arrival is sent to first.
+  const directory = state?.binds_directory ?? false;
 
   const onConnect = async () => {
     setBusy(true);
@@ -50,8 +56,14 @@ export default function ConnectPage() {
   return (
     <Page
       title="Connect"
-      lede="Two connections, in this order: the directory the gate asks how big something is, and the agent whose calls it sits in front of."
+      lede={
+        directory
+          ? "Two connections, in this order: the directory the gate asks how big something is, and the agent whose calls it sits in front of."
+          : "One connection: the agent whose calls the gate sits in front of. This policy resolves off this machine, so there is no directory to reach and nothing to authenticate."
+      }
     >
+      {directory ? (
+        <>
       <h2 className="mb-3 text-sm font-semibold">The directory</h2>
       <div className="panel max-w-3xl p-6">
         <div className="flex items-start gap-4">
@@ -191,6 +203,20 @@ export default function ConnectPage() {
           ) : null}
         </div>
       ) : null}
+
+        </>
+      ) : (
+        // Not an empty state and not a missing feature — a fact. `fs.paths`, `shell.paths`,
+        // `terraform.destroy` and `db.rows` against a local file all measure without asking anyone
+        // for anything, and a page that framed that as "not connected yet" was describing a
+        // fully working install as broken.
+        <p className="max-w-3xl border-l-2 border-accent bg-accent/[0.04] py-3 pl-3.5 pr-4 text-[13px] leading-relaxed text-muted-foreground">
+          <strong className="font-medium text-foreground">Nothing to connect.</strong> This policy
+          binds {state?.resolvers.join(", ")}, which resolve off this machine — no credential, no
+          directory, no network. Every magnitude it reports is measured from real files here. The
+          only wiring left is the half below.
+        </p>
+      )}
 
       <div className="mt-10">
         <Install />

@@ -38,6 +38,13 @@ class ConsoleState:
     policy: Policy
     sink: JsonlSink
     records_path: Path
+    config_path: Path
+    """Where the policy came from.
+
+    Kept because the onboarding walkthrough hands people commands to run, and `neti install -c
+    <policy>` is only useful if it names the policy this console is actually holding. A tutorial
+    that prints a placeholder path is a tutorial somebody has to translate."""
+
     demo: bool
     tenant_label: str
     tenant: SyntheticTenant | None = None
@@ -68,6 +75,13 @@ class ConsoleState:
             "policy_digest": self.policy.digest(),
             "policy_mode": self.policy.mode.name.lower(),
             "gated_tools": sorted(t for t in self.policy.tools if self.policy.gate_specs(t)),
+            # Whether this policy asks a directory anything at all. `/connect` led with a
+            # "Microsoft 365 · Entra ID — Connected" card for a coding-agent install whose every
+            # gate is `fs.paths`, which binds no directory and has no credential to connect with.
+            # The same wrong assumption that once branded a filesystem gate a "Demo tenant" and
+            # offered its fixture groups as targets, surviving in one more place.
+            "binds_directory": self.policy.binds_entra(),
+            "resolvers": sorted(self.policy.bound_resolvers()),
             "records": str(self.records_path),
             # Ground truth, published on purpose. In demo mode the viewer can check every number the
             # resolver returns against what the fixture declares.
@@ -102,6 +116,23 @@ class ConsoleState:
             # Carried across the rebuild. Dropping it here would mark records synthetic until the
             # first time somebody flipped the mode — which the console invites them to do, in the
             # act that exists to show the gate deciding.
+            synthetic=self.engine.synthetic,
+        )
+
+    def reload(self) -> None:
+        """Re-read the policy from disk, rebuilding the engine around it.
+
+        Called after the console edits a ceiling. `Policy` is frozen and the digest is a function of
+        its contents, so this replaces rather than mutates — which is the same reason `set_mode`
+        does: a record must say which policy produced it, and a policy with a new ceiling is a
+        different policy. The chain continues across the swap.
+        """
+        self.policy = load_policy(self.config_path)
+        self.engine = Engine(
+            policy=self.policy,
+            resolvers=self.engine.resolvers,
+            ctx=self.engine.ctx,
+            last_digest=self.engine.last_digest,
             synthetic=self.engine.synthetic,
         )
 
@@ -189,6 +220,7 @@ def build_state(
         policy=policy,
         sink=JsonlSink(records_path),
         records_path=records_path,
+        config_path=Path(config),
         demo=on_fixture,
         tenant_label=label,
         tenant=tenant,

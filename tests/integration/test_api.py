@@ -421,3 +421,276 @@ def test_scenarios_are_only_offered_when_the_policy_gates_them(tmp_path: Path) -
     assert response.status_code == 200, response.text
     names = [s["id"] for s in response.json()["scenarios"]]
     assert names == [], f"a filesystem policy was offered scenarios it cannot run: {names}"
+
+
+# --------------------------------------------------------------- the walkthrough
+
+
+def test_the_walkthrough_endpoint_answers_on_a_first_run(tmp_path: Path) -> None:
+    """`/api/start` is what the console opens on before anything has happened.
+
+    Written because `/api/scenarios` shipped returning a 500 for exactly this reason: no test ever
+    called it, the page that used it was the one nobody had traffic for, and the failure only
+    showed up in a browser. An endpoint whose whole audience is people who have done nothing yet is
+    the one most likely to be exercised last.
+    """
+    # No `demo` argument: a filesystem policy has no directory to ask, so "whatever this machine
+    # can actually do" is the honest default and is exactly what a real first run gets.
+    state = build_state(config="examples/coding-agent.yaml", records=tmp_path / "none.ndjson")
+    try:
+        with TestClient(create_app(state)) as c:
+            r = c.get("/api/start")
+            assert r.status_code == 200, r.text
+            body = r.json()
+
+            assert body["decisions"] == 0
+            assert body["complete"] is False
+            assert [s["id"] for s in body["steps"]] == [
+                "policy",
+                "reach",
+                "install",
+                "traffic",
+                "ceilings",
+            ]
+            # The command has to name the policy this console is holding, not a placeholder.
+            install = next(s for s in body["steps"] if s["id"] == "install")
+            assert "examples/coding-agent.yaml" in install["command"]
+    finally:
+        state.close()
+
+
+def test_the_walkthrough_sees_traffic_the_moment_it_is_recorded(connected: Any) -> None:
+    """It is polled, and the point of polling is that a step completes while somebody is watching.
+
+    A cached record count would make the whole thing a static page with a spinner.
+    """
+    assert connected.get("/api/start").json()["decisions"] == 0
+
+    fire(connected, "remove_group_members", "g-eng-all")
+
+    body = connected.get("/api/start").json()
+    traffic = next(s for s in body["steps"] if s["id"] == "traffic")
+    assert body["decisions"] == 1
+    assert traffic["done"] is True
+
+
+# --------------------------------------------------------------- models & policy editing
+
+
+def test_the_models_endpoint_never_returns_a_key(monkeypatch: Any, client: Any) -> None:
+    """The claim the whole page rests on, asserted rather than promised.
+
+    A console that reported a key's *value* would put it in a browser, in a screenshot, and in
+    whatever the browser caches — for a feature whose entire pitch is that nothing extra holds your
+    secrets. `ready` is a boolean about presence and that is the only thing that crosses.
+    """
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "sk-ant-do-not-leak-me")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai-do-not-leak-me")
+
+    r = client.get("/api/models")
+    assert r.status_code == 200, r.text
+    assert "do-not-leak-me" not in r.text
+
+    providers = {p["id"]: p for p in r.json()["providers"]}
+    assert providers["anthropic"]["ready"] is True
+    assert providers["openai"]["ready"] is True
+    # And a local runner needs no key at all, so it is always available.
+    assert providers["local"]["ready"] is True
+    assert len(providers["local"]["runners"]) >= 4
+
+
+def test_a_provider_with_no_key_says_so_rather_than_looking_ready(
+    monkeypatch: Any, client: Any
+) -> None:
+    monkeypatch.delenv("ANTHROPIC_API_KEY", raising=False)
+    providers = {p["id"]: p for p in client.get("/api/models").json()["providers"]}
+
+    assert providers["anthropic"]["ready"] is False
+    assert providers["anthropic"]["env"] == "ANTHROPIC_API_KEY"
+
+
+def test_the_probe_sends_no_authorization_header(monkeypatch: Any, client: Any) -> None:
+    """The first version of this attached `OPENAI_API_KEY`, which would have sent the operator's key
+    to whatever address they typed into a browser field — typos and hostile hosts included.
+
+    Nothing is lost by removing it: a gateway that requires auth answers 401, and *reachable, needs
+    auth* is exactly as useful an answer for a connectivity check.
+    """
+    import urllib.request
+
+    seen: dict[str, Any] = {}
+
+    def fake_open(request: Any, timeout: float = 0) -> Any:
+        seen["headers"] = dict(request.headers)
+        raise urllib.error.URLError("nothing is listening")
+
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-must-not-travel")
+    monkeypatch.setattr(urllib.request, "urlopen", fake_open)
+
+    r = client.post("/api/models/probe", json={"base_url": "https://someone-elses-host.example/v1"})
+    assert r.status_code == 200, r.text
+    assert r.json()["reachable"] is False
+
+    lowered = {k.lower(): v for k, v in seen.get("headers", {}).items()}
+    assert "authorization" not in lowered, "the probe must never carry a credential"
+    assert "must-not-travel" not in r.text
+
+
+def test_the_probe_says_why_rather_than_just_no(client: Any) -> None:
+    """ "Connection refused on 11434" and "404 at /v1/models" send somebody to completely different
+    places. Flattening both to "unreachable" throws away the useful half."""
+    r = client.post("/api/models/probe", json={"base_url": "not-a-url"})
+    assert r.json()["reachable"] is False
+    assert "http" in r.json()["reason"]
+
+    assert client.post("/api/models/probe", json={"base_url": ""}).status_code == 400
+
+
+def test_declaring_a_ceiling_plans_before_it_writes(tmp_path: Path) -> None:
+    """Two calls, and the first one touches nothing.
+
+    Also the endpoint test `/api/scenarios` never had: it shipped returning a 500 because no test
+    called it, and the page that used it was the one nobody had traffic for.
+    """
+    from neti.api.state import build_state
+
+    config = tmp_path / "neti.yaml"
+    config.write_text(
+        Path("examples/coding-agent.yaml").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    original = config.read_text(encoding="utf-8")
+
+    state = build_state(config=config, records=tmp_path / "d.ndjson")
+    try:
+        with TestClient(create_app(state)) as c:
+            body = {
+                "tool": "Glob",
+                "pointer": "/pattern",
+                "bands": [{"above": 500, "verdict": "block"}],
+            }
+
+            planned = c.post("/api/policy/ceiling", json={**body, "apply": False})
+            assert planned.status_code == 200, planned.text
+            assert planned.json()["applied"] is False
+            assert "+        bands:" in planned.json()["diff"]
+            assert config.read_text(encoding="utf-8") == original, "planning must write nothing"
+
+            before_digest = c.get("/api/policy").json()["digest"]
+            written = c.post("/api/policy/ceiling", json={**body, "apply": True})
+            assert written.status_code == 200, written.text
+            assert written.json()["applied"] is True
+            assert written.json()["backup"], "the previous version has to survive"
+
+            # The running console now describes the policy that is on disk, not the one it started
+            # with — and the digest moved, which is correct: a record says which policy decided it.
+            after = c.get("/api/policy").json()
+            assert after["digest"] != before_digest
+            assert after["tools"]["Glob"]["/pattern"]["has_ceiling"] is True
+    finally:
+        state.close()
+
+
+def test_a_ceiling_that_would_not_load_is_refused_by_the_endpoint(tmp_path: Path) -> None:
+    from neti.api.state import build_state
+
+    config = tmp_path / "neti.yaml"
+    config.write_text(
+        Path("examples/coding-agent.yaml").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    original = config.read_text(encoding="utf-8")
+
+    state = build_state(config=config, records=tmp_path / "d.ndjson")
+    try:
+        with TestClient(create_app(state)) as c:
+            r = c.post(
+                "/api/policy/ceiling",
+                json={
+                    "tool": "Glob",
+                    "pointer": "/pattern",
+                    "bands": [{"above": 10, "verdict": "explode"}],
+                    "apply": True,
+                },
+            )
+            assert r.status_code == 400
+            assert config.read_text(encoding="utf-8") == original
+    finally:
+        state.close()
+
+
+def test_a_filesystem_policy_reports_nothing_to_connect(tmp_path: Path) -> None:
+    """`/connect` led with "Microsoft 365 · Entra ID — Connected to this machine" for a coding-agent
+    install: a product name over a status that was not about it, for a credential the install
+    neither has nor needs.
+
+    The same wrong assumption that once branded a filesystem gate a "Demo tenant" and offered its
+    fixture groups as targets, surviving in the one page a new arrival is sent to first. `connected`
+    already said the right thing; nothing had ever asked whether there was anything to connect *to*.
+    """
+    from neti.api.state import build_state
+
+    state = build_state(config="examples/coding-agent.yaml", records=tmp_path / "d.ndjson")
+    try:
+        with TestClient(create_app(state)) as c:
+            s = c.get("/api/state").json()
+            assert s["binds_directory"] is False
+            assert set(s["resolvers"]) == {"fs.paths", "shell.paths"}
+            # And it is connected, because there is nothing to connect: a gate measuring real files
+            # off this machine is not an install that is missing something.
+            assert s["connected"] is True
+    finally:
+        state.close()
+
+
+def test_an_entra_policy_still_reports_a_directory(tmp_path: Path) -> None:
+    """The other half of the same branch — the case the page was built for must keep working."""
+    from neti.api.state import build_state
+
+    state = build_state(config="examples/entra.yaml", records=tmp_path / "d.ndjson", demo=True)
+    try:
+        with TestClient(create_app(state)) as c:
+            s = c.get("/api/state").json()
+            assert s["binds_directory"] is True
+            assert any(r.startswith("entra.") for r in s["resolvers"])
+    finally:
+        state.close()
+
+
+def test_the_trace_narrates_the_resolver_that_actually_ran(tmp_path: Path) -> None:
+    """The live gate's own lede is *nothing here is pre-recorded*, and three of its lines were.
+
+    A `shell.paths` call that read the local filesystem was narrated as an authorised HTTP request
+    to Microsoft — `GroupMember.Read.All`, `ConsistencyLevel: eventual`, `GET → 200` — about a
+    decision that was entirely real. Not a stale label: invented provenance presented as evidence,
+    in a security product, on the page built to be believed.
+    """
+    from neti.api.state import build_state
+
+    state = build_state(config="examples/coding-agent.yaml", records=tmp_path / "d.ndjson")
+    try:
+        with TestClient(create_app(state)) as c:
+            r = c.post(
+                "/api/gate",
+                json={"tool": "Bash", "args": {"command": "rm -rf build"}, "session_id": "t"},
+            )
+            assert r.status_code == 200, r.text
+            details = " ".join(s["detail"] for s in r.json()["trace"]["stages"])
+
+            assert "GroupMember" not in details, "a filesystem gate holds no Graph scope"
+            assert "ConsistencyLevel" not in details, "no Graph header was sent"
+            assert "GET " not in details, "no request was made"
+            assert "no credential" in details
+            # And the resolver has to travel with the stage, which is what made any of this
+            # knowable — the console could not tell which resolver ran.
+            assert any(s.get("payload", {}).get("resolver") for s in r.json()["trace"]["stages"])
+    finally:
+        state.close()
+
+
+def test_the_entra_trace_keeps_its_wire(connected: Any) -> None:
+    """The other half: the case those lines were written for must still show them."""
+    result = fire(connected, "remove_group_members", "g-eng-all")
+    details = " ".join(s["detail"] for s in result["trace"]["stages"])
+
+    assert "GroupMember.Read.All" in details
+    assert "ConsistencyLevel: eventual" in details
+    assert "GET /groups/" in details

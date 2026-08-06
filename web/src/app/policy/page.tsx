@@ -3,9 +3,17 @@
 /**
  * The declared ceilings.
  *
- * Read-only on purpose. Editing a ceiling from a console would make the number something the
- * console owns, and the whole determinism argument rests on it being something a person committed
- * to a file. `neti propose` suggests; a human decides; the gate compares against what was decided.
+ * Ceilings can be declared from here, and the number is still never the console's.
+ *
+ * This page was read-only, on the reasoning that editing here "would make the number something the
+ * console owns". That is the right worry about the wrong mechanism. What must never happen is a
+ * number being *inferred* — `config/policy.py` opens by saying nothing computed becomes a ceiling on
+ * its own. A person typing one into a field, beside their own observed distribution, and reading the
+ * diff before agreeing to it, is exactly as declared as the same person typing it into the file.
+ *
+ * What the read-only version actually produced was a fresh install where every row said "no ceiling
+ * — resolves and records, cannot block", which is a gate that cannot yet do the thing the product is
+ * for, shown to somebody with no obvious way to change it.
  *
  * The session-budget section is not decoration either. A per-call gate is structurally blind to
  * 4,000 individual sends — each resolves to 1 and passes every per-call ceiling — and only a
@@ -13,8 +21,12 @@
  * the console admits the hole rather than hiding it.
  */
 
+import { useState } from "react";
+import { SlidersHorizontal } from "lucide-react";
+
+import { DeclareCeiling } from "@/components/DeclareCeiling";
 import { Failed, Loading, Page, useAsync } from "@/components/Page";
-import { api } from "@/lib/api";
+import { api, type DecisionSummary } from "@/lib/api";
 import { cn, n } from "@/lib/utils";
 
 interface Band {
@@ -40,6 +52,18 @@ export default function PolicyPage() {
   const { data, error, loading, reload } = useAsync(
     () => api.policy() as Promise<unknown> as Promise<PolicyShape>,
   );
+  // The recorded traffic, so a gate can show the distribution its ceiling would be compared
+  // against. Read here rather than inside each row: one request, not one per gate.
+  const decisions = useAsync(() => api.decisions());
+  const [editing, setEditing] = useState<string | null>(null);
+
+  const observedFor = (tool: string, pointer: string): number[] =>
+    (decisions.data?.decisions ?? [])
+      .filter((d: DecisionSummary) => d.tool === tool)
+      .flatMap((d: DecisionSummary) =>
+        d.magnitudes.filter((m) => m.pointer === pointer && m.magnitude !== null),
+      )
+      .map((m) => m.magnitude as number);
 
   return (
     <Page
@@ -71,9 +95,32 @@ export default function PolicyPage() {
                   </span>
                 </div>
                 <div className="divide-y divide-border/40">
-                  {Object.entries(gates).map(([pointer, gate]) => (
-                    <GateRow key={pointer} pointer={pointer} gate={gate} />
-                  ))}
+                  {Object.entries(gates).map(([pointer, gate]) => {
+                    const key = `${tool}${pointer}`;
+                    return (
+                      <div key={key}>
+                        <GateRow
+                          pointer={pointer}
+                          gate={gate}
+                          onDeclare={() => setEditing(editing === key ? null : key)}
+                          open={editing === key}
+                        />
+                        {editing === key ? (
+                          <DeclareCeiling
+                            tool={tool}
+                            pointer={pointer}
+                            unit={gate.unit}
+                            observed={observedFor(tool, pointer)}
+                            onCancel={() => setEditing(null)}
+                            onDone={() => {
+                              setEditing(null);
+                              reload();
+                            }}
+                          />
+                        ) : null}
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             ))}
@@ -126,7 +173,17 @@ export default function PolicyPage() {
   );
 }
 
-function GateRow({ pointer, gate }: { pointer: string; gate: Gate }) {
+function GateRow({
+  pointer,
+  gate,
+  onDeclare,
+  open,
+}: {
+  pointer: string;
+  gate: Gate;
+  onDeclare: () => void;
+  open: boolean;
+}) {
   return (
     <div className="flex flex-wrap items-center gap-x-4 gap-y-2 px-5 py-3">
       <code className="font-mono text-[13px] text-muted-foreground">{pointer}</code>
@@ -148,6 +205,19 @@ function GateRow({ pointer, gate }: { pointer: string; gate: Gate }) {
         <span className="hatched rounded px-2 py-0.5 text-[10px] text-muted-foreground">
           unsizeable → {gate.on_unresolved}
         </span>
+        <button
+          type="button"
+          onClick={onDeclare}
+          className={cn(
+            "inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset transition-colors",
+            open
+              ? "text-accent ring-accent/40"
+              : "text-muted-foreground ring-border hover:text-foreground",
+          )}
+        >
+          <SlidersHorizontal className="h-3 w-3" />
+          {gate.bands.length === 0 ? "Declare a ceiling" : "Change"}
+        </button>
       </span>
     </div>
   );

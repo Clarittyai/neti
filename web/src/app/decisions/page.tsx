@@ -57,8 +57,16 @@ export default function DecisionsPage() {
 function Row({ decision }: { decision: DecisionSummary }) {
   // A call whose every gated parameter came back unsizeable is a different statement from one that
   // was judged too big, and it gets the hatched treatment rather than borrowing a verdict colour.
+  //
+  // Except when the gate could not size it *and knew it destroyed something*. That row keeps its
+  // own verdict — a flag — because "Could not size" is the honest label for `npm test` and a
+  // dangerously calming one for `cat list.txt | xargs rm`. The whole point of the verdict is that
+  // the two stopped looking alike; rendering both as the same neutral chip would put them back.
+  const risky = decision.magnitudes.some((m) => m.magnitude === null && m.destructive);
   const unsizeable =
-    decision.magnitudes.length > 0 && decision.magnitudes.every((m) => m.magnitude === null);
+    !risky &&
+    decision.magnitudes.length > 0 &&
+    decision.magnitudes.every((m) => m.magnitude === null);
 
   return (
     <li>
@@ -94,7 +102,12 @@ function Row({ decision }: { decision: DecisionSummary }) {
           {decision.magnitudes.map((m) => (
             <span key={m.pointer} className="tnum">
               {m.magnitude === null ? (
-                <span className="hatched rounded px-1.5 py-0.5">unsizeable</span>
+                <span
+                  className="hatched rounded px-1.5 py-0.5"
+                  title={m.reason ? `no number: ${m.reason}` : undefined}
+                >
+                  {m.destructive ? "destroys — size unreadable" : "not a sized call"}
+                </span>
               ) : (
                 <>
                   {n(m.magnitude)} {m.unit}

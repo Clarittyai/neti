@@ -72,7 +72,22 @@ def _resolution(cause: dict[str, Any]) -> Resolution:
     if state is not ResolutionState.RESOLVED:
         # Deliberately carries no magnitude — `Resolution` refuses one, which is the invariant that
         # stops a failed count from ever being read as a number.
-        return Resolution(state=state, unit=unit, direction=direction, breakdown=breakdown)
+        #
+        # The destructive signal has to come back with it. `decide` routes an unresolved cause
+        # through `on_unsized_risk` when the resolver recognised the target as destructive, so a
+        # replay that dropped the signal would re-derive `allow` for every recorded `flag` and
+        # report the log as inconsistent with itself. Found by running `neti verify --config` over
+        # a real session rather than by reading this: two flagged calls, both "replays as allow".
+        evidence: dict[str, Any] = {}
+        if cause.get("destructive"):
+            evidence["destructive"] = cause["destructive"]
+        return Resolution(
+            state=state,
+            unit=unit,
+            direction=direction,
+            breakdown=breakdown,
+            evidence=evidence,
+        )
 
     magnitude = cause["magnitude"]
     assert magnitude is not None, "a RESOLVED cause must carry a magnitude"

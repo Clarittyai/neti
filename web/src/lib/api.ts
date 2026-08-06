@@ -71,6 +71,11 @@ export interface ConsoleState {
   policy_digest: string;
   policy_mode: Mode;
   gated_tools: string[];
+  /** Whether this policy binds a resolver that needs a directory credential. False for a coding
+   *  agent gated on `fs.paths`, which has nothing to connect to and is not missing anything. */
+  binds_directory: boolean;
+  /** Every resolver the policy actually binds. */
+  resolvers: string[];
   records: string;
   /** Declared ground truth, published so a viewer can check the resolver rather than trust it. */
   fixture: FixtureGroup[] | null;
@@ -101,6 +106,11 @@ export interface Cause {
   consistency: string;
   resolved_at: string | null;
   provider_snapshot: string | null;
+  /** When there is no magnitude: what gave the target away as destructive, if anything. Null for
+   *  a call that simply is not a deletion. Not knowing has two shapes; this is which one. */
+  destructive?: string | null;
+  /** And why there is no number: `"compound_command"`, and so on. */
+  reason?: string | null;
 }
 
 export interface DecisionRecord {
@@ -194,7 +204,17 @@ export interface DecisionSummary {
    *  the chained record all along. Recorded, never trusted: evidence for a human, input to
    *  nothing. */
   said?: string | null;
-  magnitudes: { pointer: string; magnitude: number | null; unit: string }[];
+  magnitudes: {
+    pointer: string;
+    magnitude: number | null;
+    unit: string;
+    /** When there is no magnitude: what gave the target away as destructive, if anything.
+     *  `"destructive_verb:rm"`, `"git_clean"`, or null for a command that simply is not a
+     *  deletion. Not knowing has two shapes and this is which one. */
+    destructive?: string | null;
+    /** And why no number: `"compound_command"`, `"target_contains_a_shell_variable"`. */
+    reason?: string | null;
+  }[];
 }
 
 export type ApprovalState = "pending" | "granted" | "denied" | "expired";
@@ -267,10 +287,76 @@ export interface Scorecard {
   not_yet_measured: string[];
 }
 
+/** One place on this machine an agent can call a tool from, and how the gate gets in front. */
+export interface Harness {
+  /** `hook` — the harness's own built-in tools, which no proxy can see. `mcp` — a launched server. */
+  kind: "hook" | "mcp";
+  label: string;
+  where: string;
+  gated: boolean;
+  detail: string;
+  command: string;
+}
+
+export interface StartStep {
+  id: string;
+  title: string;
+  why: string;
+  done: boolean;
+  detail: string;
+  command: string;
+  doc: string;
+}
+
+/** The walkthrough, as facts about this machine. Derived on every request — there is no stored
+ *  "onboarding complete" flag, so uninstalling the hook un-ticks its step. */
+export interface StartState {
+  complete: boolean;
+  next: string | null;
+  decisions: number;
+  gated_params: number;
+  with_ceilings: number;
+  mode: Mode;
+  policy: string;
+  steps: StartStep[];
+  harnesses: Harness[];
+}
+
+/** A local model server. Every one of these speaks the OpenAI chat-completions shape, which is why
+ *  "your own endpoint" is the same row with a different address rather than a separate thing. */
+export interface Runner {
+  id: string;
+  label: string;
+  base_url: string;
+  start: string;
+}
+
+/** One place `neti suggest` could send a request. `ready` never reflects a key's *value* — only
+ *  whether the variable the SDK reads is set. No key crosses this boundary in either direction. */
+export interface ProviderStatus {
+  id: string;
+  label: string;
+  ready: boolean;
+  detail: string;
+  env: string;
+  command: string;
+  installs: string;
+  leaves_machine: boolean;
+  runners: Runner[];
+}
+
+export interface ProbeResult {
+  reachable: boolean;
+  base_url: string;
+  models: string[];
+  reason: string;
+}
+
 // ---------------------------------------------------------------------------- calls
 
 export const api = {
   state: () => get<ConsoleState>("/api/state"),
+  start: () => get<StartState>("/api/start"),
   connect: () =>
     post<{ connected: boolean; directory_size: number | null; tenant: string; reason?: string }>(
       "/api/connect",
@@ -281,10 +367,27 @@ export const api = {
   gate: (tool: string, args: Record<string, unknown>, session_id?: string) =>
     post<GateResult>("/api/gate", { tool, args, session_id }),
 
+  models: () => get<{ providers: ProviderStatus[] }>("/api/models"),
+  probeModels: (base_url: string) => post<ProbeResult>("/api/models/probe", { base_url }),
+
+  /** Real things on this machine that the live gate can be pointed at, per gated tool. */
+  targets: () =>
+    get<{
+      targets: Record<
+        string,
+        { pointer: string; arg: string; targets: { value: string; label: string }[] }
+      >;
+    }>("/api/targets"),
   inventory: () => get<{ rows: InventoryRow[] }>("/api/inventory"),
   decisions: () => get<{ total: number; decisions: DecisionSummary[] }>("/api/decisions"),
   decision: (id: string) => get<DecisionRecord>(`/api/decisions/${id}`),
   policy: () => get<Record<string, unknown>>("/api/policy"),
+  setCeiling: (body: {
+    tool: string;
+    pointer: string;
+    bands: { above: number; verdict: Verdict }[];
+    apply: boolean;
+  }) => post<Record<string, unknown>>("/api/policy/ceiling", body),
   report: () => get<Record<string, unknown>>("/api/report"),
   scorecard: () => get<Scorecard>("/api/scorecard"),
   audit: () =>

@@ -142,6 +142,16 @@ LOCAL_CASES = [
     Case("blocked", "terraform_apply", {"plan": "{plan}"}, "block", "terraform", 7),
     Case("allowed", "terraform_apply", {"plan": "{small_plan}"}, "allow", "terraform"),
     Case("unsizeable", "terraform_apply", {"plan": "{state}"}, "block", "terraform"),
+    # --- shell.paths, and the three-way split that `on_unsized_risk` exists for. All three arrive
+    # at the same tool through the same pointer, and one command line is the entire difference.
+    #
+    # `flagged` is the row worth the file: a FLAG *proceeds*, so every seam must hand the call
+    # through exactly as it hands an allow through — same silence, same empty sentence. What
+    # separates them is in the record, not on the wire, and asserting that here would be asserting
+    # it fifteen times about something no seam can vary. `test_unsized_risk.py` owns that half.
+    Case("blocked", "Bash", {"command": "rm -rf {tree}"}, "block", "shell", 30),
+    Case("flagged", "Bash", {"command": "cat list.txt | xargs rm"}, "allow", "shell"),
+    Case("allowed", "Bash", {"command": "npm test"}, "allow", "shell"),
 ]
 
 CASES = [*ENTRA_CASES, *LOCAL_CASES]

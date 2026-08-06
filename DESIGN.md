@@ -84,8 +84,10 @@ Also out:
   matters most.
 - **One accent action per view.** If an empty state carries the CTA, the page header hides its own.
 
-**Anything you press is a pill.** Buttons, toggle rails and their segments, and tabs are
-`rounded-full`. It is the one shape in the system that says *press me*, and reserving it for that
+**Anything you press is a pill — and only what you press.** Buttons, toggle rails and their
+segments, and tabs are `rounded-full`. A square box with a full radius is a *circle*, not a pill, and
+circles are fine anywhere: a status dot, an avatar, a numbered step marker. The distinction the rule
+protects is stadium-versus-rectangle, and nothing equal-sided can be mistaken for a stadium. It is the one shape in the system that says *press me*, and reserving it for that
 makes the distinction carry: a pill is interactive, a rectangle is not. Inputs and text areas keep a
 normal radius — a pill-shaped multi-line field reads as a chat box, which is a promise about what
 happens when you type in it.
@@ -140,6 +142,10 @@ screen instead of clipping it.
 
 ## Pre-flight, before shipping any UI
 
+0. **Measure, do not eyeball.** Contrast and overflow are numbers, and both of the worst defects
+   this console has shipped were invisible to a careful look and obvious to two lines of JavaScript:
+   `document.documentElement.scrollWidth > innerWidth`, and a WCAG ratio between a colour and its
+   composited background. The tests now compute both from the tokens.
 1. Both themes. Not "it looks fine in dark".
 2. 375px wide. `Stage` exists because of this.
 3. Reduced motion on — every scene still says something.
@@ -158,6 +164,10 @@ screen instead of clipping it.
 | `globals.css` claimed the accent "was CHOSEN BY RUNNING THE PALETTE VALIDATOR" — no validator existed anywhere in the repo, and its cited number could not be reproduced | The measurement lives in a test that recomputes it |
 | `/gate`'s empty state was a dashed rounded rectangle | `EmptyState`, open space, a live scene |
 | The overview was three bordered boxes stacked on a bordered table | Sections separated by rules |
+| The scorecard put `border-t` on every row inside a `space-y-2` list, so each rule floated detached above its own content and every row read as cropped | A list is continuous — one rule between neighbours, none floating, and the space goes above the heading |
+| The pill check read one line at a time, so a `className` inside a multi-line `<button>` looked like a container and the fix was to restyle the button until the test agreed | It resolves the nearest enclosing JSX tag, so the rule is about the element rather than about the padding |
+| `<main>` was `flex-1` with no `min-w-0`, so it could not shrink below its content and every page in the console scrolled horizontally | `min-w-0` on the flex child, asserted in a test |
+| Both themes shipped the same verdict colours; on the light background amber measured 1.99:1 and all three were under 4.5 | Each theme has its own values, hue held and lightness moved, with the contrast computed from the tokens in a test |
 | `Empty` in `Page.tsx`, a dashed box in `gate/page.tsx`, and nothing on seven other pages | One `EmptyState` primitive |
 
 *Keep this current.* When a design decision gets made, or a mistake gets caught twice, it goes in

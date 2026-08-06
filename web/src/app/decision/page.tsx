@@ -84,12 +84,17 @@ function Decision() {
           <div className="border-t border-border py-5">
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div className="min-w-0">
+                {/* A flag proceeds, so the old `else` branch called it "allowed" — the one word
+                    this verdict exists to not be. It ran *and* somebody is meant to look at it,
+                    and a headline that says "allowed" is read as "nothing to see here". */}
                 <h2 className="text-base font-semibold">
                   {data.verdict === "block"
                     ? "This call was stopped"
                     : data.verdict === "confirm"
                       ? "This call needs a human"
-                      : "This call was allowed"}
+                      : data.verdict === "flag"
+                        ? "This call ran, and was flagged for you"
+                        : "This call was allowed"}
                 </h2>
                 <p className="mt-1 font-mono text-[13px] text-muted-foreground">
                   {data.tool}({Object.entries(data.args)
@@ -99,7 +104,14 @@ function Decision() {
               </div>
               <VerdictPill
                 verdict={
-                  data.causes.length > 0 && data.causes.every((c) => c.magnitude === null)
+                  // A cause the gate could not size *and knew was destructive* keeps its own
+                  // verdict. "Could not size" is the right label for `npm test` and a calming lie
+                  // for `cat list.txt | xargs rm`; collapsing both to it here would undo, in the
+                  // one view built for reading a single decision, the distinction the record
+                  // exists to carry.
+                  data.causes.length > 0 &&
+                  data.causes.every((c) => c.magnitude === null) &&
+                  !data.causes.some((c) => c.destructive)
                     ? "unknown"
                     : data.verdict
                 }
@@ -191,6 +203,7 @@ function Decision() {
 
 function CauseCard({ cause }: { cause: Cause }) {
   const unsizeable = cause.magnitude === null;
+  const risky = unsizeable && Boolean(cause.destructive);
   return (
     <div
       className={cn(
@@ -202,13 +215,25 @@ function CauseCard({ cause }: { cause: Cause }) {
     >
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <code className="font-mono text-xs text-muted-foreground">{cause.pointer}</code>
-        <VerdictPill verdict={unsizeable ? "unknown" : cause.verdict} />
+        <VerdictPill verdict={unsizeable && !risky ? "unknown" : cause.verdict} />
       </div>
 
-      {unsizeable ? (
+      {risky ? (
         <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-          Could not be sized. The declared <code className="font-mono">on_unresolved</code> policy
-          applied — the gate does not guess, and a failed lookup is never read as zero.
+          <strong className="font-medium text-foreground">
+            This destroys something, and its size was not readable from the argument.
+          </strong>{" "}
+          Recognised as <code className="font-mono">{cause.destructive}</code>; no number because{" "}
+          <code className="font-mono">{cause.reason}</code>. The declared{" "}
+          <code className="font-mono">on_unsized_risk</code> policy applied. The gate blocks on
+          numbers and does not have one here, so the call was recorded and surfaced rather than
+          stopped — widening the parser is the only thing that turns this into a ceiling.
+        </p>
+      ) : unsizeable ? (
+        <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+          Could not be sized, and nothing about it looked destructive. The declared{" "}
+          <code className="font-mono">on_unresolved</code> policy applied — the gate does not guess,
+          and a failed lookup is never read as zero.
         </p>
       ) : (
         <>

@@ -18,7 +18,14 @@ from dataclasses import dataclass, field
 from neti.core.record import DecisionRecord
 from neti.core.units import Direction, may_allow
 
-__all__ = ["Distribution", "Observation", "ReportSummary", "build_report", "format_report"]
+__all__ = [
+    "Distribution",
+    "Flagged",
+    "Observation",
+    "ReportSummary",
+    "build_report",
+    "format_report",
+]
 
 
 @dataclass(frozen=True)
@@ -39,6 +46,29 @@ class Observation:
         return may_allow(Direction(self.direction))
 
 
+@dataclass(frozen=True)
+class Flagged:
+    """A call that destroyed something whose size nobody could read.
+
+    The report used to say only *"3 could not be resolved"*, which reads as three harmless commands
+    — and for `npm test` it is exactly right. It was also what `cat list.txt | xargs rm` looked
+    like. These are pulled out by name because the whole point of `on_unsized_risk` is that the two
+    stop sharing a line.
+    """
+
+    decision_id: str
+    tool: str
+    target: str
+    reason: str
+    """Why no number: `compound_command`, `target_contains_a_shell_variable`, and so on."""
+
+    form: str
+    """What gave it away as destructive: `destructive_verb:rm`, `find_delete`, `git_clean`."""
+
+    said: str | None = None
+    """What the agent called it, when the tool carries a description."""
+
+
 @dataclass
 class Distribution:
     """Observed magnitudes for one (tool, parameter) pair."""
@@ -48,6 +78,9 @@ class Distribution:
     unit: str
     observations: list[Observation] = field(default_factory=list)
     unresolved: int = 0
+    unsized_risk: int = 0
+    """Of the unresolved, how many destroyed something. The rest are `npm test`."""
+
     over_ceiling: list[tuple[str, int, int]] = field(default_factory=list)
     """`(decision_id, observed, ceiling)` for every call that breached — the tail that sells."""
 
@@ -115,6 +148,9 @@ class ReportSummary:
     a breach does not have to go and find the record themselves.
     """
 
+    flagged: list[Flagged] = field(default_factory=list)
+    """Every unmeasured deletion in the window, in the order it happened."""
+
     synthetic: int = 0
     """How many of these decisions came from `--demo` rather than from a provider.
 
@@ -153,6 +189,19 @@ def build_report(records: Iterable[DecisionRecord]) -> ReportSummary:
             magnitude = cause.get("magnitude")
             if magnitude is None:
                 dist.unresolved += 1
+                if cause.get("destructive"):
+                    dist.unsized_risk += 1
+                    said = (record.args or {}).get("description")
+                    summary.flagged.append(
+                        Flagged(
+                            decision_id=record.decision_id,
+                            tool=record.tool,
+                            target=str(cause.get("target") or ""),
+                            reason=str(cause.get("reason") or "unknown"),
+                            form=str(cause.get("destructive") or "destructive"),
+                            said=said.strip() if isinstance(said, str) and said.strip() else None,
+                        )
+                    )
                 continue
             dist.observations.append(
                 Observation(
@@ -219,7 +268,10 @@ def format_report(summary: ReportSummary, *, window: str = "all recorded") -> st
             f"p99={dist.p99:,}   max={dist.maximum:,}  [{dist.unit}]"
         )
         if dist.unresolved:
-            out.append(f"    {dist.unresolved:,} could not be resolved")
+            line = f"    {dist.unresolved:,} could not be resolved"
+            if dist.unsized_risk:
+                line += f" — {dist.unsized_risk:,} of them destroyed something (see below)"
+            out.append(line)
         if dist.over_ceiling:
             worst = sorted(dist.over_ceiling, key=lambda b: -b[1])[:3]
             out.append(f"    ▸ {len(dist.over_ceiling)} call(s) exceeded a declared ceiling")
@@ -234,4 +286,24 @@ def format_report(summary: ReportSummary, *, window: str = "all recorded") -> st
                     # two is the thing worth a person's attention, and it is free — the words were
                     # already in the sealed record.
                     out.append(f'            the agent said: "{said}"')
+
+    if summary.flagged:
+        # Its own section, below the distributions, because it is not a distribution: there is no
+        # number to put in one. These are the calls neti watched destroy something it could not
+        # measure, and a reader who only sees "could not be resolved" has been told the opposite of
+        # what happened.
+        out.append("")
+        out.append(f"UNMEASURED DELETIONS — {len(summary.flagged):,} call(s) ran and were flagged")
+        out.append("   Recognised as destructive; the size was not readable from the argument.")
+        for item in summary.flagged[:10]:
+            out.append("")
+            out.append(f"    {item.tool}  ({item.decision_id[:8]})")
+            out.append(f"        {item.target}")
+            out.append(f"        {item.form}, unsizeable: {item.reason}")
+            if item.said:
+                out.append(f'        the agent said: "{item.said}"')
+        if len(summary.flagged) > 10:
+            out.append("")
+            out.append(f"    … and {len(summary.flagged) - 10:,} more")
+
     return "\n".join(out)

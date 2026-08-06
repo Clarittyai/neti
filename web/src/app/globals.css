@@ -47,7 +47,11 @@
     --secondary-foreground: 222 47% 11%;
 
     --muted: 210 40% 96%;              /* #F1F5F9 */
-    --muted-foreground: 215 16% 47%;
+    /* 44%, not 47%. At 47% this measured 4.38:1 against the light background — under 4.5, on the
+     * colour that carries every secondary line in the console: 207 instances across six pages, all
+     * of the explanatory copy this product leans on. Three points of lightness fixes all of them and
+     * the hue does not move. The dark theme's own value already measures 7.6:1. */
+    --muted-foreground: 215 16% 44%;
 
     --accent: 228 88% 61%;             /* #4568F3 — Fireblocks. See header, DESIGN.md */
     --accent-foreground: 0 0% 100%;
@@ -74,16 +78,26 @@
     --status-success: 152 81% 39%;     /* emerald-500 */
     --status-error: 0 84% 60%;         /* red-500 (matches --destructive in light) */
     --status-running: 228 88% 61%;     /* matches --accent */
-    --status-idle: 215 16% 47%;        /* matches --muted-foreground */
+    --status-idle: 215 16% 44%;        /* matches --muted-foreground */
     --canvas-grid: 214 32% 91%;        /* matches --border */
     --canvas-bg: 220 20% 98%;          /* page bg + 1% accent tint */
     --swimlane-bg: 222 47% 11%;        /* foreground; used at low alpha */
 
 
-    /* Reserved. Never reused for a series, a chart or a brand surface. */
-    --verdict-block: 0 84% 60%;        /* #EF4444 */
-    --verdict-confirm: 38 92% 50%;     /* #F59E0B */
-    --verdict-allow: 160 84% 39%;      /* #10B981 */
+    /* Reserved. Never reused for a series, a chart or a brand surface.
+     *
+     * Darker than the dark theme's, and the same three hues. Both themes shipped one set of values,
+     * which is fine on near-black and fails on off-white: amber #F59E0B measured 1.99:1 against
+     * this background — nineteen instances of it on `/policy` alone — with red at 3.53 and green at
+     * 2.42. All three under 4.5, on the one channel in the product that carries meaning.
+     *
+     * The hue is held and only the lightness moves, so a mark stays recognisably block, confirm or
+     * allow. `test_the_reserved_scale_is_legible_in_both_themes` pins the contrast and the existing
+     * ΔE tests pin the separation — these sit 27 to 64 apart from each other and 45+ from the
+     * accent, well over the floor of 15. */
+    --verdict-block: 0 84% 48%;        /* #E11414 — 4.54:1 here */
+    --verdict-confirm: 38 92% 32%;     /* #9D6607 — 4.52:1 here */
+    --verdict-allow: 160 84% 27%;      /* #0B7F58 — 4.67:1 here */
     --verdict-unknown: 215 16% 47%;    /* hatched texture on screen, never a hue */
 
     --radius: 0.5rem;

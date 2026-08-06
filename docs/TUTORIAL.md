@@ -44,6 +44,18 @@ scoped to your source.
 about your capability surface that nothing else measures — authorization answers *may you*,
 sandboxing answers *where*, approval answers *did a human say yes*. None of them answers **how big**.
 
+If you would rather be walked through it, open the console instead:
+
+```console
+$ neti console
+```
+
+It opens on **Getting started** — the same five steps as this page, except read live off your
+machine. It names the settings file in *this* repository, every MCP server your clients are
+configured to launch, and the exact command for each. Each step checks itself: run `neti install` in
+another window and the step completes in the browser a few seconds later, because the check is the
+settings file rather than a flag somebody set. Uninstall the hook and it un-ticks.
+
 Now put the gate in front of your agent:
 
 ```console
@@ -132,6 +144,12 @@ people hit first:
   gate cannot see that, and says so.
 - **Code-executing agents.** An agent that writes and runs Python calls tools *and* can touch the
   filesystem directly. Wrapping the tool gates the tool; the sandbox is what bounds the rest.
+- **Most of the shell.** `Bash` is gated, but only where a number is readable from the command:
+  `rm`, `find -delete`, `git clean -fd`, `git checkout -- .`. A pipeline or a wrapper script is not,
+  and guessing would be worse than declining. What you get instead is that the boundary is visible:
+  a deletion neti recognises but cannot size comes back **flagged** — the call runs, and it appears
+  in `neti report` under *unmeasured deletions* with what the agent said it was doing. `npm test`
+  stays silent. `./cleanup.sh` is invisible to both, which is `SCOPE.md` NC-15.
 
 ---
 

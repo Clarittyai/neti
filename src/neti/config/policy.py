@@ -57,6 +57,10 @@ class GateSpec(Frozen):
     bands: tuple[Band, ...] = ()
     on_unresolved: VerdictValue = Verdict.BLOCK
     on_unbounded: VerdictValue = Verdict.CONFIRM
+    on_unsized_risk: VerdictValue | None = None
+    """What to do when the resolver saw a destructive command it could not size. Unset means
+    whatever `on_unresolved` says, so this is additive to every policy that predates it."""
+
     breakdown_bands: dict[str, tuple[Band, ...]] = Field(default_factory=dict)
     required: bool = True
     """Whether an absent argument is a problem. True by default: a gated parameter that the agent
@@ -78,6 +82,7 @@ class GateSpec(Frozen):
             bands=self.bands,
             on_unresolved=self.on_unresolved,
             on_unbounded=self.on_unbounded,
+            on_unsized_risk=self.on_unsized_risk,
             breakdown_bands=self.breakdown_bands,
         )
 

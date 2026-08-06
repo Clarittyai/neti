@@ -39,12 +39,26 @@ export default function GatePage() {
   const [current, setCurrent] = useState<GateResult | null>(null);
   const [running, setRunning] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [target, setTarget] = useState("g-eng-all");
+  // No Entra group id as a default: `g-eng-all` does not exist under a filesystem policy, so the
+  // first thing "fire your own" ever sent was a target that could not resolve.
+  const [target, setTarget] = useState("");
   const [tool, setTool] = useState("");
+  const [catalogue, setCatalogue] = useState<
+    Record<string, { pointer: string; arg: string; targets: { value: string; label: string }[] }>
+  >({});
 
   useEffect(() => {
     api.scenarios().then((r) => setScenarios(r.scenarios)).catch(() => undefined);
+    api.targets().then((r) => setCatalogue(r.targets)).catch(() => undefined);
   }, []);
+
+  // Whatever tool is selected decides both the suggestions and the argument name. Changing the
+  // tool has to move the target with it, or the second call fires last tool's target at this one.
+  const entry = catalogue[tool] ?? null;
+  const suggestions = entry?.targets ?? [];
+  useEffect(() => {
+    setTarget(suggestions[0]?.value ?? "");
+  }, [tool, suggestions.length]);
 
   // The second scenario is not a nice-to-have. "The gate could not size this" is a harder claim to
   // make than "the gate blocked this", and a demo that only ever shows the confident answer invites
@@ -158,7 +172,7 @@ export default function GatePage() {
           ) : null}
 
           <div className="mt-6">
-            <ResolutionTheatre result={current} />
+            <ResolutionTheatre result={current} hasScenario={scenarios.length > 0} />
           </div>
 
           {error ? (
@@ -172,11 +186,16 @@ export default function GatePage() {
               target={target}
               disabled={running}
               fixture={state?.fixture ?? null}
+              targets={suggestions}
               tools={state?.gated_tools ?? []}
               onTool={setTool}
               onTarget={setTarget}
               onFire={() =>
-                void fire(tool, { [tool.includes("group") ? "group" : "to"]: target }, undefined, "manual")
+                // The argument name comes from the policy's own gate pointer. It used to be
+                // `tool.includes("group") ? "group" : "to"`, which is Entra-shaped and wrong for
+                // every filesystem tool: a fired `Bash` call carried `to` instead of `command`, so
+                // the gate saw no target and routed the whole thing through `on_unresolved`.
+                void fire(tool, { [entry?.arg ?? "target"]: target }, undefined, "manual")
               }
             />
           </div>
@@ -329,6 +348,7 @@ function ManualCall({
   target,
   disabled,
   fixture,
+  targets,
   tools,
   onTool,
   onTarget,
@@ -338,6 +358,7 @@ function ManualCall({
   target: string;
   disabled: boolean;
   fixture: { id: string; name: string; members: number }[] | null;
+  targets: { value: string; label: string }[];
   tools: string[];
   onTool: (v: string) => void;
   onTarget: (v: string) => void;
@@ -376,11 +397,17 @@ function ManualCall({
         onChange={(e) => onTarget(e.target.value)}
         className="glass-button mt-1 w-full px-3 py-2 text-sm"
       >
-        {(fixture ?? []).map((g) => (
-          <option key={g.id} value={g.id}>
-            {g.name} — {n(g.members)}
+        {/* Real things on this machine, from the resolvers this policy actually binds. This was
+            the Entra fixture, which is `null` for any policy that binds no directory — so the
+            dropdown was empty, the button below did nothing, and the page that exists to
+            demonstrate the product was dead for the most common install there is. The tool list
+            one field up had already been fixed for exactly this; the target list had not. */}
+        {targets.map((t) => (
+          <option key={t.value} value={t.value}>
+            {t.label} — {t.value.length > 42 ? `${t.value.slice(0, 42)}…` : t.value}
           </option>
         ))}
+        {targets.length === 0 ? <option value="">nothing to suggest for this resolver</option> : null}
       </select>
 
       <button

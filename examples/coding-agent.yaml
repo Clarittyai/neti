@@ -37,15 +37,25 @@ tools:
   # reach for Write — it runs `rm -rf`, `find . -delete` or `git clean -fd`, and until this existed
   # every one of them fell through `unknown_tool: allow` unseen.
   #
-  # `on_unresolved: allow` is deliberate and is the difference between a gate people keep and one
-  # they remove on Friday. `npm test`, `git status` and every other ordinary command are not
-  # recognised as destructive, resolve to nothing, and pass in silence. Only a command this can
-  # actually read gets a number. Tighten it to `confirm` if you want the stricter posture.
+  # Two hooks, because not knowing has two shapes and they are not alike.
+  #
+  # `on_unresolved: allow` — `npm test`, `git status`, `pytest`. Not deletions, nothing to size,
+  # silent. This is the difference between a gate people keep and one they remove on Friday.
+  #
+  # `on_unsized_risk: flag` — `cat list.txt | xargs rm`. A deletion this recognised and could not
+  # measure. `flag` records it and surfaces it in `neti report` and the console, and the call still
+  # runs: neti blocks on numbers, and it does not have one here. With a single hook these two shared
+  # a verdict, so an unmeasured deletion passed in exactly the same silence as `npm test` — which is
+  # worse than not gating Bash at all, because it looks like coverage.
+  #
+  # Move it to `confirm` if you would rather stop what cannot be measured. The record is identical
+  # either way; only what happens to the call changes.
   Bash:
     gate:
       /command:
         resolver: shell.paths
         on_unresolved: allow
+        on_unsized_risk: flag
         on_unbounded: confirm
 
   Glob:
@@ -154,14 +164,16 @@ defaults:
 
 # ---------------------------------------------------------------- what is deliberately NOT here
 #
-# `Bash` is ungated, and that is a decision rather than an omission.
+# `Bash` is gated above, but only where a number is actually readable, and the rest of the shell
+# is not covered — it only looks covered if nobody says this out loud.
 #
-# Sizing it would mean parsing a shell command to work out what `rm -rf "$BUILD/../.."` removes —
-# a syntactic gate over an unbounded grammar, guessing at a string's meaning instead of reading a
-# value. `SCOPE.md` NC-09 and NC-10 take that position deliberately: a gate that guesses makes a
-# weaker claim than one that measures, and a weak claim in a security tool is worse than an absent
-# one because somebody will rely on it.
+# `shell.paths` recognises a small explicit set of forms: `rm`, `find -delete`, `git clean -fd`,
+# `git checkout -- .`. Everything else — a pipeline, a subshell, `rm -rf "$BUILD/../.."`, a binary
+# nobody here has heard of — it declines to size, on purpose. Guessing at a string's meaning instead
+# of reading a value would make a weaker claim than measuring does, and a weak claim in a security
+# tool is worse than an absent one, because somebody will rely on it (`SCOPE.md` NC-09, NC-10).
 #
-# So `Bash` is out of scope and says so, and the honest consequence is that an agent with `Bash`
-# can do things this policy does not see. If that is unacceptable, the answer is to take `Bash`
-# away in `.claude/settings.json` — a permissions decision, made where permissions live.
+# `on_unsized_risk` is how that boundary became visible instead of silent: a deletion this cannot
+# measure is now a flagged, recorded call rather than an indistinguishable pass. What still escapes
+# entirely is a wrapper — `./cleanup.sh` deletes and no textual signal will ever see it (NC-12). If
+# that is unacceptable, take `Bash` away in `.claude/settings.json`, which is where permissions live.

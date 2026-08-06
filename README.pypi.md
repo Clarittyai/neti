@@ -376,7 +376,7 @@ Measured against real Claude Code sessions, not modelled:
 | | |
 |---|---|
 | Hook overhead, per tool call | **p50 ~140ms · p95 ~145ms**, and flat as the record file grows |
-| Records | **~1.0–1.2 KB per call**, so roughly 1 MB per thousand |
+| Records | **~1.1–1.4 KB per call**, so roughly 1.3 MB per thousand |
 | Decision itself | microseconds — the overhead above is almost entirely Python interpreter start |
 
 "Flat" is the row that changed. `neti hook` used to read the entire record file twice per call —

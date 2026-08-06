@@ -128,6 +128,77 @@ def test_the_three_verdicts_are_tellable_apart_from_each_other() -> None:
             )
 
 
+def _relative_luminance(rgb: tuple[int, int, int]) -> float:
+    def channel(value: int) -> float:
+        v = value / 255
+        return v / 12.92 if v <= 0.03928 else ((v + 0.055) / 1.055) ** 2.4
+
+    r, g, b = (channel(c) for c in rgb)
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b
+
+
+def contrast(a: tuple[int, int, int], b: tuple[int, int, int]) -> float:
+    """WCAG 2.x contrast ratio. Two colours, one number, the same maths every checker uses."""
+    lighter, darker = sorted((_relative_luminance(a), _relative_luminance(b)), reverse=True)
+    return (lighter + 0.05) / (darker + 0.05)
+
+
+def _hsl_tokens(block: str) -> dict[str, tuple[int, int, int]]:
+    """Every `--name: H S% L%;` in one CSS block, as RGB."""
+    import colorsys
+
+    found: dict[str, tuple[int, int, int]] = {}
+    for name, h, sat, light in re.findall(r"--([\w-]+):\s*([\d.]+)\s+([\d.]+)%\s+([\d.]+)%", block):
+        r, g, b = colorsys.hls_to_rgb(float(h) / 360, float(light) / 100, float(sat) / 100)
+        found[name] = (round(r * 255), round(g * 255), round(b * 255))
+    return found
+
+
+def _theme_blocks() -> dict[str, str]:
+    css = (REPO / "web/src/app/globals.css").read_text(encoding="utf-8")
+    light = css[css.index(":root {") : css.index(".dark {")]
+    dark = css[css.index(".dark {") :]
+    return {"light": light, "dark": dark[: dark.index("\n  }") + 4]}
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+def test_secondary_text_is_legible_in_both_themes(theme: str) -> None:
+    """`--muted-foreground` carries every secondary line in the console.
+
+    It measured 4.38:1 on the light background — 207 instances across six pages, which is nearly all
+    of the explanatory copy this product leans on to say what a number means. Under 4.5 by a hair,
+    and a hair is the whole difference between text somebody reads and text somebody skips.
+    """
+    tokens = _hsl_tokens(_theme_blocks()[theme])
+    measured = contrast(tokens["muted-foreground"], tokens["background"])
+
+    assert measured >= 4.5, (
+        f"{theme} --muted-foreground is {measured:.2f}:1 against its own background, under 4.5"
+    )
+
+
+@pytest.mark.parametrize("theme", ["light", "dark"])
+@pytest.mark.parametrize("verdict", ["block", "confirm", "allow"])
+def test_the_reserved_scale_is_legible_in_both_themes(theme: str, verdict: str) -> None:
+    """A verdict colour that cannot be read is a verdict that is not communicated.
+
+    Both themes shipped the *same* three values, which is fine on near-black and fails on off-white:
+    measured in a browser, amber came out at **1.99:1** against the light background — nineteen
+    instances of it on `/policy` alone — with red at 3.53 and green at 2.42. All three under the 4.5
+    a checker asks for, on the one channel in this product that carries meaning.
+
+    DESIGN.md's "never colour alone" rule means nothing was *lost* — every mark carries an icon and
+    a label — but "the fallback works" is not a reason to ship an unreadable primary.
+    """
+    tokens = _hsl_tokens(_theme_blocks()[theme])
+    measured = contrast(tokens[f"verdict-{verdict}"], tokens["background"])
+
+    assert measured >= 4.5, (
+        f"{theme} --verdict-{verdict} is {measured:.2f}:1 against its own background, under 4.5. "
+        "Hold the hue and move the lightness — the ΔE tests above keep the three tellable apart."
+    )
+
+
 def test_the_console_and_the_site_agree_on_the_accent() -> None:
     """The exact drift that made `DESIGN.md` necessary.
 
@@ -308,10 +379,6 @@ def test_nothing_that_is_not_a_control_wears_a_pill() -> None:
         "rounded-full bg-border",
         "rounded-full bg-muted",
         "h-1.5",
-        "h-2 w-2",
-        "h-2.5 w-2.5",
-        "h-3 w-3",
-        "h-11 w-11",
         # A 2px-tall proportional bar has rounded ends because it is a bar, the same way the status
         # dots above are circles. Caught by this very rule the day it was written, which is the
         # rule working: the exemption is now stated rather than assumed.
@@ -321,14 +388,67 @@ def test_nothing_that_is_not_a_control_wears_a_pill() -> None:
         # what the de-pilling sweep left behind, and it looked exactly as odd as it sounds.
         "p-0.5",
     )
+    # A square box with a full radius is a **circle**, and a circle is not a pill: a status dot, an
+    # avatar, a numbered step marker. The distinction the rule protects is stadium-versus-rectangle,
+    # and nothing equal-sided can be mistaken for a stadium. This used to be five hardcoded sizes
+    # (`h-2 w-2`, `h-3 w-3`, `h-11 w-11`, …) which meant every new circle was a test failure and a
+    # sixth string; stating the principle once is what stops that list growing forever.
+    circle = re.compile(r"\bh-([\d.]+) w-\1\b")
+
+    # A `className` sits on its own line inside a multi-line `<button>`, so a check reading one line
+    # at a time cannot see the tag it belongs to. The old rule approximated that with a list of
+    # blessed paddings — which made a real button with `px-3.5` a failure whose fix was to restyle
+    # the button until the test agreed.
+    #
+    # So find the element the class is actually on: the nearest JSX tag opened at or before this
+    # line. **Nearest, not "any within a window"** — a window would exempt a container that merely
+    # sits next to a button, which is precisely the regression this rule exists to catch. The
+    # blanket-regex sweep that pilled every `rounded-*` put stadiums around rows *beside* controls.
+    opens = re.compile(r"<([A-Za-z][\w.]*)")
+    controls = {"button", "Link", "a", "NavLink"}
+    reach = 12
+
     offenders = []
     for path in _sources():
-        for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
-            if "rounded-full" in line and not any(s in line for s in signals):
-                offenders.append(f"{path.relative_to(REPO)}:{number}: {line.strip()[:70]}")
+        lines = path.read_text(encoding="utf-8").splitlines()
+        for number, line in enumerate(lines, 1):
+            if "rounded-full" not in line:
+                continue
+            if any(s in line for s in signals) or circle.search(line):
+                continue
+            tag = ""
+            for back in lines[max(0, number - 1 - reach) : number]:
+                found = opens.findall(back)
+                if found:
+                    tag = found[-1]
+            if tag in controls:
+                continue
+            offenders.append(f"{path.relative_to(REPO)}:{number}: {line.strip()[:70]}")
     assert not offenders, (
         "these wear a control's shape without being controls — a container, a row or a code block "
         "with `rounded-full` (DESIGN.md):\n  " + "\n  ".join(offenders[:10])
+    )
+
+
+def test_the_shell_main_can_shrink_below_its_content() -> None:
+    """`<main>` is a flex child, and a flex child defaults to `min-width: auto`.
+
+    So it refuses to shrink below its widest descendant. With `flex-1` sizing it to the full row
+    *and* `md:ml-16` reserving the rail's 64px on top, the document came out 64px wider than the
+    viewport — and **every page in the console scrolled sideways**, on every screen size, which
+    DESIGN.md forbids and nothing had ever measured. A single long command line then made it far
+    worse: 1,190px of document inside a 614px window.
+
+    Measured in a browser, and pinned here as source because that is where it can regress. The rule
+    is one token, and it is the token that lets `overflow-x-auto` on a child actually engage.
+    """
+    shell = (REPO / "web/src/components/Shell.tsx").read_text(encoding="utf-8")
+    main = next(line for line in shell.splitlines() if "<main" in line)
+
+    assert "flex-1" in main, "the assumption this rule is about has changed; re-derive it"
+    assert "min-w-0" in main, (
+        "<main> is a flex child with flex-1 and no min-w-0, so it cannot shrink below its content "
+        "and the whole console scrolls horizontally"
     )
 
 

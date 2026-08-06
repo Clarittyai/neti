@@ -142,6 +142,18 @@ class Ceiling(Frozen):
     on_unbounded: VerdictValue = Verdict.CONFIRM
     """Verdict when the magnitude is under every band but the direction cannot justify an allow."""
 
+    on_unsized_risk: VerdictValue | None = None
+    """Verdict when the resolver could not size the target but recognised it as destructive.
+
+    `on_unresolved` conflated two facts that are not alike. *"This is not a filesystem deletion"*
+    (`npm test`) and *"this is a deletion and I cannot tell you how big"* (`xargs rm`) both arrive
+    as UNRESOLVED, so one hook forced one verdict on both: `allow` and the dangerous case passes in
+    silence, `confirm` and every ordinary command needs a human.
+
+    Unset falls back to `on_unresolved`, so every policy written before this behaves exactly as it
+    did. A resolver that never reports the signal never reaches this branch.
+    """
+
     breakdown_bands: dict[str, tuple[Band, ...]] = Field(default_factory=dict)
     """Bands applied to named sub-counts, e.g. `{"guest": (Band(above=100, ...),)}`."""
 

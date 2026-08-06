@@ -76,6 +76,7 @@ class Fixture:
 def build_fixtures(tmp_path: Path) -> list[Fixture]:
     from neti.resolvers.database import DbapiCountRunner, RowsResolver
     from neti.resolvers.github import GitHubFilesResolver, GitHubReposResolver
+    from neti.resolvers.shell import ShellPathsResolver
     from neti.resolvers.storage import ObjectStoreResolver
     from tests.integration.test_github_resolver import FakeApi, tree
     from tests.integration.test_storage_resolver import FakeLister
@@ -124,6 +125,17 @@ def build_fixtures(tmp_path: Path) -> list[Fixture]:
         ),
         # --- the local ones, against real artefacts
         Fixture("fs.paths", Unit.OBJECTS, str(tree_dir), 120, str(tmp_path / "nowhere")),
+        # A shell command rather than a path, because that is what this resolver is handed. The
+        # unsizeable side is a real pipeline, not a nonsense string: `xargs rm` is the case the
+        # parser declines by design, and it must decline it as UNRESOLVED rather than as zero.
+        Fixture(
+            "shell.paths",
+            Unit.OBJECTS,
+            f"rm -rf {tree_dir}",
+            120,
+            "cat list.txt | xargs rm",
+            resolver=ShellPathsResolver(),
+        ),
         Fixture("terraform.destroy", Unit.RESOURCES, str(plan), 7, str(tmp_path / "missing.json")),
         Fixture(
             "db.rows",

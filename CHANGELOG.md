@@ -2,6 +2,308 @@
 
 ## Unreleased
 
+### The live gate was unusable for a coding agent, and its trace was inventing provenance
+
+Second in the nav, the page the product is demonstrated on, and against
+`examples/coding-agent.yaml` it did not work at all.
+
+**The target dropdown was empty and the button did nothing.** Targets came from the Entra fixture,
+which is `null` for any policy binding no directory. The *tool* list one field up had already been
+fixed for exactly this — it was four hardcoded Entra names — and the target list had not. `/api/targets`
+now derives suggestions from the resolvers the policy actually binds, off the root it declares: real
+directories, a real file, and for the shell one command of each kind, because the three-way split is
+the thing about `shell.paths` a person has to see once.
+
+    rm -rf build              a deletion it can size — the bands decide
+    cat list.txt | xargs rm   a deletion it cannot size — recognised, flagged, and it runs
+    npm test                  not a deletion at all — silent
+
+**The argument name was guessed.** `tool.includes("group") ? "group" : "to"` — Entra-shaped, and
+wrong for every filesystem tool there is. A fired `Bash` call carried `to` rather than `command`, so
+the gate saw no target and routed the whole thing through `on_unresolved`. The policy has known the
+answer the entire time; `/api/targets` returns it.
+
+**And the trace narrated a request that was never sent.** This is the worst of the three. A
+`shell.paths` call that walked the local filesystem was reported as:
+
+    Bind resolver         shell.paths · GroupMember.Read.All · read-only
+    Assert preconditions  ConsistencyLevel: eventual ✓ · expect text/plain ✓
+    Count                 GET → 200 · 1 objects · exact
+    agent → neti → Microsoft Graph
+
+A Microsoft Graph scope, a Graph header, an HTTP status and a destination — none of which existed —
+under a lede that says *nothing here is pre-recorded*, about a decision that was entirely real. Not
+a stale label. Invented provenance presented as evidence, in a security product, on the page built
+to be believed. It now reads:
+
+    Bind resolver         shell.paths · no credential — reads this machine
+    Assert preconditions  walk cap set ✓ · a truncated walk is a floor, never a total ✓
+    Count                 parsed · rm_like · 1 objects · exact
+    agent → neti → this machine
+
+The resolver name travels with the stage, which is what made any of it knowable — the console had
+no way to tell which resolver had run. The Entra path is unchanged and re-checked: scope, header,
+`GET /groups/…/$count → 200` and Microsoft Graph all still there when that is what happened. Both
+branches are pinned.
+
+Also: the idle copy said *"run the scenario"* to everybody, including policies that have none — the
+shipped scenarios are Entra-shaped, so a coding-agent install was told to press something that was
+not on the page.
+
+### `/connect` stopped claiming a directory that a coding agent does not have
+
+The page a new arrival is sent to first — the walkthrough links straight at it — opened with:
+
+    ✓  Microsoft 365 · Entra ID
+       Connected to this machine.
+
+for `examples/coding-agent.yaml`, whose every gate is `fs.paths` or `shell.paths`. A product name
+over a status that was not about it, a tenant label spliced under it, and a Disconnect button for a
+credential the install neither has nor needs. This is the same wrong assumption that once branded a
+filesystem gate a *"Demo tenant"*, marked its measured records synthetic, and offered fixture groups
+as things to point `Glob` at — surviving in one more place. `connected` already said the right
+thing; nothing had ever asked whether there was anything to connect **to**.
+
+`binds_directory` now travels with the state, and a policy that binds none gets a fact instead of an
+empty status:
+
+> **Nothing to connect.** This policy binds fs.paths, shell.paths, which resolve off this machine —
+> no credential, no directory, no network. Every magnitude it reports is measured from real files
+> here. The only wiring left is the half below.
+
+The Entra path is untouched and re-checked: Connect button, permission scope, the verification
+paragraph, the scene and the fixture disclosure all return when a directory is actually bound.
+
+**And the install tabs open on the seam this machine has.** The first tab was *An MCP server* for
+everybody, so an install with no MCP servers configured — the common case for a coding agent — landed
+on a before/after of `@acme/entra-mcp`, a fictional server it does not run, while the tab that
+applied to it sat unselected next door. It reads `/api/start`, which already knows which doors are
+here, and opens on *Built-in tools* when that is what there is.
+
+### The console scrolled sideways on every page, and its light theme was not legible
+
+Both found by measuring the running product rather than reading it, which is becoming the pattern.
+
+**Horizontal overflow, everywhere.** `<main>` is a flex child, and a flex child defaults to
+`min-width: auto` — so it refuses to shrink below its widest descendant. With `flex-1` sizing it to
+the full row *and* `md:ml-16` reserving the rail's 64px on top, the document came out 64 pixels wider
+than the viewport on **every page, at every size**. One long command line made it far worse: 1,190px
+of document inside a 614px window. One token — `min-w-0` — fixes all of it, and it is also the token
+that lets `overflow-x-auto` on a child actually engage. All ten pages now measure clean at 390px.
+
+**The light theme's verdict scale was unreadable.** Both themes shipped the *same* three values,
+which is fine on near-black and fails on off-white. Measured against the light background:
+
+    confirm  #F59E0B   1.99:1     19 instances on /policy alone
+    allow    #10B981   2.42:1
+    block    #EF4444   3.53:1
+
+All three under the 4.5 a checker asks for, on the one channel in this product that carries meaning.
+The light theme now has its own darker set — hue held, only lightness moved, so a mark stays
+recognisably block, confirm or allow — at 4.54, 4.52 and 4.67. They sit 27–64 ΔE from each other and
+45+ from the accent, well over the floor of 15, so the existing separation tests are untouched.
+
+`--muted-foreground` came in at 4.38:1 too — 207 instances across six pages, which is nearly all the
+explanatory copy this product leans on to say what a number means. 47% → 44% lightness, and the hue
+does not move.
+
+DESIGN.md's *never colour alone* rule meant nothing was strictly lost — every verdict carries an icon
+and a label — but "the fallback works" is not a reason to ship an unreadable primary.
+
+Three new property tests compute the contrast from the tokens themselves and assert both themes, and
+one asserts `<main>` keeps `min-w-0`. Each was checked against the value it replaced: revert the
+amber and the test names it at 1.99.
+
+### Ceilings can be declared from the console, and the number is still never the console's
+
+The policy page was read-only, so a fresh install showed nine rows all saying *no ceiling —
+resolves and records, cannot block*: an accurate description of a gate that cannot yet do the thing
+the product is for, to somebody with no obvious way to change it. The old comment defended this on
+the grounds that editing here "would make the number something the console owns", which is the right
+worry about the wrong mechanism. What must never happen is a number being **inferred**. A person
+typing one into a field, beside their own observed distribution, and reading the diff before agreeing
+to it, is exactly as declared as the same person typing it into the file.
+
+So each gate now has *Declare a ceiling*, and three things hold:
+
+- **Nothing is prefilled.** The distribution from their own recorded traffic sits beside the field —
+  p50, p95, max — because that is what makes a number choosable. Under it: *"this would have stopped
+  1 of 1 recorded call at this gate"*. Choosing is still theirs.
+- **The diff comes before the write**, then the file is backed up. Same contract `neti install` gives
+  `.claude/settings.json`.
+- **Every comment survives.** The edit is a text splice, not a YAML round trip:
+  `examples/coding-agent.yaml` is more comment than configuration and the comments are most of its
+  value. 108 comment lines in, 108 out.
+
+`insight/edit_policy.py` finds the gate depth-first — `/file_path` is gated under three tools and
+matching the first would produce a file that parses, loads and gates the wrong thing, the worst
+failure available here — handles the one-line flow mappings the shipped example uses for `Read`,
+`Edit` and `Write`, follows the file's own indentation, and **loads the result before offering it**.
+That last check earned itself immediately: the first version spliced a block `bands:` under an inline
+mapping, produced invalid YAML, and refused to write. A ceiling that will not load is not a rejected
+form, it is a silently disabled gate — `neti hook` exits 0 on a policy error by design, so the next
+session would have run entirely ungated with the reason on stderr where nothing reads it.
+
+### Models: your keys, your machine, and your own domain
+
+A new page for the one thing in this product that talks to a model. Anthropic and OpenAI report
+whether their variable is **set** — never what it holds — and the local section lists Ollama,
+LM Studio, vLLM and llama.cpp with the address each listens on and the command that starts it, plus
+*your own endpoint* for a self-hosted gateway, because that is not a different integration, it is a
+different URL.
+
+**There is no field to type a key into, and there will not be.** A key pasted into a browser is a key
+in a process that did not need it, and "nothing extra holds your secrets" is the claim the whole
+feature rests on. What the console does instead is check reachability, which is the part people
+actually get wrong — a runner on the wrong port, a gateway behind a proxy, a model id that is not
+loaded. `Check` asks the endpoint what it holds and prints the list; against this machine it returned
+six real Ollama models. It runs no completion, so a cold 30B model does not take minutes and a
+metered gateway is not billed for a connectivity check.
+
+One defect caught in the writing and worth recording: the first version of that probe attached
+`OPENAI_API_KEY` as a bearer token, on the reasoning that a gateway usually wants one — which would
+have sent the operator's key to whatever address they typed into a browser field, typos and hostile
+hosts included. That is credential exfiltration built into a convenience feature. It sends no
+Authorization header at all now, and loses nothing: a gateway that requires auth answers 401, and
+*reachable, needs auth* is exactly as useful an answer here.
+
+### The scorecard stopped looking cut
+
+Every incident row carried a `border-t` inside a `space-y-2` list, so each rule floated detached
+eight pixels above its own content and every row read as a slab that had lost its top. A list is
+continuous: one rule between neighbours, none floating, and the space moved to where it means
+something — above the bucket heading, which is now a heading rather than another 13px label. The two
+remaining `.panel` plates became sections separated by rules, per DESIGN.md.
+
+Also fixed while there: the pill rule's check found a real button with `px-3.5` and called it a
+container, because it read one line at a time and a `className` inside a multi-line `<button>` has no
+tag on it. It now resolves the **nearest** enclosing JSX tag — nearest, not "any within a window",
+which would exempt a container merely sitting beside a control, and that is precisely the regression
+the rule exists to catch. Verified in both directions against a probe file.
+
+### The console opens on a walkthrough of your machine, not a number
+
+A first run reached an overview: 59,330 reachable, 0 decisions, 0 blocked, a warning that nine
+parameters had no ceiling, and — above all of it — a rotating band about hosted approvals. Every
+number true, and not one of them answering the only two questions anybody has on their first run:
+**what is this, and how do I make it work with what I actually run.** The answer was in
+`docs/TUTORIAL.md`, which is not in the product.
+
+So `/api/start` reads the machine and returns the walkthrough as *state*, and the console leads with
+it until there is traffic to lead with instead:
+
+    ✓ Declare what is gated              9 parameter(s) gated by examples/coding-agent.yaml
+    ✓ See what one call could touch      read straight from this machine
+    3 Put the gate in front of your agent
+        Claude Code — this project   BUILT-IN TOOLS
+        /Users/you/proj/.claude/settings.json
+        no settings file here yet; the install creates one
+        $ neti install -c examples/coding-agent.yaml
+        Claude Code — every session  BUILT-IN TOOLS
+        $ neti install -c examples/coding-agent.yaml --user
+    4 Work normally, and watch the decisions arrive
+    5 Declare ceilings, then turn it on
+
+Two things make it a tutorial rather than instructions with a tick box.
+
+**It is about their machine.** Real paths, every MCP server their clients are actually configured to
+launch with the wrap command for each, and the right scope flag — project before `--user`, because
+proposing to gate every session on somebody's machine is not a checklist's call to make. A server
+already behind the gate reads as *gated* rather than vanishing, and settings that will not parse say
+so instead of being dropped: a missing row reads as "you don't run this", which is the wrong thing
+to tell somebody who does.
+
+**It ticks itself while you watch.** Polled, not refreshed. Run `neti install` in another window and
+the step completes under the cursor — which is also the proof that the check is the settings file
+rather than a flag. Nothing is stored: uninstall the hook and step three un-ticks. A checklist that
+lies about your machine is worse than none.
+
+`/start` keeps it reachable afterwards, second in the nav, because the overview stops showing it the
+moment the first call is recorded and somebody wiring a second seam a week later needs it back. And
+`neti start` now names `neti console` as *the* walkthrough rather than pointing at
+`docs/TUTORIAL.md` — a repository path a `pip install` does not have, which was the whole thing that
+was wrong: the walkthrough lived outside the product.
+
+Driven end to end against a clean project rather than a fixture — `neti start` in an empty
+repository, then every step completed by doing the real thing in another window, with nothing
+touching the console:
+
+    neti start                                  71 objects measured, policy written
+    neti install -c neti.yaml                   step 3 ticks four seconds later
+    two calls through the hook                  step 4 ticks
+    a ceiling declared from /policy, enforce    step 5 ticks, "complete"
+    a real Glob                                 blocked: 40 objects above the ceiling of 20
+    hook removed from settings.json             step 3 un-ticks; the other four stay
+
+That last line is the property the whole design rests on, and it is why there is no stored flag.
+
+One defect this found in the writing: `neti install` records an absolute policy path in the hook
+command, and the console is launched with whatever `--config` said. Planning the check against the
+relative path never matched, so the walkthrough would have told an installed user they were not.
+Resolved for the check, as typed for the display.
+
+Also: the pill rule now states that **a square box with a full radius is a circle, not a pill** —
+a status dot, an avatar, a numbered step marker. It was five hardcoded sizes, so every new circle
+was a test failure and a sixth string; the principle is stated once instead.
+
+### A deletion nobody can measure no longer passes in the same silence as `npm test`
+
+Shipping `shell.paths` left a hole the changelog below admitted and the product did not: three of
+six commands could not be resolved, and one of them was `cat list.txt | xargs rm`. That call
+deletes files, neti recognised it could not size it, and `on_unresolved: allow` then let it through
+without a word — **which is worse than leaving `Bash` ungated**, because an absence you can see is
+not the same as an absence that looks like coverage.
+
+The cause was a conflation, not a weak parser. Two unlike facts arrived as one `UNRESOLVED`:
+
+    npm test                    this is not a filesystem deletion
+    cat list.txt | xargs rm     this is a deletion and I cannot tell you how big
+
+One hook, so an operator had to pick which one to get wrong. `allow` and the deletion is invisible;
+`confirm` and every ordinary command stops for a human, and the gate is uninstalled by Friday.
+
+So the resolver now reports which of the two it is, and `on_unsized_risk` decides the second
+separately. One command line, three outcomes:
+
+    rm -rf node_modules        22,794 objects      bands decide            → blocked
+    cat list.txt | xargs rm    destructive_verb:rm recorded and surfaced   → runs, and is seen
+    npm test                   not a deletion      no signal               → silent
+
+`Verdict.FLAG` has existed since the first release — *"recorded and surfaced; the call proceeds"* —
+and no shipped policy had ever produced one. It is exactly shaped for a call that must not be
+stopped and must not be quiet. `flag` is the default over `confirm` because on one machine a
+CONFIRM stops the call, `git rm` and `xargs rm` are ordinary, and **blocking on a magnitude you have
+just admitted you cannot read is a judgement this product has no basis for**. One word in the policy
+changes it; the record is identical either way.
+
+The signal is textual, and deliberately conservative *in the opposite direction from sizing*.
+Sizing declines when unsure, because a wrong number is unsound. Flagging fires when unsure, because
+surfacing costs a line and missing costs the deletion. It reads command position rather than the
+line — `grep -rn 'rm' src/` and `echo "rm -rf /"` mention the verb and do not run it — tracks quotes
+so `bash -lc 'find / | xargs rm'` stays one command, and treats `>` as destructive only over a file
+that already exists, because `pytest -q > out.txt` destroys nothing. The false-positive corpus in
+`tests/e2e/test_unsized_risk.py` is the load-bearing test: fourteen commands a coding agent runs
+several times an hour, none of which may ever flag.
+
+`neti report` gives flagged calls their own section, with what ran, why it could not be sized and
+what the agent said it was doing. `/decisions` stops collapsing them into the neutral "Could not
+size" chip, and a flagged decision no longer opens under the headline "This call was allowed".
+
+**What still escapes is now written down** as `SCOPE.md` NC-15 rather than implied: `./cleanup.sh`
+deletes and no textual signal will ever see it. The flag narrows what passes silently; it does not
+make the shell covered.
+
+One defect the plan did not anticipate, found by running `neti verify --config` over a real session
+rather than by reading the code: `decide` now routes on a signal carried in `Resolution.evidence`,
+and the replay rebuilt an unresolved resolution with an empty one — so **every recorded `flag`
+re-derived as `allow`** and the tool reported the log as inconsistent with itself. The record had
+carried the fact the whole time; nothing read it back. `test_a_flag_replays_as_a_flag` pins it.
+
+`on_unsized_risk` is additive and unset means unchanged, so every policy written before this behaves
+exactly as it did. The two new keys on a record cause — `reason` and `destructive` — are additive
+within `neti.decision.v2` because causes are stored dicts rather than models: a record written last
+week is re-read exactly as it was written and recomputes the digest it was sealed with.
+
 ### `neti report` says what the agent called it
 
 The terminal half of the same finding. A breach now reads:
@@ -20,6 +322,10 @@ Also visible above, and worth reading honestly: **three of six commands could no
 `npm test` and `git status` should not be, and `cat list.txt | xargs rm` genuinely is destructive and
 was declined. Shell coverage is a floor, not a ceiling, and the number of declines is printed rather
 than hidden so nobody mistakes silence for safety.
+
+> Superseded by `on_unsized_risk`, above. Printing the count was the right instinct and the wrong
+> resolution: three declines on one line still reads as three harmless commands. The two are now
+> counted apart, and the destructive ones get their own section.
 
 ### The claim, beside the number
 

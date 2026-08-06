@@ -73,6 +73,22 @@ def create_app(
     def get_state() -> dict[str, Any]:
         return st.as_json()
 
+    @app.get("/api/start")
+    def start() -> dict[str, Any]:
+        """Where this install is in the walkthrough, re-read every time it is asked.
+
+        Deliberately does not build the inventory: that walks the filesystem, and this endpoint is
+        polled every few seconds so a step can tick itself while somebody is watching. The reachable
+        number is already on the overview, from the endpoint that pays for it once.
+        """
+        from neti.insight.onboarding import start_state
+
+        return start_state(
+            st.policy,
+            policy_path=st.config_path,
+            decisions=len(_records(st)),
+        ).as_json()
+
     @app.post("/api/connect")
     def connect() -> dict[str, Any]:
         """Verify the credential by actually using it.
@@ -164,6 +180,88 @@ def create_app(
 
     # ---------------------------------------------------------------- reads
 
+    @app.get("/api/models")
+    def models() -> dict[str, Any]:
+        """Which model `neti suggest` could reach, and from where.
+
+        **No key value crosses this boundary in either direction.** There is no field to type one
+        into and nothing here reads one — only whether the variable the SDK will look at is set.
+        A key pasted into a browser is a key in a process that did not need it, and "nothing extra
+        holds your secrets" is the claim this whole feature rests on.
+        """
+        from neti.insight.providers import provider_statuses
+
+        return {
+            "providers": [
+                {
+                    "id": p.id,
+                    "label": p.label,
+                    "ready": p.ready,
+                    "detail": p.detail,
+                    "env": p.env,
+                    "command": p.command,
+                    "installs": p.installs,
+                    "leaves_machine": p.leaves_machine,
+                    "runners": [
+                        {"id": r.id, "label": r.label, "base_url": r.base_url, "start": r.start}
+                        for r in p.runners
+                    ],
+                }
+                for p in provider_statuses()
+            ]
+        }
+
+    @app.post("/api/models/probe")
+    def probe_endpoint(body: dict[str, Any]) -> dict[str, Any]:
+        """`GET {base_url}/models` against an address the operator typed, and nothing else.
+
+        The part people actually get wrong is reachability — a runner on the wrong port, a company
+        gateway behind a proxy, a model id that is not loaded. Answering it here beats telling
+        somebody to go and curl it, and it stays a read: no completion is run, so a cold 30B model
+        does not take minutes and a metered gateway is not billed for a connectivity check.
+        """
+        from neti.insight.providers import probe
+
+        url = str(body.get("base_url") or "").strip()
+        if not url:
+            raise HTTPException(400, "base_url is required")
+        return probe(url).as_json()
+
+    @app.get("/api/targets")
+    def targets() -> dict[str, Any]:
+        """What the live gate can offer to fire, per gated tool, off this machine.
+
+        The tool list was hardcoded Entra names once and got fixed; the target list was the Entra
+        *fixture* and did not, so a policy binding no directory got an empty dropdown and a dead
+        button on the page that exists to demonstrate the product.
+        """
+        from neti.insight.targets import targets_for
+
+        fixture = st.as_json().get("fixture")
+        out: dict[str, dict[str, Any]] = {}
+        for tool in st.policy.tools:
+            gates = st.policy.gate_specs(tool)
+            if not gates:
+                continue
+            pointer = next(iter(gates))
+            resolvers = [gate.resolver for gate in gates.values()]
+            out[tool] = {
+                "pointer": pointer,
+                # The argument name, so the console stops guessing it. It was
+                # `tool.includes("group") ? "group" : "to"` — Entra-shaped, and wrong for every
+                # filesystem tool there is: a fired `Bash` call carried `to` rather than `command`,
+                # so the gate saw no target at all and routed the whole thing through
+                # `on_unresolved`. The policy has known the answer the entire time.
+                "arg": pointer.lstrip("/").split("/")[0],
+                "targets": [
+                    t.as_json()
+                    for t in targets_for(
+                        tool, resolvers, providers=st.policy.providers, fixture=fixture
+                    )
+                ],
+            }
+        return {"targets": out}
+
     @app.get("/api/inventory")
     def inventory() -> dict[str, Any]:
         rows = build_inventory(st.policy, st.engine.resolvers, ResolveContext())
@@ -213,7 +311,18 @@ def create_app(
                     if isinstance(r.args, dict)
                     else None,
                     "magnitudes": [
-                        {"pointer": c["pointer"], "magnitude": c["magnitude"], "unit": c["unit"]}
+                        {
+                            "pointer": c["pointer"],
+                            "magnitude": c["magnitude"],
+                            "unit": c["unit"],
+                            # Why there is no number, when there is no number. Without this the row
+                            # renders every unresolved cause as "Could not size" — which is true of
+                            # `npm test` and true of `cat list.txt | xargs rm`, and putting them
+                            # under one chip is the exact conflation `on_unsized_risk` removed one
+                            # layer down. A console that re-merges them undoes the fix.
+                            "destructive": c.get("destructive"),
+                            "reason": c.get("reason"),
+                        }
                         for c in r.causes
                     ],
                 }
@@ -262,6 +371,58 @@ def create_app(
                 }
                 for r in st.policy.session_budgets
             ],
+        }
+
+    @app.post("/api/policy/ceiling")
+    def set_ceiling(body: dict[str, Any]) -> dict[str, Any]:
+        """Declare a ceiling, in two calls.
+
+        `apply: false` — the default — plans the edit and returns the diff, and writes nothing. A
+        policy decides what an agent may do and its ceilings are the product's only claim, so it
+        gets the same contract `neti install` gives `.claude/settings.json`: show the change, back
+        the file up, and only write when somebody says so.
+
+        The number is never invented. `config/policy.py` opens by saying nothing computed becomes a
+        ceiling on its own, and this writes exactly what it was handed — the console shows the
+        observed distribution beside the field so a person can choose, which is not the same thing.
+        """
+        from neti.insight.edit_policy import PolicyEditError, apply_ceiling, plan_ceiling
+
+        try:
+            edit = plan_ceiling(
+                st.config_path,
+                tool=str(body["tool"]),
+                pointer=str(body["pointer"]),
+                bands=list(body.get("bands") or []),
+            )
+        except KeyError as exc:
+            raise HTTPException(400, f"missing {exc}") from exc
+        except PolicyEditError as exc:
+            raise HTTPException(400, str(exc)) from exc
+
+        written = False
+        backup: str | None = None
+        if bool(body.get("apply")):
+            try:
+                saved = apply_ceiling(edit)
+            except OSError as exc:
+                raise HTTPException(500, f"could not write {edit.path}: {exc}") from exc
+            written = True
+            backup = None if saved is None else str(saved)
+            # Reload, so the console stops describing a policy that is no longer on disk. The
+            # digest changes with the ceiling, which is correct and is why the engine is rebuilt
+            # around it rather than mutated: a record has to say which policy produced it.
+            st.reload()
+
+        return {
+            "path": str(edit.path),
+            "diff": edit.diff(),
+            "replaced": edit.replaced,
+            "warnings": edit.warnings,
+            "changed": edit.changed,
+            "applied": written,
+            "backup": backup,
+            "digest": st.policy.digest(),
         }
 
     @app.get("/api/report")

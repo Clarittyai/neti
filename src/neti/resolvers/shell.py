@@ -24,10 +24,22 @@ will band against. The two failures are not symmetric:
 Only the second is unsound, so every ambiguity resolves toward the first. The negative cases in
 `tests/integration/test_shell_resolver.py` carry more weight than the positive ones for exactly this
 reason.
+
+**Declining is not the same as saying "nothing to see here", and this file answers both questions.**
+`npm test` and `cat list.txt | xargs rm` were both UNRESOLVED, so one policy hook had to give them
+one verdict: allow, and a deletion passes in silence; confirm, and every ordinary command needs a
+human. So alongside the size, this reports whether what it could not size *looked destructive* —
+`destructive_signal` below — and `on_unsized_risk` decides that case separately.
+
+Note that the two answers lean opposite ways on purpose. Sizing declines when it is unsure, because
+a wrong number is unsound. Flagging fires when it is unsure, because surfacing a command costs a
+line in a report and missing one costs the deletion. They are conservative in opposite directions
+because their errors are not the same error.
 """
 
 from __future__ import annotations
 
+import re
 import shlex
 from dataclasses import dataclass, field
 from typing import ClassVar
@@ -37,7 +49,7 @@ from neti.core.units import Direction, Unit
 from neti.resolvers.base import ResolveContext
 from neti.resolvers.filesystem import DEFAULT_CAP, FilesystemResolver
 
-__all__ = ["ShellPathsResolver", "targets_of"]
+__all__ = ["ShellPathsResolver", "destructive_signal", "targets_of"]
 
 # Anything that makes a command line stop being a single, readable invocation. Seeing any of these
 # is enough to decline: the parse below reasons about one command with one argument list, and a
@@ -51,6 +63,149 @@ _DESTRUCTIVE = frozenset({"rm", "shred", "truncate", "unlink"})
 
 # Flags that take a value, so the value is not mistaken for a path.
 _VALUED_FLAGS = frozenset({"--exclude", "--include", "-S", "--size", "-n", "--newer"})
+
+# --- the second question: did this destroy something, even where the size is unknowable -----------
+
+# Wider than `_DESTRUCTIVE` above, because this list does not have to produce a number — only to
+# recognise a command that removes or overwrites something. `dd` and `mkfs` write over a device,
+# `rmdir` removes directories, `git rm` removes tracked files.
+_DESTRUCTIVE_VERBS = _DESTRUCTIVE | {"dd", "mkfs", "rmdir"}
+
+# Everything that can sit in front of the real verb without changing what it destroys. `xargs` is
+# the load-bearing one: `cat list.txt | xargs rm` is the exact command that motivated all of this.
+_PREFIXES = frozenset(
+    {"sudo", "command", "env", "nohup", "time", "exec", "xargs", "then", "do", "else", "!"}
+)
+
+# Shells that take a command line as an argument. `bash -c 'rm -rf /tmp/x'` is one token away from
+# `rm -rf /tmp/x` and no less destructive for it, so the signal reads inside. Sizing deliberately
+# does not: it would have to reason about a second layer of quoting to produce a number, and a
+# number produced that way is exactly the kind this file refuses to invent.
+_SHELLS = frozenset({"sh", "bash", "zsh", "dash", "ksh", "fish"})
+
+# Where one command ends and the next begins, outside quotes. `_segments` below does the walk,
+# because a regex cannot tell `a | b` from `echo "a | b"` and the difference decides whether
+# `bash -c 'find / | xargs rm'` is read as one command or shredded into fragments.
+_SEPARATORS = frozenset({"|", ";", "&", "\n", "(", ")", "`"})
+
+# `>` truncates. `>>` appends, `2>&1` and `->` are not redirects at all.
+_REDIRECT = re.compile(r"(?<![>\-0-9])>(?![>&=])\s*(\S+)")
+
+
+@dataclass(frozen=True)
+class Signal:
+    """A command that destroys something, named by the form that gave it away."""
+
+    form: str
+    path: str | None = None
+    """For a truncating redirect, where it points. The resolver checks whether that file exists:
+    `pytest -q > out.txt` creates a file and destroys nothing, and flagging it would spend the
+    operator's attention on the most common redirect there is."""
+
+
+def _segments(text: str) -> list[str]:
+    """Split on unquoted command separators.
+
+    Splitting is what makes the signal read *command position* rather than the whole line —
+    `grep -rn 'rm' src/` mentions the verb and does not run it. Quote tracking is what keeps that
+    true in the other direction: the argument of `bash -c` is one command, not four fragments, and
+    a naive split turned the most obvious wrapper there is back into silence.
+    """
+    out: list[str] = []
+    current: list[str] = []
+    quote: str | None = None
+    for ch in text:
+        if quote is not None:
+            # The quote characters are kept, not consumed. Stripping them would hand
+            # `bash -c 'find / | xargs rm'` to `shlex` as loose words, so the inner command would
+            # stop being one argument — which is exactly how the most obvious wrapper there is
+            # went quiet the first time this was written.
+            current.append(ch)
+            if ch == quote:
+                quote = None
+            continue
+        if ch in {"'", '"'}:
+            quote = ch
+            current.append(ch)
+            continue
+        if ch in _SEPARATORS:
+            out.append("".join(current))
+            current = []
+            continue
+        current.append(ch)
+    out.append("".join(current))
+    return out
+
+
+def _head(segment: str) -> tuple[str, list[str]]:
+    """The verb a segment actually runs, with its prefixes peeled, and the rest of its tokens."""
+    try:
+        tokens = shlex.split(segment)
+    except ValueError:
+        tokens = segment.split()
+    saw_prefix = False
+    while tokens:
+        token = tokens[0]
+        if token in _PREFIXES:
+            saw_prefix, tokens = True, tokens[1:]
+            continue
+        # `xargs -0 -n1 rm` — flags belonging to a prefix, not to the verb.
+        if saw_prefix and _is_flag(token):
+            tokens = tokens[1:]
+            continue
+        break
+    if not tokens:
+        return "", []
+    return tokens[0].rsplit("/", 1)[-1], tokens[1:]
+
+
+def destructive_signal(command: str) -> Signal | None:
+    """Does this command destroy something, whether or not its size is knowable?
+
+    Textual, and deliberately shallow: it recognises forms, it does not simulate. What it buys is
+    the difference between *"this is not a filesystem deletion"* and *"this is a deletion and I
+    cannot tell you how big"*, which no amount of `on_unresolved` tuning could express.
+
+    A wrapper script is still invisible to it — `./cleanup.sh` deletes and says nothing about it,
+    and no textual signal will ever see that. SCOPE.md NC-15 says so rather than leaving it
+    implied.
+    """
+    return _signal(command or "", depth=0)
+
+
+def _signal(text: str, *, depth: int) -> Signal | None:
+    for segment in _segments(text):
+        if not segment.strip():
+            continue
+        verb, rest = _head(segment)
+        if verb in _SHELLS and depth < 2:
+            # `-c`, and also `-lc` / `-ec`: bundled short flags are how this is usually written.
+            at = next(
+                (i for i, t in enumerate(rest) if _is_flag(t) and "c" in t.lstrip("-")),
+                None,
+            )
+            inner = rest[at + 1 :] if at is not None else []
+            nested = _signal(inner[0], depth=depth + 1) if inner else None
+            if nested is not None:
+                return Signal(form=f"{verb}_c:{nested.form}", path=nested.path)
+        if verb in _DESTRUCTIVE_VERBS:
+            return Signal(form=f"destructive_verb:{verb}")
+        if verb == "find" and (
+            "-delete" in rest
+            or ("-exec" in rest and any(t.rsplit("/", 1)[-1] in _DESTRUCTIVE_VERBS for t in rest))
+        ):
+            return Signal(form="find_delete")
+        if verb == "git" and rest:
+            sub = rest[0]
+            if sub == "rm" or (sub == "clean" and any(_is_flag(f) and "f" in f for f in rest[1:])):
+                return Signal(form=f"git_{sub}")
+            if sub in {"checkout", "restore"} and "--" in rest[1:]:
+                return Signal(form=f"git_{sub}")
+
+    redirect = _REDIRECT.search(text)
+    if redirect:
+        return Signal(form="truncating_redirect", path=redirect.group(1))
+    return None
 
 
 @dataclass(frozen=True)
@@ -218,17 +373,37 @@ class ShellPathsResolver:
             FilesystemResolver(root=Path(self.root) if self.root else None, cap=self.cap),
         )
 
+    def _unsized(self, command: str, reason: str, **extra: object) -> Resolution:
+        """UNRESOLVED, plus whether what could not be sized looked destructive.
+
+        The flag rides on `evidence`, which is already part of every resolution and already inside
+        the record. No new `ResolutionState` — `PARTIAL` means *enumeration was truncated* and
+        repurposing it would corrupt the one signal that says a magnitude is a floor.
+        """
+        signal = destructive_signal(command)
+        if (
+            signal is not None
+            and signal.form == "truncating_redirect"
+            and signal.path
+            # Only a redirect over a file that is already there destroys anything.
+            and self._fs.resolve(signal.path, ResolveContext()).magnitude is None
+        ):
+            signal = None
+        evidence: dict[str, object] = {"command": command[:200], **extra}
+        if signal is None:
+            evidence["note"] = "not a recognised destructive command; on_unresolved decides"
+        else:
+            # The form itself, not a bare `True`. One key carries both facts — *that* it destroys
+            # and *what* gave it away — so the record has one place to look and `neti report` can
+            # print "destructive_verb:rm" rather than the word "destructive".
+            evidence["destructive"] = signal.form
+            evidence["note"] = "destructive but unsizeable; on_unsized_risk decides"
+        return Resolution.unresolved(self.unit, reason=reason, evidence=evidence)
+
     def resolve(self, target: str, ctx: ResolveContext) -> Resolution:
         read = targets_of(target)
         if not read.understood:
-            return Resolution.unresolved(
-                self.unit,
-                reason=read.reason,
-                evidence={
-                    "command": target[:200],
-                    "note": "not a recognised destructive command; on_unresolved decides",
-                },
-            )
+            return self._unsized(target, read.reason)
 
         # Every target counted, and summed. A command with three arguments deletes all three, so the
         # blast radius is the total rather than the largest.
@@ -238,11 +413,13 @@ class ShellPathsResolver:
             one = self._fs.resolve(path, ctx)
             if one.magnitude is None:
                 # One unreadable target makes the whole command unsizeable. Counting the rest would
-                # report a number smaller than what the command touches.
-                return Resolution.unresolved(
-                    self.unit,
-                    reason=str(one.evidence.get("reason") or "target_unresolved"),
-                    evidence={"command": target[:200], "target": path},
+                # report a number smaller than what the command touches. This branch is reached
+                # *after* the parse understood the command, so it is destructive by construction —
+                # `rm -rf $HOME/gone` is exactly the case the flag exists for.
+                return self._unsized(
+                    target,
+                    str(one.evidence.get("reason") or "target_unresolved"),
+                    target=path,
                 )
             total += one.magnitude
             parts.append({"target": path, "objects": one.magnitude})

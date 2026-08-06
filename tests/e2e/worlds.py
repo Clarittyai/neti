@@ -40,6 +40,7 @@ from neti.eval.synthetic import default_tenant
 from neti.resolvers.base import Resolver
 from neti.resolvers.graph_client import ClientCredential, GraphClient
 from neti.resolvers.registry import resolvers_for_client
+from neti.resolvers.shell import ShellPathsResolver
 from neti.resolvers.storage import Listing, ObjectStoreResolver
 
 __all__ = [
@@ -55,7 +56,7 @@ __all__ = [
 
 CRED = ClientCredential(tenant_id="demo", client_id="demo", client_secret="demo")
 
-RESOLVER_WORLDS = ("entra", "fs", "db", "storage", "terraform")
+RESOLVER_WORLDS = ("entra", "fs", "db", "storage", "terraform", "shell")
 """One per family of thing an agent touches. This is the axis `neti score` reports as M8 coverage.
 
 `entra` is loaded from `examples/entra.yaml` rather than from `POLICIES` below, because the seam
@@ -269,6 +270,26 @@ POLICIES: dict[str, dict[str, Any]] = {
             },
         },
     },
+    # The shell, which is where a coding agent actually deletes things. It is also the only world
+    # here whose gate produces all three of "sized", "recognised but unsizeable" and "silent" from
+    # one tool and one pointer, which is exactly what `on_unsized_risk` had to be driven against.
+    "shell": {
+        "version": 1,
+        "providers": {"fs": {"root": "."}},
+        "tools": {
+            "Bash": {
+                "gate": {
+                    "/command": {
+                        "resolver": "shell.paths",
+                        "bands": [{"above": 10, "verdict": "block"}],
+                        "on_unresolved": "allow",
+                        "on_unsized_risk": "flag",
+                        "on_unbounded": "confirm",
+                    }
+                }
+            }
+        },
+    },
     "storage": {
         "version": 1,
         "tools": {
@@ -362,12 +383,16 @@ def build_world(name: str, fixtures: Fixtures, *, config: str | None = None) -> 
 
     client = GraphClient(CRED, transport=default_tenant().transport())
     resolvers = resolvers_for_client(client, policy.providers)
-    if any(
-        gate.resolver == "fs.paths" for tool in policy.tools.values() for gate in tool.gate.values()
-    ):
+    bound = policy.bound_resolvers()
+    if "fs.paths" in bound:
         # The root has to be the fixture tree, not the repository: `providers.fs.root` is what
         # bounds the walk, and a root of `.` would make the magnitude depend on the checkout.
         resolvers["fs.paths"] = _fs_resolver(fixtures)
+    if "shell.paths" in bound:
+        # Same reason, one level up: `shell.paths` delegates every count to a filesystem resolver,
+        # so it has to delegate to *this* one or `rm -rf {tree}` would be counted against the
+        # checkout and the seam table's magnitudes would move with the repository.
+        resolvers["shell.paths"] = ShellPathsResolver(root=str(fixtures.root))
     resolvers["storage.objects"] = ObjectStoreResolver(PrefixLister())
     return World(name=name, policy=policy, resolvers=resolvers)
 

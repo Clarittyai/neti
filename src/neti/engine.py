@@ -282,7 +282,18 @@ class Engine:
                     unit, reason="gated argument absent from the call"
                 )
                 continue
-            emit(RESOLVE_STARTED, {"pointer": pointer, "target": target, "unit": unit.value})
+            # The resolver name travels with the stage. Without it the console had no way to know
+            # which one was running and narrated every resolution as a Microsoft Graph request —
+            # scope, `ConsistencyLevel` header and all — for calls that walked a local directory.
+            emit(
+                RESOLVE_STARTED,
+                {
+                    "pointer": pointer,
+                    "target": target,
+                    "unit": unit.value,
+                    "resolver": spec.resolver,
+                },
+            )
             try:
                 resolution = _relabel(resolver.resolve(target, self.ctx), unit)
             except Exception as exc:  # a resolver must not be able to end the process
@@ -309,6 +320,7 @@ class Engine:
                 RESOLVED,
                 {
                     "pointer": pointer,
+                    "resolver": spec.resolver,
                     "state": resolution.state.name.lower(),
                     "magnitude": resolution.magnitude,
                     "unit": resolution.unit.value,

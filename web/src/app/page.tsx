@@ -21,6 +21,7 @@ import { Failed, Loading, Page, Stat, Stats, useAsync } from "@/components/Page"
 import { Activity } from "lucide-react";
 import { EmptyState } from "@/components/ui/empty-state";
 import { CloudSlides } from "@/components/CloudSlides";
+import { Walkthrough } from "@/components/Walkthrough";
 import { VerdictSplit } from "@/components/VerdictSplit";
 import { ReachScene } from "@/components/live/scenes/ReachScene";
 import { api, type InventoryRow } from "@/lib/api";
@@ -51,6 +52,12 @@ export default function OverviewPage() {
   const uncapped = rows.filter((r) => !r.has_ceiling);
   const dists = (report.data?.distributions ?? []).filter((d) => d.n > 0);
 
+  // Nothing recorded means nobody has wired the gate to anything yet, and *that* is what this page
+  // is for on a first run — not a pitch for a hosted feature, and not three zeros. Gated on the
+  // report having actually arrived, so the page does not flash one layout and swap to the other.
+  const loaded = report.data !== null;
+  const firstRun = loaded && (report.data?.decisions ?? 0) === 0;
+
   return (
     <Page
       title="Overview"
@@ -60,13 +67,25 @@ export default function OverviewPage() {
         <Failed error={inventory.error} onRetry={inventory.reload} />
       ) : null}
 
-      {/* The featured band, at the top. Your own numbers follow immediately under it — a page that
-          led with a pitch and buried the data would be the wrong trade, and this is a rotation
-          rather than a wall of feature cards precisely so it can sit here without taking the page
-          over. */}
-      <CloudSlides />
+      {/* First run leads with the walkthrough. An install that has never seen a call has no
+          distribution to show and no verdicts to split, so leading with a rotation about hosted
+          approvals — a feature for a problem this reader has not had yet — was answering a
+          question nobody had asked while the two they did have went unanswered.
 
-      {rows.length === 0 && (report.data?.decisions ?? 0) === 0 ? (
+          Once traffic exists the order inverts: the featured band comes back at the top, and what
+          remains of the walkthrough is one line naming the next step. */}
+      {firstRun ? (
+        <div className="border-b border-border pb-8">
+          <Walkthrough />
+        </div>
+      ) : loaded ? (
+        <>
+          <CloudSlides />
+          <Walkthrough compact />
+        </>
+      ) : null}
+
+      {rows.length === 0 && firstRun ? (
         <EmptyState
           size="page"
           scene={<ReachScene />}

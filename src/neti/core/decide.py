@@ -55,6 +55,19 @@ def decide_arg(
     """
     # 1. We do not know the magnitude. Ignorance is never an implicit allow.
     if resolution.state is not ResolutionState.RESOLVED:
+        # Not knowing has two shapes, and treating them alike is how a deletion passes in silence.
+        # A resolver may say it recognised the target as destructive without being able to size it —
+        # `cat list.txt | xargs rm` — and that is a different fact from `npm test`, which is simply
+        # not a deletion. The operator declares what each one costs; nothing is inferred here.
+        risky = bool(resolution.evidence.get("destructive"))
+        if risky and ceiling.on_unsized_risk is not None:
+            return ArgDecision(
+                pointer=pointer,
+                target=target,
+                verdict=ceiling.on_unsized_risk,
+                resolution=resolution,
+                rule="on_unsized_risk:destructive_but_unsizeable",
+            )
         return ArgDecision(
             pointer=pointer,
             target=target,

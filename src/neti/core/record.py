@@ -175,6 +175,17 @@ def build_record(
                 }
                 for b in a.breaches
             ],
+            # Why there is no number, and whether that absence is dangerous. Two scalars rather
+            # than the whole `evidence` map: evidence is provider-shaped, arbitrarily deep and may
+            # hold floats, and nothing may enter `chained` that a canonical encoder cannot pin.
+            #
+            # Additive within v2 and safe, for a reason worth stating: `causes` entries are stored
+            # dicts, not models, so a record written last week is re-read exactly as it was written
+            # and recomputes the digest it was sealed with. A new key appears only in records built
+            # after this line existed. That is not true of a field on `DecisionRecord` itself, which
+            # is why `synthetic` needed a schema version and this does not.
+            "reason": a.resolution.evidence.get("reason"),
+            "destructive": a.resolution.evidence.get("destructive"),
             "consistency": a.resolution.consistency,
             "resolved_at": (
                 None if a.resolution.resolved_at is None else a.resolution.resolved_at.isoformat()

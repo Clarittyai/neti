@@ -42,10 +42,14 @@ export function ResolutionTheatre({
   result,
   playbackMs = BEAT_MS,
   onDone,
+  hasScenario = true,
 }: {
   result: GateResult | null;
   playbackMs?: number;
   onDone?: () => void;
+  /** Whether this policy has a scenario at all. The idle copy told everybody to "run the
+   *  scenario", including the policies that have none. */
+  hasScenario?: boolean;
 }) {
   // Memoised because the `?? []` fallback is a fresh array on every render, which would make every
   // downstream useMemo recompute and defeat the point of having them.
@@ -77,7 +81,7 @@ export function ResolutionTheatre({
   const secondary = countsIn[1];
   const settled = shown >= stages.length && stages.length > 0;
 
-  if (!result) return <TheatreIdle />;
+  if (!result) return <TheatreIdle hasScenario={hasScenario} />;
 
   const magnitude = num(primary?.payload.magnitude);
   const unit = str(primary?.payload.unit);
@@ -313,6 +317,22 @@ function CeilingMeter({
 /** Whether the call actually left the building. The strongest single claim on the screen. */
 function UpstreamLane({ result, settled }: { result: GateResult; settled: boolean }) {
   const reached = result.proceeds;
+  // Where the call was actually headed. This said "Microsoft Graph" for everybody, so a `Bash`
+  // call that would have deleted files in this repository was drawn as a request to Microsoft —
+  // on the one lane whose whole job is the claim *this is where it went*. Read from the resolver
+  // the trace already names.
+  const resolver = String(
+    result.trace.stages.find((s) => s.payload?.resolver)?.payload?.resolver ?? "",
+  );
+  const upstream = resolver.startsWith("entra.")
+    ? "Microsoft Graph"
+    : resolver.startsWith("github.")
+      ? "GitHub"
+      : resolver.startsWith("storage.")
+        ? "the object store"
+        : resolver.startsWith("db.")
+          ? "the database"
+          : "this machine";
   return (
     <div className="flex flex-wrap items-center gap-3 border-t border-border/40 bg-muted/20 px-5 py-3 text-xs">
       <span className="flex items-center gap-1.5 text-muted-foreground">
@@ -329,7 +349,7 @@ function UpstreamLane({ result, settled }: { result: GateResult; settled: boolea
           reached ? "text-muted-foreground" : "text-[hsl(var(--verdict-block))] line-through",
         )}
       >
-        <Server className="h-3.5 w-3.5" /> Microsoft Graph
+        <Server className="h-3.5 w-3.5" /> {upstream}
       </span>
       {settled ? (
         <span className="ml-auto tnum text-muted-foreground">
@@ -341,16 +361,21 @@ function UpstreamLane({ result, settled }: { result: GateResult; settled: boolea
   );
 }
 
-function TheatreIdle() {
+function TheatreIdle({ hasScenario = true }: { hasScenario?: boolean }) {
   return (
     <div className="panel flex min-h-[320px] flex-col items-center justify-center p-10 text-center">
       <span className="grid h-11 w-11 place-items-center rounded-full bg-accent/10 text-accent">
         <Zap className="h-5 w-5" />
       </span>
       <p className="mt-3 text-sm font-semibold">Nothing has been gated yet</p>
+      {/* "Run the scenario" was said to everybody, including the policies that have none — the
+          shipped scenarios are Entra-shaped, so a coding-agent install was told to press something
+          that was not on the page. Telling somebody to do a thing they cannot do is worse than
+          saying nothing: they go looking for the button and conclude the console is broken. */}
       <p className="mt-1 max-w-xs text-[13px] leading-relaxed text-muted-foreground">
-        Run the scenario, or fire a call of your own, and watch the argument become a number before
-        anything executes.
+        {hasScenario
+          ? "Run the scenario, or fire a call of your own, and watch the argument become a number before anything executes."
+          : "Fire a call from the panel — a real path on this machine, or a real command — and watch the argument become a number before anything executes."}
       </p>
     </div>
   );

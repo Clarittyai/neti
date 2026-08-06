@@ -17,9 +17,10 @@
  * "no agent rewrite" checkable rather than assertable.
  */
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Copy } from "lucide-react";
 
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 interface Target {
@@ -106,7 +107,26 @@ for block in message.content:
 ];
 
 export function Install() {
-  const [active, setActive] = useState(TARGETS[0].id);
+  const [active, setActive] = useState<string | null>(null);
+
+  // Open on the seam this machine actually has. The first tab was "An MCP server" for everybody,
+  // so an install with no MCP servers configured — the common case for a coding agent — landed on a
+  // before/after of `@acme/entra-mcp`, a fictional server it does not run, while the tab that
+  // applied to it sat unselected next door. `/api/start` already knows which doors are here.
+  useEffect(() => {
+    let live = true;
+    api
+      .start()
+      .then((s) => {
+        if (!live) return;
+        setActive(s.harnesses.some((h) => h.kind === "mcp") ? "mcp" : "hook");
+      })
+      .catch(() => live && setActive(TARGETS[0].id));
+    return () => {
+      live = false;
+    };
+  }, []);
+
   const target = TARGETS.find((t) => t.id === active) ?? TARGETS[0];
 
   return (
@@ -134,7 +154,7 @@ export function Install() {
             onClick={() => setActive(t.id)}
             className={cn(
               "rounded-full px-3 py-1.5 text-[13px] font-medium transition-colors",
-              t.id === active
+              t.id === target.id
                 ? "bg-accent/10 text-accent"
                 : "text-muted-foreground hover:bg-foreground/5 hover:text-foreground",
             )}
