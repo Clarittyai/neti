@@ -59,7 +59,7 @@ this list as part of its output, not as an appendix.
 | id | Not covered | Why it is structural, not a gap to close |
 |---|---|---|
 | **NC-01** | **Cumulative effect across calls.** 4,000 individual sends are 4,000 calls of one recipient each; per-call resolution sees `1` every time. | Mitigated only by *declared session budgets*, never by resolution. Without a declared budget for the tool, this is invisible. |
-| **NC-02** | **Correctness of the action.** Deleting the one row that mattered. | Magnitude is the wrong primitive. A cardinality of 1 is always under every ceiling. |
+| **NC-02** | **Correctness of the action.** Deleting the one row that mattered. | Magnitude is the wrong primitive. A cardinality of 1 is always under every ceiling. *Partially* addressed by declared provenance: a call downstream of untrusted input is judged against a tighter ceiling whatever its size, which reaches the small-payload case without ever asking what the agent meant. It does not reach a small call in a clean session, and nothing here will. |
 | **NC-03** | **Which tool was called, in what order, or what was omitted.** | `neti` sees a proposed call, not a plan. Tool-level authorization is upstream. |
 | **NC-04** | **Whether the caller should be doing this at all.** | Authorization is a different question, answered by a different layer. `neti` runs after it. |
 | **NC-05** | **Low-cardinality but high-consequence targets.** Revoking one admin's access. | Same as NC-02: consequence is not cardinality. |

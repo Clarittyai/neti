@@ -72,6 +72,15 @@ class DecisionRecord(Frozen):
     mode: str
     causes: tuple[dict[str, Any], ...] = ()
     budget: dict[str, Any] | None = None
+    provenance: dict[str, Any] | None = None
+    """What put this session downstream of untrusted input, when something did.
+
+    Outside `chained` on purpose, and the reason is the same one that made `synthetic` a schema
+    version: adding a key to the digest payload unconditionally would change the recomputed digest
+    of every record ever written, so a chain sealed last week would report as tampered with. This is
+    annotation — the *verdict* it produced is already covered, because the tightened ceiling appears
+    in `causes[].ceiling` like any other. A tamperer stripping this makes the record less legible,
+    not more permissive."""
     policy_digest: str
     code_version: str
 
@@ -144,6 +153,7 @@ def build_record(
     code_version: str,
     args: dict[str, Any] | None = None,
     session_id: str | None = None,
+    provenance: dict[str, Any] | None = None,
     prev_digest: str | None = None,
     synthetic: bool = False,
 ) -> DecisionRecord:
@@ -223,6 +233,7 @@ def build_record(
         mode=decision.mode_applied,
         causes=causes,
         budget=budget,
+        provenance=provenance,
         policy_digest=policy_digest,
         code_version=code_version,
         synthetic=synthetic,

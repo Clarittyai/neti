@@ -20,8 +20,9 @@ from neti._version import __version__
 from neti.config.policy import Policy
 from neti.core.budget import SessionTally, check_budgets
 from neti.core.decide import decide
+from neti.core.provenance import Provenance, Taint, taints
 from neti.core.record import DecisionRecord, build_record
-from neti.core.types import Ceiling, Decision, ProposedCall, Resolution
+from neti.core.types import Ceiling, Decision, ProposedCall, Resolution, sorted_bands
 from neti.core.units import Unit
 from neti.core.verdict import ResolutionState
 from neti.resolvers.base import ResolveContext, Resolver
@@ -106,6 +107,12 @@ class Engine:
     """
 
     _tallies: dict[str, SessionTally] = field(default_factory=dict, init=False)
+    _tainted: dict[str, Taint] = field(default_factory=dict, init=False)
+    """Per session: the first call that put it downstream of untrusted input, if any.
+
+    Latching rather than counting — once a session has read something a stranger wrote, every later
+    call in it is downstream, and there is no un-reading it."""
+
     _policy_digest: str = field(default="", init=False)
 
     def __post_init__(self) -> None:
@@ -335,6 +342,24 @@ class Engine:
         session_id = call.session_id or "anonymous"
         tally = self._tallies.get(session_id, SessionTally())
 
+        # **The session's provenance, applied before the verdict.** If an earlier call in this
+        # session read something the operator declared untrusted, every gate here also has to clear
+        # the tighter `provenance.bands` — added to its own, never replacing them, so this can only
+        # raise a verdict. A prompt injection is small at the ingest and small at the payload; what
+        # it cannot hide is that the two happened in the same session, in that order.
+        tainted = self._tainted.get(session_id)
+        if tainted is not None and self.policy.provenance.bands:
+            gated = [
+                (
+                    pointer,
+                    target,
+                    ceiling.model_copy(
+                        update={"bands": sorted_bands(ceiling.bands + self.policy.provenance.bands)}
+                    ),
+                )
+                for pointer, target, ceiling in gated
+            ]
+
         prelim = decide(call, tuple(gated), resolutions, mode=self.policy.mode)
         budget = check_budgets(call.tool, prelim.args, tally, self.policy.session_budgets)
         final = decide(call, tuple(gated), resolutions, mode=self.policy.mode, budget=budget)
@@ -374,9 +399,28 @@ class Engine:
 
         if final.proceeds:
             self._tallies[session_id] = tally.add_committed(final.args)
+            # A call cannot taint itself — the read that ingests untrusted content is judged under
+            # the ordinary ceilings, and the tightening applies from here on. Anything else would
+            # make the first read of any untrusted file impossible, which is the whole job of a
+            # support agent. Only a call that actually proceeds can have ingested anything.
+            if self._tainted.get(session_id) is None:
+                hit = taints(
+                    Provenance(
+                        untrusted=self.policy.provenance.untrusted,
+                        tools=self.policy.provenance.tools,
+                    ),
+                    call.tool,
+                    tuple(t for _, t, _ in gated),
+                )
+                if hit is not None:
+                    self._tainted[session_id] = hit
 
         record = build_record(
             final,
+            # Why the tighter ceiling applied, in the record. "This session is tainted" is an
+            # assertion; "it read customer_data/ticket_17.md through read_files at 14:02" is
+            # evidence, and it is what an auditor reconstructing an incident actually needs.
+            provenance=None if tainted is None else tainted.as_json(),
             decision_id=str(uuid.uuid4()),
             decided_at=datetime.now(UTC).isoformat(),
             policy_digest=self._policy_digest,

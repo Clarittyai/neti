@@ -26,7 +26,15 @@ from neti.core.types import Band, Ceiling, Frozen, ProposedCall, sorted_bands
 from neti.core.units import Unit
 from neti.core.verdict import Mode, ModeValue, Verdict, VerdictValue
 
-__all__ = ["GateSpec", "Policy", "PolicyError", "ToolSpec", "load_policy", "strip_mcp_prefix"]
+__all__ = [
+    "GateSpec",
+    "Policy",
+    "PolicyError",
+    "ProvenanceSpec",
+    "ToolSpec",
+    "load_policy",
+    "strip_mcp_prefix",
+]
 
 
 class PolicyError(ValueError):
@@ -93,6 +101,37 @@ class GateSpec(Frozen):
         return bool(self.bands) or any(self.breakdown_bands.values())
 
 
+class ProvenanceSpec(Frozen):
+    """Where untrusted content lives, and how much tighter the gate gets once it has been read.
+
+    Magnitude is blind to the shape of a prompt injection: the ingest is small, and so is a
+    well-chosen payload. This is the other axis — not *how big*, but *what has this session already
+    eaten*. Declared, never inferred, like every other number here.
+    """
+
+    untrusted: tuple[str, ...] = ()
+    """Globs over gated targets. `**` spans separators, `*` does not."""
+
+    tools: frozenset[str] = frozenset()
+    """Tools whose results are untrusted whatever the argument — a web fetch, an inbox read."""
+
+    bands: tuple[Band, ...] = ()
+    """The ceiling that applies *after* the session has read untrusted content.
+
+    Applied on top of the gate's own bands, never instead of them, so this can raise a verdict and
+    never lower one. A mistake costs a confirmation, not a silent allow.
+    """
+
+    @model_validator(mode="after")
+    def _sort(self) -> ProvenanceSpec:
+        object.__setattr__(self, "bands", sorted_bands(self.bands))
+        return self
+
+    @property
+    def declared(self) -> bool:
+        return bool(self.untrusted or self.tools)
+
+
 class ToolSpec(Frozen):
     gate: dict[str, GateSpec] = Field(default_factory=dict)
     sensitive: bool = True
@@ -102,6 +141,7 @@ class Policy(Frozen):
     version: int = 1
     mode: ModeValue = Mode.OBSERVE
     providers: dict[str, dict[str, Any]] = Field(default_factory=dict)
+    provenance: ProvenanceSpec = Field(default_factory=lambda: ProvenanceSpec())
     tools: dict[str, ToolSpec] = Field(default_factory=dict)
     session_budgets: tuple[BudgetRule, ...] = ()
     unknown_tool: VerdictValue = Verdict.ALLOW
@@ -267,6 +307,14 @@ def _normalise(data: dict[str, Any]) -> dict[str, Any]:
             }
         )
     out["session_budgets"] = tuple(rules)
+
+    prov = out.get("provenance")
+    if isinstance(prov, dict):
+        out["provenance"] = {
+            "untrusted": tuple(prov.get("untrusted", ()) or ()),
+            "tools": frozenset(prov.get("tools", ()) or ()),
+            "bands": tuple(prov.get("bands", ()) or ()),
+        }
 
     defaults = out.pop("defaults", {}) or {}
     if "unknown_tool" in defaults:

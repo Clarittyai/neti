@@ -2,6 +2,61 @@
 
 ## Unreleased
 
+### Provenance: the axis magnitude is blind to
+
+Everything in this product so far answers *how big*. A prompt injection is small at both ends — the
+ingest is one ticket, and the payload can be one file — so magnitude never sees it. Against the
+LangChain demo the gate stopped `purge("customer_data")` on 2,240 objects, and would have allowed
+`purge("src/secrets.env")`, which is the same attack with a better-chosen target.
+
+What is new is **not** intelligence. No model reads the agent's reasoning, nothing is scored, and
+nothing is inferred. It answers one mechanical question:
+
+> has this session already touched a target the operator declared untrusted?
+
+The injected text can claim anything it likes about being authorised; **it cannot change the fact
+that the session read `customer_data/` two calls ago.**
+
+```yaml
+provenance:
+  untrusted: [customer_data/**]
+  bands:
+    - { above: 0, verdict: confirm }
+```
+
+Measured against the running demo — the same call, the only difference being what the session read
+first:
+
+    clean   (read reports/)        purge('src/secrets.env') → ALLOW    (1 object)
+    tainted (read customer_data/)  purge('src/secrets.env') → CONFIRM  (1 object)
+
+Four properties, all asserted:
+
+- **Escalate only.** The provenance bands are *added* to each gate's own, never substituted, so a
+  permissive one cannot rescue a call the declared ceiling already stopped. A mistake here costs a
+  confirmation and never a silent allow.
+- **A call cannot taint itself.** The read that ingests untrusted content is judged under the
+  ordinary ceilings — otherwise the first read of any ticket is impossible, which is the agent's
+  whole job.
+- **A blocked read does not taint.** It never ran, so nothing was ingested.
+- **Sessions do not contaminate each other**, and the taint latches: there is no un-reading a
+  stranger's file.
+
+The record says *why*, not just that — `downstream of: read_files read customer_data/ticket_17.md,
+matched rule customer_data/**`. Outside `chained`, for the same reason `synthetic` needed a schema
+version: adding a key to the digest payload unconditionally would report every previously sealed
+chain as tampered with. The verdict it produced is already covered, because the tightened ceiling
+appears in `causes[].ceiling` like any other.
+
+One real bug found in the writing: the "a pattern naming a directory covers what is under it"
+convenience was implemented by matching the target's *parent*, so `dirname("customer_data/a/b.md")`
+is `customer_data/a`, which `customer_data/*` matches — a rule naming one level silently named the
+whole tree and `*` stopped meaning anything different from `**`. It is a prefix test now, and only
+for patterns with no wildcard in them.
+
+`SCOPE.md` NC-02 updated: partially addressed, and honest about what it still does not reach — a
+small call in a clean session, which nothing here ever will.
+
 ### The sidebar row had drifted from the one it was copied from
 
 Measured against `clarity-platform/src/components/Sidebar.tsx` rather than guessed at:
