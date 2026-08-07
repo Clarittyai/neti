@@ -634,12 +634,24 @@ def _with_bands(text: str, *, tool: str, pointer: str, bands: list[dict[str, Any
 
 
 def _enforcing(text: str) -> str:
-    """`mode: observe` -> `mode: enforce`, keeping whatever comment sits beside it."""
+    """`mode: observe` -> `mode: enforce`, keeping whatever comment sits beside it.
+
+    The **value** only, and that distinction is not pedantry — it is a bug this shipped once.
+    Replacing the first `observe` anywhere on the line works exactly once, because the shipped
+    policy reads:
+
+        mode: observe # observe | enforce. Observe cannot block anything; start here.
+
+    After one pass the value is `enforce` and the *first* remaining `observe` is inside the comment,
+    so a second `neti start` rewrites the documentation into `# enforce | enforce`. Found by reading
+    the diff of my own commit, which had done exactly that to this repository's policy.
+    """
     out = []
     done = False
     for line in text.splitlines(keepends=True):
-        if not done and line.lstrip().startswith("mode:") and "observe" in line:
-            out.append(line.replace("observe", "enforce", 1))
+        head, hash_, tail = line.partition("#")
+        if not done and head.lstrip().startswith("mode:") and "observe" in head:
+            out.append(head.replace("observe", "enforce", 1) + hash_ + tail)
             done = True
         else:
             out.append(line)

@@ -219,3 +219,35 @@ def test_the_written_policy_is_the_one_that_decides(repo: Path) -> None:
         )
     )
     assert isinstance(load_policy(target), Policy)
+
+
+def test_running_it_twice_changes_nothing(repo: Path) -> None:
+    """Somebody will run `neti start` again, and it must be a no-op rather than a slow corruption.
+
+    It was not. `_enforcing` replaced the first `observe` anywhere on the line, which works exactly
+    once — the shipped policy reads `mode: observe # observe | enforce. …`, so after one pass the
+    value is right and the first remaining `observe` is *inside the comment*. A second run rewrote
+    the documentation to `# enforce | enforce`.
+
+    Found by reading the diff of the commit that introduced it, which had done precisely that to
+    this repository's own policy.
+    """
+    target = policy_at(repo)
+    preset = build(repo, 60_000)
+
+    def apply_once() -> str:
+        apply_preset(
+            plan_preset(
+                target,
+                bands=[{"above": preset.flag_above, "verdict": "flag"}],
+                rules=[
+                    {"match": c.match, "verdict": c.verdict, "why": c.why}
+                    for c in preset.off_limits
+                ],
+            )
+        )
+        return target.read_text(encoding="utf-8")
+
+    once = apply_once()
+    assert once == apply_once(), "a second run must be a no-op, not a second edit"
+    assert "# observe | enforce" in once, "the comment explaining the modes was rewritten"

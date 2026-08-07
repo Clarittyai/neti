@@ -18,3 +18,6 @@ web/out/
 out/
 web/tsconfig.tsbuildinfo
 src/neti/console/
+
+# Backups written by `neti install` and the policy editor. Never committed.
+*.bak

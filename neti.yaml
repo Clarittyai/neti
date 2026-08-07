@@ -15,7 +15,7 @@
 #     "hooks": [{"type": "command", "command": "neti hook -c neti.yaml"}]}]}}
 
 version: 1
-mode: enforce # enforce | enforce. Observe cannot block anything; start here.
+mode: enforce # observe | enforce. Observe cannot block anything; start here.
 
 providers:
   fs:
@@ -41,7 +41,7 @@ tools:
       /pattern:
         resolver: fs.paths
         bands:
-          - { above: 5964, verdict: flag }
+          - { above: 5967, verdict: flag }
         # bands:
         #   - { above: 500, verdict: confirm }
         #   - { above: 5000, verdict: block }
@@ -53,7 +53,7 @@ tools:
       /path:
         resolver: fs.paths
         bands:
-          - { above: 5964, verdict: flag }
+          - { above: 5967, verdict: flag }
         # bands:
         #   - { above: 5000, verdict: confirm }
         on_unresolved: allow
@@ -69,7 +69,7 @@ tools:
       /path:
         resolver: fs.paths
         bands:
-          - { above: 5964, verdict: flag }
+          - { above: 5967, verdict: flag }
         # bands:
         #   - { above: 5000, verdict: block }
         on_unresolved: block # a path we cannot size is a path we will not walk
@@ -80,7 +80,7 @@ tools:
       /path:
         resolver: fs.paths
         bands:
-          - { above: 5964, verdict: flag }
+          - { above: 5967, verdict: flag }
         on_unresolved: block
         on_unbounded: confirm
 
@@ -89,7 +89,7 @@ tools:
       /path:
         resolver: fs.paths
         bands:
-          - { above: 5964, verdict: flag }
+          - { above: 5967, verdict: flag }
         on_unresolved: block
         on_unbounded: confirm
 
@@ -108,13 +108,13 @@ tools:
 
   Read:
     gate:
-      /file_path: { resolver: fs.paths, bands: [{ above: 5964, verdict: flag }], on_unresolved: allow }
+      /file_path: { resolver: fs.paths, bands: [{ above: 5967, verdict: flag }], on_unresolved: allow }
   Edit:
     gate:
-      /file_path: { resolver: fs.paths, bands: [{ above: 5964, verdict: flag }], on_unresolved: allow }
+      /file_path: { resolver: fs.paths, bands: [{ above: 5967, verdict: flag }], on_unresolved: allow }
   Write:
     gate:
-      /file_path: { resolver: fs.paths, bands: [{ above: 5964, verdict: flag }], on_unresolved: allow }
+      /file_path: { resolver: fs.paths, bands: [{ above: 5967, verdict: flag }], on_unresolved: allow }
 
   # ---------------------------------------------------------------- GitHub
   # Needs NETI_GITHUB_TOKEN (or GITHUB_TOKEN — `gh auth token` produces one). Uncomment
