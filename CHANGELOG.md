@@ -2,6 +2,50 @@
 
 ## Unreleased
 
+### `sensitive:` — gated on what a thing is, not how much of it there is
+
+`SCOPE.md` has carried this since the first release and had no answer for it:
+
+    NC-02  Deleting the one row that mattered. Magnitude is the wrong primitive.
+           A cardinality of 1 is always under every ceiling.
+    NC-05  Low-cardinality but high-consequence targets. Consequence is not cardinality.
+
+`.env` is one object. `.ssh/` is one directory. No ceiling anybody would write reaches either, and
+no amount of tuning the numbers ever will — that is what *"the wrong primitive"* means. The answer
+is not a better number, it is a **second comparison**:
+
+```yaml
+sensitive:
+  - { match: "**/*.env",   verdict: confirm, why: credentials live here }
+  - { match: "**/.ssh/**", verdict: block,   why: nothing here is an agent's business }
+```
+
+Declared exactly like every other number here — a static match against a list a person committed,
+nothing inferred, nothing learned, and the verdict still replays from the record. It **joins** with
+the magnitude verdict rather than replacing it, so a rule written badly costs a confirmation and
+never a silent allow; a `sensitive` rule of `allow` cannot rescue a call the ceiling already
+stopped, which is asserted.
+
+The agent hears the difference, and that matters more than it looks:
+
+> Preflight blocked this call: `/path` matches `'**/*.env'`, which is gated on what it is rather
+> than how large it is — credentials live here. **Size is not the issue here; choose a different
+> target.**
+
+The standard sentence ends *"narrow the target and try again"*, which would have sent it to delete a
+smaller part of the same secret. When both axes fire at once the record and the sentence name
+whichever one actually **decided** — an operator tuning the wrong number otherwise wonders why
+nothing changes.
+
+The glob engine moved to `core/globs.py` on the way, because `provenance:` and `sensitive:` both
+need it and two copies that disagreed about what `*` means would disagree about which calls are
+gated. Shipped commented-out in `examples/coding-agent.yaml`: the right list is the operator's, not
+a generator's.
+
+`SCOPE.md` NC-02 and NC-05 updated — and honest that the value moved from *impossible* to
+*declared*, not to *inferred*. An undeclared small target in a clean session is still invisible, and
+anything built on counting always will be.
+
 ### `neti propose` stopped waiting for a sample size that never arrives
 
 The defect that shipped in 0.2.0, found by installing the wheel and being a user for an afternoon.

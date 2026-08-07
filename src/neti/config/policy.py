@@ -31,6 +31,7 @@ __all__ = [
     "Policy",
     "PolicyError",
     "ProvenanceSpec",
+    "SensitiveRule",
     "ToolSpec",
     "load_policy",
     "strip_mcp_prefix",
@@ -101,6 +102,28 @@ class GateSpec(Frozen):
         return bool(self.bands) or any(self.breakdown_bands.values())
 
 
+class SensitiveRule(Frozen):
+    """A target that is dangerous because of *what it is*, whatever its size.
+
+    Magnitude is one axis and it is genuinely blind to the other: `SCOPE.md` NC-02 and NC-05 say so
+    — *"a cardinality of 1 is always under every ceiling"*, *"consequence is not cardinality"*.
+    Deleting `.env` is one object. Revoking one admin is one principal. No ceiling anybody would
+    write ever reaches either.
+
+    So: a second comparison, on identity rather than count, declared in exactly the same way. Still
+    a static match against a list a person committed — nothing is inferred, nothing is learned, and
+    the verdict is still replayable from the record.
+    """
+
+    match: str
+    """A glob over the gated target. `**` spans separators, `*` does not."""
+
+    verdict: VerdictValue = Verdict.CONFIRM
+    why: str = ""
+    """Shown to the agent and written into the record. A block with no reason is a block somebody
+    disables; `"credentials live here"` is one they work around correctly."""
+
+
 class ProvenanceSpec(Frozen):
     """Where untrusted content lives, and how much tighter the gate gets once it has been read.
 
@@ -142,6 +165,10 @@ class Policy(Frozen):
     mode: ModeValue = Mode.OBSERVE
     providers: dict[str, dict[str, Any]] = Field(default_factory=dict)
     provenance: ProvenanceSpec = Field(default_factory=lambda: ProvenanceSpec())
+    sensitive: tuple[SensitiveRule, ...] = ()
+    """Targets gated on what they are rather than how many. Joined with the magnitude verdict, worst
+    wins — so this can raise a verdict and never lower one."""
+
     tools: dict[str, ToolSpec] = Field(default_factory=dict)
     session_budgets: tuple[BudgetRule, ...] = ()
     unknown_tool: VerdictValue = Verdict.ALLOW
@@ -307,6 +334,9 @@ def _normalise(data: dict[str, Any]) -> dict[str, Any]:
             }
         )
     out["session_budgets"] = tuple(rules)
+
+    if "sensitive" in out:
+        out["sensitive"] = tuple(out.get("sensitive") or ())
 
     prov = out.get("provenance")
     if isinstance(prov, dict):

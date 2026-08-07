@@ -8,6 +8,7 @@ it is enforced by a test that walks this module's import graph.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import Any
 
 from neti.core.types import (
     ArgDecision,
@@ -164,6 +165,7 @@ def decide(
     *,
     mode: Mode = Mode.OBSERVE,
     budget: BudgetDecision | None = None,
+    sensitive: tuple[Any, ...] = (),
 ) -> Decision:
     """Combine per-argument verdicts and any session budget by JOIN.
 
@@ -185,6 +187,19 @@ def decide(
         for pointer, target, ceiling in gated
     )
     verdicts = [a.verdict for a in args]
+
+    # The second axis. A target can be dangerous because of *what it is* rather than how much of it
+    # there is — `.env` is one object and under every ceiling anybody would write. Joined rather
+    # than substituted, so it raises a verdict and never lowers one: getting a rule wrong here costs
+    # a confirmation, never a silent allow.
+    hits = tuple(
+        (pointer, rule)
+        for pointer, target, _ in gated
+        if target
+        for rule in (_sensitive_hit(target, sensitive),)
+        if rule is not None
+    )
+    verdicts.extend(rule.verdict for _, rule in hits)
     if budget is not None:
         verdicts.append(budget.verdict)
     worst = join_all(verdicts)
@@ -193,10 +208,33 @@ def decide(
         verdict=worst,
         args=args,
         budget=budget,
+        sensitive=tuple(
+            {"pointer": p, "match": r.match, "verdict": r.verdict.name.lower(), "why": r.why}
+            for p, r in hits
+        ),
         tool=call.tool,
         mode_applied=mode.name.lower(),
-        rule=_dominant_rule(args, budget, worst),
+        rule=_sensitive_rule(hits, worst) or _dominant_rule(args, budget, worst),
     )
+
+
+def _sensitive_hit(target: str, rules: tuple[Any, ...]) -> Any:
+    """The first declared rule this target matches. First, not worst: the operator wrote them in an
+    order, and a list read top-down is one they can reason about."""
+    from neti.core.globs import matches
+
+    for rule in rules:
+        if matches(target, (rule.match,)) is not None:
+            return rule
+    return None
+
+
+def _sensitive_rule(hits: tuple[tuple[str, Any], ...], worst: Verdict) -> str:
+    """Name the sensitivity rule in the record, but only when it is what decided the call."""
+    for pointer, rule in hits:
+        if rule.verdict is worst:
+            return f"{pointer}:sensitive:{rule.match}"
+    return ""
 
 
 def _lookup(resolutions: Mapping[str, Resolution], pointer: str, ceiling: Ceiling) -> Resolution:

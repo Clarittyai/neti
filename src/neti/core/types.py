@@ -266,6 +266,12 @@ class Decision(Frozen):
     verdict: Verdict
     args: tuple[ArgDecision, ...] = ()
     budget: BudgetDecision | None = None
+    sensitive: tuple[dict[str, Any], ...] = ()
+    """Declared sensitivity rules this call's targets matched, if any.
+
+    A second axis alongside magnitude: `.env` is one object and under every ceiling anybody would
+    write, which is `SCOPE.md` NC-02 stated as data. Joined into the verdict, never substituted."""
+
     tool: str = ""
     mode_applied: Literal["observe", "enforce"] = "observe"
     rule: str = ""

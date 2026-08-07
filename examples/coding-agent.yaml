@@ -28,6 +28,22 @@ providers:
     # the same way, which is the only reason a cap is survivable.
     cap: 200000
 
+# ---------------------------------------------------------------- gated on WHAT, not HOW MANY
+#
+# Magnitude is one axis and it is blind to the other: `.env` is one object, and no ceiling anybody
+# would write ever reaches it (SCOPE.md NC-02, NC-05). These fire on identity whatever the size,
+# and join with the ceilings below — worst verdict wins — so a rule written badly costs a
+# confirmation and never a silent allow.
+#
+# Commented out because the right list is yours, not a generator's. These four are the ones almost
+# every repository wants; delete the `#` on the ones that apply.
+#
+# sensitive:
+#   - { match: "**/*.env",       verdict: confirm, why: credentials live here }
+#   - { match: "**/*.pem",       verdict: confirm, why: private keys }
+#   - { match: "**/.git/**",     verdict: confirm, why: rewriting history is not reversible }
+#   - { match: "**/.ssh/**",     verdict: block,   why: nothing here is an agent's business }
+
 tools:
   # ---------------------------------------------------------------- the broad reads and writes
   # These are the calls where one short argument addresses an unbounded number of files. `**/*` is

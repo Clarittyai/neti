@@ -197,6 +197,19 @@ def explain_denial(result: GateResult, payload: dict[str, Any]) -> str:
         )
         return lead + "." + tail
 
+    # A sensitivity rule decided this, so the number is not the story and telling the agent to
+    # "narrow the target" would send it to do the same thing to a smaller part of the same secret.
+    # It has to hear *what kind of thing* it just touched.
+    sensitive = payload.get("sensitive")
+    if sensitive:
+        why = sensitive.get("why") or "it is declared sensitive"
+        return (
+            f"Preflight {'blocked this call' if verdict is Verdict.BLOCK else 'needs confirmation'}"
+            f": {param} matches {sensitive['match']!r}, which is gated on what it is rather than "
+            f"how large it is — {why}. Size is not the issue here; choose a different target"
+            + ("." if verdict is Verdict.BLOCK else ", or ask an operator to approve it.")
+        )
+
     if resolved is None:
         reason = payload.get("reason", "the target could not be resolved")
         # The same lead as every other branch, rather than `verdict.name.lower()`. That produced

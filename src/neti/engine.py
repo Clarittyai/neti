@@ -360,9 +360,18 @@ class Engine:
                 for pointer, target, ceiling in gated
             ]
 
-        prelim = decide(call, tuple(gated), resolutions, mode=self.policy.mode)
+        prelim = decide(
+            call, tuple(gated), resolutions, mode=self.policy.mode, sensitive=self.policy.sensitive
+        )
         budget = check_budgets(call.tool, prelim.args, tally, self.policy.session_budgets)
-        final = decide(call, tuple(gated), resolutions, mode=self.policy.mode, budget=budget)
+        final = decide(
+            call,
+            tuple(gated),
+            resolutions,
+            mode=self.policy.mode,
+            budget=budget,
+            sensitive=self.policy.sensitive,
+        )
         emit(
             COMPARED,
             {
@@ -470,6 +479,20 @@ class Engine:
                 payload["reason"] = worst.resolution.evidence.get("reason", "unresolved")
             if worst.tripped is not None:
                 payload["ceiling"] = worst.tripped.above
+        # Only when the sensitivity rule is what *decided* the call. Both axes can fire at once,
+        # and telling an agent to "choose a different target" when the real problem was 22,000
+        # objects would send it round the loop with the wrong correction.
+        deciding = next(
+            (
+                r
+                for r in result.decision.sensitive
+                if r["verdict"] == result.decision.verdict.name.lower()
+            ),
+            None,
+        )
+        if deciding is not None:
+            payload["sensitive"] = deciding
+
         budget = result.decision.budget
         if budget is not None and budget.tripped is not None:
             payload["session_total"] = budget.running_total

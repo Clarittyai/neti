@@ -72,6 +72,14 @@ class DecisionRecord(Frozen):
     mode: str
     causes: tuple[dict[str, Any], ...] = ()
     budget: dict[str, Any] | None = None
+    sensitive: tuple[dict[str, Any], ...] = ()
+    """Declared sensitivity rules this call's targets matched.
+
+    Outside `chained`, like `provenance` and for the same reason — adding a key to the digest
+    payload unconditionally would report every previously sealed chain as tampered with. The verdict
+    it produced is covered: it is in `verdict` and `rule` already, and a tamperer stripping this
+    makes the record less legible rather than more permissive."""
+
     provenance: dict[str, Any] | None = None
     """What put this session downstream of untrusted input, when something did.
 
@@ -233,6 +241,7 @@ def build_record(
         mode=decision.mode_applied,
         causes=causes,
         budget=budget,
+        sensitive=decision.sensitive,
         provenance=provenance,
         policy_digest=policy_digest,
         code_version=code_version,
