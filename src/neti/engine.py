@@ -106,6 +106,15 @@ class Engine:
     restart rather than by tampering. Seed it with `neti.store.jsonl.chain_head(path)`.
     """
 
+    sessions: Any = None
+    """Where session totals live between processes, when they have to.
+
+    `None` — the default — keeps the in-memory behaviour, which is right for a long-running gateway
+    and is what every existing caller gets. `neti hook` passes a `SessionStore`, because it is one
+    process per tool call: without it the tally was empty on every call and a declared session
+    budget could never fire on the integration most people use.
+    """
+
     _tallies: dict[str, SessionTally] = field(default_factory=dict, init=False)
     _tainted: dict[str, Taint] = field(default_factory=dict, init=False)
     """Per session: the first call that put it downstream of untrusted input, if any.
@@ -340,7 +349,15 @@ class Engine:
             )
 
         session_id = call.session_id or "anonymous"
-        tally = self._tallies.get(session_id, SessionTally())
+        # Only when a budget is declared. Reading a sidecar on every gated call to answer a question
+        # nobody asked would be paying the cost of a feature that is not switched on — and this runs
+        # on the hot path of every tool call in a session.
+        persisted = self.sessions if self.policy.session_budgets else None
+        tally = (
+            persisted.load(session_id)
+            if persisted is not None
+            else self._tallies.get(session_id, SessionTally())
+        )
 
         # **The session's provenance, applied before the verdict.** If an earlier call in this
         # session read something the operator declared untrusted, every gate here also has to clear
@@ -407,7 +424,10 @@ class Engine:
         )
 
         if final.proceeds:
-            self._tallies[session_id] = tally.add_committed(final.args)
+            committed = tally.add_committed(final.args)
+            self._tallies[session_id] = committed
+            if persisted is not None:
+                persisted.save(session_id, committed)
             # A call cannot taint itself — the read that ingests untrusted content is judged under
             # the ordinary ceilings, and the tightening applies from here on. Anything else would
             # make the first read of any untrusted file impossible, which is the whole job of a

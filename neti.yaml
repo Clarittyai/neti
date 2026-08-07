@@ -31,6 +31,11 @@ providers:
 sensitive:
   - { match: "**/.git/**", verdict: confirm, why: rewriting history is not reversible }
 
+session_budgets:
+  - tools: [Edit, Glob, Grep, Read, Write, directory_tree, list_directory, search_files]
+    unit: objects
+    bands: [{ above: 59708, verdict: flag }]
+
 tools:
   # ---------------------------------------------------------------- the broad reads and writes
   # These are the calls where one short argument addresses an unbounded number of files. `**/*` is

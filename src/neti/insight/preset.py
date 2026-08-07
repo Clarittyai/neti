@@ -43,7 +43,7 @@ from typing import Any
 
 from neti.insight.secrets_scan import Candidate, scan
 
-__all__ = ["FLOOR", "SHARE", "Preset", "build", "threshold"]
+__all__ = ["FLOOR", "SHARE", "Preset", "build", "session_budget", "threshold"]
 
 FLOOR = 500
 """Below this, nothing flags. A small repository has nothing catastrophic to do, and a gate that
@@ -61,12 +61,28 @@ def threshold(reach: int) -> int:
     return max(FLOOR, reach // SHARE)
 
 
+def session_budget(reach: int) -> int:
+    """The cumulative total, across one session, worth mentioning.
+
+    **One session should not touch more of the tree than the tree contains.** That is the anchor,
+    and like the per-call one it is a fact about this machine rather than a guess: exceeding it
+    means the agent has read or written everything at least once, which is the shape of a runaway
+    loop or a refactor nobody asked for.
+
+    This is the only thing that sees the 56%. Measured over a simulated week, 178 of 320 calls were
+    single-file operations of magnitude 1 — a per-call ceiling is structurally blind to all of them,
+    and two hundred edits of one file each is exactly how an agent rewrites a codebase by accident.
+    """
+    return max(FLOOR, reach)
+
+
 @dataclass(frozen=True)
 class Preset:
     """The day-zero policy, as data. Rendered by the caller, never applied by this module."""
 
     reach: int
     flag_above: int
+    session_above: int = 0
     off_limits: list[Candidate] = field(default_factory=list)
 
     @property
@@ -107,4 +123,9 @@ def build(root: str | Path, reach: int) -> Preset:
         # A tree we cannot walk is a tree we say nothing about. The size threshold still stands:
         # it depends on a number already in hand, not on a second walk.
         found = []
-    return Preset(reach=reach, flag_above=threshold(reach), off_limits=found)
+    return Preset(
+        reach=reach,
+        flag_above=threshold(reach),
+        session_above=session_budget(reach),
+        off_limits=found,
+    )

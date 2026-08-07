@@ -2,6 +2,51 @@
 
 ## Unreleased
 
+### Session budgets never fired through the hook, which is where they were needed
+
+Measured over a simulated week of agent work: **178 of 320 calls were single-file operations of
+magnitude 1.** Fifty-six percent of what a coding agent does is invisible to a per-call ceiling by
+construction, and it is where "the agent rewrote my codebase" actually comes from — two hundred
+`Edit` calls of one file each.
+
+`SCOPE.md` has always pointed at the answer:
+
+> **NC-01** Cumulative effect across calls … *Mitigated only by declared session budgets.*
+
+The mechanism is fully built and tested. It also **could not run** on the integration most people
+use. `SessionTally` lives in memory on the `Engine`, and `neti hook` is one process per tool call —
+so every call started from an empty tally. Demonstrated: a budget of 3 objects, six single-object
+reads through the real hook, all six allowed. For a Claude Code user NC-01 was not mitigated at all,
+because the mitigation the scope document names could not execute.
+
+Totals now persist in a small file beside the records, keyed by session. Same test, same hook:
+
+    call 1: allowed    call 4: BLOCKED — this session has reached 4 objects
+    call 2: allowed    call 5: BLOCKED
+    call 3: allowed    call 6: BLOCKED
+
+**Not recomputed from the chain**, though the records hold every magnitude and session id. `neti
+hook` was deliberately changed to stop reading that file per call — it used to, and the cost grew
+with everything recorded (133ms fresh, 816ms at fifty thousand). Reintroducing an O(n) read to
+count would undo that on the hot path of every tool call. The sidecar is a cache for a decision
+input, not evidence: lose it and the budget under-counts, which is the direction that costs a missed
+flag rather than a wrongly blocked call.
+
+Nothing is read or written for a policy with no budget declared — asserted, because this runs on
+every gated call.
+
+And `neti start` now declares one, anchored the same way as the per-call threshold: **one session
+should not touch more of the tree than the tree contains.** Exceeding it means the agent has been
+round everything at least once, which is the shape of a runaway loop rather than of work. `flag`,
+never block — the number is ours, and that line has not moved.
+
+Driven end to end: 900 single-file edits through the real hook, one process each, then a second
+pass. The session crossed its own anchor on revisit #21 and flagged, at `session_budget:objects_total>820`.
+
+A session id is agent-supplied and this writes to a path derived from it, so `../../../etc/passwd`
+becomes `.._.._.._etc_passwd.json` and stays inside the directory. The test for that first asserted
+on the characters in the name, which is the wrong property — it asserts where the file lands now.
+
 ### A fresh install now protects something
 
 Measured, before this:

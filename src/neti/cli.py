@@ -221,6 +221,7 @@ def start(
                     {"match": c.match, "verdict": c.verdict, "why": c.why}
                     for c in preset.off_limits
                 ],
+                session_above=preset.session_above if reached else 0,
             )
             apply_preset(edit)
             applied = True
@@ -238,6 +239,9 @@ def start(
             typer.echo(f"   And anything touching more than {preset.flag_above:,} at once is")
             typer.echo("   flagged — recorded, and you get told. Never stopped: a size threshold")
             typer.echo("   is our judgement, and we do not stop your work on one.\n")
+            typer.echo(f"   Same for a whole session adding up past {preset.session_above:,} —")
+            typer.echo("   two hundred single-file edits is how a codebase gets rewritten by")
+            typer.echo("   accident, and no per-call ceiling can ever see it.\n")
         typer.echo(f"   All of it is in {destination}, and changeable in `neti console`.")
         typer.echo("")
 
@@ -1023,6 +1027,7 @@ def hook(
     from neti.engine import Engine
     from neti.resolvers.base import ResolveContext
     from neti.store.jsonl import JsonlSink, chain_head
+    from neti.store.sessions import SessionStore
 
     try:
         event = read_event(sys.stdin.read())
@@ -1059,6 +1064,10 @@ def hook(
             ctx=ResolveContext(timeout_ms=timeout_ms),
             last_digest=head,
             synthetic=demo,
+            # One process per tool call, so the in-memory tally is empty every time and a declared
+            # session budget could never fire here — which made `SCOPE.md` NC-01's "mitigated only
+            # by declared session budgets" false on the integration most people use.
+            sessions=SessionStore(records),
         )
     except Exception as exc:
         # Deliberately every exception. A hook that cannot run must not take the session down with

@@ -559,11 +559,45 @@ def _all_gates(lines: list[str]) -> list[tuple[str, str]]:
     return found
 
 
+def _render_budget(tools: list[str], above: int, verdict: str) -> list[str]:
+    names = ", ".join(sorted(set(tools)))
+    return [
+        "session_budgets:\n",
+        f"  - tools: [{names}]\n",
+        "    unit: objects\n",
+        f"    bands: [{{ above: {above}, verdict: {verdict} }}]\n",
+        "\n",
+    ]
+
+
+def _with_budget(text: str, tools: list[str], above: int, verdict: str) -> str:
+    """Splice a top-level `session_budgets:` block, unless one is already declared.
+
+    Never replaced. A cumulative budget is a statement about how somebody works, and overwriting
+    one they committed with ours would be worse than the per-call case — it is the harder number to
+    arrive at, so it is the one they are least likely to want touched.
+    """
+    lines = text.splitlines(keepends=True)
+    try:
+        _find_block(lines, "session_budgets", 0, len(lines), 0)
+    except PolicyEditError:
+        pass
+    else:
+        return text
+
+    try:
+        tools_at, _ = _find_block(lines, "tools", 0, len(lines), 0)
+    except PolicyEditError:
+        return text
+    return "".join([*lines[:tools_at], *_render_budget(tools, above, verdict), *lines[tools_at:]])
+
+
 def plan_preset(
     path: str | Path,
     *,
     bands: list[dict[str, Any]],
     rules: list[dict[str, Any]],
+    session_above: int = 0,
     enforce: bool = True,
 ) -> PresetEdit:
     """Work out the whole day-zero edit without making it."""
@@ -590,6 +624,11 @@ def plan_preset(
             if _has_bands(text, tool, pointer):
                 continue
             text = _with_bands(text, tool=tool, pointer=pointer, bands=clean_bands)
+
+    # The cumulative axis, and the only thing that sees a session of single-file calls. `flag`, for
+    # the same reason as the per-call threshold: the number is ours.
+    if session_above and gates:
+        text = _with_budget(text, [t for t, _ in gates], session_above, "flag")
 
     if enforce:
         text = _enforcing(text)

@@ -251,3 +251,54 @@ def test_running_it_twice_changes_nothing(repo: Path) -> None:
     once = apply_once()
     assert once == apply_once(), "a second run must be a no-op, not a second edit"
     assert "# observe | enforce" in once, "the comment explaining the modes was rewritten"
+
+
+def test_day_zero_watches_the_cumulative_axis_too(repo: Path) -> None:
+    """The 56% a per-call ceiling is structurally blind to.
+
+    Over a simulated week, 178 of 320 calls were single-file operations of magnitude 1. Two hundred
+    edits of one file each is how a codebase gets rewritten by accident, and no ceiling on any one
+    of them can ever see it.
+
+    Anchored the same way and for the same reason: **one session should not touch more of the tree
+    than the tree contains.** Exceeding it means the agent has been round everything at least once,
+    which is the shape of a runaway loop rather than of work.
+    """
+    target = policy_at(repo)
+    preset = build(repo, 60_000)
+    apply_preset(
+        plan_preset(
+            target,
+            bands=[{"above": preset.flag_above, "verdict": "flag"}],
+            rules=[],
+            session_above=preset.session_above,
+        )
+    )
+
+    policy = load_policy(target)
+    assert len(policy.session_budgets) == 1
+    rule = policy.session_budgets[0]
+    assert rule.unit.value == "objects"
+    assert [b.verdict.name.lower() for b in rule.bands] == ["flag"], (
+        "a cumulative number we chose may inform, never stop — same line as the per-call one"
+    )
+    assert rule.bands[0].above == 60_000
+
+
+def test_a_budget_somebody_committed_is_never_replaced(repo: Path) -> None:
+    """Harder to arrive at than a per-call ceiling, so the one they are least likely to want
+    touched."""
+    target = policy_at(repo)
+    text = target.read_text(encoding="utf-8").replace(
+        "tools:\n",
+        "session_budgets:\n  - tools: [Read]\n    unit: objects\n"
+        "    bands: [{ above: 11, verdict: block }]\n\ntools:\n",
+        1,
+    )
+    target.write_text(text, encoding="utf-8")
+
+    apply_preset(plan_preset(target, bands=[], rules=[], session_above=99_999))
+
+    budgets = load_policy(target).session_budgets
+    assert len(budgets) == 1
+    assert budgets[0].bands[0].above == 11
