@@ -2,6 +2,39 @@
 
 ## Unreleased
 
+### `sensitive:` is discoverable, from what is actually on your disk
+
+The axis shipped commented out in the example policy and mentioned in a changelog, which is the same
+as not shipping it — **a capability nobody can find is a capability nobody has**, and this repository
+has now caught itself doing that four times.
+
+So `neti propose`, already the command that answers *what should I declare*, answers it for this
+axis too:
+
+    **/.env*    found: .env
+    **/.git/**  found: .git
+
+    sensitive:
+      - { match: "**/.env*",   verdict: confirm, why: credentials live here }
+      - { match: "**/.git/**", verdict: confirm, why: rewriting history is not reversible }
+
+`neti start` shows it on **day one**, which is the point: a ceiling needs a week of observation
+before it means anything, and `.env` being here does not. It is a fact about the disk, available in
+the first thirty seconds.
+
+Two rules, both borrowed from `insight/targets.py` because they are the same rules:
+
+- **Real, or absent.** Every rule matches something that exists right now. Offering `**/*.pem` to a
+  repository with no certificate in it is a rule that can never fire — dead config that reads as
+  configured, which is the failure this project keeps finding in itself.
+- **Never applied.** A fragment to read and paste, like every ceiling. A `verdict: block` on
+  somebody's credentials is a stronger claim than a number, not a weaker one.
+
+It reads **names, not contents** — asserted in a test. This is not a secret scanner, and one that
+read your files to tell you about them would be a much harder thing to trust. `.git` and `.ssh` are
+recognised as directories without being descended, so it stays fast on the repositories people
+actually run it in.
+
 ### A test cannot assert against source it has not stripped
 
 Twice in one session a test here passed for the wrong reason, the same way both times: the author

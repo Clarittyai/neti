@@ -137,6 +137,23 @@ ceiling means anything."* That refusal is the feature.
 You can also declare a ceiling from the console: `/policy` shows the distribution beside the field,
 tells you how many recorded calls it would have stopped, shows you the diff, and backs up the file.
 
+**And it proposes the other axis, which needs no traffic at all.** A ceiling cannot reach a single
+file — `.env` is one object, under every ceiling anybody would write. So `neti propose` also looks
+at what is really on your disk:
+
+```
+  **/.env*    found: .env
+  **/.git/**  found: .git
+
+sensitive:
+  - { match: "**/.env*",   verdict: confirm, why: credentials live here }
+  - { match: "**/.git/**", verdict: confirm, why: rewriting history is not reversible }
+```
+
+Only rules that match something that is genuinely there — a `**/*.pem` rule in a repository with no
+certificate in it is a rule that can never fire. `neti start` shows them on day one, because they
+are facts about the disk rather than about behaviour.
+
 ### 4. Enforce — the part that stops something
 
 Change `mode: observe` to `mode: enforce`. The same session, re-run:

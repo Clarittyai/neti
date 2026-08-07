@@ -192,6 +192,24 @@ def start(
         typer.echo("   Could not measure from here yet. `neti inventory` will say why.")
     typer.echo("")
 
+    # ------------------------------------------------------- 3b. what is worth gating on identity
+    #
+    # Day one, because it needs no traffic: these are facts about the disk, not about behaviour.
+    # A ceiling needs a week of observation before it means anything; `.env` being here does not.
+    from neti.insight.secrets_scan import scan as scan_secrets
+
+    try:
+        candidates = scan_secrets(here)
+    except OSError:
+        candidates = []
+    if candidates:
+        typer.secho("   Worth gating on what it is, not how big", bold=True)
+        typer.echo("   A ceiling cannot reach a single file. These are really here:\n")
+        for c in candidates[:4]:
+            typer.echo(f"      {c.match:<14} {c.why}   (found {c.example})")
+        typer.echo("\n   `neti propose` prints them as YAML to paste. Nothing is applied for you.")
+        typer.echo("")
+
     # ---------------------------------------------------------------- 4. what happens next
     #
     # `neti console` is named first and named as the walkthrough, because it *is* one now: it opens
@@ -1212,6 +1230,24 @@ def propose(
             fg=typer.colors.YELLOW,
         )
     typer.echo(format_proposals(build(summary)))
+
+    # The other axis, and the reason it is here rather than in its own command: this is already
+    # the place somebody comes to ask *what should I declare*. `sensitive:` shipped commented out
+    # in the example policy and mentioned in a changelog, which is the same as not shipping it —
+    # a capability nobody can find is a capability nobody has.
+    #
+    # Only rules that match something really on this disk. Offering `**/*.pem` to a repository with
+    # no certificate in it is offering a rule that can never fire, which is the dead-config failure
+    # every other part of this file is careful about.
+    from neti.insight.secrets_scan import render, scan
+
+    try:
+        found = render(scan(Path.cwd()))
+    except OSError:
+        found = ""
+    if found:
+        typer.echo("\n" + "─" * 78 + "\n")
+        typer.echo(found)
 
 
 @app.command(hidden=True)
