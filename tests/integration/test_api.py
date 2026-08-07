@@ -694,3 +694,76 @@ def test_the_entra_trace_keeps_its_wire(connected: Any) -> None:
     assert "GroupMember.Read.All" in details
     assert "ConsistencyLevel: eventual" in details
     assert "GET /groups/" in details
+
+
+def test_the_console_can_see_all_three_axes(tmp_path: Path) -> None:
+    """A rule you cannot see is a rule you cannot check, which is most of what `/policy` is for.
+
+    Two axes shipped in the engine with the console knowing about neither — the page listed ceilings
+    and nothing else, so an operator with a `sensitive:` block had no way to read their own policy
+    back. The same shape as every Entra assumption in this file: capability the UI does not reflect.
+    """
+    from neti.api.state import build_state
+
+    config = tmp_path / "neti.yaml"
+    config.write_text(
+        "version: 1\n"
+        "sensitive:\n"
+        '  - { match: "**/.env", verdict: block, why: credentials }\n'
+        "provenance:\n"
+        "  untrusted: [tickets/**]\n"
+        "  bands: [{ above: 5, verdict: confirm }]\n"
+        "tools:\n"
+        "  Glob:\n"
+        "    gate:\n"
+        "      /pattern: { resolver: fs.paths, on_unresolved: allow }\n",
+        encoding="utf-8",
+    )
+
+    state = build_state(config=config, records=tmp_path / "d.ndjson")
+    try:
+        with TestClient(create_app(state)) as c:
+            body = c.get("/api/policy").json()
+
+            assert body["sensitive"] == [
+                {"match": "**/.env", "verdict": "block", "why": "credentials"}
+            ]
+            assert body["provenance"]["untrusted"] == ["tickets/**"]
+            assert body["provenance"]["bands"] == [{"above": 5, "verdict": "confirm"}]
+    finally:
+        state.close()
+
+
+def test_a_decision_row_says_why_when_the_reason_was_not_a_number(tmp_path: Path) -> None:
+    """Both new axes fire precisely on calls whose magnitude is unremarkable, so the number is the
+    least informative thing about them. A row reading "Blocked · 1 object" is unactionable."""
+    from neti.api.state import build_state
+
+    tree = tmp_path / "repo"
+    tree.mkdir()
+    (tree / ".env").write_text("KEY=x", encoding="utf-8")
+
+    config = tmp_path / "neti.yaml"
+    config.write_text(
+        "version: 1\nmode: enforce\n"
+        f"providers: {{ fs: {{ root: {tree} }} }}\n"
+        "sensitive:\n"
+        '  - { match: "**/.env", verdict: block, why: credentials live here }\n'
+        "tools:\n"
+        "  delete:\n"
+        "    gate:\n"
+        "      /path: { resolver: fs.paths, on_unresolved: block }\n",
+        encoding="utf-8",
+    )
+
+    state = build_state(config=config, records=tmp_path / "d.ndjson")
+    try:
+        with TestClient(create_app(state)) as c:
+            c.post("/api/gate", json={"tool": "delete", "args": {"path": str(tree / ".env")}})
+            row = c.get("/api/decisions").json()["decisions"][0]
+
+            assert row["verdict"] == "block"
+            assert row["sensitive"][0]["match"] == "**/.env"
+            assert row["sensitive"][0]["why"] == "credentials live here"
+    finally:
+        state.close()

@@ -98,6 +98,26 @@ function Row({ decision }: { decision: DecisionSummary }) {
           </span>
         ) : null}
 
+        {/* Why, when the reason was not a number. A row reading "Blocked · 1 object" tells an
+            operator nothing they can act on — and both of these fire precisely on calls whose
+            magnitude is unremarkable, so the number is the least informative thing about them. */}
+        {decision.sensitive?.length ? (
+          <span
+            className="rounded-full px-2 py-0.5 text-[10px] font-medium text-[hsl(var(--verdict-confirm))] ring-1 ring-inset ring-[hsl(var(--verdict-confirm))]/30"
+            title={decision.sensitive[0].why || undefined}
+          >
+            {decision.sensitive[0].match}
+          </span>
+        ) : null}
+        {decision.provenance ? (
+          <span
+            className="rounded-full px-2 py-0.5 text-[10px] font-medium text-muted-foreground ring-1 ring-inset ring-border"
+            title={`downstream of ${decision.provenance.tool} reading ${decision.provenance.target}`}
+          >
+            untrusted input
+          </span>
+        ) : null}
+
         <span className="flex flex-wrap gap-x-3 gap-y-1 text-xs text-muted-foreground">
           {decision.magnitudes.map((m) => (
             <span key={m.pointer} className="tnum">

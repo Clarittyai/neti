@@ -310,6 +310,10 @@ def create_app(
                     "said": (r.args.get("description") or None)
                     if isinstance(r.args, dict)
                     else None,
+                    # Why it was stopped, when the reason was not a number. A row reading
+                    # "Blocked · 1 object" is a row nobody can act on.
+                    "sensitive": list(r.sensitive),
+                    "provenance": r.provenance,
                     "magnitudes": [
                         {
                             "pointer": c["pointer"],
@@ -360,6 +364,21 @@ def create_app(
                 }
                 for tool in sorted(st.policy.tools)
                 if st.policy.gate_specs(tool)
+            },
+            # The other two axes. The page listed ceilings and nothing else, so an operator with a
+            # `sensitive:` block could not see it in their own console — and a rule you cannot see
+            # is one you cannot check, which is most of what this page is for.
+            "sensitive": [
+                {"match": r.match, "verdict": r.verdict.name.lower(), "why": r.why}
+                for r in st.policy.sensitive
+            ],
+            "provenance": {
+                "untrusted": list(st.policy.provenance.untrusted),
+                "tools": sorted(st.policy.provenance.tools),
+                "bands": [
+                    {"above": b.above, "verdict": b.verdict.name.lower()}
+                    for b in st.policy.provenance.bands
+                ],
             },
             "session_budgets": [
                 {

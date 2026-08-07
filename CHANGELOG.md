@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### The console can see all three axes
+
+Two of them shipped in the engine with the console knowing about neither. `/policy` listed ceilings
+and nothing else, so an operator with a `sensitive:` block had no way to read their own policy back
+— and a rule you cannot see is a rule you cannot check, which is most of what that page is for.
+The same shape as every Entra assumption this project keeps finding: capability the UI does not
+reflect.
+
+`/policy` now has a section per axis, in the order they answer different questions: *how big*,
+*what is it*, *what has this session already eaten*. `/decisions` rows carry the reason when the
+reason was not a number — both new axes fire precisely on calls whose magnitude is unremarkable,
+so `Blocked · 1 object` was the least informative thing the row could have said.
+
 ### `sensitive:` — gated on what a thing is, not how much of it there is
 
 `SCOPE.md` has carried this since the first release and had no answer for it:

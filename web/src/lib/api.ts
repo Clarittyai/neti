@@ -204,6 +204,10 @@ export interface DecisionSummary {
    *  the chained record all along. Recorded, never trusted: evidence for a human, input to
    *  nothing. */
   said?: string | null;
+  /** The declared sensitivity rules this call's targets matched, when any did. */
+  sensitive?: { match: string; verdict: Verdict; why: string }[];
+  /** What put this session downstream of untrusted input, when something did. */
+  provenance?: { pattern: string; target: string; tool: string } | null;
   magnitudes: {
     pointer: string;
     magnitude: number | null;

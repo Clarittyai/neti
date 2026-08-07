@@ -40,11 +40,18 @@ interface Gate {
   on_unresolved: string;
   has_ceiling: boolean;
 }
+interface SensitiveRule {
+  match: string;
+  verdict: Band["verdict"];
+  why: string;
+}
 interface PolicyShape {
   digest: string;
   mode: string;
   unknown_tool: string;
   tools: Record<string, Record<string, Gate>>;
+  sensitive: SensitiveRule[];
+  provenance: { untrusted: string[]; tools: string[]; bands: Band[] };
   session_budgets: { tools: string[]; unit: string; bands: Band[] }[];
 }
 
@@ -126,8 +133,73 @@ export default function PolicyPage() {
             ))}
           </div>
 
+          {/* The second axis. Listed before budgets because it is the one that fires on a call
+              of size 1, which is the case every reader of this page has been told magnitude
+              cannot reach. */}
           <section>
-            <h2 className="text-sm font-semibold">Session budgets</h2>
+            <h2 className="text-base font-semibold tracking-tight">
+              Gated on what it is, not how big
+            </h2>
+            <p className="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
+              A ceiling cannot reach a single file. These match the target itself, whatever its
+              size, and join with the ceilings above — worst verdict wins, so a rule written badly
+              costs a confirmation and never a silent allow.
+            </p>
+            <div className="mt-4 border-t border-border">
+              {data.sensitive.map((r) => (
+                <div
+                  key={r.match}
+                  className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-border py-3"
+                >
+                  <code className="font-mono text-[13px]">{r.match}</code>
+                  {r.why ? (
+                    <span className="text-[13px] text-muted-foreground">{r.why}</span>
+                  ) : null}
+                  <span className="ml-auto">
+                    <BandChip band={{ above: 0, verdict: r.verdict }} label={r.verdict} />
+                  </span>
+                </div>
+              ))}
+              {data.sensitive.length === 0 ? (
+                <p className="border-b border-border py-3 text-[13px] text-muted-foreground">
+                  None declared. `.env`, `.pem`, `.ssh/` and `.git/` are the ones most repositories
+                  want — the shipped example lists them, commented out.
+                </p>
+              ) : null}
+            </div>
+          </section>
+
+          {/* The third. Not a property of the call at all — a property of the session it is in. */}
+          <section>
+            <h2 className="text-base font-semibold tracking-tight">Downstream of untrusted input</h2>
+            <p className="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
+              A prompt injection is small at both ends, so magnitude never sees it. Once a session
+              has read one of these, every later call in it is judged against the tighter ceiling
+              below as well as its own.
+            </p>
+            <div className="mt-4 border-t border-border">
+              {data.provenance.untrusted.concat(data.provenance.tools).map((u) => (
+                <div key={u} className="border-b border-border py-3">
+                  <code className="font-mono text-[13px]">{u}</code>
+                </div>
+              ))}
+              {data.provenance.untrusted.length + data.provenance.tools.length === 0 ? (
+                <p className="border-b border-border py-3 text-[13px] text-muted-foreground">
+                  None declared. Nothing this agent reads is treated as untrusted.
+                </p>
+              ) : (
+                <div className="flex flex-wrap items-center gap-2 py-3">
+                  <span className="text-[13px] text-muted-foreground">then, for every later call:</span>
+                  {data.provenance.bands.map((b) => (
+                    <BandChip key={b.above} band={b} />
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section>
+            <h2 className="text-base font-semibold tracking-tight">Session budgets</h2>
             <p className="mt-1 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
               A per-call ceiling cannot see four thousand individual sends — each one resolves to 1
               and passes. These are cumulative totals per session, and they are declared rather than
@@ -223,7 +295,7 @@ function GateRow({
   );
 }
 
-function BandChip({ band }: { band: Band }) {
+function BandChip({ band, label }: { band: Band; label?: string }) {
   return (
     <span
       className={cn(
@@ -236,7 +308,7 @@ function BandChip({ band }: { band: Band }) {
           "bg-muted text-muted-foreground ring-border",
       )}
     >
-      {band.verdict} above {n(band.above)}
+      {label ?? `${band.verdict} above ${n(band.above)}`}
     </span>
   );
 }
