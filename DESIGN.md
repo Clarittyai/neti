@@ -188,7 +188,7 @@ screen instead of clipping it.
 | `<main>` was `flex-1` with no `min-w-0`, so it could not shrink below its content and every page in the console scrolled horizontally | `min-w-0` on the flex child, asserted in a test |
 | Both themes shipped the same verdict colours; on the light background amber measured 1.99:1 and all three were under 4.5 | Each theme has its own values, hue held and lightness moved, with the contrast computed from the tokens in a test |
 | The sidebar row was copied from clarity-platform and then drifted: no radius against its `rounded-lg`, a 10% active tint against its 15%. A full-bleed square bar reads as a section header, not a selected row | The copied metrics are asserted in a test — that is the price of "copied, not imported" |
-| That assertion first passed against markup with the radius deleted, because the comment explaining the radius contains the string | Strip comments before matching source. A test that passes for the wrong reason reports a property nobody holds |
+| That assertion first passed against markup with the radius deleted, because the comment explaining the radius contains the string | `tests.support.code_of` strips comments before matching, and `test_tests_read_code.py` requires it — a convention nobody checks lasts one refactor |
 | `Empty` in `Page.tsx`, a dashed box in `gate/page.tsx`, and nothing on seven other pages | One `EmptyState` primitive |
 
 *Keep this current.* When a design decision gets made, or a mistake gets caught twice, it goes in

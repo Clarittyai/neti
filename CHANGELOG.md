@@ -2,6 +2,38 @@
 
 ## Unreleased
 
+### A test cannot assert against source it has not stripped
+
+Twice in one session a test here passed for the wrong reason, the same way both times: the author
+wrote a comment explaining the rule, and the comment contained the string the assertion looked for.
+
+    # ... against its `rounded-lg`, a 10% active tint ...
+    assert "rounded-lg" in nav          # green, with the radius deleted
+
+That is worse than no test. A test that cannot fail is a green light attached to nothing — and it
+is attached to precisely the property somebody thought was worth pinning.
+
+`tests/support.py` strips comments and docstrings for every language in this repository (tokenised
+for Python, so a `"# not a comment"` string literal survives), and
+`tests/property/test_tests_read_code.py` walks the suite's own AST and requires it wherever the
+dangerous shape appears. The shape is narrow and worth naming: **a positive `in` assertion against
+text read from a source file.** The negative form fails on a comment rather than passing — noisy,
+never silent, which is the safe direction.
+
+**Taint propagates**, and that mattered immediately: the motivating bug did not assert against the
+variable it read, it sliced one out of it —
+
+    shell = Path("Shell.tsx").read_text(...)     # raw
+    nav = shell[shell.index(...) :]              # still raw, and the assertion is on this
+
+— so a checker tracking only direct assignment would have watched its own motivating case walk
+past. It follows derived names to a fixed point.
+
+It found **ten** live offenders across two files on the first run, including two written an hour
+earlier, and all are now on the helper. Re-creating the original bug in a throwaway file is caught:
+
+    property/test__probe.py:10: 'rounded-lg' in nav
+
 ### A flagged call now tells you, at the moment it happens
 
 `Verdict.FLAG` is documented as *"Recorded and **surfaced**; the call proceeds."* The surfacing half

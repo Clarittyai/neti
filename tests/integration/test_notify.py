@@ -57,13 +57,12 @@ def test_it_never_raises(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_it_never_waits() -> None:
     """The hook measures p50 137ms. A notifier that waited on a subprocess would put a window
     server round trip inside every gated tool call."""
-    import inspect
-
     from neti.insight import notify as module
+    from tests.support import code_of
 
-    source = inspect.getsource(module._spawn)
+    source = code_of(module.__file__)
     assert ".wait(" not in source and "communicate" not in source and "check_call" not in source
-    assert "Popen" in source
+    assert "Popen(" in source, "it still has to actually spawn something"
 
 
 def test_the_command_is_never_interpolated_into_a_script(spawn: Spawned) -> None:
@@ -100,11 +99,10 @@ def test_it_does_not_check_isatty() -> None:
     the check is absent contains the word. That is the second test in this repository to read prose
     rather than code; `test_the_nav_item_matches_the_shape_it_was_copied_from` was the first.
     """
-    import inspect
-
     from neti.insight import notify as module
+    from tests.support import code_of
 
-    source = inspect.getsource(module)
+    source = code_of(module.__file__)
     assert "import sys" not in source, "sys is only ever wanted here for the isatty check"
 
 

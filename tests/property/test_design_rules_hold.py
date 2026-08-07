@@ -24,6 +24,8 @@ from pathlib import Path
 
 import pytest
 
+from tests.support import code_of
+
 REPO = Path(__file__).resolve().parents[2]
 GLOBALS = REPO / "web" / "src" / "app" / "globals.css"
 SITE = REPO / "site" / "page.html"
@@ -447,19 +449,12 @@ def test_the_nav_item_matches_the_shape_it_was_copied_from() -> None:
     Asserted on the source rather than against the Claritty checkout, because that checkout is not
     a dependency and will not exist on CI. The values are the contract; this is where they live.
     """
-    shell = (REPO / "web/src/components/Shell.tsx").read_text(encoding="utf-8")
-    # Comments stripped first. The first version of this assertion passed against markup with the
-    # radius deleted, because the comment *explaining* the radius says `rounded-lg` — so the test
-    # was reading prose rather than classes. A test that passes for the wrong reason is worse than
-    # no test: it reports a property nobody is holding.
-    nav = "\n".join(
-        line
-        # `{group.map(` since the rail was grouped by frequency; it was `{NAV.map(` when this was
-        # written, and the rename broke the slice rather than the assertion — which is the failure
-        # mode of anchoring a test on a variable name.
-        for line in shell[shell.index("{group.map(") : shell.index("</nav>")].splitlines()
-        if not line.strip().startswith("//")
-    )
+    # `code_of`, not `read_text`. The first version of this assertion passed against markup with
+    # the radius deleted, because the comment *explaining* the radius says `rounded-lg` — so the
+    # test was reading prose rather than classes. It stripped comments by hand for a while after
+    # that; the helper does it for every language, and `test_tests_read_code.py` now requires it.
+    shell = code_of(REPO / "web/src/components/Shell.tsx")
+    nav = shell[shell.index("{group.map(") : shell.index("</nav>")]
 
     assert "rounded-lg" in nav, "the active row has no radius; clarity-platform uses rounded-lg"
     assert "py-2.5" in nav and "pl-[14px] pr-3" in nav, "the row metrics moved away from the source"
@@ -479,7 +474,7 @@ def test_the_shell_main_can_shrink_below_its_content() -> None:
     Measured in a browser, and pinned here as source because that is where it can regress. The rule
     is one token, and it is the token that lets `overflow-x-auto` on a child actually engage.
     """
-    shell = (REPO / "web/src/components/Shell.tsx").read_text(encoding="utf-8")
+    shell = code_of(REPO / "web/src/components/Shell.tsx")
     main = next(line for line in shell.splitlines() if "<main" in line)
 
     assert "flex-1" in main, "the assumption this rule is about has changed; re-derive it"
@@ -570,7 +565,7 @@ def test_the_rail_is_grouped_and_the_dead_ends_are_conditional() -> None:
     Asserted on the source because the alternative is a browser, and the property is about what the
     file declares rather than what any one install renders.
     """
-    shell = (REPO / "web/src/components/Shell.tsx").read_text(encoding="utf-8")
+    shell = code_of(REPO / "web/src/components/Shell.tsx")
 
     # Grouped by how often anybody opens the thing, not by category.
     for group in ("DAILY", "OCCASIONAL", "SETUP"):
