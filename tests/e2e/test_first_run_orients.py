@@ -148,3 +148,30 @@ def test_start_is_safe_to_run_twice(tmp_path: Path) -> None:
     assert result.exit_code == 0
     assert "already exists" in result.output
     assert (work / "neti.yaml").read_text(encoding="utf-8").strip().endswith("tools: {}")
+
+
+def test_start_shows_the_gate_working_before_it_finishes(tmp_path: Path) -> None:
+    """After the install, nothing visibly happens — and that is the correct behaviour for the agent
+    and the wrong experience for the person who just installed a security tool.
+
+    They had no way to tell it was alive until an agent happened to do something large, which could
+    be days. One real call through the real engine, against one of their own files, closes that.
+    """
+    import os
+
+    work = _tree(tmp_path)
+    (work / ".env").write_text("KEY=x", encoding="utf-8")
+
+    cwd = os.getcwd()
+    try:
+        os.chdir(work)
+        result = runner.invoke(app, ["start"], catch_exceptions=False)
+    finally:
+        os.chdir(cwd)
+
+    assert "Here it is working" in result.output
+    assert ".env" in result.output
+    assert "Preflight" in result.output, "it never showed what the gate actually says"
+    # And the demonstration must not land in the chain the operator is about to start reading.
+    records = work / "out" / "decisions.ndjson"
+    assert not records.exists() or not records.read_text(encoding="utf-8").strip()

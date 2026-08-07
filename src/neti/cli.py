@@ -246,8 +246,20 @@ def start(
     wired = _offer_install(here, destination)
     typer.echo("")
 
-    # ---------------------------------------------------------------- 6. what happens next
-    typer.secho("6. From here", bold=True)
+    # ---------------------------------------------------------------- 6. watch it work, now
+    #
+    # The gap this closes: after the install, *nothing visibly happens*. Silence is the correct
+    # behaviour for the agent and the wrong experience for the person who just installed a security
+    # tool — they have no way to tell it is alive until an agent happens to do something large,
+    # which could be days. So fire one real call through the real engine, against one of their own
+    # files, and show them the answer.
+    if applied and preset.off_limits:
+        typer.secho("6. Here it is working", bold=True)
+        _show_one_call(destination, here, preset.off_limits[0].example)
+        typer.echo("")
+
+    # ---------------------------------------------------------------- 7. what happens next
+    typer.secho("7. From here", bold=True)
     if wired:
         typer.echo("   Working. Go build — you will hear from it if something looks big.")
     else:
@@ -259,6 +271,43 @@ def start(
     typer.echo("")
     typer.echo("   The ceilings above are starting points chosen by us, not measurements of you.")
     typer.echo("   `neti propose` replaces them with numbers from your own work.\n")
+
+
+def _show_one_call(policy_path: Path, here: Path, target: str) -> None:
+    """Drive one real call through the real engine and print what came back.
+
+    Not a simulation and not a recording: the same `Engine`, the same policy just written, the same
+    resolver. It records nothing — no sink — because a decision the operator did not make should not
+    land in the chain they are about to start reading.
+    """
+    from neti.config.policy import load_policy
+    from neti.core.types import ProposedCall
+    from neti.engine import Engine
+    from neti.resolvers.base import ResolverError
+
+    try:
+        policy = load_policy(policy_path)
+        resolvers, client = _build_resolvers(
+            demo=False, timeout_ms=2000, needs_entra=False, providers=policy.providers
+        )
+        try:
+            engine = Engine(policy=policy, resolvers=resolvers)
+            result = engine.gate(ProposedCall(tool="Read", args={"file_path": target}))
+        finally:
+            client.close()
+    except (OSError, ValueError, ResolverError):
+        return
+
+    from neti.gateway.mcp import explain_denial
+
+    typer.echo(f"   Your agent asks to read {target}:\n")
+    sentence = "" if result.proceeds else explain_denial(result, engine.denial_payload(result))
+    if sentence:
+        typer.secho(f"      {sentence}", fg=typer.colors.YELLOW)
+        typer.echo("\n   That is the gate. It did not run, and nothing was recorded for this one —")
+        typer.echo("   it is a demonstration, not a decision you made.")
+    else:
+        typer.echo(f"      allowed — {result.decision.args[0].resolution.magnitude} object(s)")
 
 
 def _offer_install(here: Path, policy: Path) -> bool:
@@ -1447,7 +1496,12 @@ def console(
 
 @app.command(hidden=True)
 def prove(
-    config: Annotated[str, typer.Option("--config", "-c")] = "examples/entra.yaml",
+    # Your policy, not the shipped Entra example. It defaulted to `examples/entra.yaml`, so
+    # somebody running `neti prove` inside their own project got a wall of output about 41,203
+    # principals in a synthetic tenant — a command whose banner reads "EVERY DOOR ON THIS MACHINE"
+    # proving something about a fixture, on a machine with none of it. The error path below already
+    # explains the fixture case properly; it just was not reachable.
+    config: Annotated[str, typer.Option("--config", "-c")] = "neti.yaml",
     records: Annotated[
         str, typer.Option("--records", "-r", help="Where to write the chain it produces.")
     ] = "out/proof.ndjson",
