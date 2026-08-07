@@ -16,15 +16,33 @@ probe.
 **It refuses to guess.** Below `MIN_SAMPLES` observations there is no proposal, only a note saying
 how much more traffic is needed. A confidently-wrong ceiling derived from nine calls is worse than
 no ceiling, because it looks configured.
+
+**Except for deletions, where that refusal was itself the bug.** A destructive gate never reaches
+thirty observations, because deletions are *rare* — measured on a real project, 3 sizeable ones in
+274 calls. So `propose` said "keep observing" forever, the operator never declared a `Bash` ceiling,
+and `rm -rf node_modules` was sized at 968 objects and **allowed, in enforce mode**. A user who
+followed every instruction correctly ended up protected against wide reads and not against deletion.
+
+Waiting for a sample size that will not arrive is not caution, it is a silent absence. So a gate
+whose resolver recognised its targets as destructive gets a proposal from whatever it has, labelled
+as the judgement it is: for a deletion the question was never *what is normal here* but *what would
+you not want to lose*, and traffic can only ever inform that, never answer it.
 """
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from neti.insight.report import Distribution, ReportSummary
 
 __all__ = ["MIN_SAMPLES", "Proposal", "format_proposals", "propose"]
+
+MIN_DESTRUCTIVE_SAMPLES = 1
+"""One sized deletion is enough to propose from, because a second may be months away.
+
+Not a claim that one observation is statistically meaningful — it is not. It is a claim that a
+number an operator reviews and edits beats the nothing they had, when the alternative is a gate
+that is never configured at all."""
 
 MIN_SAMPLES = 30
 """Below this, propose nothing. Not a statistical threshold so much as an honesty one: a ceiling
@@ -126,7 +144,69 @@ def propose(summary: ReportSummary) -> list[Proposal]:
     return [_propose_one(d) for d in summary.ordered]
 
 
+def _with_impact(proposal: Proposal, dist: Distribution) -> Proposal:
+    """Fill in what these numbers would have done to the traffic already recorded.
+
+    The same arithmetic the main path does inline. Shared rather than duplicated, because an IMPACT
+    line that disagreed with the one two proposals above it would be worse than none.
+    """
+    confirm = proposal.confirm_above or 0
+    block = proposal.block_above or 0
+    return replace(
+        proposal,
+        would_block=sum(1 for m in dist.magnitudes if m > block),
+        would_confirm=sum(1 for m in dist.magnitudes if confirm < m <= block),
+        would_escalate=sum(
+            1 for o in dist.observations if o.magnitude <= confirm and not o.can_clear_a_ceiling
+        ),
+        unresolved=dist.unresolved,
+        examples=sorted((m for m in dist.magnitudes if m > confirm), reverse=True)[:3],
+    )
+
+
+def _destructive_proposal(dist: Distribution) -> Proposal:
+    """A ceiling for a gate that deletes, from too few observations to be statistical.
+
+    Anchored on the median deletion rather than the largest. The largest is usually the one you
+    would want stopped — on the measured project the three sizeable deletions were 968, 968 and
+    5,009, and a ceiling above the maximum would have caught none of them, which is the dead-config
+    failure `_anchor` exists to avoid, in its most expensive form.
+
+    So: confirm at roughly the routine deletion, block at a multiple of it. Both are stated as
+    starting points, and the impact on the deletions already recorded is printed underneath.
+    """
+    routine = dist.quantile(0.5)
+    confirm = _round_up_human(max(routine, 1))
+    block = _round_up_human(max(routine * 5, confirm + 1))
+    return Proposal(
+        tool=dist.tool,
+        pointer=dist.pointer,
+        unit=dist.unit,
+        n=dist.n,
+        normal=routine,
+        anchor="p50 of the deletions seen",
+        observed_max=dist.maximum,
+        confirm_above=confirm,
+        block_above=block,
+        rationale=(
+            f"a destructive gate, and only {dist.n} sized deletion(s) — which is not a small "
+            f"sample so much as the normal one, because deletions are rare. Waiting for "
+            f"{MIN_SAMPLES} would leave this gate unconfigured indefinitely, so this proposes "
+            f"from what there is. Anchored on the median deletion ({routine:,}) rather than the "
+            f"largest ({dist.maximum:,}), because the largest is usually the one you would want "
+            f"stopped and a ceiling above it would catch nothing. **Treat these as a starting "
+            f"point you edit**: for a deletion the question is not what is normal here but what "
+            f"you would not want to lose, and traffic can inform that, never answer it"
+        ),
+    )
+
+
 def _propose_one(dist: Distribution) -> Proposal:
+    # Deletions first, because the sample-size rule below is the wrong rule for them and its
+    # refusal shipped as a silent absence.
+    if dist.destructive and MIN_DESTRUCTIVE_SAMPLES <= dist.n < MIN_SAMPLES:
+        return _with_impact(_destructive_proposal(dist), dist)
+
     if dist.n < MIN_SAMPLES:
         return Proposal(
             tool=dist.tool,

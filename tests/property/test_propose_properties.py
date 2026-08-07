@@ -123,7 +123,12 @@ def test_the_displayed_anchor_names_the_value_actually_used(magnitudes: list[int
 @settings(max_examples=100, deadline=None)
 def test_below_the_threshold_it_never_proposes_a_number(magnitudes: list[int]) -> None:
     """A ceiling fitted to a handful of calls encodes the accident of that week, and looks
-    configured while doing it."""
+    configured while doing it.
+
+    Holds for a gate that reads. It deliberately does **not** hold for one that deletes — see
+    `test_a_destructive_gate_is_proposed_from_what_little_there_is` below, where this same refusal
+    shipped as a silent absence.
+    """
     p = only(magnitudes)
     assert not p.actionable
     assert p.confirm_above is None and p.block_above is None
@@ -216,3 +221,76 @@ def test_direction_never_changes_the_proposed_numbers(magnitudes: list[int]) -> 
     assert exact.confirm_above == bounded.confirm_above
     assert exact.block_above == bounded.block_above
     assert exact.would_block == bounded.would_block
+
+
+# --------------------------------------------------------------- deletions are rare on purpose
+
+
+def destructive(magnitudes: list[int]) -> ReportSummary:
+    """A gate whose resolver recognised its targets as destructive, sized or not."""
+    dist = Distribution(
+        tool="Bash",
+        pointer="/command",
+        unit="objects",
+        observations=[Observation(m, "exact") for m in magnitudes],
+    )
+    dist.destructive = len(magnitudes)
+    return ReportSummary(distributions={("Bash", "/command"): dist})
+
+
+def test_a_destructive_gate_is_proposed_from_what_little_there_is() -> None:
+    """The refusal above was the bug, and it shipped in 0.2.0.
+
+    A destructive gate never reaches thirty observations, because deletions are rare — measured on a
+    real project, 3 sizeable ones in 274 calls. So `propose` said "keep observing" forever, nobody
+    declared a `Bash` ceiling, and `rm -rf node_modules` was sized at 968 objects and **allowed, in
+    enforce mode**. Waiting for a sample size that will not arrive is not caution, it is a silent
+    absence.
+    """
+    p = propose(destructive([968, 968, 5_009]))[0]
+
+    assert p.actionable, "a destructive gate must be proposed for, not deferred"
+    assert "deletions are rare" in p.rationale
+
+
+def test_it_anchors_below_the_largest_deletion_not_above_it() -> None:
+    """The largest deletion is usually the one you would want stopped.
+
+    A ceiling above the maximum is the dead-config failure `_anchor` exists to prevent, in its most
+    expensive form: it reads as configured and could never fire. The routine deletion has to stay
+    under the ceiling while the outlier does not — on the measured project, 968 passes and 5,009
+    does not.
+    """
+    p = propose(destructive([968, 968, 5_009]))[0]
+
+    assert p.confirm_above is not None and p.block_above is not None
+    assert p.confirm_above >= 968, "routine build cleanup should not need a human every time"
+    assert p.block_above < 5_009, "the call worth stopping has to be over the block band"
+    assert p.would_block >= 1
+
+
+def test_one_deletion_is_enough() -> None:
+    """A second may be months away, and the gate staying unconfigured is the worse outcome."""
+    assert propose(destructive([4_000]))[0].actionable
+
+
+def test_the_impact_is_filled_in_for_a_destructive_proposal() -> None:
+    """The impact line is what makes the ordinary proposals trustworthy. A new branch that silently
+    returned zeros would read as "this costs you nothing"."""
+    p = propose(destructive([100, 100, 9_000]))[0]
+
+    assert p.would_block + p.would_confirm >= 1
+    assert p.examples, "the operator reviews the calls this would have stopped"
+
+
+@given(magnitudes=st.lists(st.integers(1, 100_000), min_size=1, max_size=MIN_SAMPLES - 1))
+@settings(max_examples=100, deadline=None)
+def test_a_destructive_proposal_is_still_internally_coherent(magnitudes: list[int]) -> None:
+    """Whatever the sample, the bands still have to be usable: confirm below block, and the impact
+    counts still have to match a recount."""
+    p = propose(destructive(magnitudes))[0]
+
+    assert p.confirm_above is not None and p.block_above is not None
+    assert p.confirm_above < p.block_above
+    assert p.would_block == sum(1 for m in magnitudes if m > p.block_above)
+    assert p.would_confirm == sum(1 for m in magnitudes if p.confirm_above < m <= p.block_above)

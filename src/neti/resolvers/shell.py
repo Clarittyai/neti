@@ -432,7 +432,18 @@ class ShellPathsResolver:
             direction=Direction.EXACT,
             resolved_at=datetime.now(UTC),
             consistency="strong",
-            evidence={"form": read.reason, "targets": parts, "command": target[:200]},
+            evidence={
+                "form": read.reason,
+                "targets": parts,
+                "command": target[:200],
+                # A command this parser *understood* is destructive by construction — `targets_of`
+                # recognises nothing else. The marker was only set on the unsizeable path, so a
+                # gate whose deletions all resolved cleanly looked, to anything reading records,
+                # exactly like a gate that had never seen a deletion. `neti propose` needs to know
+                # the difference: deletions are rare, and a rule tuned for ordinary traffic will
+                # wait forever for a sample size they never reach.
+                "destructive": read.reason,
+            },
         )
 
     def reachable_max(self, ctx: ResolveContext) -> Resolution:

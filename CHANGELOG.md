@@ -2,6 +2,40 @@
 
 ## Unreleased
 
+### `neti propose` stopped waiting for a sample size that never arrives
+
+The defect that shipped in 0.2.0, found by installing the wheel and being a user for an afternoon.
+
+`propose` refuses below 30 observations, which is right for a gate that reads — a ceiling fitted to
+nine calls encodes the accident of that week and looks configured while doing it. It is exactly
+wrong for a gate that *deletes*. Measured on a real project: **3 sizeable deletions in 274 calls.**
+So `propose` said *"only 5 observations; 30 needed"* forever, nobody ever declared a `Bash` ceiling,
+and `rm -rf node_modules` was sized at 968 objects and **allowed, in enforce mode**. A user who
+followed every instruction correctly ended up protected against wide reads and not against deletion.
+
+Waiting for a sample size that will not arrive is not caution. It is a silent absence, which is the
+failure mode this whole project keeps finding in itself.
+
+A destructive gate is now proposed for from whatever it has, anchored on the **median** deletion
+rather than the largest — the largest is usually the one you would want stopped, and a ceiling above
+it catches nothing, which is dead config in its most expensive form:
+
+    observed  n=5  p50 of the deletions seen=968  max=5,011 [objects]
+    proposed  confirm above 1,000   block above 5,000
+    IMPACT    would have blocked 2 call(s) and asked about 0
+
+Applied to the project where the gap was found, `rm -rf node_modules` (968) now passes silently and
+`git clean -fdx` (4,786) asks. The rationale says out loud that this is the one place the tool
+reasons from too few samples to be statistical, and that the number wants editing.
+
+The signal had to exist first: `shell.paths` marked `destructive` only on the *unsizeable* path, so
+a gate whose deletions all resolved cleanly looked — to anything reading records — exactly like a
+gate that had never seen one. A command the parser understood is destructive by construction, and
+now says so.
+
+The existing property test asserting "below the threshold it never proposes" is scoped to
+non-destructive gates and points at the new one. Disabling the new branch fails five tests.
+
 ### Provenance: the axis magnitude is blind to
 
 Everything in this product so far answers *how big*. A prompt injection is small at both ends — the

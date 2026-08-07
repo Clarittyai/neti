@@ -171,11 +171,24 @@ $ neti report        # the distribution, any time
 
 ### One thing to know before you rely on it
 
-**Deletions through `Bash` need a ceiling you set by hand.** `shell.paths` sizes `rm -rf`,
-`find -delete`, `git clean -fd` and `git checkout -- .` correctly — but deletions are *rare*, so
-they never accumulate the 30 observations `neti propose` wants, and it will keep saying "keep
-observing" forever. Until you declare a `Bash` ceiling yourself, a sized `rm -rf node_modules` is
-recorded and **allowed**.
+**A deletion ceiling is a judgement, and `propose` says so.** `shell.paths` sizes `rm -rf`,
+`find -delete`, `git clean -fd` and `git checkout -- .` — but deletions are *rare*, so a destructive
+gate never accumulates the 30 observations the ordinary rule wants. Rather than say "keep observing"
+forever and leave the gate unconfigured, `neti propose` proposes from whatever it has and labels it:
+
+```
+Bash /command:
+  observed  n=5  p50 of the deletions seen=968  max=5,011 [objects]
+  proposed  confirm above 1,000   block above 5,000
+  rationale …anchored on the median deletion (968) rather than the largest (5,011), because the
+            largest is usually the one you would want stopped and a ceiling above it would catch
+            nothing. Treat these as a starting point you edit: for a deletion the question is not
+            what is normal here but what you would not want to lose
+  IMPACT    would have blocked 2 call(s) and asked about 0
+```
+
+Routine build cleanup passes; the repository-wide wipe does not. **Review that number** — it is the
+one place the tool is reasoning from too few samples to be statistical, and it tells you so.
 
 A command it recognises as destructive but cannot size — `cat list.txt | xargs rm` — comes back
 **flagged**: the call runs, and it appears in `neti report` under *unmeasured deletions* with what

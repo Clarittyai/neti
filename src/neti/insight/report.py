@@ -78,6 +78,12 @@ class Distribution:
     unit: str
     observations: list[Observation] = field(default_factory=list)
     unresolved: int = 0
+    destructive: int = 0
+    """Causes whose resolver recognised the target as destructive — sized or not.
+
+    Kept because a ceiling for a deletion is a different kind of number from a ceiling for a read,
+    and `propose` cannot tell them apart from magnitudes alone."""
+
     unsized_risk: int = 0
     """Of the unresolved, how many destroyed something. The rest are `npm test`."""
 
@@ -185,6 +191,9 @@ def build_report(records: Iterable[DecisionRecord]) -> ReportSummary:
                     tool=record.tool, pointer=str(cause["pointer"]), unit=str(cause["unit"])
                 )
                 summary.distributions[key] = dist
+
+            if cause.get("destructive"):
+                dist.destructive += 1
 
             magnitude = cause.get("magnitude")
             if magnitude is None:
