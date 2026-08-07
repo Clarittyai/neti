@@ -454,7 +454,10 @@ def test_the_nav_item_matches_the_shape_it_was_copied_from() -> None:
     # no test: it reports a property nobody is holding.
     nav = "\n".join(
         line
-        for line in shell[shell.index("{NAV.map(") : shell.index("</nav>")].splitlines()
+        # `{group.map(` since the rail was grouped by frequency; it was `{NAV.map(` when this was
+        # written, and the rename broke the slice rather than the assertion — which is the failure
+        # mode of anchoring a test on a variable name.
+        for line in shell[shell.index("{group.map(") : shell.index("</nav>")].splitlines()
         if not line.strip().startswith("//")
     )
 
@@ -554,3 +557,31 @@ def test_no_scene_reaches_for_a_frame_loop_or_the_network(scene: Path) -> None:
     body = scene.read_text(encoding="utf-8")
     for banned in ("requestAnimationFrame", "getContext(", "fetch(", "new Image("):
         assert banned not in body, f"{scene.name} uses {banned}"
+
+
+def test_the_rail_is_grouped_and_the_dead_ends_are_conditional() -> None:
+    """Ten flat nav entries, of which three are opened daily.
+
+    `Approvals` was the worst of them: a control plane is the hosted tier, so on a free local
+    install that page reports `attached: false` and can **never** have content. A permanent entry
+    that is structurally empty is not navigation, it is advertising — and it makes the real ones
+    harder to find, which is the cost nobody was counting.
+
+    Asserted on the source because the alternative is a browser, and the property is about what the
+    file declares rather than what any one install renders.
+    """
+    shell = (REPO / "web/src/components/Shell.tsx").read_text(encoding="utf-8")
+
+    # Grouped by how often anybody opens the thing, not by category.
+    for group in ("DAILY", "OCCASIONAL", "SETUP"):
+        assert f"const {group} = [" in shell, f"the rail lost its {group} group"
+
+    # And the two that have to earn their place.
+    assert "attached ?" in shell, "Approvals must appear only with a control plane attached"
+    assert "onboarding ?" in shell, "Getting started must disappear once the walkthrough is done"
+
+    # Three is the whole point of the first group. A fourth wants an argument.
+    daily = shell[shell.index("const DAILY = [") : shell.index("const OCCASIONAL")]
+    assert daily.count("href:") == 3, (
+        "the daily group grew — every addition here costs attention on the three that matter"
+    )

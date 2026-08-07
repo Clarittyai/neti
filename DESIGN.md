@@ -94,6 +94,25 @@ happens when you type in it.
 
 ---
 
+## Navigation
+
+The rail is grouped by **how often anybody opens the thing**, not by category, and an entry appears
+only when it can do something.
+
+- **Daily** — Overview, Decisions, Policy. Three. A fourth wants an argument, and a test counts them.
+- **Occasionally** — the live gate, the audit trail, the scorecard.
+- **Setup** — used once, and demoted below a rule rather than removed.
+
+**An entry that can never have content is advertising, not navigation.** `Approvals` needs a control
+plane, which is the hosted tier, so on a free install it reported `attached: false` forever — a
+permanent nav item for a page that is structurally empty, making the real ones harder to find. It
+appears when one is attached. `Getting started` disappears when the walkthrough is complete;
+onboarding that will not get out of the way is a permanent reminder of a finished job.
+
+Nothing is unreachable. Everything demoted still has a URL.
+
+---
+
 ## Empty states
 
 Every "there is nothing here yet" moment renders through **`EmptyState`**. Never hand-roll one.

@@ -2,6 +2,30 @@
 
 ## Unreleased
 
+### The rail was ten flat entries and three of them get opened
+
+Counted rather than argued about, for a free local install:
+
+    Overview, Decisions, Policy          daily
+    Live gate, Audit, Scorecard          occasionally, or once while evaluating
+    Getting started, Connect, Models     once, during setup
+    Approvals                            never — `attached: false`, structurally empty
+
+`Approvals` was the worst of them. A control plane is the hosted tier, so on every free install that
+page can *never* have content — **a permanent nav entry that is advertising rather than navigation**,
+and it made the nine real ones harder to find. It appears when one is attached.
+
+`Getting started` disappears once the walkthrough is complete. Onboarding that will not get out of
+the way is a permanent reminder of a finished job; it is still at `/start` for anyone wiring a second
+seam later.
+
+The rest is grouped by how often anybody opens it rather than by category, with a rule between the
+groups. Nothing is unreachable — everything demoted still has a URL. A settled install now shows
+**eight**, in three groups of three, two, and… three.
+
+Three of the ten were mine, added over this session without anybody counting the total. The
+`DAILY` group is asserted at exactly three, so a fourth has to be argued for.
+
 ### The console can see all three axes
 
 Two of them shipped in the engine with the console knowing about neither. `/policy` listed ceilings

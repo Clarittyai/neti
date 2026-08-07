@@ -15,7 +15,7 @@
  * synthetic fixture by default and a viewer must never have to wonder which they are looking at.
  */
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { motion, type Variants } from "framer-motion";
@@ -35,22 +35,45 @@ import {
 
 import { cn } from "@/lib/utils";
 import { useConsole } from "@/components/ConsoleProvider";
+import { api } from "@/lib/api";
 
-const NAV = [
+/**
+ * The rail, grouped by how often anybody opens the thing — and filtered to what is true here.
+ *
+ * It reached ten flat entries, of which **three** are opened daily. `Approvals` was the worst of
+ * them: a control plane is the hosted tier, so on a free local install that page reports
+ * `attached: false` and can *never* have content. A permanent nav entry that is structurally empty
+ * is not navigation, it is advertising, and it makes the nine real ones harder to find.
+ *
+ * So the groups are frequency, not category, and two entries appear only when they can do
+ * something:
+ *
+ *   - `Approvals` needs a control plane attached.
+ *   - `Getting started` disappears once the walkthrough is complete — it is onboarding, and
+ *     onboarding that will not get out of the way is a permanent reminder of a finished job.
+ *     Still at `/start` for anyone wiring a second seam later.
+ *
+ * Everything else stays reachable. Nothing here is removed, only demoted below a rule.
+ */
+const DAILY = [
   { href: "/", label: "Overview", icon: Gauge },
-  // Second, not last. Somebody who needs it needs it before anything else on this list, and
-  // somebody who does not will never look — the overview stops showing the walkthrough the moment
-  // their first call is recorded, so this is the only way back to it.
-  { href: "/start", label: "Getting started", icon: Compass },
-  { href: "/gate", label: "Live gate", icon: Activity },
   { href: "/decisions", label: "Decisions", icon: ScrollText },
   { href: "/policy", label: "Policy", icon: SlidersHorizontal },
-  { href: "/approvals", label: "Approvals", icon: UserCheck },
+];
+
+const OCCASIONAL = [
+  { href: "/gate", label: "Live gate", icon: Activity },
   { href: "/audit", label: "Audit", icon: FileCheck },
   { href: "/scorecard", label: "Scorecard", icon: Target },
-  { href: "/models", label: "Models", icon: Cpu },
-  { href: "/connect", label: "Connect", icon: Plug },
 ];
+
+const SETUP = [
+  { href: "/start", label: "Getting started", icon: Compass },
+  { href: "/connect", label: "Connect", icon: Plug },
+  { href: "/models", label: "Models", icon: Cpu },
+];
+
+const APPROVALS = { href: "/approvals", label: "Approvals", icon: UserCheck };
 
 // The house springs, unchanged from claritty. The 0.22s delay on collapse is what stops the rail
 // flickering when the pointer crosses it on the way somewhere else.
@@ -72,6 +95,25 @@ const item: Variants = {
 
 export function Shell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  // Two entries earn their place conditionally, so the rail has to know two facts about this
+  // install. Both are cheap reads and neither blocks the first paint — the rail renders without
+  // them and settles, rather than holding the whole page for a nav decision.
+  const [attached, setAttached] = useState(false);
+  const [onboarding, setOnboarding] = useState(true);
+  useEffect(() => {
+    api.org().then((o) => setAttached(Boolean(o.attached))).catch(() => undefined);
+    api.start().then((s) => setOnboarding(!s.complete)).catch(() => undefined);
+  }, []);
+
+  const groups = useMemo(
+    () => [
+      DAILY,
+      attached ? [...OCCASIONAL, APPROVALS] : OCCASIONAL,
+      onboarding ? SETUP : SETUP.filter((i) => i.href !== "/start"),
+    ],
+    [attached, onboarding],
+  );
+
   const [expanded, setExpanded] = useState(false);
   const [animating, setAnimating] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -117,7 +159,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </div>
 
         <nav className="flex-1 space-y-1 px-2 py-4">
-          {NAV.map(({ href, label, icon: Icon }) => {
+          {groups.map((group, gi) => (
+            <div key={gi} className={gi > 0 ? "mt-3 space-y-1 border-t border-border/50 pt-3" : "space-y-1"}>
+          {group.map(({ href, label, icon: Icon }) => {
             const active = href === "/" ? pathname === "/" : pathname.startsWith(href);
             return (
               <Link
@@ -145,6 +189,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
               </Link>
             );
           })}
+            </div>
+          ))}
         </nav>
 
       </motion.aside>
