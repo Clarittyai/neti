@@ -28,6 +28,21 @@ providers:
     # the same way, which is the only reason a cap is survivable.
     cap: 200000
 
+# ---------------------------------------------------------------- telling you it happened
+#
+# A `flag` is the one verdict where the call *proceeds* and the agent is told nothing — so without
+# this, "recorded and surfaced" means recorded, and surfaced whenever somebody next runs
+# `neti report`. On a real machine that is indistinguishable from silence.
+#
+# `flag` only, by default. A block and a confirm are handed back to the agent as a sentence with a
+# number in it, so you hear about those from your own agent.
+#
+# Written `verdicts:` and never `on:` — YAML reads a bare `on` as a boolean, so that spelling
+# parses fine and does nothing. neti rejects it by name rather than letting your notifications
+# quietly vanish.
+notify:
+  verdicts: [flag]        # [] to silence; NETI_NO_NOTIFY=1 in the environment does the same
+
 # ---------------------------------------------------------------- gated on WHAT, not HOW MANY
 #
 # Magnitude is one axis and it is blind to the other: `.env` is one object, and no ceiling anybody

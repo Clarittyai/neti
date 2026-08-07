@@ -117,7 +117,31 @@ def run_hook(
         session_id=event.get("session_id"),
     )
     decision = Gatekeeper(engine=engine, sink=sink, approver=approver).decide(call)
+
+    # Tell the human, if the policy asked. This is the only place a `flag` ever becomes visible at
+    # the moment it happens — the call proceeds and the agent is told nothing, so without this the
+    # verdict's own docstring ("recorded and surfaced") is half untrue on a real machine.
+    #
+    # `notify` never raises and never waits; see its module docstring. It is still called *after*
+    # the decision and the record, so the ordering guarantees the gate makes are untouched by it.
+    _announce(engine, decision)
     return hook_response(engine, decision)
+
+
+def _announce(engine: Engine, decision: Decision) -> None:
+    """Post an OS notification for this verdict, if one was declared. Best effort, always."""
+    from neti.insight.notify import notify
+
+    verdict = decision.record.verdict
+    on = tuple(engine.policy.notify_on)
+    if verdict not in on:
+        return
+
+    cause = decision.record.causes[0] if decision.record.causes else {}
+    target = str(cause.get("target") or decision.record.tool)
+    said = (decision.record.args or {}).get("description")
+    detail = str(said) if isinstance(said, str) and said.strip() else str(cause.get("reason") or "")
+    notify(verdict, decision.record.tool, target, detail, on=on)
 
 
 def read_event(raw: str) -> dict[str, Any]:

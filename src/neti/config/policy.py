@@ -165,6 +165,19 @@ class Policy(Frozen):
     mode: ModeValue = Mode.OBSERVE
     providers: dict[str, dict[str, Any]] = Field(default_factory=dict)
     provenance: ProvenanceSpec = Field(default_factory=lambda: ProvenanceSpec())
+    notify_on: tuple[str, ...] = ("flag",)
+    """Which verdicts post an OS notification as they are decided.
+
+    `flag` by default and alone, because it is the only verdict nothing else surfaces: a `block` and
+    a `confirm` are handed back to the agent as a sentence, so the operator hears about them from
+    their own agent. A flagged call proceeds and, until this existed, nothing anywhere said so —
+    which made `Verdict.FLAG`'s own docstring, *"recorded and surfaced"*, half untrue on a real
+    machine.
+
+    Written `notify: {verdicts: [flag]}` and **not** `on:`, because YAML 1.1 reads a bare `on` as
+    the boolean `True` — that spelling parses fine and does nothing, and `_normalise` rejects it by
+    name rather than letting somebody's notifications vanish. Set `verdicts: []` to silence."""
+
     sensitive: tuple[SensitiveRule, ...] = ()
     """Targets gated on what they are rather than how many. Joined with the magnitude verdict, worst
     wins — so this can raise a verdict and never lower one."""
@@ -334,6 +347,22 @@ def _normalise(data: dict[str, Any]) -> dict[str, Any]:
             }
         )
     out["session_budgets"] = tuple(rules)
+
+    if "notify" in out:
+        block = out.pop("notify") or {}
+        # `verdicts:`, not `on:`. YAML 1.1 reads a bare `on` as the **boolean True**, so
+        # `notify: {on: [flag]}` parses to `{True: ["flag"]}` and every lookup for the string
+        # silently misses — the setting reads as configured and does nothing, which is the exact
+        # dead-config shape this file's docstring opens by warning about. Caught by running it.
+        #
+        # Rejected rather than quietly accepted, because an operator who wrote `on:` deserves to
+        # be told, not to have their notifications disappear.
+        if True in block:
+            raise PolicyError(
+                "notify: use `verdicts:` rather than `on:` — YAML reads a bare `on` as a boolean, "
+                "so the setting would parse and do nothing"
+            )
+        out["notify_on"] = tuple(block.get("verdicts", ("flag",)) or ())
 
     if "sensitive" in out:
         out["sensitive"] = tuple(out.get("sensitive") or ())
