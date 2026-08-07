@@ -2,6 +2,78 @@
 
 ## Unreleased
 
+### A fresh install now protects something
+
+Measured, before this:
+
+    mode            : observe
+    gated params    : 9
+    WITH a ceiling  : 0        ← it could block nothing at all
+    sensitive rules : 0
+
+Eight steps and a week stood between `pip install` and any protection: install, start, install the
+hook, work for a week, propose, open a 210-line YAML, learn fourteen keys and four verdicts, paste,
+edit, flip the mode. **The median install never finished.** Somebody building agents with Claude
+Code — comfortable in a terminal, not a security engineer — drops out at step four or step six, and
+everything this product does was behind them.
+
+**The founding principle was right about the wrong thing.** *"You cannot pick a ceiling before you
+have seen your own numbers"* is true of a **tuned** ceiling, where being wrong means interrupting
+somebody all day. It is not true of a catastrophic one: nobody's normal workflow deletes twenty
+thousand files or reads `~/.ssh`, and waiting a week to say so protects nothing in the meantime.
+
+So `neti start` is now the whole first run — measure, write a starting set, wire the hook — and it
+ends protected rather than with homework:
+
+    4. Turning it on
+       Off limits from now on:
+          **/.env*      credentials live here   (found .env)
+          **/.git/**    rewriting history is not reversible   (found .git)
+
+       And anything touching more than 5,933 at once is flagged — recorded, and
+       you get told. Never stopped: a size threshold is our judgement, and we do
+       not stop your work on one.
+
+    5. Putting it in front of your agent
+       Write it? [Y/n]
+
+#### The line that keeps it honest
+
+> **Day zero never blocks on a number we chose.**
+
+Sizes only `flag` — recorded, notified, the call proceeds. The only day-zero verdict that *stops* a
+call is an identity match on a file named on screen when it was set. So *"you are never asked to
+guess a number"* stays true, and we do not quietly guess one either. It is asserted directly, and
+it is the property the whole change rests on.
+
+The threshold is not a guess either: `max(500, reach // 10)`, anchored on the reach `neti start`
+already measures — structural rather than behavioural, and available in the first thirty seconds. It
+behaves across four orders of magnitude, and the floor is what stops a twenty-four-file repository
+flagging its own three-file glob.
+
+Verified end to end on a fresh project: ordinary `Read`, `Glob` and `npm test` silent; `.env` and
+`.git/**` asking; a 730-file deletion flagged, notified, and proceeding.
+
+#### Three things found in the building
+
+**Nine gates meant nine rewrites.** The first shape looped `plan_ceiling`, each call reading,
+writing and backing up — so the `.bak` an operator reaches for after a bad edit would have held the
+*eighth intermediate version* rather than their original. `plan_preset` does one read, every splice,
+one verification, one write, one backup, and a test asserts the backup is byte-identical to what
+was there.
+
+**The prompt would have hung.** `typer.confirm` with no tty waits for a keystroke that cannot
+arrive, so `neti start` in CI or piped would block forever. Nobody to ask is not consent: it now
+says so and writes nothing.
+
+**A young repository got nothing.** The first version skipped the preset when reach was under the
+floor, on the grounds that a 500-object threshold cannot fire in a six-file tree. True today, wrong
+tomorrow — repositories grow and the written number does not move on its own. A threshold is a
+watch, not a claim.
+
+A ceiling somebody committed is never overwritten. The preset is what to do when nobody has decided
+yet.
+
 ### `sensitive:` is discoverable, from what is actually on your disk
 
 The axis shipped commented out in the example policy and mentioned in a changelog, which is the same

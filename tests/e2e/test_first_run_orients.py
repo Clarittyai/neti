@@ -78,7 +78,13 @@ def test_start_never_asks_for_a_ceiling(tmp_path: Path) -> None:
 
     A policy says `above: 300, verdict: block`. On day one nobody knows whether 300 is generous or
     absurd for their repository, so asking for it first is asking for the one thing they cannot
-    know. The first run writes a policy that blocks nothing and says so.
+    know. That still holds — nothing here prompts for a number.
+
+    What changed is the other half. The first run used to leave a policy that could block *nothing*
+    until somebody edited fourteen keys of YAML, so day one protected nothing and the median install
+    never got further. It now writes a starting set and says plainly that the numbers are ours:
+    sizes only ever `flag`, and the only thing that stops a call is an identity match on a file
+    named in the output.
     """
     import os
 
@@ -90,10 +96,23 @@ def test_start_never_asks_for_a_ceiling(tmp_path: Path) -> None:
     finally:
         os.chdir(cwd)
 
-    assert "blocks nothing" in result.output
-    assert "observe" in result.output
-    policy = (work / "neti.yaml").read_text(encoding="utf-8")
-    assert "mode: observe" in policy, "the first run wrote a policy that can block"
+    from neti.config.policy import load_policy
+
+    assert "Writing a policy" in result.output
+    assert "?" not in result.output.split("From here")[0].replace("Write it?", ""), (
+        "the first run must never ask for a number"
+    )
+
+    policy = load_policy(work / "neti.yaml")
+    gated = [(t, ptr) for t, spec in policy.tools.items() for ptr in spec.gate]
+    assert gated and all(policy.gate_specs(t)[p].has_ceiling for t, p in gated), (
+        "a fresh install used to protect nothing at all; that was the bug"
+    )
+    for tool, pointer in gated:
+        verdicts = {b.verdict.name.lower() for b in policy.gate_specs(tool)[pointer].bands}
+        assert verdicts == {"flag"}, (
+            f"{tool}{pointer} would stop a call on a number we chose — sizes may only inform"
+        )
 
 
 def test_start_says_what_to_do_tomorrow(tmp_path: Path) -> None:

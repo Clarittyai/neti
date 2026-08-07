@@ -31,7 +31,18 @@ from typing import Any
 
 from neti.core.verdict import Verdict
 
-__all__ = ["CeilingEdit", "PolicyEditError", "apply_ceiling", "plan_ceiling"]
+__all__ = [
+    "CeilingEdit",
+    "PolicyEditError",
+    "PresetEdit",
+    "SensitiveEdit",
+    "apply_ceiling",
+    "apply_preset",
+    "apply_sensitive",
+    "plan_ceiling",
+    "plan_preset",
+    "plan_sensitive",
+]
 
 _VERDICTS = {v.name.lower() for v in Verdict}
 
@@ -316,12 +327,360 @@ def _normalised(data: dict[str, Any]) -> dict[str, Any]:
     return _normalise(data)
 
 
+@dataclass
+class SensitiveEdit:
+    """A rewrite of the whole top-level `sensitive:` list.
+
+    Whole-list rather than per-rule, and that is the right granularity: these are a handful of lines
+    a person reads top to bottom, order decides which one fires, and "add one" and "remove one" are
+    the same operation on the same block. A per-rule splice would need to find a list item by
+    matching its text, which is the fragile thing this module exists to avoid.
+    """
+
+    path: Path
+    rules: list[dict[str, Any]]
+    before: str = ""
+    after: str = ""
+    replaced: bool = False
+
+    @property
+    def changed(self) -> bool:
+        return self.before != self.after
+
+    def diff(self) -> str:
+        return "".join(
+            difflib.unified_diff(
+                self.before.splitlines(keepends=True),
+                self.after.splitlines(keepends=True),
+                fromfile=str(self.path),
+                tofile=f"{self.path} (proposed)",
+                n=4,
+            )
+        )
+
+
+def _render_sensitive(rules: list[dict[str, Any]]) -> list[str]:
+    out = ["sensitive:\n"]
+    for r in rules:
+        why = str(r.get("why") or "").strip()
+        tail = f", why: {why}" if why else ""
+        out.append(f'  - {{ match: "{r["match"]}", verdict: {r["verdict"]}{tail} }}\n')
+    return out
+
+
+def plan_sensitive(path: str | Path, rules: list[dict[str, Any]]) -> SensitiveEdit:
+    """Work out a rewrite of the top-level `sensitive:` block without making it.
+
+    An empty list removes the block entirely rather than leaving `sensitive:` with nothing under it,
+    which YAML reads as `None` and which looks like a setting somebody meant to fill in.
+    """
+    target = Path(path)
+    try:
+        before = target.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise PolicyEditError(f"cannot read {target}: {exc}") from exc
+
+    clean = _validated_rules(rules)
+    lines = before.splitlines(keepends=True)
+    edit = SensitiveEdit(path=target, rules=clean, before=before)
+    rendered = [*_render_sensitive(clean), "\n"] if clean else []
+
+    try:
+        at, end = _find_block(lines, "sensitive", 0, len(lines), 0)
+    except PolicyEditError:
+        # No block yet. Immediately above `tools:`, which is where a reader looks for the things
+        # that are not per-tool, and where the shipped example already comments them.
+        try:
+            tools_at, _ = _find_block(lines, "tools", 0, len(lines), 0)
+        except PolicyEditError as exc:
+            raise PolicyEditError(
+                "this policy has no `tools:` block, so there is nowhere obvious to put "
+                "`sensitive:`. Nothing was written."
+            ) from exc
+        after_lines = [*lines[:tools_at], *rendered, *lines[tools_at:]]
+    else:
+        edit.replaced = True
+        # Trailing blank lines belong to the separation between blocks, not to this one.
+        while end < len(lines) and not lines[end].strip():
+            end += 1
+        after_lines = [*lines[:at], *rendered, *lines[end:]]
+
+    edit.after = "".join(after_lines)
+    _verify_sensitive(edit)
+    return edit
+
+
+def _validated_rules(rules: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Reject a rule that cannot mean anything before it reaches the file.
+
+    Same reasoning as `_validated`: a policy that will not load is not a rejected form, it is a
+    disabled gate — `neti hook` exits 0 on a policy error, so the next session runs entirely
+    ungated with the reason on stderr where nothing reads it.
+    """
+    clean: list[dict[str, Any]] = []
+    for rule in rules:
+        match = str(rule.get("match") or "").strip()
+        verdict = str(rule.get("verdict") or "confirm").lower()
+        if not match:
+            raise PolicyEditError("a sensitive rule needs a `match`")
+        if verdict not in _VERDICTS:
+            raise PolicyEditError(
+                f"unknown verdict {verdict!r}: expected one of {', '.join(sorted(_VERDICTS))}"
+            )
+        if '"' in match:
+            raise PolicyEditError(f"a `match` cannot contain a double quote: {match!r}")
+        why = str(rule.get("why") or "").strip()
+        clean.append({"match": match, "verdict": verdict, "why": why})
+    return clean
+
+
+def _verify_sensitive(edit: SensitiveEdit) -> None:
+    """Load the result before offering it, and check it says what was asked."""
+    import yaml
+
+    from neti.config.policy import Policy, PolicyError
+
+    try:
+        data = yaml.safe_load(edit.after) or {}
+        policy = Policy.model_validate(_normalised(data))
+    except (yaml.YAMLError, PolicyError, ValueError) as exc:
+        raise PolicyEditError(
+            f"the edit would not load as a policy ({exc}). Nothing was written."
+        ) from exc
+
+    written = [
+        {"match": r.match, "verdict": r.verdict.name.lower(), "why": r.why}
+        for r in policy.sensitive
+    ]
+    if written != edit.rules:
+        raise PolicyEditError(
+            f"the edit did not land where it was aimed: the policy reads {written} rather than "
+            f"{edit.rules}. Nothing was written."
+        )
+
+
+def apply_sensitive(edit: SensitiveEdit) -> Path | None:
+    """Write it, backing up what was there. Same contract as `apply_ceiling`."""
+    if not edit.changed:
+        return None
+    backup = edit.path.with_suffix(edit.path.suffix + ".bak")
+    backup.write_text(edit.before, encoding="utf-8")
+    edit.path.write_text(edit.after, encoding="utf-8")
+    return backup
+
+
 def apply_ceiling(edit: CeilingEdit) -> Path | None:
     """Write it, backing up what was there. Returns the backup path, or `None` if nothing changed.
 
     Same contract as `insight/install.py`: this is a file somebody owns and an agent depends on, so
     the previous version survives the edit.
     """
+    if not edit.changed:
+        return None
+    backup = edit.path.with_suffix(edit.path.suffix + ".bak")
+    backup.write_text(edit.before, encoding="utf-8")
+    edit.path.write_text(edit.after, encoding="utf-8")
+    return backup
+
+
+# --------------------------------------------------------------------------- the whole day-zero set
+
+
+@dataclass
+class PresetEdit:
+    """Every day-zero change to a policy, spliced and written **once**.
+
+    Not a loop over `plan_ceiling`. That was the first shape and it is wrong in a way worth
+    recording: each call reads, writes and backs up, so nine gated parameters would leave a `.bak`
+    holding the *eighth* intermediate version rather than what the operator started with. The one
+    file somebody would reach for after a bad edit would be the one file that was no longer their
+    original.
+
+    So: one read, every splice, one verification of the result, one write, one backup.
+    """
+
+    path: Path
+    bands: list[dict[str, Any]]
+    rules: list[dict[str, Any]]
+    enforce: bool
+    before: str = ""
+    after: str = ""
+    gates: list[tuple[str, str]] = field(default_factory=list)
+
+    @property
+    def changed(self) -> bool:
+        return self.before != self.after
+
+    def diff(self) -> str:
+        return "".join(
+            difflib.unified_diff(
+                self.before.splitlines(keepends=True),
+                self.after.splitlines(keepends=True),
+                fromfile=str(self.path),
+                tofile=f"{self.path} (proposed)",
+                n=3,
+            )
+        )
+
+
+def _all_gates(lines: list[str]) -> list[tuple[str, str]]:
+    """Every `(tool, pointer)` this policy gates, read from the text rather than the model.
+
+    From the text because this runs mid-splice, between edits, when the model would have to be
+    re-parsed to be asked.
+    """
+    tools_at, tools_end = _find_block(lines, "tools", 0, len(lines), 0)
+    tool_depth = _child_depth(lines, tools_at + 1, tools_end, default=2)
+
+    found: list[tuple[str, str]] = []
+    for i in range(tools_at + 1, tools_end):
+        line = lines[i]
+        if not line.strip() or line.lstrip().startswith("#") or _indent(line) != tool_depth:
+            continue
+        tool = line.strip().rstrip(":")
+        if not tool.endswith(":") and ":" not in tool:
+            pass
+        tool = tool.split(":")[0]
+        try:
+            _, tool_end = _find_block(lines, tool, tools_at + 1, tools_end, tool_depth)
+            gate_at, gate_end = _find_block(
+                lines, "gate", i + 1, tool_end, _child_depth(lines, i + 1, tool_end, default=4)
+            )
+        except PolicyEditError:
+            continue
+        ptr_depth = _child_depth(lines, gate_at + 1, gate_end, default=6)
+        for j in range(gate_at + 1, gate_end):
+            row = lines[j]
+            if not row.strip() or row.lstrip().startswith("#") or _indent(row) != ptr_depth:
+                continue
+            pointer = row.strip().split(":")[0]
+            if pointer.startswith("/"):
+                found.append((tool, pointer))
+    return found
+
+
+def plan_preset(
+    path: str | Path,
+    *,
+    bands: list[dict[str, Any]],
+    rules: list[dict[str, Any]],
+    enforce: bool = True,
+) -> PresetEdit:
+    """Work out the whole day-zero edit without making it."""
+    target = Path(path)
+    try:
+        before = target.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise PolicyEditError(f"cannot read {target}: {exc}") from exc
+
+    clean_bands = _validated(bands) if bands else []
+    clean_rules = _validated_rules(rules)
+    text = before
+
+    if clean_rules:
+        spliced = plan_sensitive(target, clean_rules)
+        text = spliced.after
+
+    gates = _all_gates(text.splitlines(keepends=True))
+    if clean_bands:
+        for tool, pointer in gates:
+            # A gate that already declares a ceiling is left alone. The preset is what to do when
+            # nobody has decided yet; overwriting somebody's committed number with ours would be
+            # the opposite of the whole argument for having it.
+            if _has_bands(text, tool, pointer):
+                continue
+            text = _with_bands(text, tool=tool, pointer=pointer, bands=clean_bands)
+
+    if enforce:
+        text = _enforcing(text)
+
+    edit = PresetEdit(
+        path=target,
+        bands=clean_bands,
+        rules=clean_rules,
+        enforce=enforce,
+        before=before,
+        after=text,
+        gates=gates,
+    )
+    _verify_preset(edit)
+    return edit
+
+
+def _has_bands(text: str, tool: str, pointer: str) -> bool:
+    import yaml
+
+    from neti.config.policy import Policy
+
+    try:
+        policy = Policy.model_validate(_normalised(yaml.safe_load(text) or {}))
+    except Exception:
+        return False
+    spec = policy.gate_specs(tool).get(pointer)
+    return bool(spec and spec.bands)
+
+
+def _with_bands(text: str, *, tool: str, pointer: str, bands: list[dict[str, Any]]) -> str:
+    """`plan_ceiling`'s splice, on text rather than a path, so it can be composed."""
+    import tempfile
+
+    with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False, encoding="utf-8") as fh:
+        fh.write(text)
+        tmp = Path(fh.name)
+    try:
+        return plan_ceiling(tmp, tool=tool, pointer=pointer, bands=bands).after
+    finally:
+        tmp.unlink(missing_ok=True)
+
+
+def _enforcing(text: str) -> str:
+    """`mode: observe` -> `mode: enforce`, keeping whatever comment sits beside it."""
+    out = []
+    done = False
+    for line in text.splitlines(keepends=True):
+        if not done and line.lstrip().startswith("mode:") and "observe" in line:
+            out.append(line.replace("observe", "enforce", 1))
+            done = True
+        else:
+            out.append(line)
+    return "".join(out)
+
+
+def _verify_preset(edit: PresetEdit) -> None:
+    """Load the result and check every piece landed, before offering it to anybody."""
+    import yaml
+
+    from neti.config.policy import Policy, PolicyError
+
+    try:
+        policy = Policy.model_validate(_normalised(yaml.safe_load(edit.after) or {}))
+    except (yaml.YAMLError, PolicyError, ValueError) as exc:
+        raise PolicyEditError(
+            f"the preset would not load as a policy ({exc}). Nothing was written."
+        ) from exc
+
+    written = [
+        {"match": r.match, "verdict": r.verdict.name.lower(), "why": r.why}
+        for r in policy.sensitive
+    ]
+    if written != edit.rules:
+        raise PolicyEditError("the off-limits rules did not land. Nothing was written.")
+
+    if edit.enforce and policy.mode.name.lower() != "enforce":
+        raise PolicyEditError("the policy is still observing after the edit. Nothing was written.")
+
+    if edit.bands:
+        gated = [(t, p) for t, s in policy.tools.items() for p in s.gate]
+        without = [f"{t}{p}" for t, p in gated if not policy.gate_specs(t)[p].bands]
+        if without:
+            raise PolicyEditError(
+                f"these gates still have no ceiling after the preset: {', '.join(without)}. "
+                "Nothing was written."
+            )
+
+
+def apply_preset(edit: PresetEdit) -> Path | None:
+    """Write it, backing up what was there. One backup, holding the original."""
     if not edit.changed:
         return None
     backup = edit.path.with_suffix(edit.path.suffix + ".bak")

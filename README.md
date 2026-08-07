@@ -42,30 +42,32 @@ answer a different question; none of them answers *how big is this*.
 
 ## Getting value from it
 
-Four steps over about a week. Each one gives you something before the next one is worth doing, and
-**you are never asked to guess a number** — that ordering is the whole design.
+**One command, and it is already protecting.** Then a week of your own traffic makes it precise.
 
 | | you run | you get | it takes |
 |---|---|---|---|
-| **1. Measure** | `neti start` | one number nothing else in your stack reports | 30 seconds |
-| **2. Observe** | `neti install`, then work normally | your agent's real distribution | a few days |
-| **3. Decide** | `neti propose` | ceilings derived from *your* traffic, with their impact | 10 minutes |
-| **4. Enforce** | `mode: enforce` | oversized calls stopped, ordinary work untouched | forever |
+| **1. Protected** | `neti start` | secrets off limits, big calls flagged, hook wired | 30 seconds |
+| **2. Observe** | work normally | your agent's real distribution | a few days |
+| **3. Tune** | `neti propose` | ceilings derived from *your* traffic, with their impact | 10 minutes |
+
+**You are never asked to guess a number, and neither do we.** The one thing `neti start` chooses for
+you is a *size* threshold, and a size we chose only ever **flags** — recorded, you get told, the call
+runs. The only thing that stops a call on day one is an off-limits *file*, named on your screen when
+it was set. Numbers you have to defend still come from step 3.
 
 Prefer to be walked through it? `neti console` opens on **Getting started** — the same four steps,
 read live off your machine, with your paths in the commands. Each step ticks itself as you do it.
 
 ---
 
-### 1. Measure — what could one call touch?
+### 1. Protected — one command
 
 ```console
 $ pip install "neti[all]"
 $ neti start
 ```
 
-That is the whole first run. It finds your agent, writes a policy that **blocks nothing**, and
-measures the machine you are standing on:
+That is the whole first run. It measures the machine you are standing on:
 
 ```
 3. Measuring this machine
@@ -84,17 +86,33 @@ credentials, no configuration, no traffic to wait for.
 It is not an alert. Nothing has gone wrong. It is a fact about your capability surface that you
 could not previously obtain.
 
-### 2. Observe — what does your agent actually do?
+…and then it turns itself on:
 
-```console
-$ neti install        # adds a PreToolUse hook to .claude/settings.json
+```
+4. Turning it on
+   Off limits from now on — these are really here, and one file is
+   under every ceiling anybody would write:
+
+      **/.env*         credentials live here   (found .env)
+      **/.git/**       rewriting history is not reversible   (found .git)
+
+   And anything touching more than 5,933 at once is flagged — recorded, and
+   you get told. Never stopped: a size threshold is our judgement, and we do
+   not stop your work on one.
+
+5. Putting it in front of your agent
+   This adds a PreToolUse hook to .claude/settings.json:
+   …
+   Write it? [Y/n]
 ```
 
-It merges into whatever is there, backs the file up, and shows you the change before writing. The
-policy is in `observe` mode: every call is sized and recorded, **nothing is blocked**. Worst case of
-installing it is one hop of latency.
+It shows the change, backs the file up, and asks once. **Before this, a fresh install had nine gated
+parameters and zero ceilings** — it could block nothing at all until somebody opened the YAML and
+learned fourteen keys, so the median install protected nothing, ever.
 
-Then work normally for a few days. After ~270 calls in a real project:
+### 2. Observe — what does your agent actually do?
+
+Work normally for a few days. After ~270 calls in a real project:
 
 ```
 Read  /file_path   n=94  p50 1      max 1
@@ -107,7 +125,7 @@ Grep  /path        n=33  p50 30     max 5,009
 until the one that is the entire repository. You would set very different ceilings for `Read` and
 for `Glob`, and now you can see which, instead of arguing about it.
 
-### 3. Decide — turn that into numbers you can defend
+### 3. Tune — replace our numbers with yours
 
 ```console
 $ neti propose
@@ -153,9 +171,8 @@ Only rules that match something that is genuinely there — a `**/*.pem` rule in
 certificate in it is a rule that can never fire. `neti start` shows them on day one, because they
 are facts about the disk rather than about behaviour.
 
-### 4. Enforce — the part that stops something
-
-Change `mode: observe` to `mode: enforce`. The same session, re-run:
+Once you commit those, the gate stops calls rather than only flagging them — because now the number
+is yours. The same session, re-run:
 
 ```
 Read(package.json)          silent

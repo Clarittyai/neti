@@ -767,3 +767,45 @@ def test_a_decision_row_says_why_when_the_reason_was_not_a_number(tmp_path: Path
             assert row["sensitive"][0]["why"] == "credentials live here"
     finally:
         state.close()
+
+
+def test_off_limits_rules_can_be_added_and_removed_without_the_yaml(tmp_path: Path) -> None:
+    """The whole argument for the policy page: the YAML is optional.
+
+    `neti start` now writes off-limits rules without being asked, and a rule you cannot remove from
+    where you found it is a rule you disable by uninstalling the product.
+    """
+    from neti.api.state import build_state
+
+    config = tmp_path / "neti.yaml"
+    config.write_text(
+        Path("examples/coding-agent.yaml").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    comments = sum(
+        1
+        for line in config.read_text(encoding="utf-8").splitlines()
+        if line.strip().startswith("#")
+    )
+
+    state = build_state(config=config, records=tmp_path / "d.ndjson")
+    try:
+        with TestClient(create_app(state)) as c:
+            assert c.get("/api/policy").json()["sensitive"] == []
+
+            rules = [{"match": "**/.env", "verdict": "confirm", "why": "credentials"}]
+            planned = c.post("/api/policy/sensitive", json={"rules": rules, "apply": False})
+            assert planned.status_code == 200, planned.text
+            assert planned.json()["applied"] is False
+            assert c.get("/api/policy").json()["sensitive"] == [], "planning writes nothing"
+
+            c.post("/api/policy/sensitive", json={"rules": rules, "apply": True})
+            assert c.get("/api/policy").json()["sensitive"] == rules
+
+            # And removing the last one leaves no empty `sensitive:` key behind.
+            c.post("/api/policy/sensitive", json={"rules": [], "apply": True})
+            assert c.get("/api/policy").json()["sensitive"] == []
+
+            after = config.read_text(encoding="utf-8")
+            assert sum(1 for x in after.splitlines() if x.strip().startswith("#")) == comments
+    finally:
+        state.close()

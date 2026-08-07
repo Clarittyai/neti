@@ -115,7 +115,7 @@ def start(
 
     The first run used to be nineteen commands in a flat list and a policy file asking for a
     ceiling — a number nobody has on day one. This is the path instead: find the agent, write a
-    policy that blocks nothing, and measure *this* machine so the first thing you see is a fact
+    policy, protect the obvious, and measure *this* machine so the first thing you see is a fact
     about your own repository rather than an example about somebody else's.
 
     Nothing here enforces anything. That is deliberate: you cannot pick a ceiling before you have
@@ -144,14 +144,14 @@ def start(
     typer.echo("   Claude Code's own built-in tools are gated through a hook, not MCP.\n")
 
     # ---------------------------------------------------------------- 2. a policy that blocks
-    typer.secho("2. Writing a policy that blocks nothing", bold=True)
+    typer.secho("2. Writing a policy", bold=True)
     destination = Path(config)
     if destination.exists():
         typer.echo(f"   {destination} already exists, keeping it.")
     else:
         _write_example("coding-agent", destination, quiet=True)
-        typer.echo(f"   wrote {destination} — mode: observe, so every call is recorded and none")
-        typer.echo("   is stopped. You can read the whole thing; it is about thirty lines.")
+        typer.echo(f"   wrote {destination}. You can read the whole thing, and step 4 fills in")
+        typer.echo("   what it starts out protecting.")
     typer.echo("")
 
     # ---------------------------------------------------------------- 3. the number
@@ -192,44 +192,117 @@ def start(
         typer.echo("   Could not measure from here yet. `neti inventory` will say why.")
     typer.echo("")
 
-    # ------------------------------------------------------- 3b. what is worth gating on identity
+    # ---------------------------------------------------------------- 4. turn it on
     #
-    # Day one, because it needs no traffic: these are facts about the disk, not about behaviour.
-    # A ceiling needs a week of observation before it means anything; `.env` being here does not.
-    from neti.insight.secrets_scan import scan as scan_secrets
+    # **This used to be homework.** A fresh install had nine gated parameters, zero ceilings and
+    # `mode: observe` — it protected nothing and could not, until somebody opened a 210-line YAML
+    # file and learned fourteen keys. Eight steps and a week stood between `pip install` and any
+    # protection at all, and the median install never finished them.
+    #
+    # The founding principle — you cannot pick a ceiling before you have seen your own numbers — is
+    # right about a *tuned* ceiling and wrong about a catastrophic one. Nobody's normal workflow
+    # deletes twenty thousand files or reads `~/.ssh`.
+    #
+    # The line that keeps it honest is in `insight/preset.py`: **day zero never blocks on a number
+    # we chose.** Sizes only flag. The only thing that stops a call is an identity match on a file
+    # named in the output below.
+    from neti.insight.edit_policy import PolicyEditError, apply_preset, plan_preset
+    from neti.insight.preset import build as build_preset
 
-    try:
-        candidates = scan_secrets(here)
-    except OSError:
-        candidates = []
-    if candidates:
-        typer.secho("   Worth gating on what it is, not how big", bold=True)
-        typer.echo("   A ceiling cannot reach a single file. These are really here:\n")
-        for c in candidates[:4]:
-            typer.echo(f"      {c.match:<14} {c.why}   (found {c.example})")
-        typer.echo("\n   `neti propose` prints them as YAML to paste. Nothing is applied for you.")
+    preset = build_preset(here, reached or 0)
+    applied = False
+    if preset.protects_anything:
+        typer.secho("4. Turning it on", bold=True)
+        try:
+            edit = plan_preset(
+                destination,
+                bands=[{"above": preset.flag_above, "verdict": "flag"}] if reached else [],
+                rules=[
+                    {"match": c.match, "verdict": c.verdict, "why": c.why}
+                    for c in preset.off_limits
+                ],
+            )
+            apply_preset(edit)
+            applied = True
+        except (PolicyEditError, OSError) as exc:
+            typer.secho(f"   could not write the starting rules: {exc}", fg=typer.colors.YELLOW)
+
+    if applied:
+        if preset.off_limits:
+            typer.echo("   Off limits from now on — these are really here, and one file is")
+            typer.echo("   under every ceiling anybody would write:\n")
+            for c in preset.off_limits[:4]:
+                typer.echo(f"      {c.match:<16} {c.why}   (found {c.example})")
+            typer.echo("")
+        if reached:
+            typer.echo(f"   And anything touching more than {preset.flag_above:,} at once is")
+            typer.echo("   flagged — recorded, and you get told. Never stopped: a size threshold")
+            typer.echo("   is our judgement, and we do not stop your work on one.\n")
+        typer.echo(f"   All of it is in {destination}, and changeable in `neti console`.")
         typer.echo("")
 
-    # ---------------------------------------------------------------- 4. what happens next
-    #
-    # `neti console` is named first and named as the walkthrough, because it *is* one now: it opens
-    # on five steps read live off this machine, with this policy's path in the commands and every
-    # agent it found here listed by name, and each step ticks itself as you do it. Pointing somebody
-    # at `docs/TUTORIAL.md` instead was pointing them at a repository path that a `pip install` does
-    # not have — the walkthrough was outside the product, which is the whole thing that was wrong.
-    typer.secho("4. What to do next", bold=True)
-    typer.echo("   Walk it   neti console         five steps, checked live against this machine")
-    typer.echo("             The console opens on Getting started and ticks each step off as you")
-    typer.echo("             do it. Everything below is on that page, with your own paths in it.")
+    # ---------------------------------------------------------------- 5. in front of the agent
+    typer.secho("5. Putting it in front of your agent", bold=True)
+    wired = _offer_install(here, destination)
     typer.echo("")
-    typer.echo("   Today     neti install         put the gate in front of Claude Code")
-    typer.echo("             ...then work normally. Nothing is blocked; everything is recorded.")
+
+    # ---------------------------------------------------------------- 6. what happens next
+    typer.secho("6. From here", bold=True)
+    if wired:
+        typer.echo("   Working. Go build — you will hear from it if something looks big.")
+    else:
+        typer.echo("   Nothing is gated until the hook is wired:  neti install")
     typer.echo("")
-    typer.echo("   Tomorrow  neti report          what your agent actually touched")
-    typer.echo("             neti propose         ceilings derived from that, for you to review")
+    typer.echo("   neti console         everything above, in a browser, with your own numbers")
+    typer.echo("   neti report          what your agent actually touched")
+    typer.echo("   neti propose         tighter ceilings, from a week of your own traffic")
     typer.echo("")
-    typer.echo("   Only once you have committed a ceiling does anything get blocked. The number")
-    typer.echo("   comes from your own traffic, so you are never asked to guess one.\n")
+    typer.echo("   The ceilings above are starting points chosen by us, not measurements of you.")
+    typer.echo("   `neti propose` replaces them with numbers from your own work.\n")
+
+
+def _offer_install(here: Path, policy: Path) -> bool:
+    """Wire the hook, showing the change and asking once.
+
+    Collapsed into `neti start` because it was the step most likely to be dropped and nothing works
+    until it happens — a first run that ends by telling you to run a second command is a first run
+    with a cliff in the middle. The safety is unchanged: `plan_install` still shows the diff, still
+    refuses settings it cannot parse, and `apply_install` still backs the file up.
+    """
+    from neti.insight.install import apply_install, plan_install
+
+    try:
+        plan = plan_install(here, policy.resolve())
+    except (ValueError, json.JSONDecodeError) as exc:
+        typer.secho(f"   {exc}", fg=typer.colors.YELLOW)
+        typer.echo("   Refusing to touch settings it cannot parse. `neti install` once fixed.")
+        return False
+
+    if plan.already_installed:
+        typer.echo(f"   Already wired into {plan.path}")
+        return True
+
+    typer.echo(f"   This adds a PreToolUse hook to {plan.path}:\n")
+    typer.echo(f"{plan.diff()}\n")
+    if plan.other_hooks:
+        typer.echo(f"   ({plan.other_hooks} existing hook(s) left untouched)")
+
+    # Nobody to ask is not the same as consent. A `neti start` in CI, or piped, must not write to a
+    # file the operator owns on the strength of a default — and it must not hang waiting for a
+    # keystroke that cannot arrive, which is what `typer.confirm` does with no tty.
+    if not sys.stdin.isatty():
+        typer.echo("   Not a terminal, so nothing was written. Run `neti install` when you are.")
+        return False
+
+    if not typer.confirm("   Write it?", default=True):
+        typer.echo("   Nothing written. `neti install` when you are ready.")
+        return False
+
+    backup = apply_install(plan)
+    typer.secho(f"   Wrote {plan.path}", fg=typer.colors.GREEN)
+    if backup:
+        typer.echo(f"   previous version saved as {backup.name}")
+    return True
 
 
 @app.command(rich_help_panel="Start here")

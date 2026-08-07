@@ -386,6 +386,11 @@ export const api = {
   decisions: () => get<{ total: number; decisions: DecisionSummary[] }>("/api/decisions"),
   decision: (id: string) => get<DecisionRecord>(`/api/decisions/${id}`),
   policy: () => get<Record<string, unknown>>("/api/policy"),
+  /** Rewrite the whole off-limits list. Plan first (`apply: false`), then write. */
+  setSensitive: (body: {
+    rules: { match: string; verdict: Verdict; why: string }[];
+    apply: boolean;
+  }) => post<Record<string, unknown>>("/api/policy/sensitive", body),
   setCeiling: (body: {
     tool: string;
     pointer: string;

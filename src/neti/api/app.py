@@ -444,6 +444,42 @@ def create_app(
             "digest": st.policy.digest(),
         }
 
+    @app.post("/api/policy/sensitive")
+    def set_sensitive(body: dict[str, Any]) -> dict[str, Any]:
+        """Rewrite the whole off-limits list, in two calls like every other edit here.
+
+        The whole list rather than one rule: these are a handful of lines somebody reads top to
+        bottom, order decides which fires, and add and remove are the same operation on the same
+        block. It is also what keeps the YAML optional — an operator who never opens the file can
+        still see, add and remove every rule that stops a call.
+        """
+        from neti.insight.edit_policy import PolicyEditError, apply_sensitive, plan_sensitive
+
+        try:
+            edit = plan_sensitive(st.config_path, list(body.get("rules") or []))
+        except PolicyEditError as exc:
+            raise HTTPException(400, str(exc)) from exc
+
+        written = False
+        backup: str | None = None
+        if bool(body.get("apply")):
+            try:
+                saved = apply_sensitive(edit)
+            except OSError as exc:
+                raise HTTPException(500, f"could not write {edit.path}: {exc}") from exc
+            written = True
+            backup = None if saved is None else str(saved)
+            st.reload()
+
+        return {
+            "path": str(edit.path),
+            "diff": edit.diff(),
+            "changed": edit.changed,
+            "applied": written,
+            "backup": backup,
+            "digest": st.policy.digest(),
+        }
+
     @app.get("/api/report")
     def report() -> dict[str, Any]:
         summary = build_report(_records(st))

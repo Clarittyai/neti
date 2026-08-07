@@ -15,7 +15,7 @@
 #     "hooks": [{"type": "command", "command": "neti hook -c neti.yaml"}]}]}}
 
 version: 1
-mode: enforce # enforce | enforce. Observe cannot block anything; start here.
+mode: enforce # observe | enforce. Observe cannot block anything; start here.
 
 providers:
   fs:

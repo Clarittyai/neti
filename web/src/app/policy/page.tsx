@@ -145,28 +145,12 @@ export default function PolicyPage() {
               size, and join with the ceilings above — worst verdict wins, so a rule written badly
               costs a confirmation and never a silent allow.
             </p>
-            <div className="mt-4 border-t border-border">
-              {data.sensitive.map((r) => (
-                <div
-                  key={r.match}
-                  className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-border py-3"
-                >
-                  <code className="font-mono text-[13px]">{r.match}</code>
-                  {r.why ? (
-                    <span className="text-[13px] text-muted-foreground">{r.why}</span>
-                  ) : null}
-                  <span className="ml-auto">
-                    <BandChip band={{ above: 0, verdict: r.verdict }} label={r.verdict} />
-                  </span>
-                </div>
-              ))}
-              {data.sensitive.length === 0 ? (
-                <p className="border-b border-border py-3 text-[13px] text-muted-foreground">
-                  None declared. `.env`, `.pem`, `.ssh/` and `.git/` are the ones most repositories
-                  want — the shipped example lists them, commented out.
-                </p>
-              ) : null}
-            </div>
+            {/* Editable, because the whole point of this page is that the YAML is optional. An
+                operator who never opens the file still has to be able to see, add and remove every
+                rule that can stop a call — `neti start` writes these without being asked, and a
+                rule you cannot remove from where you found it is a rule you disable by uninstalling
+                the product. */}
+            <OffLimits rules={data.sensitive} onChange={reload} />
           </section>
 
           {/* The third. Not a property of the call at all — a property of the session it is in. */}
@@ -242,6 +226,95 @@ export default function PolicyPage() {
         </div>
       ) : null}
     </Page>
+  );
+}
+
+function OffLimits({
+  rules,
+  onChange,
+}: {
+  rules: SensitiveRule[];
+  onChange: () => void;
+}) {
+  const [match, setMatch] = useState("");
+  const [why, setWhy] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const write = (next: SensitiveRule[]) => {
+    setBusy(true);
+    setError(null);
+    api
+      .setSensitive({ rules: next, apply: true })
+      .then(() => {
+        setMatch("");
+        setWhy("");
+        onChange();
+      })
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setBusy(false));
+  };
+
+  return (
+    <div className="mt-4 border-t border-border">
+      {rules.map((r) => (
+        <div
+          key={r.match}
+          className="flex flex-wrap items-baseline gap-x-4 gap-y-1 border-b border-border py-3"
+        >
+          <code className="font-mono text-[13px]">{r.match}</code>
+          {r.why ? <span className="text-[13px] text-muted-foreground">{r.why}</span> : null}
+          <span className="ml-auto flex items-center gap-3">
+            <BandChip band={{ above: 0, verdict: r.verdict }} label={r.verdict} />
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => write(rules.filter((x) => x.match !== r.match))}
+              className="rounded-full px-2.5 py-1 text-[11px] font-medium text-muted-foreground ring-1 ring-inset ring-border transition-colors hover:text-foreground disabled:opacity-40"
+            >
+              Remove
+            </button>
+          </span>
+        </div>
+      ))}
+      {rules.length === 0 ? (
+        <p className="border-b border-border py-3 text-[13px] text-muted-foreground">
+          None. `neti propose` suggests the ones that match something really on this disk.
+        </p>
+      ) : null}
+
+      <div className="flex flex-wrap items-center gap-2 py-3">
+        <input
+          value={match}
+          onChange={(e) => setMatch(e.target.value)}
+          placeholder="**/*.pem"
+          spellCheck={false}
+          aria-label="Pattern to put off limits"
+          className="w-48 rounded-md border border-border bg-transparent px-2.5 py-1.5 font-mono text-[12px] outline-none placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-accent"
+        />
+        <input
+          value={why}
+          onChange={(e) => setWhy(e.target.value)}
+          placeholder="why it matters — the agent is told this"
+          aria-label="Why"
+          className="min-w-0 flex-1 rounded-md border border-border bg-transparent px-2.5 py-1.5 text-[12px] outline-none placeholder:text-muted-foreground/60 focus-visible:ring-2 focus-visible:ring-accent"
+        />
+        <button
+          type="button"
+          disabled={busy || !match.trim()}
+          onClick={() =>
+            write([...rules, { match: match.trim(), verdict: "confirm", why: why.trim() }])
+          }
+          className="rounded-full px-3 py-1.5 text-[12px] font-medium ring-1 ring-inset ring-border transition-colors hover:bg-foreground/[0.04] disabled:opacity-40"
+        >
+          Put off limits
+        </button>
+      </div>
+
+      {error ? (
+        <p className="pb-3 text-[12px] text-[hsl(var(--verdict-block))]">{error}</p>
+      ) : null}
+    </div>
   );
 }
 
