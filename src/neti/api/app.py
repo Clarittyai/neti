@@ -13,6 +13,7 @@ version adds, and it is a difference in reach rather than in whether this one wo
 
 from __future__ import annotations
 
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException
@@ -379,6 +380,19 @@ def create_app(
                     {"above": b.above, "verdict": b.verdict.name.lower()}
                     for b in st.policy.provenance.bands
                 ],
+            },
+            # The fourth axis, and the only one that is a place rather than a property of the call.
+            # Listed here for the same reason `sensitive` is: `neti start` writes it without being
+            # asked, and a rule an operator cannot find is one they cannot check or remove.
+            "outside_root": {
+                "verdict": None
+                if st.policy.outside_root is None
+                else st.policy.outside_root.name.lower(),
+                # Resolved, not as written. A policy that says `root: .` is answering "outside
+                # what?" with a character the reader cannot check against their own disk.
+                "root": str(
+                    Path((st.policy.providers.get("fs") or {}).get("root") or ".").resolve()
+                ),
             },
             "session_budgets": [
                 {

@@ -53,6 +53,7 @@ interface PolicyShape {
   sensitive: SensitiveRule[];
   provenance: { untrusted: string[]; tools: string[]; bands: Band[] };
   session_budgets: { tools: string[]; unit: string; bands: Band[] }[];
+  outside_root: { verdict: string | null; root: string | null };
 }
 
 export default function PolicyPage() {
@@ -178,6 +179,41 @@ export default function PolicyPage() {
                     <BandChip key={b.above} band={b} />
                   ))}
                 </div>
+              )}
+            </div>
+          </section>
+
+          {/* The fourth. Where the target is, which is the only axis that reaches the files most
+              worth protecting — they are outside the tree the day-zero scan can walk. */}
+          <section>
+            <h2 className="text-base font-semibold tracking-tight">Outside this directory</h2>
+            <p className="mt-1.5 max-w-2xl text-[13px] leading-relaxed text-muted-foreground">
+              <code className="font-mono">~/.ssh/id_rsa</code> is one file, under every ceiling
+              anybody would write, and outside the project a scan can see. Neither size nor a
+              name-matching rule reaches it. This one is about where the target is, after symlinks
+              are resolved.
+            </p>
+            <div className="panel mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+              {data.outside_root.verdict ? (
+                <>
+                  {/* A root of "." is what the policy file says and means nothing to a reader
+                      looking for where the boundary is. The absolute path is the answer to the
+                      question this row is asked. */}
+                  <span className="font-mono text-[13px]">{data.outside_root.root ?? "this directory"}</span>
+                  <span className="text-xs text-muted-foreground">anything outside it</span>
+                  <span className="ml-auto">
+                    {/* Labelled, because the default chip reads "confirm above 0" — and there is
+                        no number here at all. That is the point of this axis. */}
+                    <BandChip
+                      band={{ above: 0, verdict: data.outside_root.verdict as Band["verdict"] }}
+                      label={data.outside_root.verdict}
+                    />
+                  </span>
+                </>
+              ) : (
+                <p className="text-[13px] text-muted-foreground">
+                  Not declared. A target anywhere on this machine is judged only by its size.
+                </p>
               )}
             </div>
           </section>

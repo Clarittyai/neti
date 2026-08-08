@@ -251,6 +251,13 @@ def test_policy_exposes_the_declared_ceilings(connected: Any) -> None:
     assert gate["resolver"] == "entra.principals"
     assert [b["above"] for b in gate["bands"]] == [200, 25]
     assert policy["session_budgets"], "NC-01 mitigation must be visible in the console"
+    # Every axis that can stop a call has to be readable here, and this one is written by
+    # `neti start` without being asked. A rule an operator cannot find in their own console is one
+    # they can neither check nor remove — the failure this repository has now made eight times.
+    assert "outside_root" in policy, "the location axis is invisible to the console"
+    # The value, not just the key. `str(Verdict.CONFIRM)` is `"2"`, which serialises fine, renders
+    # as a chip reading `2`, and passes any test that only checks the field is present.
+    assert policy["outside_root"]["verdict"] in {None, "flag", "confirm", "block"}
 
 
 def test_the_scorecard_still_reports_its_misses(connected: Any) -> None:
