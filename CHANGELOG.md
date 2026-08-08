@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — 2026-08-07
 
 ### The two files most worth protecting were the two the scan could never see
 
