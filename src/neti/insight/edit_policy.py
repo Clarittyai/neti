@@ -570,6 +570,18 @@ def _render_budget(tools: list[str], above: int, verdict: str) -> list[str]:
     ]
 
 
+def _with_scalar(text: str, key: str, value: str) -> str:
+    """Splice a top-level `key: value`, unless it is already declared. Never replaced."""
+    lines = text.splitlines(keepends=True)
+    if any(line.startswith(f"{key}:") for line in lines):
+        return text
+    try:
+        tools_at, _ = _find_block(lines, "tools", 0, len(lines), 0)
+    except PolicyEditError:
+        return text
+    return "".join([*lines[:tools_at], f"{key}: {value}\n\n", *lines[tools_at:]])
+
+
 def _with_budget(text: str, tools: list[str], above: int, verdict: str) -> str:
     """Splice a top-level `session_budgets:` block, unless one is already declared.
 
@@ -598,6 +610,7 @@ def plan_preset(
     bands: list[dict[str, Any]],
     rules: list[dict[str, Any]],
     session_above: int = 0,
+    outside_root: str = "",
     enforce: bool = True,
 ) -> PresetEdit:
     """Work out the whole day-zero edit without making it."""
@@ -629,6 +642,9 @@ def plan_preset(
     # the same reason as the per-call threshold: the number is ours.
     if session_above and gates:
         text = _with_budget(text, [t for t, _ in gates], session_above, "flag")
+
+    if outside_root:
+        text = _with_scalar(text, "outside_root", outside_root)
 
     if enforce:
         text = _enforcing(text)

@@ -200,6 +200,15 @@ def explain_denial(result: GateResult, payload: dict[str, Any]) -> str:
     # A sensitivity rule decided this, so the number is not the story and telling the agent to
     # "narrow the target" would send it to do the same thing to a smaller part of the same secret.
     # It has to hear *what kind of thing* it just touched.
+    if payload.get("outside_root"):
+        # Not a size and not a named file: a place. Telling the agent to narrow would send it to
+        # read a smaller part of somebody's home directory.
+        return (
+            f"Preflight {'blocked this call' if verdict is Verdict.BLOCK else 'needs confirmation'}"
+            f": {param} is outside the directory this agent was pointed at. Work inside the project"
+            + ("." if verdict is Verdict.BLOCK else ", or ask an operator to approve it.")
+        )
+
     sensitive = payload.get("sensitive")
     if sensitive:
         why = sensitive.get("why") or "it is declared sensitive"

@@ -244,6 +244,13 @@ class ArgDecision(Frozen):
     """Set when a block rests on an upper bound, so the true magnitude may be under the ceiling.
     Not an error — the friction metric (M5) needs to count these."""
 
+    outside_root: bool = False
+    """Whether this target lay outside the declared `providers.fs.root`.
+
+    A fact measured before the decision, not during it — resolving a path follows symlinks, which is
+    I/O, and `neti.core` performs none. Recorded so replay takes it as given rather than
+    re-measuring against a filesystem that has moved since."""
+
     tripped: Band | None = None
     """The deciding band. Redundant with the worst entry in `breaches`, kept because it is what
     the denial message quotes back to the agent."""

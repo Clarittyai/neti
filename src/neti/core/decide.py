@@ -49,6 +49,8 @@ def decide_arg(
     target: str | None,
     ceiling: Ceiling,
     resolution: Resolution,
+    *,
+    escaped: bool = False,
 ) -> ArgDecision:
     """Verdict for one gated argument.
 
@@ -67,6 +69,7 @@ def decide_arg(
                 target=target,
                 verdict=ceiling.on_unsized_risk,
                 resolution=resolution,
+                outside_root=escaped,
                 rule="on_unsized_risk:destructive_but_unsizeable",
             )
         return ArgDecision(
@@ -74,6 +77,7 @@ def decide_arg(
             target=target,
             verdict=ceiling.on_unresolved,
             resolution=resolution,
+            outside_root=escaped,
             rule=f"on_unresolved:{resolution.state.name.lower()}",
         )
 
@@ -98,6 +102,7 @@ def decide_arg(
             target=target,
             verdict=worst.verdict,
             resolution=resolution,
+            outside_root=escaped,
             rule=f"{worst.source}>{worst.above}" + ("+upper_bound" if unsound else ""),
             over_block_possible=unsound,
             tripped=Band(above=worst.above, verdict=worst.verdict),
@@ -111,6 +116,7 @@ def decide_arg(
             target=target,
             verdict=ceiling.on_unbounded,
             resolution=resolution,
+            outside_root=escaped,
             rule=f"on_unbounded:{resolution.direction.value}",
         )
 
@@ -119,6 +125,7 @@ def decide_arg(
         target=target,
         verdict=Verdict.ALLOW,
         resolution=resolution,
+        outside_root=escaped,
         rule="under_all_bands",
     )
 
@@ -166,6 +173,8 @@ def decide(
     mode: Mode = Mode.OBSERVE,
     budget: BudgetDecision | None = None,
     sensitive: tuple[Any, ...] = (),
+    outside_root: Verdict | None = None,
+    escaped: tuple[str, ...] = (),
 ) -> Decision:
     """Combine per-argument verdicts and any session budget by JOIN.
 
@@ -183,7 +192,13 @@ def decide(
         )
 
     args = tuple(
-        decide_arg(pointer, target, ceiling, _lookup(resolutions, pointer, ceiling))
+        decide_arg(
+            pointer,
+            target,
+            ceiling,
+            _lookup(resolutions, pointer, ceiling),
+            escaped=pointer in escaped,
+        )
         for pointer, target, ceiling in gated
     )
     verdicts = [a.verdict for a in args]
@@ -200,6 +215,16 @@ def decide(
         if rule is not None
     )
     verdicts.extend(rule.verdict for _, rule in hits)
+
+    # And where the target *is*, which no ceiling and no scan of the project can reach.
+    #
+    # Consumed, never measured. Deciding whether a path escapes means resolving symlinks, which is
+    # I/O, and `neti.core` performs none by invariant — a decision that re-read the filesystem would
+    # answer differently tomorrow and replay would stop reproducing. The engine measures it and
+    # passes the fact, exactly as it passes a magnitude.
+    escapes = tuple(escaped) if outside_root is not None else ()
+    if escapes and outside_root is not None:
+        verdicts.append(outside_root)
     if budget is not None:
         verdicts.append(budget.verdict)
     worst = join_all(verdicts)
@@ -214,7 +239,11 @@ def decide(
         ),
         tool=call.tool,
         mode_applied=mode.name.lower(),
-        rule=_sensitive_rule(hits, worst) or _dominant_rule(args, budget, worst),
+        rule=(
+            f"{escapes[0]}:outside_root"
+            if escapes and outside_root is worst
+            else _sensitive_rule(hits, worst) or _dominant_rule(args, budget, worst)
+        ),
     )
 
 

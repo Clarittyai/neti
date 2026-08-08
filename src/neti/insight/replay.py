@@ -129,6 +129,11 @@ def replay(records: Iterable[DecisionRecord], policy: Policy) -> ReplayResult:
             result.other_policy += 1
             continue
 
+        # The location fact, taken as given. Re-measuring it would mean resolving paths against a
+        # filesystem that has moved since the decision — the same reason the budget total is read
+        # from the record rather than recomputed.
+        escaped = tuple(str(c["pointer"]) for c in record.causes if c.get("outside_root"))
+
         specs = policy.gate_specs(record.tool)
         gated = []
         resolutions = {}
@@ -152,6 +157,9 @@ def replay(records: Iterable[DecisionRecord], policy: Policy) -> ReplayResult:
                 resolutions,
                 mode=Mode[record.mode.upper()],
                 budget=_budget(record),
+                sensitive=policy.sensitive,
+                outside_root=policy.outside_root,
+                escaped=escaped,
             )
             result.replayed += 1
             if replayed.verdict.name.lower() != record.verdict:

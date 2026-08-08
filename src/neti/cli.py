@@ -204,8 +204,9 @@ def start(
     # deletes twenty thousand files or reads `~/.ssh`.
     #
     # The line that keeps it honest is in `insight/preset.py`: **day zero never blocks on a number
-    # we chose.** Sizes only flag. The only thing that stops a call is an identity match on a file
-    # named in the output below.
+    # we chose.** Sizes only flag. The two things that stop a call are an identity match on a file
+    # named in the output below, and a target outside this directory — what a thing is, and where
+    # it is. Neither is a number.
     from neti.insight.edit_policy import PolicyEditError, apply_preset, plan_preset
     from neti.insight.preset import build as build_preset
 
@@ -222,6 +223,7 @@ def start(
                     for c in preset.off_limits
                 ],
                 session_above=preset.session_above if reached else 0,
+                outside_root="confirm",
             )
             apply_preset(edit)
             applied = True
@@ -242,6 +244,8 @@ def start(
             typer.echo(f"   Same for a whole session adding up past {preset.session_above:,} —")
             typer.echo("   two hundred single-file edits is how a codebase gets rewritten by")
             typer.echo("   accident, and no per-call ceiling can ever see it.\n")
+        typer.echo("   And anything outside this directory — your home folder, /etc, a sibling")
+        typer.echo("   project — asks first. Your agent's keys mostly live there, not here.\n")
         typer.echo(f"   All of it is in {destination}, and changeable in `neti console`.")
         typer.echo("")
 

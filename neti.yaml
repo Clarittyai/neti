@@ -36,6 +36,8 @@ session_budgets:
     unit: objects
     bands: [{ above: 59708, verdict: flag }]
 
+outside_root: confirm
+
 tools:
   # ---------------------------------------------------------------- the broad reads and writes
   # These are the calls where one short argument addresses an unbounded number of files. `**/*` is

@@ -14,9 +14,16 @@ waiting a week to say so protects nothing in the meantime.
 
 **Day zero never blocks on a number we chose.**
 
-Everything derived from a size here is `flag` — recorded, notified, and the call proceeds. The only
-day-zero verdict that *stops* a call is an identity match on a file the operator was shown by name.
+Everything derived from a size here is `flag` — recorded, notified, and the call proceeds. Two
+day-zero verdicts *stop* a call, and neither is a number: an identity match on a file the operator
+was shown by name, and a target outside the directory the agent was pointed at. One is what the
+thing is, the other is where it is, and both are checkable against the operator's own disk.
 Numbers somebody has to defend at 2am still come from their own traffic, through `neti propose`.
+
+The location rule is the one that reaches what the scan cannot. `sensitive:` is built by walking the
+project, so it never names `~/.ssh/id_rsa` or `~/.aws/credentials` — the two files most worth
+protecting are outside the only tree we looked at, are one object each, and sit under every ceiling
+anybody would write. Nothing but *where it is* sees them.
 
 So *"you are never asked to guess a number"* stays true, and we do not quietly guess one either.
 

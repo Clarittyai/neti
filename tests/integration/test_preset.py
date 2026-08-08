@@ -10,7 +10,10 @@ zero now protects, and the property that makes that defensible is asserted first
 > **Day zero never blocks on a number we chose.**
 
 Everything derived from a size is `flag` — recorded, notified, and the call proceeds. The only
-day-zero verdict that stops a call is an identity match on a file the operator was shown by name.
+day-zero verdicts that stop a call are an identity match on a file the operator was shown by name,
+and a target outside the directory the agent was pointed at. Neither is a number: one is *what the
+thing is*, the other is *where it is*, and both are facts the operator can check against their own
+disk rather than judgements we made on their behalf.
 """
 
 from __future__ import annotations
@@ -85,6 +88,44 @@ def test_off_limits_rules_are_only_for_what_is_really_there(repo: Path) -> None:
 
 
 # --------------------------------------------------------------------------- what start leaves
+
+
+def test_the_only_stopping_rules_are_about_what_and_where(repo: Path) -> None:
+    """The same property read off the written file, which is what actually decides.
+
+    The honesty argument is about the *policy*, not the preset object — a stopping verdict spliced
+    in on the way to disk would be just as much of a guess. Two are allowed here and both are named
+    facts about a target: its identity, and whether it is outside the root. Everything numeric must
+    be `flag`.
+    """
+    target = policy_at(repo)
+    preset = build(repo, 60_000)
+    apply_preset(
+        plan_preset(
+            target,
+            bands=[{"above": preset.flag_above, "verdict": "flag"}],
+            rules=[
+                {"match": c.match, "verdict": c.verdict, "why": c.why} for c in preset.off_limits
+            ],
+            session_above=preset.session_above,
+            outside_root="confirm",
+        )
+    )
+
+    policy = load_policy(target)
+    numeric = [
+        band
+        for spec in (policy.gate_specs(t)[p] for t, s in policy.tools.items() for p in s.gate)
+        for band in spec.bands
+    ] + [band for budget in policy.session_budgets for band in budget.bands]
+
+    assert numeric, "a test that found no numbers would pass by vacuum"
+    for band in numeric:
+        assert band.verdict.name.lower() == "flag", (
+            f"day zero stops a call above {band.above:,}, a number nobody chose"
+        )
+
+    assert policy.outside_root is not None, "location is the one place day zero may stop a call"
 
 
 def test_a_fresh_install_protects_something(repo: Path) -> None:

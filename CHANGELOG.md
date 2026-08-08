@@ -2,6 +2,51 @@
 
 ## Unreleased
 
+### The two files most worth protecting were the two the scan could never see
+
+Day zero builds its off-limits rules by walking the project, so nothing it writes ever names
+`~/.ssh/id_rsa` or `~/.aws/credentials`. Both are one object, both sit under every ceiling anybody
+would write, and both were **allowed in silence** on a fresh install:
+
+    Read(~/.ssh/id_rsa)         allowed, silently
+    Read(~/.aws/credentials)    allowed, silently
+    Read(/etc/hosts)            allowed, silently
+    Read(../../../etc/passwd)   allowed, silently
+
+Neither axis reached them. Magnitude cannot — a private key is one file. Identity cannot — the rule
+would have to name a path outside the only tree we looked at. What is left is *where the target is*,
+and `outside_root: confirm` is now written by `neti start`. All four ask; work inside the project
+stays silent. Symlinks are resolved, so `project/link -> ~/.ssh` is an escape rather than a local
+path.
+
+This is the second day-zero verdict that can stop a call, and it is still not a number: what a thing
+is, and where it is, are both checkable against your own disk. **Day zero never blocks on a number
+we chose** is unchanged, and is now asserted against the written policy rather than the preset that
+produced it.
+
+The check lives in `resolvers/`, not `core/`. It was written in `core/` first and caught by
+`test_core_is_pure` — resolving a path is I/O, and a decision that re-read the filesystem would
+answer differently tomorrow, which is exactly what the replay contract forbids. So the engine
+measures it and `decide` consumes the fact, the same shape as every magnitude; the record carries
+it, and replay reads it back rather than re-measuring against a filesystem that has moved.
+
+### `neti verify` reported CHAIN BROKEN on records neti wrote itself
+
+On this repository's own log: 140 of 1,150 records, in the tool whose entire job is telling you
+whether a file has been altered. Anybody upgrading a 0.1.0 install would have been told their own
+history was tampered with — the one false alarm an audit surface cannot raise and keep being read.
+
+`redacted` was added to the hashed payload without a schema bump. So `neti.decision.v1` covers two
+different wire formats — sealed before the field existed and sealed after — and nothing in a record
+distinguishes them. Recomputing the older cohort added a `"redacted": []` its digest had never
+covered, and the comment claiming version-conditioning was "the whole compatibility story" was
+written the same day the exception was walking past it.
+
+Verification now tries the current payload and falls back through superseded ones, for v1 only. It
+gives away nothing: a record verifying under an older shape was *sealed* over that exact field set,
+and stripping a non-empty `redacted` still matches neither shape. Both are asserted, the second at
+v1 where the fallback exists and could have excused it.
+
 ### Session budgets never fired through the hook, which is where they were needed
 
 Measured over a simulated week of agent work: **178 of 320 calls were single-file operations of

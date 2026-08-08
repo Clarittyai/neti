@@ -104,8 +104,17 @@ def test_replay_catches_a_decision_procedure_change_that_the_chain_cannot(
 
     original = decide_module.decide_arg
 
-    def loosened_decide_arg(pointer: str, target: str | None, ceiling: object, resolution: object):  # type: ignore[no-untyped-def]
-        got = original(pointer, target, ceiling, resolution)  # type: ignore[arg-type]
+    def loosened_decide_arg(  # type: ignore[no-untyped-def]
+        pointer: str,
+        target: str | None,
+        ceiling: object,
+        resolution: object,
+        **facts: object,
+    ):
+        # `**facts` passed through rather than named: this stands in for a future `decide_arg`,
+        # and a double that pins today's parameter list turns any new measured fact into a false
+        # failure here — noise in the one test whose subject is a real behavioural change.
+        got = original(pointer, target, ceiling, resolution, **facts)  # type: ignore[arg-type]
         from neti.core.types import ArgDecision
         from neti.core.verdict import Verdict
 

@@ -128,7 +128,6 @@ class DecisionRecord(Frozen):
             "decided_at": self.decided_at,
             "tool": self.tool,
             "args": self.args,
-            "redacted": list(self.redacted),
             "verdict": self.verdict,
             "rule": self.rule,
             "mode": self.mode,
@@ -137,12 +136,40 @@ class DecisionRecord(Frozen):
             "policy_digest": self.policy_digest,
             "code_version": self.code_version,
         }
+        base["redacted"] = list(self.redacted)
         if self.schema_ != SCHEMA_V1:
-            # Version-conditional, and this is the whole compatibility story. A v1 record recomputes
-            # exactly the fields it was sealed over, so files written before v2 keep verifying; a v2
-            # record covers the marker too, so it cannot be stripped.
+            # Version-conditional, and this is half of the compatibility story — see
+            # `superseded_payloads` for the half a version number failed to capture. A v1 record
+            # recomputes exactly the fields it was sealed over, so files written before v2 keep
+            # verifying; a v2 record covers the marker too, so it cannot be stripped.
             base["synthetic"] = self.synthetic
         return base
+
+    @property
+    def superseded_payloads(self) -> tuple[dict[str, Any], ...]:
+        """Older shapes of `chained` this record may have been sealed under, newest first.
+
+        **A schema version only helps when somebody remembers to bump it.** `redacted` was added to
+        the digest payload without one, so `neti.decision.v1` covers two different wire formats:
+        records sealed before the field existed, and records sealed after. Nothing in a record
+        distinguishes them, and recomputing the older cohort with a `"redacted": []` the digest had
+        never covered made `neti verify` answer CHAIN BROKEN — on 140 records this tool wrote
+        itself, in a file of its own traffic. Anybody upgrading a 0.1.0 install would have been told
+        their own history was tampered with, which is the one false alarm an audit surface cannot
+        raise and keep being read.
+
+        So verification tries the current payload first and falls back through these, for v1 only.
+
+        **This does not weaken the chain.** A fallback that verifies proves the record was sealed
+        over that exact older field set — it is a decoding of an old format, not a relaxation.
+        Stripping a non-empty `redacted` from a record sealed with one still leaves a payload that
+        matches neither shape, so the tamper is caught exactly as before.
+        """
+        if self.schema_ != SCHEMA_V1:
+            return ()
+        before_redaction = dict(self.chained)
+        before_redaction.pop("redacted", None)
+        return (before_redaction,)
 
     def sealed(self, prev_digest: str | None) -> DecisionRecord:
         """Return a copy with the chain links filled in."""
@@ -203,6 +230,10 @@ def build_record(
             # after this line existed. That is not true of a field on `DecisionRecord` itself, which
             # is why `synthetic` needed a schema version and this does not.
             "reason": a.resolution.evidence.get("reason"),
+            # Whether this target was outside the declared root. Recorded because deciding it is
+            # I/O, so replay must take it as given — re-measuring against a filesystem that has
+            # moved since is exactly the non-determinism `test_core_is_pure` exists to prevent.
+            "outside_root": a.outside_root,
             "destructive": a.resolution.evidence.get("destructive"),
             "consistency": a.resolution.consistency,
             "resolved_at": (
@@ -255,7 +286,11 @@ def verify_chain(records: list[DecisionRecord]) -> tuple[bool, str | None]:
     for rec in records:
         if rec.prev_digest != prev:
             return False, rec.decision_id
-        if chain_digest(prev, rec.chained) != rec.record_digest:
+        # Current shape first; older ones only if it does not match, and only where the schema
+        # admits them. A record that verifies under a superseded payload is one this code can still
+        # read, not one it has excused — see `superseded_payloads`.
+        shapes = (rec.chained, *rec.superseded_payloads)
+        if not any(chain_digest(prev, shape) == rec.record_digest for shape in shapes):
             return False, rec.decision_id
         prev = rec.record_digest
     return True, None

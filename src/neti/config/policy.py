@@ -178,6 +178,17 @@ class Policy(Frozen):
     the boolean `True` — that spelling parses fine and does nothing, and `_normalise` rejects it by
     name rather than letting somebody's notifications vanish. Set `verdicts: []` to silence."""
 
+    outside_root: VerdictValue | None = None
+    """What to do about a target outside `providers.fs.root`.
+
+    Unset means nothing, so every policy written before this behaves as it did. `neti start`
+    declares `confirm`, because the agent's most valuable secrets are not in the project: the
+    day-zero scan walks the root, so no `sensitive:` rule ever names `~/.ssh/id_rsa` or
+    `~/.aws/credentials`, and both are one object and under every ceiling.
+
+    Location rather than magnitude, which is why it may stop a call — it is a fact about where the
+    target is, not a number anybody chose."""
+
     sensitive: tuple[SensitiveRule, ...] = ()
     """Targets gated on what they are rather than how many. Joined with the magnitude verdict, worst
     wins — so this can raise a verdict and never lower one."""

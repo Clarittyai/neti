@@ -26,6 +26,7 @@ from neti.core.types import Ceiling, Decision, ProposedCall, Resolution, sorted_
 from neti.core.units import Unit
 from neti.core.verdict import ResolutionState
 from neti.resolvers.base import ResolveContext, Resolver
+from neti.resolvers.location import outside
 from neti.resolvers.registry import PROVIDER_OPTIONS
 
 __all__ = [
@@ -377,8 +378,21 @@ class Engine:
                 for pointer, target, ceiling in gated
             ]
 
+        # Measured here, not in `decide`: resolving a path is I/O and `neti.core` performs none.
+        fs_root = (self.policy.providers.get("fs") or {}).get("root")
+        escaped = (
+            tuple(p for p, t, _ in gated if t and outside(t, fs_root))
+            if self.policy.outside_root is not None
+            else ()
+        )
         prelim = decide(
-            call, tuple(gated), resolutions, mode=self.policy.mode, sensitive=self.policy.sensitive
+            call,
+            tuple(gated),
+            resolutions,
+            mode=self.policy.mode,
+            sensitive=self.policy.sensitive,
+            outside_root=self.policy.outside_root,
+            escaped=escaped,
         )
         budget = check_budgets(call.tool, prelim.args, tally, self.policy.session_budgets)
         final = decide(
@@ -388,6 +402,8 @@ class Engine:
             mode=self.policy.mode,
             budget=budget,
             sensitive=self.policy.sensitive,
+            outside_root=self.policy.outside_root,
+            escaped=escaped,
         )
         emit(
             COMPARED,
@@ -502,6 +518,9 @@ class Engine:
         # Only when the sensitivity rule is what *decided* the call. Both axes can fire at once,
         # and telling an agent to "choose a different target" when the real problem was 22,000
         # objects would send it round the loop with the wrong correction.
+        if ":outside_root" in result.decision.rule:
+            payload["outside_root"] = True
+
         deciding = next(
             (
                 r

@@ -52,8 +52,11 @@ answer a different question; none of them answers *how big is this*.
 
 **You are never asked to guess a number, and neither do we.** The one thing `neti start` chooses for
 you is a *size* threshold, and a size we chose only ever **flags** — recorded, you get told, the call
-runs. The only thing that stops a call on day one is an off-limits *file*, named on your screen when
-it was set. Numbers you have to defend still come from step 3.
+runs. Two things stop a call on day one, and neither is a number: an off-limits *file*, named on your
+screen when it was set, and a target **outside the directory you pointed the agent at** — your home
+folder, `/etc`, a sibling project. That second one is where your keys actually live: `~/.ssh/id_rsa`
+is one file, under every ceiling anybody would write, and outside the tree the scan can see. Numbers
+you have to defend still come from step 3.
 
 Prefer to be walked through it? `neti console` opens on **Getting started** — the same four steps,
 read live off your machine, with your paths in the commands. Each step ticks itself as you do it.
