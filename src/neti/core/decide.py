@@ -8,6 +8,7 @@ it is enforced by a test that walks this module's import graph.
 from __future__ import annotations
 
 from collections.abc import Mapping
+from types import MappingProxyType
 from typing import Any
 
 from neti.core.types import (
@@ -175,6 +176,7 @@ def decide(
     sensitive: tuple[Any, ...] = (),
     outside_root: Verdict | None = None,
     escaped: tuple[str, ...] = (),
+    extra_targets: Mapping[str, tuple[str, ...]] = MappingProxyType({}),
 ) -> Decision:
     """Combine per-argument verdicts and any session budget by JOIN.
 
@@ -207,11 +209,14 @@ def decide(
     # there is — `.env` is one object and under every ceiling anybody would write. Joined rather
     # than substituted, so it raises a verdict and never lowers one: getting a rule wrong here costs
     # a confirmation, never a silent allow.
+    # Every target the pointer names, not only the argument itself. A shell command's argument list
+    # holds paths — `cat .env | base64` is one call whose target string is a command, and the thing
+    # worth stopping is inside it. The resolver surfaces them; nothing is measured here.
     hits = tuple(
         (pointer, rule)
         for pointer, target, _ in gated
-        if target
-        for rule in (_sensitive_hit(target, sensitive),)
+        for candidate in ((target,) if target else ()) + tuple(extra_targets.get(pointer, ()))
+        for rule in (_sensitive_hit(candidate, sensitive),)
         if rule is not None
     )
     verdicts.extend(rule.verdict for _, rule in hits)

@@ -42,6 +42,7 @@ from __future__ import annotations
 import re
 import shlex
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import ClassVar
 
 from neti.core.types import Resolution
@@ -49,7 +50,7 @@ from neti.core.units import Direction, Unit
 from neti.resolvers.base import ResolveContext
 from neti.resolvers.filesystem import DEFAULT_CAP, FilesystemResolver
 
-__all__ = ["ShellPathsResolver", "destructive_signal", "targets_of"]
+__all__ = ["ShellPathsResolver", "destructive_signal", "referenced_paths", "targets_of"]
 
 # Anything that makes a command line stop being a single, readable invocation. Seeing any of these
 # is enough to decline: the parse below reasons about one command with one argument list, and a
@@ -201,11 +202,97 @@ def _signal(text: str, *, depth: int) -> Signal | None:
                 return Signal(form=f"git_{sub}")
             if sub in {"checkout", "restore"} and "--" in rest[1:]:
                 return Signal(form=f"git_{sub}")
+            # `git checkout -- .` was recognised and `git reset --hard` was not, which is arbitrary:
+            # they destroy the same thing. These two are the git verbs that lose work nothing else
+            # gets back — uncommitted changes, and published history other people have pulled.
+            if sub == "reset" and "--hard" in rest[1:]:
+                return Signal(form="git_reset_hard")
+            if sub == "push" and any(f in {"--force", "-f"} for f in rest[1:]):
+                # `--force-with-lease` is deliberately not here. It is the form that refuses to
+                # overwrite work it has not seen, and a gate that treats the careful spelling and
+                # the reckless one alike teaches people to stop distinguishing them.
+                return Signal(form="git_push_force")
 
     redirect = _REDIRECT.search(text)
     if redirect:
         return Signal(form="truncating_redirect", path=redirect.group(1))
     return None
+
+
+def referenced_paths(command: str) -> tuple[str, ...]:
+    """Every path-like argument of a command, whatever the command is.
+
+    **For WHERE and WHAT, never for HOW MANY.** Nothing here is counted: these are handed to the
+    location and identity axes, which ask what a target *is* and where it lives. A magnitude read
+    off this would be a guess about what the command does with each path, and this deliberately
+    does not know.
+
+    The gap it closes, found by running the shipped product against itself:
+
+        Read(~/.ssh/id_rsa)              stopped — outside the declared root
+        Bash(cp ~/.ssh/id_rsa /tmp/x)    ALLOWED
+
+    Same file, same session, one `Bash` away. `targets_of` above only parses the verbs that
+    *destroy*, because magnitude was the only axis a command had — so every other verb's arguments
+    were invisible, and reading a key is not destruction. The protection was one shell call from
+    being worthless.
+
+    Compound commands are walked rather than declined, which is the opposite of `targets_of` and
+    correct for the opposite reason: refusing to count `a | b` is caution, because a wrong number
+    is worse than none, but refusing to *look* at its arguments is just not looking.
+
+    What is deliberately skipped, each because including it would cost more than it caught:
+
+    - anything with `$` or a backtick — the shell will expand it to something this cannot know
+    - anything with whitespace — `git commit -m "fix the ~/.ssh loader"` is one token, and it is
+      prose, not a path
+    - flags, and the value of a flag that takes one
+
+    A `~` is expanded, because that is the whole point: `~/.ssh/id_rsa` is only recognisable as an
+    escape once it is a real path.
+    """
+    seen: dict[str, None] = {}
+    for segment in _segments(command or ""):
+        if not segment.strip():
+            continue
+        try:
+            tokens = shlex.split(segment)
+        except ValueError:
+            continue
+        for token in tokens[1:]:
+            path = _as_path(token)
+            if path is not None:
+                seen.setdefault(path, None)
+
+    # `echo x > /etc/hosts` names its target in the redirect, not in the argument list.
+    for match in _REDIRECT.finditer(command or ""):
+        path = _as_path(match.group(1))
+        if path is not None:
+            seen.setdefault(path, None)
+
+    return tuple(seen)
+
+
+def _as_path(token: str) -> str | None:
+    """One token as a filesystem path, or `None` if it is not one.
+
+    The `@` strip is `curl -d @~/.aws/credentials`, which is a real way to post a file somewhere and
+    reads as a flag value otherwise. The `://` skip is the other half of the same command: a URL
+    contains slashes and is not a path, and while resolving one relative to the root happens to
+    land inside it and stay silent, relying on that is relying on an accident.
+    """
+    if not token or _is_flag(token):
+        return None
+    if any(c.isspace() for c in token) or "$" in token or "`" in token or "://" in token:
+        return None
+    token = token[1:] if token.startswith("@") else token
+    if not token or token in {".", ".."}:
+        return None
+    # A leading dot with no slash: `.env`, `.npmrc`. Cheap and high-signal — those are the names
+    # the identity axis is written about, and they never appear as an ordinary bare argument.
+    if "/" not in token and not token.startswith("~") and not token.startswith("."):
+        return None
+    return str(Path(token).expanduser()) if token.startswith("~") else token
 
 
 @dataclass(frozen=True)
@@ -398,6 +485,12 @@ class ShellPathsResolver:
             # print "destructive_verb:rm" rather than the word "destructive".
             evidence["destructive"] = signal.form
             evidence["note"] = "destructive but unsizeable; on_unsized_risk decides"
+        # Present even here — especially here. `cp ~/.ssh/id_rsa /tmp/x` is not a deletion, has no
+        # magnitude and never will; what makes it worth stopping is *which file it names*, and that
+        # is knowable when the size is not.
+        referenced = referenced_paths(command)
+        if referenced:
+            evidence["referenced"] = list(referenced)
         return Resolution.unresolved(self.unit, reason=reason, evidence=evidence)
 
     def resolve(self, target: str, ctx: ResolveContext) -> Resolution:
@@ -443,6 +536,7 @@ class ShellPathsResolver:
                 # the difference: deletions are rare, and a rule tuned for ordinary traffic will
                 # wait forever for a sample size they never reach.
                 "destructive": read.reason,
+                "referenced": list(referenced_paths(target)),
             },
         )
 

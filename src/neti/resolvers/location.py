@@ -94,9 +94,18 @@ def outside(target: str, root: str | Path | None) -> bool:
     # lives under the system temp directory, so every escape a test could construct was exempt and
     # the check silently passed everything.
     try:
-        temp = Path(tempfile.gettempdir()).resolve()
-        if base.is_relative_to(temp):
+        # Every scratch root on this platform, not only the one `gettempdir` names. On macOS that
+        # is `/var/folders/…`, so `/tmp` — which is where a shell command actually writes its
+        # scratch — was reported as an escape and `cd /tmp && ls` asked. On Linux the two coincide
+        # and the bug is invisible, which is why it survived until a command line was parsed.
+        temps = [
+            t
+            for t in (Path(tempfile.gettempdir()), Path("/tmp"), Path("/private/tmp"))
+            if t.exists()
+        ]
+        resolved = [t.resolve() for t in temps]
+        if any(base.is_relative_to(t) for t in resolved):
             return True
-        return not here.is_relative_to(temp)
+        return not any(here.is_relative_to(t) for t in resolved)
     except (OSError, ValueError):
         return True

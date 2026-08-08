@@ -134,6 +134,13 @@ def replay(records: Iterable[DecisionRecord], policy: Policy) -> ReplayResult:
         # from the record rather than recomputed.
         escaped = tuple(str(c["pointer"]) for c in record.causes if c.get("outside_root"))
 
+        # The other half of what a shell command names, taken as given for the same reason.
+        extra = {
+            str(c["pointer"]): tuple(str(p) for p in (c.get("referenced") or []))
+            for c in record.causes
+            if c.get("referenced")
+        }
+
         specs = policy.gate_specs(record.tool)
         gated = []
         resolutions = {}
@@ -160,6 +167,7 @@ def replay(records: Iterable[DecisionRecord], policy: Policy) -> ReplayResult:
                 sensitive=policy.sensitive,
                 outside_root=policy.outside_root,
                 escaped=escaped,
+                extra_targets=extra,
             )
             result.replayed += 1
             if replayed.verdict.name.lower() != record.verdict:

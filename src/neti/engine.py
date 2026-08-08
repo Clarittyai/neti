@@ -380,8 +380,27 @@ class Engine:
 
         # Measured here, not in `decide`: resolving a path is I/O and `neti.core` performs none.
         fs_root = (self.policy.providers.get("fs") or {}).get("root")
+
+        # A shell command's target string is a command, not a path, so both the location and the
+        # identity axes were blind to what it names. `Read(~/.ssh/id_rsa)` was stopped and
+        # `Bash(cp ~/.ssh/id_rsa /tmp/x)` was allowed — same file, same session, one call apart.
+        # The resolver surfaces the argument paths; they are judged like any other target.
+        extra = {
+            pointer: tuple(str(p) for p in resolutions[pointer].evidence.get("referenced") or ())
+            for pointer, _t, _c in gated
+            if pointer in resolutions
+        }
+        extra = {pointer: paths for pointer, paths in extra.items() if paths}
+
         escaped = (
-            tuple(p for p, t, _ in gated if t and outside(t, fs_root))
+            tuple(
+                pointer
+                for pointer, target, _ in gated
+                if any(
+                    outside(candidate, fs_root)
+                    for candidate in ((target,) if target else ()) + extra.get(pointer, ())
+                )
+            )
             if self.policy.outside_root is not None
             else ()
         )
@@ -393,6 +412,7 @@ class Engine:
             sensitive=self.policy.sensitive,
             outside_root=self.policy.outside_root,
             escaped=escaped,
+            extra_targets=extra,
         )
         budget = check_budgets(call.tool, prelim.args, tally, self.policy.session_budgets)
         final = decide(
@@ -404,6 +424,7 @@ class Engine:
             sensitive=self.policy.sensitive,
             outside_root=self.policy.outside_root,
             escaped=escaped,
+            extra_targets=extra,
         )
         emit(
             COMPARED,

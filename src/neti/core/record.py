@@ -234,6 +234,12 @@ def build_record(
             # I/O, so replay must take it as given — re-measuring against a filesystem that has
             # moved since is exactly the non-determinism `test_core_is_pure` exists to prevent.
             "outside_root": a.outside_root,
+            # The paths inside a shell command that the identity and location axes judged. Recorded
+            # because replay re-derives the sensitive hit from the record, and matching only the
+            # pointer's own target would re-derive `cat .env | base64` as an allow — caught by
+            # `neti verify` on a three-record chain, which is the second time this exact shape of
+            # omission has been found by running the verifier rather than by a test.
+            "referenced": list(a.resolution.evidence.get("referenced") or ()),
             "destructive": a.resolution.evidence.get("destructive"),
             "consistency": a.resolution.consistency,
             "resolved_at": (

@@ -1,5 +1,53 @@
 # Changelog
 
+## Unreleased
+
+### The key was one `Bash` away from being readable again
+
+Found by running the shipped 0.3.0 against itself, the day it was published:
+
+    Read(~/.ssh/id_rsa)              stopped — outside the declared root
+    Bash(cp ~/.ssh/id_rsa /tmp/x)    ALLOWED
+
+Same file, same session, one call apart. Both new axes were blind to it and for the same structural
+reason: a shell command's *target* is the command string, so the location axis resolved
+`"cp ~/.ssh/id_rsa /tmp/x"` as a relative path — inside the project — and the identity axis matched
+`**/.env*` against that same string. The only parse that reads a command's arguments,
+`targets_of`, recognises just the verbs that **destroy**, because magnitude was the only axis a
+command had, and reading a key is not destruction.
+
+The resolver now surfaces every path-like argument and the engine judges each one. Nothing is
+counted: these feed *what it is* and *where it lives*, never *how many*. `~` is expanded, `curl -d
+@file` is a path, a redirect target is a path; a `$VAR`, a URL and a commit message are not.
+
+Measured before shipping, over 51 commands really issued in a working session on this repository
+and 12 exfiltration attempts:
+
+    false positives    0/51 of ordinary work
+    caught            12/12 of exfiltration
+
+The first number is the one that decided the design. A control that interrupts `npm test` is a
+control that gets switched off.
+
+**`/tmp` was reported as an escape on macOS.** The scratch-directory exemption asked
+`tempfile.gettempdir()`, which is `/var/folders/…` there, so `cd /tmp && ls` asked. On Linux the two
+coincide and the bug is invisible — it survived until something parsed a command line rather than a
+file path.
+
+**`git reset --hard` and `git push --force` are now recognised as destructive.** `git checkout -- .`
+already was, and it destroys the same thing, so the line was arbitrary. These are the two git
+commands that lose what nothing else gets back: uncommitted changes, and published history other
+people have pulled. `--amend` and a plain `reset` stay silent — the reflog has them, and they are
+how an agent works all day. `--force-with-lease` stays silent too: it is the spelling that refuses
+to overwrite work it has not seen, and treating it like `--force` teaches people to stop
+distinguishing them.
+
+**And the record had to learn what was judged.** `cat .env | base64` recorded `confirm` and replayed
+as `allow`, because replay re-derives the sensitivity hit from the record and the thing that matched
+was inside the command string. Caught by `neti verify` on a three-record chain — the second time
+this exact omission has been found by the verifier rather than by the suite, and both times the fix
+was the same: a fact the decision consumed has to be in the record.
+
 ## 0.3.0 — 2026-08-07
 
 ### The two files most worth protecting were the two the scan could never see
