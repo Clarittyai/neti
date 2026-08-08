@@ -597,6 +597,59 @@ def test_declaring_a_ceiling_plans_before_it_writes(tmp_path: Path) -> None:
         state.close()
 
 
+def test_the_location_axis_can_be_turned_off_from_where_it_was_found(tmp_path: Path) -> None:
+    """`neti start` writes this without being asked, and it can stop a call.
+
+    A rule somebody cannot switch off from the page that shows it is one they switch off by
+    uninstalling the product — the same argument that made the off-limits list editable. Asserted
+    against the *file*, because the response reporting `applied: true` is exactly what a broken
+    splice would also report.
+    """
+    from neti.api.state import build_state
+
+    config = tmp_path / "neti.yaml"
+    config.write_text(
+        Path("examples/coding-agent.yaml").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    original = config.read_text(encoding="utf-8")
+    comments = sum(1 for line in original.splitlines() if line.strip().startswith("#"))
+
+    state = build_state(config=config, records=tmp_path / "d.ndjson")
+    try:
+        with TestClient(create_app(state)) as c:
+            assert c.get("/api/policy").json()["outside_root"]["verdict"] is None
+
+            planned = c.post("/api/policy/outside_root", json={"verdict": "confirm"})
+            assert planned.json()["applied"] is False
+            assert "outside_root" not in config.read_text(encoding="utf-8"), (
+                "planning writes nothing"
+            )
+
+            c.post("/api/policy/outside_root", json={"verdict": "confirm", "apply": True})
+            assert c.get("/api/policy").json()["outside_root"]["verdict"] == "confirm"
+
+            # Off means the line is gone, not `outside_root: allow`. Those are different states:
+            # one is an axis nobody declared, the other is a declared decision to permit.
+            c.post("/api/policy/outside_root", json={"verdict": "", "apply": True})
+            after = config.read_text(encoding="utf-8")
+            assert "outside_root" not in after
+            assert c.get("/api/policy").json()["outside_root"]["verdict"] is None
+            assert sum(1 for line in after.splitlines() if line.strip().startswith("#")) == (
+                comments
+            ), "an edit through the console must not cost the file its comments"
+
+            # On and off again leaves the file byte-identical. Toggling a setting is the thing an
+            # operator does most while deciding whether to keep it, and a splice that drifted by a
+            # blank line each time would be invisible until the file was unreadable.
+            c.post("/api/policy/outside_root", json={"verdict": "confirm", "apply": True})
+            c.post("/api/policy/outside_root", json={"verdict": "", "apply": True})
+            assert config.read_text(encoding="utf-8") == after
+
+            assert c.post("/api/policy/outside_root", json={"verdict": "maybe"}).status_code == 400
+    finally:
+        state.close()
+
+
 def test_a_ceiling_that_would_not_load_is_refused_by_the_endpoint(tmp_path: Path) -> None:
     from neti.api.state import build_state
 

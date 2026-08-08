@@ -494,6 +494,45 @@ def create_app(
             "digest": st.policy.digest(),
         }
 
+    @app.post("/api/policy/outside_root")
+    def set_outside_root(body: dict[str, Any]) -> dict[str, Any]:
+        """Set or clear the location axis, in two calls like every other edit here.
+
+        An empty verdict removes the line rather than writing `allow`. Turning a rule off and
+        declaring that something is permitted are different statements, and only one of them is
+        what an operator means when they switch this off.
+        """
+        from neti.insight.edit_policy import (
+            PolicyEditError,
+            apply_outside_root,
+            plan_outside_root,
+        )
+
+        try:
+            edit = plan_outside_root(st.config_path, str(body.get("verdict") or ""))
+        except PolicyEditError as exc:
+            raise HTTPException(400, str(exc)) from exc
+
+        written = False
+        backup: str | None = None
+        if bool(body.get("apply")):
+            try:
+                saved = apply_outside_root(edit)
+            except OSError as exc:
+                raise HTTPException(500, f"could not write {edit.path}: {exc}") from exc
+            written = True
+            backup = None if saved is None else str(saved)
+            st.reload()
+
+        return {
+            "path": str(edit.path),
+            "diff": edit.diff(),
+            "changed": edit.changed,
+            "applied": written,
+            "backup": backup,
+            "digest": st.policy.digest(),
+        }
+
     @app.get("/api/report")
     def report() -> dict[str, Any]:
         summary = build_report(_records(st))

@@ -144,3 +144,25 @@ def test_gate_makes_one_provider_request_per_gated_parameter(tenant: SyntheticTe
 
     # two gated parameters: /group (principals) and /group#apps (app assignments)
     assert len(tenant.calls) - before == 2
+
+
+def test_the_location_check_stays_a_syscall_not_a_walk() -> None:
+    """`outside_root` runs per gated argument on every call, so its cost is on the hot path.
+
+    It is a `resolve()` — one syscall, symlinks followed — and it must stay that. The obvious
+    "improvement" when somebody wants it to catch more is to walk the root, which turns a
+    microsecond check into a cost that grows with the tree, on every call, for a fact that has not
+    changed. This is the tripwire for that.
+    """
+    from neti.resolvers.location import outside
+
+    for target in ("src/neti/cli.py", "/etc/hosts"):
+        samples = []
+        for _ in range(200):
+            start = time.perf_counter()
+            outside(target, ".")
+            samples.append((time.perf_counter() - start) * 1000)
+        assert median(samples) < DECISION_BUDGET_MS, (
+            f"the location check costs {median(samples):.3f}ms for {target} — "
+            "it should be one resolve()"
+        )

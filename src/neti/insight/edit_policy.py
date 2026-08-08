@@ -33,13 +33,16 @@ from neti.core.verdict import Verdict
 
 __all__ = [
     "CeilingEdit",
+    "OutsideRootEdit",
     "PolicyEditError",
     "PresetEdit",
     "SensitiveEdit",
     "apply_ceiling",
+    "apply_outside_root",
     "apply_preset",
     "apply_sensitive",
     "plan_ceiling",
+    "plan_outside_root",
     "plan_preset",
     "plan_sensitive",
 ]
@@ -460,6 +463,117 @@ def _verify_sensitive(edit: SensitiveEdit) -> None:
 
 
 def apply_sensitive(edit: SensitiveEdit) -> Path | None:
+    """Write it, backing up what was there. Same contract as `apply_ceiling`."""
+    if not edit.changed:
+        return None
+    backup = edit.path.with_suffix(edit.path.suffix + ".bak")
+    backup.write_text(edit.before, encoding="utf-8")
+    edit.path.write_text(edit.after, encoding="utf-8")
+    return backup
+
+
+@dataclass
+class OutsideRootEdit:
+    """A rewrite of the top-level `outside_root:` scalar — set, changed, or removed.
+
+    One line rather than a block, which is why this is its own small planner instead of a case in
+    `plan_sensitive`. An empty verdict deletes the line rather than writing `outside_root: allow`:
+    those are different states, and the difference matters to somebody reading the file. Absent
+    means the axis is off and no record mentions it; `allow` would be a declared decision to permit
+    something, which is not what "I turned this off" means.
+    """
+
+    path: Path
+    verdict: str
+    before: str = ""
+    after: str = ""
+
+    @property
+    def changed(self) -> bool:
+        return self.before != self.after
+
+    def diff(self) -> str:
+        return "".join(
+            difflib.unified_diff(
+                self.before.splitlines(keepends=True),
+                self.after.splitlines(keepends=True),
+                fromfile=str(self.path),
+                tofile=f"{self.path} (proposed)",
+                n=4,
+            )
+        )
+
+
+def plan_outside_root(path: str | Path, verdict: str) -> OutsideRootEdit:
+    """Work out the change to `outside_root:` without making it.
+
+    Editable from the console for the same reason the off-limits rules are: `neti start` writes this
+    without being asked, it can stop a call, and a rule somebody cannot turn off from where they
+    found it is one they turn off by uninstalling the product.
+    """
+    target = Path(path)
+    try:
+        before = target.read_text(encoding="utf-8")
+    except OSError as exc:
+        raise PolicyEditError(f"cannot read {target}: {exc}") from exc
+
+    clean = verdict.strip().lower()
+    if clean and clean not in _VERDICTS:
+        raise PolicyEditError(
+            f"unknown verdict {clean!r}: expected one of {', '.join(sorted(_VERDICTS))}"
+        )
+
+    lines = before.splitlines(keepends=True)
+    kept = [line for line in lines if not line.startswith("outside_root:")]
+    if len(kept) < len(lines):
+        # Drop the blank line that separated it, or removing the setting leaves a widening gap
+        # every time somebody toggles it.
+        at = next(i for i, line in enumerate(lines) if line.startswith("outside_root:"))
+        if at < len(kept) and not kept[at].strip():
+            kept.pop(at)
+
+    edit = OutsideRootEdit(path=target, verdict=clean, before=before)
+    if not clean:
+        edit.after = "".join(kept)
+        _verify_outside_root(edit)
+        return edit
+
+    try:
+        tools_at, _ = _find_block(kept, "tools", 0, len(kept), 0)
+    except PolicyEditError as exc:
+        raise PolicyEditError(
+            "this policy has no `tools:` block, so there is nowhere obvious to put "
+            "`outside_root:`. Nothing was written."
+        ) from exc
+
+    edit.after = "".join([*kept[:tools_at], f"outside_root: {clean}\n\n", *kept[tools_at:]])
+    _verify_outside_root(edit)
+    return edit
+
+
+def _verify_outside_root(edit: OutsideRootEdit) -> None:
+    """Load the result before offering it, and check it says what was asked."""
+    import yaml
+
+    from neti.config.policy import Policy, PolicyError
+
+    try:
+        data = yaml.safe_load(edit.after) or {}
+        policy = Policy.model_validate(_normalised(data))
+    except (yaml.YAMLError, PolicyError, ValueError) as exc:
+        raise PolicyEditError(
+            f"the edit would not load as a policy ({exc}). Nothing was written."
+        ) from exc
+
+    written = "" if policy.outside_root is None else policy.outside_root.name.lower()
+    if written != edit.verdict:
+        raise PolicyEditError(
+            f"the edit did not land where it was aimed: the policy reads {written or 'nothing'} "
+            f"rather than {edit.verdict or 'nothing'}. Nothing was written."
+        )
+
+
+def apply_outside_root(edit: OutsideRootEdit) -> Path | None:
     """Write it, backing up what was there. Same contract as `apply_ceiling`."""
     if not edit.changed:
         return None

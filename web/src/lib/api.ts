@@ -391,6 +391,9 @@ export const api = {
     rules: { match: string; verdict: Verdict; why: string }[];
     apply: boolean;
   }) => post<Record<string, unknown>>("/api/policy/sensitive", body),
+  /** Set or clear the location axis. An empty verdict removes the setting entirely. */
+  setOutsideRoot: (body: { verdict: Verdict | ""; apply: boolean }) =>
+    post<Record<string, unknown>>("/api/policy/outside_root", body),
   setCeiling: (body: {
     tool: string;
     pointer: string;

@@ -26,7 +26,7 @@ import { SlidersHorizontal } from "lucide-react";
 
 import { DeclareCeiling } from "@/components/DeclareCeiling";
 import { Failed, Loading, Page, useAsync } from "@/components/Page";
-import { api, type DecisionSummary } from "@/lib/api";
+import { api, type DecisionSummary, type Verdict } from "@/lib/api";
 import { cn, n } from "@/lib/utils";
 
 interface Band {
@@ -193,29 +193,11 @@ export default function PolicyPage() {
               name-matching rule reaches it. This one is about where the target is, after symlinks
               are resolved.
             </p>
-            <div className="panel mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
-              {data.outside_root.verdict ? (
-                <>
-                  {/* A root of "." is what the policy file says and means nothing to a reader
-                      looking for where the boundary is. The absolute path is the answer to the
-                      question this row is asked. */}
-                  <span className="font-mono text-[13px]">{data.outside_root.root ?? "this directory"}</span>
-                  <span className="text-xs text-muted-foreground">anything outside it</span>
-                  <span className="ml-auto">
-                    {/* Labelled, because the default chip reads "confirm above 0" — and there is
-                        no number here at all. That is the point of this axis. */}
-                    <BandChip
-                      band={{ above: 0, verdict: data.outside_root.verdict as Band["verdict"] }}
-                      label={data.outside_root.verdict}
-                    />
-                  </span>
-                </>
-              ) : (
-                <p className="text-[13px] text-muted-foreground">
-                  Not declared. A target anywhere on this machine is judged only by its size.
-                </p>
-              )}
-            </div>
+            <OutsideRoot
+              verdict={data.outside_root.verdict}
+              root={data.outside_root.root}
+              onChange={reload}
+            />
           </section>
 
           <section>
@@ -262,6 +244,72 @@ export default function PolicyPage() {
         </div>
       ) : null}
     </Page>
+  );
+}
+
+function OutsideRoot({
+  verdict,
+  root,
+  onChange,
+}: {
+  verdict: string | null;
+  root: string | null;
+  onChange: () => void;
+}) {
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const write = (next: Verdict | "") => {
+    setBusy(true);
+    setError(null);
+    api
+      .setOutsideRoot({ verdict: next, apply: true })
+      .then(onChange)
+      .catch((e: unknown) => setError(e instanceof Error ? e.message : String(e)))
+      .finally(() => setBusy(false));
+  };
+
+  // Editable for the same reason the off-limits list is: `neti start` writes this without being
+  // asked, it can stop a call, and a rule somebody cannot switch off from where they found it is
+  // one they switch off by uninstalling the product.
+  const choices: { value: Verdict | ""; label: string }[] = [
+    { value: "", label: "off" },
+    { value: "flag", label: "flag" },
+    { value: "confirm", label: "confirm" },
+    { value: "block", label: "block" },
+  ];
+
+  return (
+    <div className="mt-3">
+      <div className="panel flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3">
+        {/* A root of "." is what the policy file says and means nothing to a reader looking for
+            where the boundary is. The absolute path is the answer to the question this row asks. */}
+        <span className="font-mono text-[13px]">{root ?? "this directory"}</span>
+        <span className="text-xs text-muted-foreground">
+          {verdict ? "anything outside it" : "not declared — judged only by size"}
+        </span>
+        <span className="ml-auto flex items-center gap-1.5">
+          {choices.map((c) => (
+            <button
+              key={c.value || "off"}
+              type="button"
+              disabled={busy}
+              onClick={() => write(c.value)}
+              aria-pressed={(verdict ?? "") === c.value}
+              className={cn(
+                "rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ring-inset transition-colors disabled:opacity-40",
+                (verdict ?? "") === c.value
+                  ? "bg-accent/10 text-accent ring-accent/30"
+                  : "text-muted-foreground ring-border hover:text-foreground",
+              )}
+            >
+              {c.label}
+            </button>
+          ))}
+        </span>
+      </div>
+      {error ? <p className="mt-2 text-[12px] text-[hsl(var(--verdict-block))]">{error}</p> : null}
+    </div>
   );
 }
 
