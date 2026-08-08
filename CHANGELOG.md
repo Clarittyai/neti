@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.1 — 2026-08-08
 
 ### The check that finds these now runs
 
