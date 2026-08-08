@@ -2,6 +2,41 @@
 
 ## Unreleased
 
+### `neti status` — is this thing on?
+
+A gate working correctly on an ordinary week does nothing visible: nothing fires, nothing prints,
+the hook returns nothing. That is the design. It also leaves three states looking identical from a
+terminal, and two of them are somebody believing they are protected while they are not:
+
+    working, and nothing happened          the good case
+    wired to a policy that moved           silent, and protecting nothing
+    never wired at all                     silent, and protecting nothing
+
+`neti report` answers *what happened*, which is the wrong question when the answer is "nothing" —
+it cannot separate nothing-happened from nothing-is-on. So:
+
+    neti is on and enforcing.
+
+      [ok]  a policy here            /work/svc/neti.yaml
+      [ok]  wired into Claude Code   project settings
+      [ok]  wired to THIS policy     /work/svc/neti.yaml
+      [ok]  enforcing                enforce
+
+Exits non-zero when the answer is "not protected", so it can go in a prompt or a pre-commit hook.
+
+Four things it separates that nothing else did: a hook wired to a policy that moved (present,
+running, gating every call — against rules you are not reading); `mode: observe`, which records and
+forwards and is not protection; a policy that will not load, which makes `neti hook` exit 0 and run
+the whole session ungated with the reason on stderr; and an empty chain, which reads as *nothing is
+reaching the gate* rather than as safety.
+
+Settings that will not parse report `??`, not `NO`. A confident no would send somebody to `neti
+install`, which refuses to overwrite an unreadable file and would fail in front of them.
+
+The wiring verdict comes from `plan_install(...).already_installed` — the same comparison `neti
+install` makes — rather than from a second parse that would drift the day the command format
+changes. The parse that remains does only what that boolean cannot: name the other policy.
+
 ### The key was one `Bash` away from being readable again
 
 Found by running the shipped 0.3.0 against itself, the day it was published:

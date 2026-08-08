@@ -273,6 +273,10 @@ def start(
     else:
         typer.echo("   Nothing is gated until the hook is wired:  neti install")
     typer.echo("")
+    # First in the list, and it is the one that matters most after today. A working gate is
+    # invisible: it fires on nothing, prints nothing and returns nothing, which is indistinguishable
+    # from a gate that came unwired. Somebody has to be told there is a way to ask.
+    typer.echo("   neti status          is it on? wired, enforcing, and seeing traffic")
     typer.echo("   neti console         everything above, in a browser, with your own numbers")
     typer.echo("   neti report          what your agent actually touched")
     typer.echo("   neti propose         tighter ceilings, from a week of your own traffic")
@@ -1103,6 +1107,40 @@ def hook(
 
     if response:
         typer.echo(json.dumps(response))
+
+
+@app.command(rich_help_panel="Every day")
+def status(
+    config: Annotated[str, typer.Option("--config", "-c")] = "neti.yaml",
+    records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
+    as_json: Annotated[bool, typer.Option("--json", help="Emit machine-readable output.")] = False,
+) -> None:
+    """Is the gate on? Wired, enforcing, pointed at this policy, and seeing traffic.
+
+    A gate working correctly on an ordinary week does nothing visible, which leaves three states
+    looking identical from a terminal: working and quiet, wired to a policy that moved, and never
+    wired at all. Two of those are somebody believing they are protected while they are not.
+
+    `neti report` answers *what happened*, which is the wrong question when the answer is nothing.
+    This answers *what is true right now*, and exits non-zero when the answer is "not protected" —
+    so it can go in a shell prompt or a pre-commit hook.
+    """
+    from neti.insight.status import as_json as status_json
+    from neti.insight.status import build_status, observed, render
+
+    here = Path.cwd()
+    state = build_status(here, config)
+    seen, last, stopped = observed(Path(records) if Path(records).is_absolute() else here / records)
+
+    if as_json:
+        typer.echo(json.dumps(status_json(state, seen, last, stopped), indent=2))
+    else:
+        typer.echo(render(state, seen, last, stopped))
+
+    if not state.live:
+        # Non-zero because "not protected" is a fact a script has to be able to act on. A command
+        # that always exits 0 cannot be the thing that fails your CI when the gate came unwired.
+        raise typer.Exit(1)
 
 
 @app.command(rich_help_panel="Every day")

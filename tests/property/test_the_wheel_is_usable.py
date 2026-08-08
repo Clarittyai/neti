@@ -228,6 +228,29 @@ def test_demo_runs_with_no_policy_and_no_arguments(
     assert "Traceback" not in result.output
 
 
+def test_status_answers_in_an_empty_directory(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Every other command here refuses; this one is supposed to answer.
+
+    Somebody running `neti status` in a directory with no policy is asking exactly the question it
+    exists for, and the honest answer is "nothing is protecting this, run `neti start`" — not a
+    usage error. Exit 1 rather than 2, because the code means *not protected* and that is a thing a
+    prompt or a CI step needs to branch on.
+    """
+    from typer.testing import CliRunner
+
+    from neti.cli import app
+
+    monkeypatch.chdir(tmp_path)
+    result = CliRunner().invoke(app, ["status"])
+
+    assert result.exit_code == 1, result.output
+    assert "Traceback" not in result.output
+    assert "NOT protecting" in result.output
+    assert "neti start" in result.output
+
+
 def test_no_command_that_reads_a_policy_was_left_out_of_the_check_above() -> None:
     """The list is only worth something if it is the whole list.
 
@@ -247,13 +270,17 @@ def test_no_command_that_reads_a_policy_was_left_out_of_the_check_above() -> Non
               so the exit-2 assertion below is the wrong shape for it entirely.
               `tests/e2e/test_first_run_orients.py` drives it in an empty directory and checks it
               measures something, blocks nothing, and says what to do next.
+      status  its entire job is to answer in an empty directory rather than refuse — "there is no
+              policy here, run `neti start`" IS the report. It exits 1, not 2, because the exit code
+              means *not protected* and a script has to be able to act on that distinction.
+              `test_status_answers_in_an_empty_directory` below asserts it.
 
     An exemption is a claim, so each one names where the behaviour is actually checked. A list of
     exemptions with no tests behind them would be this check quietly switching itself off.
     """
     from neti.cli import app
 
-    exempt = {"hook", "serve", "demo", "prove", "start"}
+    exempt = {"hook", "serve", "demo", "prove", "start", "status"}
     takes_policy = {
         command.callback.__name__.replace("_", "-")
         for command in app.registered_commands
