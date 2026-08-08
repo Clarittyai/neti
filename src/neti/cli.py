@@ -1536,27 +1536,32 @@ def prove(
     path.parent.mkdir(parents=True, exist_ok=True)
     resolved = resolve_policy(config)
 
-    # `prove` drives one fixed call against the built-in synthetic tenant, because the question it
-    # answers is whether the doors agree — not what your policy says. A policy that does not gate
-    # that call cannot answer it, and every seam driver asserts the call was stopped. Pointing
-    # `prove` at a coding-agent policy therefore ended in `AssertionError: the gate let the call
-    # through` and a traceback, which reads as a broken product rather than as the wrong argument.
+    # The call comes from the policy in hand — see `pick_call`. `prove` used to drive one fixed
+    # Entra call, so the default config was the one config it refused: after `neti start`, the
+    # command that `start`, the demo and the README all point at ended in an error naming itself as
+    # the thing to run instead. It only stops here when nothing in the policy can be driven at all.
     from neti.config.policy import load_policy
-    from neti.eval.proof import ARGS, TOOL
+    from neti.eval.proof import pick_call
 
-    if TOOL not in load_policy(resolved).tools:
+    if pick_call(load_policy(resolved)) is None:
         typer.secho(
-            f"error: {resolved} does not gate {TOOL}, which is the call `neti prove` drives.",
+            f"error: nothing in {resolved} can be driven by `neti prove`.",
             fg=typer.colors.RED,
             err=True,
         )
         typer.echo(
-            f"\n`neti prove` drives one known call, {_probe_call(TOOL, ARGS)}, through every\n"
-            "door installed here against the built-in synthetic tenant, and checks they all\n"
-            "reach the same verdict. It proves the seams agree; it does not read your traffic\n"
-            "or your numbers.\n\n"
-            "  neti prove                       against the shipped example, which gates it\n"
-            f"  neti demo --here -c {config}     what YOUR policy reaches, measured here",
+            "\n`neti prove` drives one call your policy STOPS through every door installed\n"
+            "here, and checks they all reach the same verdict. It proves the seams agree; it\n"
+            "does not read your traffic or your numbers.\n\n"
+            "This policy gates nothing it can use: no `fs.paths` parameter with either an\n"
+            "off-limits rule or `outside_root:` to stop it. Either is one line —\n"
+            "`neti start` writes both — or:\n\n"
+            # Not column-aligned against the config path: it is arbitrary length, and a second
+            # column that lines up for `neti.yaml` and not for anything else looks broken.
+            "  neti prove -c examples/entra.yaml\n"
+            "      the shipped example, driven against the built-in fixture\n"
+            f"  neti demo --here -c {config}\n"
+            "      what YOUR policy reaches, measured here",
             err=True,
         )
         raise typer.Exit(2)

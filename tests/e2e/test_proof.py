@@ -156,3 +156,68 @@ def test_every_seam_prove_names_is_a_seam_prove_can_drive() -> None:
         f"  in DRIVERS but not NEEDS: {sorted(set(DRIVERS) - set(NEEDS))}\n"
         f"  in NEEDS but not WHAT:    {sorted(set(NEEDS) - set(WHAT))}"
     )
+
+
+def test_a_door_reporting_a_different_number_is_still_a_disagreement() -> None:
+    """The guard on the loosening `agreed` needed.
+
+    Half these seams hand back only text, so `_classify` recovers the magnitude by reading
+    `resolves to N` out of the sentence — and finds nothing in a sentence that has no number in it,
+    like the one the location rule produces. Comparing `None` against `1` printed AND THEY DISAGREE
+    over fifteen doors that had all said the same thing, which is a false alarm on the product's own
+    honesty check.
+
+    So a door that carried no number no longer contradicts one that did. A door carrying a
+    *different* number still must.
+    """
+    same = "Preflight needs confirmation: /file_path is outside the directory."
+
+    def door(seam: str, magnitude: int | None) -> P.SeamProof:
+        return P.SeamProof(
+            seam=seam, what="", driven=True, verdict="confirm", magnitude=magnitude, sentence=same
+        )
+
+    silent = P.Proof(tool="Edit", args={}, seams=[door("a", 1), door("b", None)])
+    assert silent.agreed, "a door that reported no number has not contradicted one that did"
+
+    mismatched = P.Proof(tool="Edit", args={}, seams=[door("a", 1), door("b", 2)])
+    assert not mismatched.agreed, "two doors, two numbers — that is the failure this command is for"
+
+    reworded = P.Proof(tool="Edit", args={}, seams=[door("a", 1), door("b", 1)])
+    reworded.seams[1] = P.SeamProof(
+        seam="b", what="", driven=True, verdict="confirm", magnitude=1, sentence=same + " Please."
+    )
+    assert not reworded.agreed, "the sentence is what the model reads — byte for byte"
+
+
+def test_the_call_comes_from_the_policy_rather_than_from_this_module(tmp_path: Path) -> None:
+    """`prove` refused the policy `neti start` writes, which was the default it also used.
+
+    Three cases, in the order `pick_call` tries them: the Entra example keeps the fixture call and
+    stays marked synthetic; a coding-agent policy with a stopping rule gets a real one measured on
+    this disk; a policy that only flags gets nothing, because every seam driver asserts the call did
+    not reach the tool and a call that merely flags proves nothing about agreement.
+    """
+    from neti.cli import _packaged_example
+    from neti.config.policy import load_policy
+    from neti.insight.edit_policy import apply_preset, plan_preset
+
+    entra = P.pick_call(load_policy(str(EXAMPLE)))
+    assert entra is not None and entra.synthetic and entra.tool == P.TOOL
+
+    coding = _packaged_example("coding-agent.yaml")
+    assert coding is not None
+    policy = tmp_path / "neti.yaml"
+    policy.write_text(coding.read_text(encoding="utf-8"), encoding="utf-8")
+
+    assert P.pick_call(load_policy(policy)) is None, "nothing here stops a call yet"
+
+    apply_preset(
+        plan_preset(
+            policy, bands=[{"above": 500, "verdict": "flag"}], rules=[], outside_root="confirm"
+        )
+    )
+    picked = P.pick_call(load_policy(policy))
+    assert picked is not None
+    assert picked.synthetic is False, "a number measured on this disk must not be sealed as fixture"
+    assert picked.args

@@ -30,6 +30,29 @@ answer differently tomorrow, which is exactly what the replay contract forbids. 
 measures it and `decide` consumes the fact, the same shape as every magnitude; the record carries
 it, and replay reads it back rather than re-measuring against a filesystem that has moved.
 
+### `neti prove` refused the policy `neti start` writes
+
+Which was also the config it defaulted to. So the flagship command — named by `neti start`, by the
+demo transcripts and by the README — failed on a fresh install with a tidy error suggesting `neti
+prove`, the command that had just failed.
+
+It drove one hard-coded Entra call. It now picks a call from the policy in hand: the fixture call
+when the policy gates it, otherwise a target that policy stops — outside the root, or matching an
+off-limits rule. The banner says which and why. Fifteen doors, one sentence, byte for byte.
+
+`synthetic` follows the call rather than being a constant. Sealing a magnitude measured on this
+disk as fixture output is the same lie as the reverse, and the marker is inside the digest.
+
+Two things found by running it:
+
+**It printed AND THEY DISAGREE over fifteen doors that had all said the same thing.** Half the seams
+hand back only text, so the harness recovers the magnitude by reading `resolves to N` out of the
+sentence — and the location rule's sentence has no number in it. `None` versus `1` is not a
+disagreement; two doors reporting *different* numbers still is, and that is asserted.
+
+**`neti prove --json | jq` failed on the first line.** CrewAI prints `Using Tool: <name>` to stdout
+when a tool is invoked, so it landed above the JSON. Driver output is captured now.
+
 ### `neti verify` reported CHAIN BROKEN on records neti wrote itself
 
 On this repository's own log: 140 of 1,150 records, in the tool whose entire job is telling you

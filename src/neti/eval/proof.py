@@ -20,12 +20,14 @@ decision below is sealed into one hash chain, `verify_chain` recomputes it here,
 
 from __future__ import annotations
 
+import contextlib
+import io
 import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from neti.config.policy import load_policy
+from neti.config.policy import Policy, load_policy
 from neti.core.record import verify_chain
 from neti.core.verdict import Mode
 from neti.engine import Engine
@@ -35,14 +37,91 @@ from neti.resolvers.graph_client import ClientCredential, GraphClient
 from neti.resolvers.registry import resolvers_for_client
 from neti.store.jsonl import JsonlSink, chain_head, read_records
 
-__all__ = ["Proof", "SeamProof", "format_proof", "run_proof"]
+__all__ = ["Call", "Proof", "SeamProof", "format_proof", "pick_call", "run_proof"]
 
 _CRED = ClientCredential(tenant_id="demo", client_id="demo", client_secret="demo")
 
-# The call every door is asked about. Chosen because its answer is unmistakable: 41,203 people is
-# not a number anybody squints at, and every seam has to produce that same number or fail here.
+# The call every door is asked about, when the policy is the shipped Entra example. Chosen because
+# its answer is unmistakable: 41,203 people is not a number anybody squints at, and every seam has
+# to produce that same number or fail here.
 TOOL = "remove_group_members"
 ARGS: dict[str, Any] = {"group": "g-eng-all"}
+
+# Outside any project root, present on every machine this runs on, and one file — so the magnitude
+# is not the point and cannot be mistaken for it. Never opened; the resolver counts paths.
+OUTSIDE = "/etc/hosts"
+
+
+@dataclass(frozen=True)
+class Call:
+    """The one call this run drives, and where its numbers come from.
+
+    `prove` used to hard-code the Entra fixture call, which meant the command **could not run on
+    the policy `neti start` writes** — the default config was the one config it refused. It printed
+    a tidy error naming `neti prove` as the thing to run instead, which was the command that had
+    just failed. Meanwhile `neti start`, the demo transcripts and the README all point at it.
+
+    So the call is chosen from the policy in hand. What `prove` asks is whether every door agrees,
+    and any call the policy stops answers that.
+    """
+
+    tool: str
+    args: dict[str, Any]
+    synthetic: bool
+    """True when the magnitudes come from the built-in tenant rather than this disk. It goes into
+    the record and inside the digest, so a fixture number can never be read back as a measurement —
+    which is exactly why it is a property of the *call* and not a constant of this module."""
+
+    why: str
+    """One line for the banner: what makes the policy stop this, so a reader is not left inferring
+    it from a verdict."""
+
+
+def pick_call(policy: Policy) -> Call | None:
+    """A call this policy will stop, or `None` if nothing here can be driven.
+
+    Every seam driver asserts the call did not reach the tool, so a call that merely flags proves
+    nothing about agreement — half the doors would report a pass-through and be right. The order
+    below is the order of certainty, not of severity.
+    """
+    if TOOL in policy.tools:
+        return Call(
+            TOOL, dict(ARGS), synthetic=True, why="41,203 principals, from the fixture tenant"
+        )
+
+    gated = [
+        (tool, pointer, spec)
+        for tool in sorted(policy.tools)
+        for pointer, spec in policy.gate_specs(tool).items()
+        if spec.resolver == "fs.paths"
+    ]
+    if not gated:
+        return None
+
+    tool, pointer, _spec = gated[0]
+    key = pointer.lstrip("/")
+
+    if policy.outside_root is not None:
+        return Call(
+            tool,
+            {key: OUTSIDE},
+            synthetic=False,
+            why=f"{OUTSIDE} is outside the declared root",
+        )
+
+    for rule in policy.sensitive:
+        # An example the rule really matches, built from the rule rather than guessed: `**/.env*`
+        # becomes `.env`. A pattern we cannot turn into a path is skipped rather than approximated.
+        literal = rule.match.replace("**/", "").replace("*", "")
+        if literal and "/" not in literal.strip("/"):
+            return Call(
+                tool,
+                {key: literal},
+                synthetic=False,
+                why=f"{literal} matches the off-limits rule {rule.match}",
+            )
+    return None
+
 
 # A child process that answers anything. `mcp-stdio` spawns this for real, so a gate that forwarded
 # a call it should have stopped is caught by the child *replying* rather than by an assertion.
@@ -123,6 +202,13 @@ class Proof:
     seams: list[SeamProof] = field(default_factory=list)
     records_path: Path | None = None
     policy_path: str = ""
+    why: str = ""
+    """What makes the policy stop this call — printed, so the reader is not inferring it."""
+
+    synthetic: bool = True
+    """Whether the magnitudes came from the fixture tenant. Drives what the closing paragraph
+    claims, which has to agree with the marker sealed into every record below it."""
+
     records: int = 0
     chain_ok: bool = False
     head: str | None = None
@@ -137,14 +223,24 @@ class Proof:
 
     @property
     def agreed(self) -> bool:
-        """Every door that was opened returned the same verdict, magnitude and sentence.
+        """Every door that was opened returned the same verdict and the same sentence, and no two
+        of them returned different numbers.
 
         Byte-for-byte on the sentence, because the sentence is what the model reads and what makes
         it retry with a narrower target. A seam that rephrased it has changed the thing the agent
         acts on, and that is not agreement.
+
+        **A door that reported no number has not contradicted one that did.** Half these seams hand
+        back only text, so `_classify` recovers the magnitude by reading `resolves to N` out of the
+        sentence — which works for a ceiling breach and finds nothing in a sentence that has no
+        number in it, like the one the location rule produces. Comparing `None` against `1` there
+        printed AND THEY DISAGREE over fifteen doors that had all said exactly the same thing.
+        That is a false alarm on the product's own honesty check, which is the one place it cannot
+        afford one. Two doors reporting *different* numbers is still a disagreement.
         """
-        answers = {(s.verdict, s.magnitude, s.sentence) for s in self.driven}
-        return len(answers) == 1
+        if len({(s.verdict, s.sentence) for s in self.driven}) != 1:
+            return False
+        return len({s.magnitude for s in self.driven if s.magnitude is not None}) <= 1
 
 
 # --------------------------------------------------------------------------- the doors
@@ -165,28 +261,28 @@ def _available(module: str | None) -> bool:
         return False
 
 
-def _preflight(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+def _preflight(engine: Engine, sink: Any, call: Call) -> tuple[str, int | None, str]:
     from neti.preflight import Preflight
 
-    verdict = Preflight(engine=engine, sink=sink).check(TOOL, dict(ARGS))
+    verdict = Preflight(engine=engine, sink=sink).check(call.tool, dict(call.args))
     return verdict.verdict, verdict.payload.get("resolved"), verdict.message
 
 
-def _tool_loop(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+def _tool_loop(engine: Engine, sink: Any, call: Call) -> tuple[str, int | None, str]:
     from neti.adapters.tool_loop import gate_tools
     from neti.preflight import Preflight
 
     def ran(**kwargs: Any) -> str:
         raise AssertionError("the gate let the call through")
 
-    tools = gate_tools(Preflight(engine=engine, sink=sink), {TOOL: ran})
-    return _classify(str(tools[TOOL](**ARGS)))
+    tools = gate_tools(Preflight(engine=engine, sink=sink), {call.tool: ran})
+    return _classify(str(tools[call.tool](**call.args)))
 
 
-def _hook(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+def _hook(engine: Engine, sink: Any, call: Call) -> tuple[str, int | None, str]:
     from neti.adapters.claude_code import run_hook
 
-    event = {"hook_event_name": "PreToolUse", "tool_name": TOOL, "tool_input": ARGS}
+    event = {"hook_event_name": "PreToolUse", "tool_name": call.tool, "tool_input": call.args}
     out = run_hook(engine, event, sink)
     specific = out["hookSpecificOutput"]
     decision = {"deny": "block", "ask": "confirm"}[specific["permissionDecision"]]
@@ -203,14 +299,14 @@ class _Upstream:
         return {"jsonrpc": "2.0", "id": message["id"], "result": {"content": []}}
 
 
-def _mcp(engine: Engine, upstream: Any, sink: Any) -> tuple[str, int | None, str]:
+def _mcp(engine: Engine, upstream: Any, sink: Any, call: Call) -> tuple[str, int | None, str]:
     gateway = McpGateway(engine=engine, upstream=upstream, sink=sink)
     response = gateway.handle(
         {
             "jsonrpc": "2.0",
             "id": 1,
             "method": "tools/call",
-            "params": {"name": TOOL, "arguments": ARGS},
+            "params": {"name": call.tool, "arguments": call.args},
         }
     )
     assert response is not None
@@ -219,17 +315,17 @@ def _mcp(engine: Engine, upstream: Any, sink: Any) -> tuple[str, int | None, str
     return payload.get("verdict", "block"), payload.get("resolved"), result["content"][0]["text"]
 
 
-def _mcp_http(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
-    return _mcp(engine, _Upstream(), sink)
+def _mcp_http(engine: Engine, sink: Any, call: Call) -> tuple[str, int | None, str]:
+    return _mcp(engine, _Upstream(), sink, call)
 
 
-def _mcp_stdio(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+def _mcp_stdio(engine: Engine, sink: Any, call: Call) -> tuple[str, int | None, str]:
     """A real child process on a real pipe, spawned here and killed here."""
     from neti.gateway.stdio import StdioUpstream
 
     upstream = StdioUpstream([sys.executable, "-c", _CHILD])
     try:
-        return _mcp(engine, upstream, sink)
+        return _mcp(engine, upstream, sink, call)
     finally:
         upstream.close()
 
@@ -242,7 +338,7 @@ def _via_preflight_adapter(engine: Engine, sink: Any, drive: Any) -> tuple[str, 
     return driven
 
 
-def _anthropic(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+def _anthropic(engine: Engine, sink: Any, call: Call) -> tuple[str, int | None, str]:
     from anthropic.lib.tools import beta_tool
 
     from neti.adapters.anthropic_tools import gate_tool
@@ -252,16 +348,16 @@ def _anthropic(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
         """Do the thing."""
         raise AssertionError("the gate let the call through")
 
-    tool.name = TOOL
+    tool.name = call.tool
 
     def drive(pf: Any) -> tuple[str, int | None, str]:
-        text = str(gate_tool(pf, tool).call(dict(ARGS)))
+        text = str(gate_tool(pf, tool).call(dict(call.args)))
         return _classify(text)
 
     return _via_preflight_adapter(engine, sink, drive)
 
 
-def _openai_agents(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+def _openai_agents(engine: Engine, sink: Any, call: Call) -> tuple[str, int | None, str]:
     import json as _json
 
     from agents import Agent
@@ -274,9 +370,9 @@ def _openai_agents(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
         data = ToolInputGuardrailData(
             context=ToolContext(
                 context=None,
-                tool_name=TOOL,
+                tool_name=call.tool,
                 tool_call_id="call_1",
-                tool_arguments=_json.dumps(ARGS),
+                tool_arguments=_json.dumps(call.args),
             ),
             agent=Agent(name="proof"),
         )
@@ -287,7 +383,7 @@ def _openai_agents(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
     return _via_preflight_adapter(engine, sink, drive)
 
 
-def _langchain(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+def _langchain(engine: Engine, sink: Any, call: Call) -> tuple[str, int | None, str]:
     from langchain_core.tools import StructuredTool
 
     from neti.adapters.langchain_tools import gate_tool
@@ -295,15 +391,15 @@ def _langchain(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
     def run(**kwargs: Any) -> str:
         raise AssertionError("the gate let the call through")
 
-    inner = StructuredTool.from_function(func=run, name=TOOL, description="Do the thing.")
+    inner = StructuredTool.from_function(func=run, name=call.tool, description="Do the thing.")
 
     def drive(pf: Any) -> tuple[str, int | None, str]:
-        return _classify(str(gate_tool(pf, inner).invoke(dict(ARGS))))
+        return _classify(str(gate_tool(pf, inner).invoke(dict(call.args))))
 
     return _via_preflight_adapter(engine, sink, drive)
 
 
-def _crewai(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+def _crewai(engine: Engine, sink: Any, call: Call) -> tuple[str, int | None, str]:
     """The wrapped tool, not the hook pair.
 
     This used to drive `before_tool_call` and then run the after-hooks over CrewAI's fixed string,
@@ -317,17 +413,17 @@ def _crewai(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
     from neti.preflight import Preflight
 
     class Inner(BaseTool):
-        name: str = TOOL
+        name: str = call.tool
         description: str = "Do the thing."
 
         def _run(self, **kwargs: Any) -> str:
             raise AssertionError("the gate let the call through")
 
     gated = gate_tool(Preflight(engine=engine, sink=sink), Inner())
-    return _classify(str(gated.run(**dict(ARGS))))
+    return _classify(str(gated.run(**dict(call.args))))
 
 
-def _pydantic_ai(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+def _pydantic_ai(engine: Engine, sink: Any, call: Call) -> tuple[str, int | None, str]:
     import asyncio
 
     from pydantic_ai.exceptions import ToolFailed
@@ -343,9 +439,9 @@ def _pydantic_ai(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
         try:
             await hooks.before_tool_execute(
                 None,
-                call=ToolCallPart(tool_name=TOOL, args=dict(ARGS), tool_call_id="c1"),
-                tool_def=ToolDefinition(name=TOOL),
-                args=dict(ARGS),
+                call=ToolCallPart(tool_name=call.tool, args=dict(call.args), tool_call_id="c1"),
+                tool_def=ToolDefinition(name=call.tool),
+                args=dict(call.args),
             )
         except ToolFailed as failed:
             return _classify(str(failed.message))
@@ -354,7 +450,7 @@ def _pydantic_ai(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
     return asyncio.run(go())
 
 
-def _autogen(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+def _autogen(engine: Engine, sink: Any, call: Call) -> tuple[str, int | None, str]:
     import asyncio
 
     from autogen_core.tools import StaticWorkbench
@@ -363,11 +459,11 @@ def _autogen(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
     from neti.preflight import Preflight
 
     bench = gate_workbench(Preflight(engine=engine, sink=sink), StaticWorkbench(tools=[]))
-    result = asyncio.run(bench.call_tool(TOOL, dict(ARGS)))
+    result = asyncio.run(bench.call_tool(call.tool, dict(call.args)))
     return _classify(str(result.result[0].content))
 
 
-def _google_adk(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+def _google_adk(engine: Engine, sink: Any, call: Call) -> tuple[str, int | None, str]:
     import asyncio
     from types import SimpleNamespace
 
@@ -377,7 +473,7 @@ def _google_adk(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
     plugin = neti_plugin(Preflight(engine=engine, sink=sink))
     out = asyncio.run(
         plugin.before_tool_callback(
-            tool=SimpleNamespace(name=TOOL), tool_args=dict(ARGS), tool_context=None
+            tool=SimpleNamespace(name=call.tool), tool_args=dict(call.args), tool_context=None
         )
     )
     assert out is not None, "the gate let the call through"
@@ -399,7 +495,7 @@ def _classify(sentence: str) -> tuple[str, int | None, str]:
     return verdict, int(found.group(1).replace(",", "")) if found else None, sentence
 
 
-def _llamaindex(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+def _llamaindex(engine: Engine, sink: Any, call: Call) -> tuple[str, int | None, str]:
     import asyncio
 
     from llama_index.core.tools import FunctionTool
@@ -410,12 +506,12 @@ def _llamaindex(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
     def run(**kwargs: Any) -> str:
         raise AssertionError("the gate let the call through")
 
-    inner = FunctionTool.from_defaults(fn=run, name=TOOL, description="Do the thing.")
+    inner = FunctionTool.from_defaults(fn=run, name=call.tool, description="Do the thing.")
     gated = gate_tool(Preflight(engine=engine, sink=sink), inner)
-    return _classify(str(asyncio.run(gated.acall(**dict(ARGS))).content))
+    return _classify(str(asyncio.run(gated.acall(**dict(call.args))).content))
 
 
-def _smolagents(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+def _smolagents(engine: Engine, sink: Any, call: Call) -> tuple[str, int | None, str]:
     from smolagents import Tool as SmolTool
 
     from neti.adapters.smolagents_tools import gate_tool
@@ -428,7 +524,7 @@ def _smolagents(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
         "Inner",
         (SmolTool,),
         {
-            "name": TOOL,
+            "name": call.tool,
             "description": "Do the thing.",
             "inputs": {
                 "group": {"type": "string", "description": "a group", "nullable": True},
@@ -438,10 +534,10 @@ def _smolagents(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
         },
     )()
     gated = gate_tool(Preflight(engine=engine, sink=sink), inner)
-    return _classify(str(gated(**dict(ARGS))))
+    return _classify(str(gated(**dict(call.args))))
 
 
-def _semantic_kernel(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
+def _semantic_kernel(engine: Engine, sink: Any, call: Call) -> tuple[str, int | None, str]:
     import asyncio
 
     from semantic_kernel import Kernel
@@ -452,7 +548,7 @@ def _semantic_kernel(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
     from neti.preflight import Preflight
 
     class Plugin:
-        @kernel_function(name=TOOL, description="Do the thing.")
+        @kernel_function(name=call.tool, description="Do the thing.")
         def run(self, group: str = "") -> str:
             raise AssertionError("the gate let the call through")
 
@@ -461,7 +557,7 @@ def _semantic_kernel(engine: Engine, sink: Any) -> tuple[str, int | None, str]:
     kernel.add_filter(
         FilterTypes.FUNCTION_INVOCATION, neti_filter(Preflight(engine=engine, sink=sink))
     )
-    result = asyncio.run(kernel.invoke(plugin_name="p", function_name=TOOL, **dict(ARGS)))
+    result = asyncio.run(kernel.invoke(plugin_name="p", function_name=call.tool, **dict(call.args)))
     return _classify(str(result))
 
 
@@ -502,7 +598,17 @@ def run_proof(policy_path: str, records: Path, *, tenant: SyntheticTenant | None
     """
     tenant = tenant or default_tenant()
     policy = load_policy(policy_path).model_copy(update={"mode": Mode.ENFORCE})
-    proof = Proof(tool=TOOL, args=dict(ARGS), records_path=records, policy_path=policy_path)
+    call = pick_call(policy)
+    if call is None:
+        raise ValueError(f"{policy_path} gates nothing `neti prove` can drive")
+    proof = Proof(
+        tool=call.tool,
+        args=dict(call.args),
+        records_path=records,
+        policy_path=policy_path,
+        why=call.why,
+        synthetic=call.synthetic,
+    )
 
     sink = JsonlSink(records)
     try:
@@ -515,12 +621,24 @@ def run_proof(policy_path: str, records: Path, *, tenant: SyntheticTenant | None
 
             engine = Engine(
                 policy=policy,
-                resolvers=resolvers_for_client(GraphClient(_CRED, transport=tenant.transport())),
+                # `providers:` passed through, which it was not before: without the declared root
+                # the filesystem resolvers decline, so a coding-agent policy resolved nothing and
+                # every door agreed on the wrong answer.
+                resolvers=resolvers_for_client(
+                    GraphClient(_CRED, transport=tenant.transport()), policy.providers
+                ),
                 last_digest=chain_head(records),
-                # Every number here comes from the fixture tenant, and the record has to say so.
-                synthetic=True,
+                # Only when the numbers really came from the fixture. Sealing a measurement as
+                # synthetic is the same lie as the reverse, and this marker is inside the digest.
+                synthetic=call.synthetic,
             )
-            verdict, magnitude, sentence = DRIVERS[seam](engine, sink)
+            # SDK chatter captured, not silenced by luck. CrewAI prints `Using Tool: <name>` to
+            # stdout when a tool is invoked, which landed above the banner — and above the JSON
+            # under `--json`, so `neti prove --json | jq` failed on the first line. Whatever a
+            # future SDK decides to print, the machine-readable output stays machine-readable.
+            noise = io.StringIO()
+            with contextlib.redirect_stdout(noise):
+                verdict, magnitude, sentence = DRIVERS[seam](engine, sink, call)
             proof.seams.append(
                 SeamProof(
                     seam=seam,
@@ -550,8 +668,12 @@ def format_proof(proof: Proof) -> str:
         "── PROOF ─────────────────────────────  ONE CALL, EVERY DOOR ON THIS MACHINE",
         "",
         f"   {proof.tool}({args})",
-        "",
     ]
+    if proof.why:
+        # Why this call and not another. Without it a reader has to infer the rule from a verdict,
+        # and the call is now chosen from their policy rather than fixed, so it is not guessable.
+        out.append(f"   stopped because {proof.why}")
+    out.append("")
 
     width = max(len(s.seam) for s in proof.seams)
     out.append(f"   {'door':<{width}}  {'verdict':<8} {'magnitude':>10}   through")
@@ -572,8 +694,16 @@ def format_proof(proof: Proof) -> str:
 
     driven, cited = len(proof.driven), len(proof.cited)
     if driven:
+        # The claim names what was actually compared. Half these seams carry only text, so when
+        # the sentence holds no number there is no magnitude to agree on — and saying they agreed
+        # on one would be the overclaim this command exists to avoid.
+        numbers = {s.magnitude for s in proof.driven if s.magnitude is not None}
         agreement = (
-            "all agreeing on the verdict, the magnitude and the sentence — byte for byte"
+            (
+                "all agreeing on the verdict, the magnitude and the sentence — byte for byte"
+                if numbers
+                else "all agreeing on the verdict and the sentence — byte for byte"
+            )
             if proof.agreed
             else "AND THEY DISAGREE — see the sentences below"
         )
@@ -607,14 +737,25 @@ def format_proof(proof: Proof) -> str:
         out.append(f"     neti verify -r {proof.records_path} \\")
         out.append(f"       --config {proof.policy_path} --mode enforce")
     out.append("")
-    out.append(
-        "   The numbers are from the synthetic tenant and every record says so, so this "
-        "demonstrates"
-    )
-    out.append(
-        "   behaviour rather than reporting a finding. What it proves is the part that is hard to "
-        "take"
-    )
+    if proof.synthetic:
+        out.append(
+            "   The numbers are from the synthetic tenant and every record says so, so this "
+            "demonstrates"
+        )
+        out.append(
+            "   behaviour rather than reporting a finding. What it proves is the part that is "
+            "hard to take"
+        )
+    else:
+        # The claim has to follow the call. Saying "from the synthetic tenant" over magnitudes
+        # measured on this disk would be false in the direction that matters — the marker inside
+        # the digest says otherwise, and a banner contradicting the record is worse than no banner.
+        out.append(
+            "   Measured on this machine against your own policy, and every record says so."
+        )
+        out.append("   What it proves is the part that is hard to take on trust:")
+        out.append("   the door your agent uses does not change the answer it gets.")
+        return "\n".join(out)
     out.append("   on trust: the door your agent uses does not change the answer it gets.")
     return "\n".join(out)
 

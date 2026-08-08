@@ -105,13 +105,50 @@ def test_a_path_shaped_example_name_still_resolves(
         assert found.name == "entra.yaml"
 
 
-def test_prove_explains_itself_rather_than_raising_on_the_wrong_policy(tmp_path: Path) -> None:
-    """Pointing `prove` at a policy that cannot answer its question must not look like a crash.
+def test_prove_runs_on_the_policy_neti_start_writes(tmp_path: Path) -> None:
+    """The command the first run points at has to work on the file the first run wrote.
 
-    `prove` drives one fixed call against the synthetic tenant, and every seam driver asserts the
-    call was stopped. A coding-agent policy does not gate `remove_group_members`, so the call sailed
-    through and the command ended in `AssertionError: the gate let the call through` under a rich
-    traceback — which reads as a broken product rather than as the wrong argument.
+    `prove` drove one fixed Entra call, so the default config was the one config it refused. After
+    `neti start` — and `start`, the demo transcripts and the README all name it — the command
+    printed a tidy error suggesting `neti prove`, which was the command that had just failed.
+
+    It now picks a call the policy in hand will stop. Asserted on the *output*, because a proof
+    that ran and disagreed with itself exits non-zero and would otherwise read as a pass.
+    """
+    from typer.testing import CliRunner
+
+    from neti.cli import _packaged_example, app
+    from neti.insight.edit_policy import apply_preset, plan_preset
+
+    coding = _packaged_example("coding-agent.yaml")
+    assert coding is not None
+    policy = tmp_path / "neti.yaml"
+    policy.write_text(coding.read_text(encoding="utf-8"), encoding="utf-8")
+    apply_preset(
+        plan_preset(
+            policy,
+            bands=[{"above": 500, "verdict": "flag"}],
+            rules=[],
+            outside_root="confirm",
+        )
+    )
+
+    result = CliRunner().invoke(app, ["prove", "-c", str(policy), "-r", str(tmp_path / "p.ndjson")])
+
+    assert result.exit_code == 0, result.output
+    assert "Traceback" not in result.output
+    assert "outside the declared root" in result.output, "it has to say why this call was stopped"
+    assert "AND THEY DISAGREE" not in result.output
+
+
+def test_prove_explains_itself_rather_than_raising_when_nothing_can_be_driven(
+    tmp_path: Path,
+) -> None:
+    """A policy with no stopping rule cannot answer the question, and must not look like a crash.
+
+    Every seam driver asserts the call did not reach the tool, so a policy that only flags ends in
+    `AssertionError: the gate let the call through` under a rich traceback — which reads as a broken
+    product rather than as a policy that has not declared anything yet.
     """
     from typer.testing import CliRunner
 
@@ -126,8 +163,8 @@ def test_prove_explains_itself_rather_than_raising_on_the_wrong_policy(tmp_path:
 
     assert result.exit_code == 2, result.output
     assert "Traceback" not in result.output
-    assert "does not gate remove_group_members" in result.output
-    assert "neti prove" in result.output, "it has to say what to run instead"
+    assert "can be driven" in result.output
+    assert "neti start" in result.output, "it has to say what to run instead"
 
 
 # ---------------------------------------------------------------------------- the empty directory
