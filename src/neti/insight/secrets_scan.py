@@ -41,6 +41,32 @@ class Known:
     dirs: tuple[str, ...] = ()
 
 
+FIXTURE_DIRS = frozenset(
+    {"test", "tests", "testing", "fixtures", "fixture", "testdata", "__fixtures__", "spec"}
+)
+"""Directories whose contents are, by convention, committed sample data.
+
+**A private key checked into a public repository is not a private key.** Run day zero on `psf/
+requests` and the scan proposes `**/*.pem` and `**/*.key`, because it found seven of them — all
+under `tests/certs/`, all published on GitHub, all there so the TLS suite has something to hand a
+socket. The rule that follows interrupts an agent every time it opens the test suite it was asked
+to work on, and protects nothing at all. Same for `flask`, whose only `.env` is
+`tests/test_apps/.env`, a fixture that holds `SECRET_KEY=config`.
+
+That is the noise that gets a control switched off, and no synthetic tree produces it — every
+generated fixture in this repository's own suite has uniform, invented files. It took cloning four
+real projects to see.
+
+The limitation, stated rather than hidden: a genuine credential living under `tests/` is not
+proposed. This is a scan that offers rules to a human, and its contract is *real, or absent* — a
+rule whose every match is committed sample data is not real."""
+
+
+def _fixture(relative: Path) -> bool:
+    """Whether this path lies under a directory that holds test data by convention."""
+    return any(part.lower() in FIXTURE_DIRS for part in relative.parts[:-1])
+
+
 KNOWN: tuple[Known, ...] = (
     Known(
         "**/.env*",
@@ -108,11 +134,20 @@ def scan(root: str | Path, *, cap: int = 20_000) -> list[Candidate]:
                     rule.match.startswith("**/*.")
                     and filename.endswith(rule.match.removeprefix("**/*"))
                 )
-                if hit:
-                    seen[rule.match] = str((here / filename).relative_to(base))
+                if not hit:
+                    continue
+                where = (here / filename).relative_to(base)
+                if not _fixture(where):
+                    # A fixture never becomes the evidence for a rule, which also means the example
+                    # printed beside a rule that *is* proposed is always the real file — the one
+                    # that makes the case for it.
+                    seen[rule.match] = str(where)
         if looked > cap:
             break
 
+    # Rules whose only evidence was a fixture are absent, not downgraded. There is no weaker verdict
+    # that would help: `flag` on somebody's test certificates is still a line in their log every
+    # time they run the suite.
     order = {rule.match: i for i, rule in enumerate(KNOWN)}
     return sorted(
         (

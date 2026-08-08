@@ -7,6 +7,15 @@ repository has caught itself doing that four times now.
 The rule this follows is `insight/targets.py`'s, because it is the same rule: **real, or absent.**
 Offering `**/*.pem` to a repository with no certificate in it is a rule that can never fire — dead
 config that reads as configured.
+
+**And a committed test fixture is not real.** Running day zero on four cloned repositories —
+`psf/requests`, `pallets/flask`, `expressjs/express`, `django/django` — proposed `**/*.pem` and
+`**/*.key` to `requests` on the strength of seven files under `tests/certs/`, every one of them
+published on GitHub so the TLS suite has something to hand a socket. The resulting rule interrupts
+an agent each time it opens the test suite it was asked to work on, and protects nothing.
+
+No synthetic tree produces that: every generated fixture in this suite has uniform invented files
+in flat directories. It took real repositories to see, so the cases below are shaped like them.
 """
 
 from __future__ import annotations
@@ -104,3 +113,61 @@ def test_it_does_not_read_file_contents() -> None:
 
     assert "read_text" not in source
     assert "open(" not in source
+
+
+# --------------------------------------------------------------------- committed sample data
+
+
+def test_a_repository_whose_only_keys_are_test_fixtures_gets_no_rule(tmp_path: Path) -> None:
+    """`psf/requests`, exactly as cloned: seven certificates, all under `tests/certs/`.
+
+    They are in a public repository so the TLS suite has something to hand a socket. A rule written
+    on their account fires every time somebody works on that suite and guards nothing — the noise
+    that gets a control switched off, and the reason this is a scan-time decision rather than a
+    verdict somebody has to tune away afterwards.
+    """
+    certs = tmp_path / "tests" / "certs" / "valid" / "server"
+    certs.mkdir(parents=True)
+    (certs / "server.pem").write_text("x", encoding="utf-8")
+    (certs / "server.key").write_text("x", encoding="utf-8")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "adapters.py").write_text("x", encoding="utf-8")
+
+    assert scan(tmp_path) == []
+
+
+def test_a_fixture_env_is_not_a_credential(tmp_path: Path) -> None:
+    """`pallets/flask`, exactly as cloned: its only `.env` is `tests/test_apps/.env`."""
+    apps = tmp_path / "tests" / "test_apps"
+    apps.mkdir(parents=True)
+    (apps / ".env").write_text("SECRET_KEY=config", encoding="utf-8")
+
+    assert scan(tmp_path) == []
+
+
+def test_a_real_key_beside_the_fixtures_still_earns_its_rule(tmp_path: Path) -> None:
+    """The half that must not be lost. A fixture suppresses nothing on its own — it only fails to
+    make the case by itself."""
+    (tmp_path / "tests").mkdir()
+    (tmp_path / "tests" / "server.pem").write_text("x", encoding="utf-8")
+    (tmp_path / "deploy").mkdir()
+    (tmp_path / "deploy" / "prod.pem").write_text("x", encoding="utf-8")
+
+    found = scan(tmp_path)
+    assert [c.match for c in found] == ["**/*.pem"]
+    assert found[0].example == "deploy/prod.pem", (
+        "the example beside a rule has to be the file that makes the case for it, "
+        "not whichever one the walk reached first"
+    )
+
+
+def test_only_the_directory_matters_not_the_filename(tmp_path: Path) -> None:
+    """`test_config.py` sitting in the project root is source, not sample data.
+
+    Matching on the name would suppress a rule for `src/test_keys.pem`, which is a real file in a
+    real place. The signal is the directory, and it is the directory this checks.
+    """
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src" / "test_server.pem").write_text("x", encoding="utf-8")
+
+    assert [c.match for c in scan(tmp_path)] == ["**/*.pem"]

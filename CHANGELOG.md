@@ -1,5 +1,41 @@
 # Changelog
 
+## Unreleased
+
+### Four real repositories, and two things no synthetic tree could show
+
+Everything until now was measured against generated trees: uniform invented files, flat
+directories, no history. Cloning `psf/requests`, `pallets/flask`, `expressjs/express` and
+`django/django` and running day zero on each found both of these in the first ten minutes.
+
+**A private key committed to a public repository is not a private key.** `requests` ships seven
+certificates under `tests/certs/`, so the day-zero scan proposed `**/*.pem` and `**/*.key` — and
+the resulting rule interrupts an agent every time it opens the TLS suite it was asked to work on,
+while protecting nothing. `flask`'s only `.env` is `tests/test_apps/.env`, holding
+`SECRET_KEY=config`. Hits under a test-data directory no longer make the case for a rule; a real
+key beside them still does, and the example printed beside a proposed rule is now always the real
+file rather than whichever the walk reached first. The limitation is stated rather than hidden: a
+genuine credential living under `tests/` is not proposed.
+
+**The gate cost 268ms per tool call on a machine with `logfire` installed.** `neti hook` is one
+process per call, so its whole cost is import time — the decision itself is microseconds. Pydantic
+scans installed distributions for plugins and imports what it finds; `logfire` registers as one and
+arrives transitively with several agent stacks. 148ms of somebody else's observability import, on
+every call, for a mechanism this project does not use. The `neti` command now sets
+`PYDANTIC_DISABLE_PLUGINS`, and only the command: `import neti` inside an application must not
+switch off something that application may be using. **268ms → 147ms.**
+
+Measured after both, over 120 calls of realistic traffic on each repository:
+
+    express    0/120 interrupted    p50 150ms
+    flask      0/120 interrupted    p50 147ms
+    requests   0/120 interrupted    p50 149ms
+    django     0/120 interrupted    p50 147ms      7,114 files
+
+and on django, every attack still stopped: the SSH key and the AWS credentials, both directly and
+through `cp` and `curl`; `../../../etc/passwd`; `git push --force` and `git reset --hard` flagged;
+a 7,114-file glob flagged. 128 records, chain intact.
+
 ## 0.3.1 — 2026-08-08
 
 ### The check that finds these now runs

@@ -166,3 +166,52 @@ def test_the_location_check_stays_a_syscall_not_a_walk() -> None:
             f"the location check costs {median(samples):.3f}ms for {target} — "
             "it should be one resolve()"
         )
+
+
+def test_the_command_does_not_import_somebody_elses_observability_agent() -> None:
+    """Pydantic's plugin scan runs on the hot path of every tool call, and we use no plugins.
+
+    `neti hook` is one process per call, so its whole cost is import time — the decision itself is
+    microseconds, measured above. Pydantic imports every plugin it finds registered in the
+    environment the first time a model is built, and `logfire` registers itself as one. It arrives
+    transitively with several agent stacks, which is how a real measurement on a real repository
+    came out at **268ms per tool call against 120ms** on the same machine without it: 148ms of
+    somebody else's observability import, per call, forever.
+
+    Asserted on the environment variable rather than on a duration, because a timing assertion here
+    would pass on any machine that happens not to have a pydantic plugin installed — which is most
+    of them, including CI, and including the one where this was nearly missed.
+    """
+    import subprocess
+    import sys
+    from pathlib import Path
+
+    # `argv[0]` is what separates the two cases, so it is what these set. A console script's argv[0]
+    # is the script path; anything else — an application, a test runner — is not our process.
+    def under(argv0: str) -> str:
+        probe = (
+            f"import sys;sys.argv[0]={argv0!r};"
+            "import neti,os;print(os.environ.get('PYDANTIC_DISABLE_PLUGINS'))"
+        )
+        return probe
+
+    ours = subprocess.run(
+        [sys.executable, "-c", under("/x/bin/neti")],
+        capture_output=True,
+        text=True,
+        cwd=str(Path(__file__).resolve().parents[2]),
+    )
+    assert ours.stdout.strip() == "1", (
+        f"the `neti` command still pays for the plugin scan: {ours.stdout!r} {ours.stderr[-200:]}"
+    )
+
+    theirs = subprocess.run(
+        [sys.executable, "-c", under("/x/bin/pytest")],
+        capture_output=True,
+        text=True,
+        cwd=str(Path(__file__).resolve().parents[2]),
+    )
+    assert theirs.stdout.strip() == "None", (
+        "importing neti as a library must not switch off a mechanism the host application may be "
+        f"using: {theirs.stdout!r}"
+    )
