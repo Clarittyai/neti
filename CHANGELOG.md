@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### The check that finds these now runs
+
+Every defect in this release was found the same way: build the wheel, install it into an empty
+virtualenv, and run the product. `tools/verify_install.py` exists to do exactly that and was marked
+**"never in CI"** — true and beside the point, because the suite on three platforms cannot see this
+class of defect at all. It runs from a checkout, where every example and fixture is simply there.
+
+What the exemption bought was a check that ran when somebody remembered. Its `neti prove` step had
+been failing since the default config changed earlier the same day, unseen, through a release. A
+check nobody runs decays into a claim — the shape of defect this repository keeps finding in itself.
+
+So `--local` is a CI job now, and the journey it walks gained the half that was missing. It drove
+`neti init` and a hand-written policy, which is the *tuned* path somebody reaches after a week.
+Nothing covered `neti start`, and nothing anywhere drove a single tool call through the installed
+hook as a subprocess — which is the gap every 0.3.0 defect lived in. Fifteen new checks, from a
+policy `neti start` wrote and nobody edited:
+
+    ordinary read / edit / npm test / git status   silent
+    .env, in a Read and in a pipeline              stopped
+    ~/.ssh/id_rsa, in a Read and through `cp`      stopped
+    ../../../etc/passwd                            stopped
+    the chain it wrote                             intact, every verdict replays
+    neti prove                                     5 doors, all agreeing
+    neti status                                    sees the traffic, says the hook is unwired
+
 ### `neti status` — is this thing on?
 
 A gate working correctly on an ordinary week does nothing visible: nothing fires, nothing prints,

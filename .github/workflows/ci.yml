@@ -103,3 +103,30 @@ jobs:
               sys.exit("licence boundary violated: the Apache-2.0 wheel contains BUSL code")
           print("free:", len(free), "files")
           CHECK
+
+  # The class of defect no suite above can see: works in a checkout, broken once installed. Six
+  # have shipped that way — `neti demo --here` failing on the README's opening command, `neti init`
+  # pointing at a directory that does not exist on an install, seven commands answering a raw
+  # errno, and `neti prove` refusing the policy `neti start` writes. Every one was found by
+  # building the wheel, installing it into an empty virtualenv and running the documented journey.
+  #
+  # `tools/verify_install.py` did that and was marked "never in CI", so it only ran when somebody
+  # remembered — and its `neti prove` check sat failing, unseen, through a release. A check nobody
+  # runs is a check that decays into a claim, which is the shape of defect this repository keeps
+  # finding in itself. It runs here now.
+  #
+  # `--local` installs this tree rather than PyPI, so it tests the commit that triggered it. The
+  # PyPI form stays a manual `just e2e`, for after a release.
+  installed:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+      # The console ships in the wheel, and one of the checks below serves every route from it.
+      - name: build the console
+        run: cd web && npm ci --silent && npm run build
+      - run: cp -R web/out src/neti/console
+      - run: uv run python tools/verify_install.py --local

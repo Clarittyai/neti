@@ -18,8 +18,16 @@ The tree is generated rather than borrowed. Pointing at a real repository makes 
 machine-dependent, and an e2e check whose expected value changes when somebody runs `npm install`
 is one people learn to ignore.
 
-Needs the network for the install and nothing else. Never in CI: it takes a minute and reaches
-PyPI, and CI already runs the suite on three platforms.
+Needs the network for the install and nothing else.
+
+**`--local` runs in CI now**, as the `installed` job. It was marked "never in CI — CI already runs
+the suite on three platforms", which was true and beside the point: the suite on three platforms
+cannot see this class of defect at all, because it runs from a checkout. What the exemption bought
+was a check that only ran when somebody remembered, and its `neti prove` step sat failing, unseen,
+through a release. A check nobody runs decays into a claim.
+
+The PyPI form stays manual — `just e2e`, after a release — because that one tests an artifact that
+does not exist until it is published.
 """
 
 from __future__ import annotations
@@ -129,6 +137,146 @@ def main() -> int:
             print(f"\n{DIM}kept {work}{OFF}")
         else:
             shutil.rmtree(work, ignore_errors=True)
+
+
+def hook_call(neti: Path, config: Path, project: Path, tool: str, args: dict[str, str]) -> str:
+    """One tool call through the real `PreToolUse` hook, as a subprocess.
+
+    A subprocess, not an import, because that is what Claude Code runs — and because the two have
+    already answered differently: the session tally lived in memory on the `Engine`, which is
+    correct in-process and empty on every call through the hook, so a declared session budget could
+    not fire on the integration most people use.
+
+    Returns `allow`, `confirm` or `block`. The hook prints nothing when a call proceeds, and that
+    silence is the answer for `allow` and for `flag` alike — a flag proceeds. Anything needing the
+    difference has to read the record.
+    """
+    event = {
+        "hook_event_name": "PreToolUse",
+        "session_id": "verify-install",
+        "tool_name": tool,
+        "tool_input": args,
+    }
+    out = subprocess.run(
+        [str(neti), "hook", "-c", str(config)],
+        input=json.dumps(event),
+        capture_output=True,
+        text=True,
+        timeout=120,
+        cwd=project,
+    )
+    if out.returncode != 0:
+        return f"hook exited {out.returncode}: {out.stderr.strip()[-120:]}"
+    if not out.stdout.strip():
+        return "allow"
+    decision = json.loads(out.stdout).get("hookSpecificOutput", {}).get("permissionDecision")
+    return {"allow": "allow", "ask": "confirm", "deny": "block"}.get(str(decision), str(decision))
+
+
+def day_zero(r: Result, neti: Path, work: Path) -> None:
+    """The path every new install actually takes: `neti start`, then real tool calls.
+
+    The journey above drives `neti init` and a hand-written policy, which is the *tuned* path — the
+    one somebody reaches after a week. Nothing here covered `neti start`, and nothing anywhere drove
+    a single tool call through the installed hook. Every defect found in the 0.3.0 release was in
+    that gap, including a credential read that `Read` stopped and `Bash` allowed.
+    """
+    print(f"\n{BOLD}Day zero — `neti start`, then real tool calls through the hook{OFF}")
+    project = work / "dayzero"
+    (project / "src").mkdir(parents=True)
+    for i in range(30):
+        (project / "src" / f"m{i}.ts").write_text("x", encoding="utf-8")
+    (project / ".env").write_text("STRIPE_KEY=sk_live_notreal", encoding="utf-8")
+
+    out = run([str(neti), "start"], cwd=project, stdin=subprocess.DEVNULL)
+    config = project / "neti.yaml"
+    if not r.check(
+        "neti start writes a policy",
+        config.exists() and out.returncode == 0,
+        why=(out.stdout[-300:] + out.stderr[-300:]),
+    ):
+        return
+
+    # What it protects has to be real, not merely present. A policy file that loads and declares
+    # nothing is the state this product shipped in for two releases.
+    text = config.read_text(encoding="utf-8")
+    r.check(
+        "it declares something on its own",
+        "outside_root:" in text and "sensitive:" in text and "mode: enforce" in text,
+        "outside_root, off-limits rules, enforcing",
+        why="a fresh policy that protects nothing is the defect `neti start` exists to fix",
+    )
+
+    home = Path.home()
+    cases: list[tuple[str, str, dict[str, str], str]] = [
+        ("ordinary read is silent", "Read", {"file_path": "src/m1.ts"}, "allow"),
+        ("ordinary edit is silent", "Edit", {"file_path": "src/m2.ts"}, "allow"),
+        ("running the tests is silent", "Bash", {"command": "npm test"}, "allow"),
+        ("git status is silent", "Bash", {"command": "git status"}, "allow"),
+        ("the .env is off limits", "Read", {"file_path": ".env"}, "confirm"),
+        (
+            "the SSH key is out of reach",
+            "Read",
+            {"file_path": str(home / ".ssh" / "id_rsa")},
+            "confirm",
+        ),
+        (
+            "and out of reach through a shell",
+            "Bash",
+            {"command": f"cp {home}/.ssh/id_rsa /tmp/exfil"},
+            "confirm",
+        ),
+        ("so is the .env, in a pipeline", "Bash", {"command": "cat .env | base64"}, "confirm"),
+        ("traversal is still outside", "Read", {"file_path": "../../../etc/passwd"}, "confirm"),
+    ]
+    for label, tool, args, expected in cases:
+        got = hook_call(neti, config, project, tool, args)
+        r.check(label, got == expected, got, why=f"expected {expected}, got {got}")
+
+    # The evidence, checked by the installed binary rather than by us.
+    records = project / "out" / "decisions.ndjson"
+    out = run(
+        [str(neti), "verify", "-r", str(records), "-c", str(config), "--mode", "enforce"],
+        cwd=project,
+    )
+    text = out.stdout + out.stderr
+    r.check("the chain it wrote verifies", "chain intact" in text, why=text[-300:])
+    r.check(
+        "every verdict replays from its own record",
+        "REPLAY DIFFERENTLY" not in text and "replay to the same verdict" in text,
+        next((line.strip() for line in text.splitlines() if "replay to" in line), ""),
+        why=text[-300:],
+    )
+
+    # Every door, against the policy `neti start` just wrote — which is the policy a new install
+    # has, and which `neti prove` refused to run against until today.
+    out = run([str(neti), "prove", "-r", str(project / "out" / "proof.ndjson")], cwd=project)
+    opened = next((line.strip() for line in out.stdout.splitlines() if "opened here" in line), "")
+    r.check(
+        "neti prove — every door agrees",
+        "agreeing on the verdict" in out.stdout and out.returncode == 0,
+        opened.rstrip(","),
+        why=(out.stdout + out.stderr)[-400:],
+    )
+    r.check(
+        "and it says why this call was stopped",
+        "stopped because" in out.stdout,
+        why="the call is chosen from the policy now, so the reason is not guessable",
+    )
+
+    # And the question a silent control cannot otherwise answer about itself.
+    out = run([str(neti), "status"], cwd=project)
+    r.check(
+        "neti status sees the traffic",
+        "decision(s)" in out.stdout and "nothing yet" not in out.stdout,
+        why=out.stdout[-300:],
+    )
+    r.check(
+        "and says the hook is not wired, because it is not",
+        out.returncode == 1 and "neti install" in out.stdout,
+        "start was not run on a tty, so nothing was installed",
+        why=out.stdout[-300:],
+    )
 
 
 def journey(r: Result, work: Path, source: str, local: bool) -> int:
@@ -298,15 +446,11 @@ def journey(r: Result, work: Path, source: str, local: bool) -> int:
         why=f"rc={out.returncode} {(out.stdout + out.stderr)[-200:]}",
     )
 
-    # ---------------------------------------------------------------- every door agrees
-    out = run([str(neti), "prove"], cwd=proj)
-    doors = out.stdout.count("block ")
-    r.check(
-        "neti prove — the doors agree",
-        "agreeing on the verdict" in out.stdout,
-        f"{doors} door(s) opened here",
-        why=out.stdout[-300:],
-    )
+    # `neti prove` moved to the day-zero act below, where the policy it needs actually exists.
+    # This tuned policy declares ceilings and nothing else, so there is no call it *stops* by
+    # identity or location — and every seam driver asserts the call did not reach the tool, so a
+    # call that merely flags proves nothing about agreement. This check sat here failing for
+    # exactly that reason, unseen, because `just e2e` never runs in CI.
 
     # ---------------------------------------------------------------- the console
     if (pkg / "console" / "index.html").exists():
@@ -349,6 +493,8 @@ def journey(r: Result, work: Path, source: str, local: bool) -> int:
     out = run([str(neti), "score"], cwd=proj)
     r.check("neti score", "scorecard" in out.stdout.lower(), why=out.stdout[-200:])
 
+    day_zero(r, neti, work)
+
     # ---------------------------------------------------------------- verdict
     print()
     if r.failed:
@@ -361,7 +507,8 @@ def journey(r: Result, work: Path, source: str, local: bool) -> int:
     print(
         f"{DIM}installed from {'this tree' if local else 'PyPI'}, measured a {count}-file tree, "
         f"blocked a call over a {block_at:,} ceiling,\nsealed and re-verified the chain, caught a "
-        f"tampered record, and served the console.{OFF}"
+        f"tampered record, served the console, and — from `neti start` alone —\nkept ordinary work "
+        f"silent while stopping the .env, the SSH key, and the shell that reached for it.{OFF}"
     )
     return 0
 
