@@ -160,7 +160,51 @@ def test_with_a_root_it_reports_what_is_under_it(tree: Path) -> None:
 
 
 def test_it_declares_its_unit_and_breakdown() -> None:
-    """Without `breakdown_keys` the Engine cannot refuse a band on a key nothing emits."""
+    """Without `breakdown_keys` the Engine cannot refuse a band on a key nothing emits.
+
+    `vendored` and `yours` are declarable for the same reason `bytes` is: an operator who wants a
+    ceiling on *their own* files rather than on their dependency tree can write one, and the engine
+    can tell them at load time if they misspell it.
+    """
     r = FilesystemResolver()
     assert r.unit is Unit.OBJECTS
-    assert r.breakdown_keys == frozenset({"bytes"})
+    assert r.breakdown_keys == frozenset({"bytes", "vendored", "yours"})
+
+
+def test_a_count_says_how_much_of_it_is_somebody_elses_code(tmp_path: Path) -> None:
+    """`Glob **/*.js` in `expressjs/express` with its dependencies installed: 3,668 files, in a
+    project that tracks 213.
+
+    The other 3,455 are `node_modules` — code the developer never opens and the agent's own search
+    tool would not have returned. A record saying "3,668" implies the agent was reaching for 3,668
+    files somebody wrote, and that is not what happened.
+
+    The magnitude stays the total. `rm -rf **` really does delete all of it, and understating a
+    deletion is the one direction this project never errs in — so the split is recorded beside the
+    number rather than subtracted from it.
+    """
+    (tmp_path / "src").mkdir()
+    for i in range(4):
+        (tmp_path / "src" / f"a{i}.js").write_text("x", encoding="utf-8")
+    deep = tmp_path / "node_modules" / "left-pad" / "lib"
+    deep.mkdir(parents=True)
+    for i in range(9):
+        (deep / f"b{i}.js").write_text("x", encoding="utf-8")
+
+    resolved = FilesystemResolver(root=tmp_path).resolve(f"{tmp_path}/**/*.js", ResolveContext())
+
+    assert resolved.magnitude == 13, "the total is what a deletion would take, and it does not move"
+    assert resolved.breakdown["vendored"] == 9
+    assert resolved.breakdown["yours"] == 4
+
+
+def test_a_tree_with_no_dependencies_says_nothing_about_them(tmp_path: Path) -> None:
+    """`vendored: 0` on every ordinary call would be noise in every record, and the absent key
+    already says what a zero would."""
+    (tmp_path / "a.js").write_text("x", encoding="utf-8")
+
+    resolved = FilesystemResolver(root=tmp_path).resolve(f"{tmp_path}/*.js", ResolveContext())
+
+    assert resolved.magnitude == 1
+    assert "vendored" not in resolved.breakdown
+    assert "yours" not in resolved.breakdown

@@ -536,6 +536,13 @@ class Engine:
                 payload["reason"] = worst.resolution.evidence.get("reason", "unresolved")
             if worst.tripped is not None:
                 payload["ceiling"] = worst.tripped.above
+            # When most of a magnitude is somebody else's code, the agent needs to know — it is the
+            # difference between "narrow the target" and "you already did; the number is dependency
+            # trees". `Glob **/*.js` in a checkout of express with its dependencies installed is
+            # 3,668 files, 3,527 of them under node_modules, in a project that tracks 213.
+            vendored = worst.resolution.breakdown.get("vendored")
+            if vendored:
+                payload["vendored"] = vendored
         # Only when the sensitivity rule is what *decided* the call. Both axes can fire at once,
         # and telling an agent to "choose a different target" when the real problem was 22,000
         # objects would send it round the loop with the wrong correction.

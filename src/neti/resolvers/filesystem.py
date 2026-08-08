@@ -65,6 +65,41 @@ declare, so the exact number stops mattering long before the cap is reached.
 
 _GLOB_CHARS = ("*", "?", "[")
 
+VENDOR_DIRS = frozenset(
+    {
+        "node_modules",
+        ".venv",
+        "venv",
+        "vendor",
+        "dist",
+        "build",
+        "target",
+        ".next",
+        ".tox",
+        "site-packages",
+        ".mypy_cache",
+        ".pytest_cache",
+        "__pycache__",
+        ".gradle",
+        "Pods",
+    }
+)
+"""Directories holding code somebody else wrote or a machine generated.
+
+Named rather than derived from `.gitignore`, and that is a deliberate trade. Gitignore semantics are
+a small language with negations, anchoring and precedence, and reimplementing them badly would put a
+*wrong* number in an audit record — worse than a coarse one. Shelling out to `git check-ignore` once
+per call would cost more than the whole decision does. This list is fifteen names, covers the case
+that actually appears, and is wrong only by omission.
+
+It never changes a magnitude. It splits one.
+"""
+
+
+def _vendored(path: str) -> bool:
+    """Whether this path lies inside somebody else's code."""
+    return any(part in VENDOR_DIRS for part in Path(path).parts)
+
 
 @dataclass
 class FilesystemResolver:
@@ -79,9 +114,17 @@ class FilesystemResolver:
     cap: int = DEFAULT_CAP
 
     unit: ClassVar[Unit] = Unit.OBJECTS
-    breakdown_keys: ClassVar[frozenset[str]] = frozenset({"bytes"})
+    breakdown_keys: ClassVar[frozenset[str]] = frozenset({"bytes", "vendored", "yours"})
     """Total size alongside the count, so a policy can band on either. Ten files can be a bigger
-    deletion than ten thousand, and which one matters is the operator's call, not ours."""
+    deletion than ten thousand, and which one matters is the operator's call, not ours.
+
+    `vendored` and `yours` split the same count by whose code it is. `Glob **/*.js` in a checkout of
+    `expressjs/express` with its dependencies installed resolves to **3,668 files in a project that
+    tracks 213** — the rest is `node_modules`, which the developer never opens and the agent's own
+    search tool would not have returned. The magnitude stays the total, because `rm -rf **` really
+    does delete all of it and understating a deletion is the one direction this project never
+    errs in. What changes is that the record no longer implies the agent was reaching for 3,668
+    files somebody wrote."""
 
     def resolve(self, target: str, ctx: ResolveContext) -> Resolution:
         del ctx  # local and synchronous: nothing here can time out against a provider
@@ -171,20 +214,37 @@ class FilesystemResolver:
         matches = globlib.glob(pattern, recursive=True)
         files = [m for m in matches if os.path.isfile(m)]
         total = 0
+        vendored = 0
         for m in files[: self.cap]:
             with contextlib.suppress(OSError):
                 total += os.lstat(m).st_size
+            if _vendored(m):
+                vendored += 1
         capped = len(files) > self.cap
+        counted = min(len(files), self.cap) if capped else len(files)
         return self._resolved(
-            min(len(files), self.cap) if capped else len(files),
+            counted,
             total,
             Direction.LOWER_BOUND if capped else Direction.EXACT,
             {"pattern": pattern, "matched": len(matches)},
+            vendored=vendored,
         )
 
     def _resolved(
-        self, files: int, total_bytes: int, direction: Direction, evidence: dict[str, object]
+        self,
+        files: int,
+        total_bytes: int,
+        direction: Direction,
+        evidence: dict[str, object],
+        *,
+        vendored: int | None = None,
     ) -> Resolution:
+        breakdown: dict[str, int] = {"bytes": total_bytes}
+        if vendored:
+            # Only when there is some. A `vendored: 0` on every call is noise in every record, and
+            # the absence of the key already says what zero would.
+            breakdown["vendored"] = vendored
+            breakdown["yours"] = max(files - vendored, 0)
         return Resolution.resolved(
             self.unit,
             files,
@@ -193,6 +253,6 @@ class FilesystemResolver:
             # and a stored decision replays to the same verdict. RESOLVER_CONTRACT.md rule 3.
             resolved_at=datetime.now(UTC),
             consistency="strong",
-            breakdown={"bytes": total_bytes},
+            breakdown=breakdown,
             evidence=evidence,
         )

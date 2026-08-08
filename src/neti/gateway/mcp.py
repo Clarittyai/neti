@@ -240,9 +240,22 @@ def explain_denial(result: GateResult, payload: dict[str, Any]) -> str:
     )
     ceiling = payload.get("ceiling")
     limit = f", above the declared ceiling of {ceiling:,}" if ceiling is not None else ""
+
+    # A count dominated by dependency trees is not a count of what the agent was reaching for, and
+    # "narrow the target" is unhelpful advice to a model that already had. Naming the split turns
+    # the retry into the useful one — the same pattern as every other branch here: say what kind of
+    # problem this is, so the correction is the right one.
+    vendored = payload.get("vendored")
+    aside = (
+        f" {vendored:,} of those are vendored dependencies; a pattern that skips them may be what "
+        "you meant."
+        if isinstance(vendored, int) and vendored
+        else ""
+    )
+
     tail = (
         " Narrow the target and try again."
         if verdict is Verdict.BLOCK
         else " An operator must approve it before it can run."
     )
-    return lead + limit + "." + tail
+    return lead + limit + "." + aside + tail

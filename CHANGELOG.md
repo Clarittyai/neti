@@ -2,6 +2,31 @@
 
 ## Unreleased
 
+### A count of 3,668 in a project that tracks 213
+
+Installing `express`'s dependencies — the first thing anybody does in a JavaScript repository, and
+something no test here had ever done — makes `Glob **/*.js` resolve to 3,668 files. The project
+tracks 213. The other 3,455 are `node_modules`: code the developer never opens, that the agent's own
+search tool would not have returned, and that a record reading "3,668" implies they were reaching
+for.
+
+The magnitude does not move. `rm -rf **` really does delete all of it, and understating a deletion
+is the one direction this project never errs in. What is new is the split beside it —
+
+    magnitude 3,668   breakdown { vendored: 3,527, yours: 141 }
+
+— in the record, in the chain, and in the sentence the model reads: *"12,082 of those are vendored
+dependencies; a pattern that skips them may be what you meant."* An agent told only to "narrow the
+target" has already done that; naming the split turns the retry into the useful one.
+
+Both keys are declarable, so an operator can put a ceiling on their own files rather than on their
+dependency tree.
+
+Derived from a list of fifteen directory names rather than from `.gitignore`. Gitignore semantics
+are a small language with negations, anchoring and precedence, and reimplementing them badly would
+put a *wrong* number in an audit record — worse than a coarse one; shelling out to `git
+check-ignore` once per call would cost more than the whole decision does.
+
 ### Four real repositories, and two things no synthetic tree could show
 
 Everything until now was measured against generated trees: uniform invented files, flat
