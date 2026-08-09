@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.3 — 2026-08-09
 
 ### A web page could switch off your gate
 
