@@ -2,6 +2,33 @@
 
 ## Unreleased
 
+### A web page could switch off your gate
+
+`neti console` binds to localhost with no auth, which is the right shape for a local tool and is
+documented as such. CORS allows only the dev server's origin. **Neither stops DNS rebinding**, and
+that is the attack local servers actually get:
+
+A page on `evil.example` holds a connection until the DNS TTL expires; the name re-resolves to
+`127.0.0.1`; the browser now treats `http://evil.example:8722/` as same-origin with the page. No
+preflight, no `Origin` check. The console's default port is fixed and its endpoints rewrite the
+policy.
+
+Demonstrated against a running console: **one request took a policy from `enforce` with ten
+off-limits rules to `observe` with none**, and read the whole decision log on the way past.
+
+The console now answers only to names that are actually this machine. A rebound request gets 403
+and a sentence saying what just happened; the operator's own browser is untouched. Skipped when the
+operator binds somewhere other than loopback, because `--host 0.0.0.0` is a deliberate act and a
+Host check would break the deployment it was chosen for.
+
+Tried first and correctly refused, so recorded as *not* the hole: a simple cross-origin POST with
+`Content-Type: text/plain`, which FastAPI rejects before it reaches an endpoint.
+
+And one regression, introduced and caught in the same hour: adding the torn-record line to `neti
+status` dropped the `else` off the empty case, so a console with traffic printed the decision count
+*and* "nothing yet — no call has reached the gate" three lines later. The installed-journey check
+found it; the unit tests had a case for the empty side and none for the pairing, which they do now.
+
 ### The agent could switch off its own gate, in one call, silently
 
 Against the published 0.3.2, on a fresh install with the hook wired, **every one of these was

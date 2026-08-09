@@ -1483,7 +1483,16 @@ def serve(
     typer.echo("  web ui:  cd web && npm run dev   ->  http://localhost:3100")
     try:
         uvicorn.run(
-            create_app(state, serve_console=False), host=host, port=port, log_level="warning"
+            create_app(
+                state,
+                serve_console=False,
+                # Follows the bind address: loopback is protected against DNS rebinding, and
+                # anything else is a deliberate exposure the operator asked for.
+                loopback_only=host in {"127.0.0.1", "localhost", "::1"},
+            ),
+            host=host,
+            port=port,
+            log_level="warning",
         )
     finally:
         state.close()
@@ -1553,7 +1562,12 @@ def console(
         threading.Timer(0.7, lambda: webbrowser.open(url)).start()
 
     try:
-        uvicorn.run(create_app(state), host=host, port=port, log_level="warning")
+        uvicorn.run(
+            create_app(state, loopback_only=host in {"127.0.0.1", "localhost", "::1"}),
+            host=host,
+            port=port,
+            log_level="warning",
+        )
     except KeyboardInterrupt:
         pass
     finally:

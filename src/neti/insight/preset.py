@@ -92,16 +92,19 @@ OWN_FILES: tuple[Candidate, ...] = (
     ),
     # Two patterns, because `rm -rf .claude` names the directory and `Write .claude/settings.json`
     # names a file inside it, and neither glob matches both.
+    # Two patterns, because `rm -rf .claude` names the directory and `Write .claude/settings.json`
+    # names a file inside it, and neither glob matches both. Worded apart so a reader of the policy
+    # — or of the console, where they sit on adjacent rows — does not read the pair as a duplicate.
     Candidate(
         match="**/.claude",
         verdict="confirm",
-        why="this is what wires the gate in",
+        why="the directory that wires the gate in",
         example=".claude",
     ),
     Candidate(
         match="**/.claude/**",
         verdict="confirm",
-        why="this is what wires the gate in",
+        why="the settings that wire the gate in",
         example=".claude/settings.json",
     ),
     Candidate(

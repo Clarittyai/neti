@@ -53,8 +53,63 @@ class DecideRequest(BaseModel):
     reason: str | None = None
 
 
+LOOPBACK_HOSTS = frozenset({"localhost", "127.0.0.1", "::1", "[::1]", "0.0.0.0", "testserver"})
+"""Host header values a loopback console will answer to.
+
+`testserver` is Starlette's `TestClient` default. `0.0.0.0` is here because a request can arrive
+addressed to the bind address itself; binding *to* it is handled separately, below.
+"""
+
+
+class _LoopbackOnly:
+    """Refuse a request addressed to a name this console is not.
+
+    **CORS does not stop this and was never going to.** DNS rebinding: a page on `evil.example`
+    holds a connection until the TTL expires, the name re-resolves to `127.0.0.1`, and the browser
+    now considers `http://evil.example:8722/` same-origin with the page. No preflight, no `Origin`
+    check, full read and write. Demonstrated against a running console — one request took a policy
+    from `enforce` with ten off-limits rules to `observe` with none, and read the whole decision
+    log on the way past:
+
+        curl -H 'Host: evil.example' -X POST .../api/policy/sensitive \\
+             -d '{"rules": [], "apply": true}'
+
+    The console's default port is fixed and its endpoints rewrite the policy, so this is a webpage
+    switching off somebody's gate. The standard defence for a local server is the only one that
+    works here: answer only to names that are actually this machine.
+
+    Skipped when the operator binds somewhere other than loopback. Doing that is a deliberate act —
+    `--host 0.0.0.0` on a workstation is a decision, and a Host check would break the deployment it
+    was chosen for while protecting nothing that is not already exposed.
+    """
+
+    def __init__(self, app: Any, enforce: bool = True) -> None:
+        self.app = app
+        self.enforce = enforce
+
+    async def __call__(self, scope: Any, receive: Any, send: Any) -> None:
+        if self.enforce and scope.get("type") == "http":
+            headers = dict(scope.get("headers") or [])
+            host = headers.get(b"host", b"").decode("latin-1").split(":")[0].lower()
+            if host and host not in LOOPBACK_HOSTS:
+                from starlette.responses import PlainTextResponse
+
+                response = PlainTextResponse(
+                    f"neti console answers on localhost only, not {host!r}. If a web page you were "
+                    "visiting made this request, it was trying to read or change your policy.",
+                    status_code=403,
+                )
+                await response(scope, receive, send)
+                return
+        await self.app(scope, receive, send)
+
+
 def create_app(
-    state: ConsoleState | None = None, *, serve_console: bool = True, **kw: Any
+    state: ConsoleState | None = None,
+    *,
+    serve_console: bool = True,
+    loopback_only: bool = True,
+    **kw: Any,
 ) -> FastAPI:
     st = state or build_state(**kw)
     app = FastAPI(title="neti console", docs_url="/api/docs")
@@ -66,6 +121,8 @@ def create_app(
         allow_methods=["*"],
         allow_headers=["*"],
     )
+    # Added after CORS so it runs first: a rebound request never reaches the endpoint at all.
+    app.add_middleware(_LoopbackOnly, enforce=loopback_only)
     app.state.console = st
 
     # ---------------------------------------------------------------- state

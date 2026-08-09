@@ -869,3 +869,57 @@ def test_off_limits_rules_can_be_added_and_removed_without_the_yaml(tmp_path: Pa
             assert sum(1 for x in after.splitlines() if x.strip().startswith("#")) == comments
     finally:
         state.close()
+
+
+def test_the_console_answers_only_to_this_machine(tmp_path: Path) -> None:
+    """DNS rebinding, and CORS was never going to stop it.
+
+    A page on `evil.example` holds a connection until the TTL expires, the name re-resolves to
+    `127.0.0.1`, and the browser now treats `http://evil.example:8722/` as same-origin with the
+    page. No preflight, no `Origin` check, full read and write against a server whose default port
+    is fixed and whose endpoints rewrite the policy.
+
+    Demonstrated against a running console before the fix: one request took a policy from `enforce`
+    with ten off-limits rules to `observe` with none, and read the decision log on the way past.
+    """
+    from neti.api.state import build_state
+
+    config = tmp_path / "neti.yaml"
+    config.write_text(
+        Path("examples/coding-agent.yaml").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    state = build_state(config=config, records=tmp_path / "d.ndjson")
+    try:
+        with TestClient(create_app(state)) as c:
+            rebound = {"Host": "evil.example"}
+            assert c.get("/api/policy", headers=rebound).status_code == 403
+            assert c.get("/api/decisions", headers=rebound).status_code == 403
+            written = c.post(
+                "/api/policy/sensitive",
+                json={"rules": [], "apply": True},
+                headers=rebound,
+            )
+            assert written.status_code == 403
+            assert "localhost only" in written.text
+
+            # The operator's own browser is untouched, which is the half that makes this shippable.
+            assert c.get("/api/policy").status_code == 200
+    finally:
+        state.close()
+
+
+def test_binding_somewhere_else_is_the_operators_decision(tmp_path: Path) -> None:
+    """`--host 0.0.0.0` is a deliberate act, and a Host check would break the deployment it was
+    chosen for while protecting nothing that is not already exposed."""
+    from neti.api.state import build_state
+
+    config = tmp_path / "neti.yaml"
+    config.write_text(
+        Path("examples/coding-agent.yaml").read_text(encoding="utf-8"), encoding="utf-8"
+    )
+    state = build_state(config=config, records=tmp_path / "d.ndjson")
+    try:
+        with TestClient(create_app(state, loopback_only=False)) as c:
+            assert c.get("/api/policy", headers={"Host": "neti.internal"}).status_code == 200
+    finally:
+        state.close()

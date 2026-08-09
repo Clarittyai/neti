@@ -309,6 +309,13 @@ def render(status: Status, seen: int, last: str | None, stopped: int, torn: int 
     if seen:
         out.append(f"     {seen:,} decision(s), last one {ago(last)}")
         out.append(f"     {stopped:,} of them stopped a call")
+    else:
+        # The honest reading of an empty chain, which is not "you are safe".
+        out.append("     nothing yet — no call has reached the gate")
+        if status.live:
+            out.append("     (expected on a fresh install; if your agent has been running, it is")
+            out.append("      not going through the hook)")
+
     if torn:
         # Enforcement survives a torn record — `neti hook` says so on stderr and in the payload, and
         # the decision is made before it is filed. What does not survive is the audit trail, which
@@ -317,12 +324,6 @@ def render(status: Status, seen: int, last: str | None, stopped: int, torn: int 
         entries = "entry" if torn == 1 else "entries"
         out.append(f"     {torn:,} {entries} could not be read — the chain has a gap.")
         out.append("     Those decisions were still enforced. `neti verify` shows where.")
-    else:
-        # The honest reading of an empty chain, which is not "you are safe".
-        out.append("     nothing yet — no call has reached the gate")
-        if status.live:
-            out.append("     (expected on a fresh install; if your agent has been running, it is")
-            out.append("      not going through the hook)")
 
     if status.fix:
         out += ["", f"  Fix:  {status.fix}"]

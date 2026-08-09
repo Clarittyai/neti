@@ -165,6 +165,21 @@ def test_no_policy_at_all_sends_you_to_start(project: Path) -> None:
 # --------------------------------------------------------------------------- what it has seen
 
 
+def test_a_chain_with_traffic_never_also_says_there_is_none(project: Path) -> None:
+    """The two branches are exclusive, and nothing asserted that until they stopped being.
+
+    Adding the torn-record line dropped the `else` off the empty case, so a console with 2,455
+    decisions in it printed the count *and* "nothing yet — no call has reached the gate" three
+    lines later. Caught by the installed-journey check rather than by this file, which had a test
+    for the empty side and none for the pairing.
+    """
+    wire(project, project / "neti.yaml")
+    text = render(build_status(project, "neti.yaml"), 12, "2026-08-09T00:00:00+00:00", 3)
+
+    assert "12 decision(s)" in text
+    assert "nothing yet" not in text
+
+
 def test_an_empty_chain_is_never_rendered_as_safe(project: Path) -> None:
     """The whole point. "Nothing happened" and "nothing is reaching the gate" are different facts,
     and the second one is only visible if the screen says it out loud."""
