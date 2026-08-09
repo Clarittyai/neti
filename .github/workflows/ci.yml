@@ -118,7 +118,20 @@ jobs:
   # `--local` installs this tree rather than PyPI, so it tests the commit that triggered it. The
   # PyPI form stays a manual `just e2e`, for after a release.
   installed:
-    runs-on: ubuntu-latest
+    # Both Unix platforms, because the difference between them is where this class of bug lives:
+    # the scratch-directory exemption asked `tempfile.gettempdir()`, which is `/var/folders/…` on
+    # macOS and `/tmp` on Linux, so `cd /tmp && ls` asked for confirmation on one of them and not
+    # the other. A single-platform job would have shipped that twice.
+    #
+    # Windows is not here yet, and the reason is the product rather than the runner: the day-zero
+    # checks name `~/.ssh/id_rsa` and `neti prove` picks `/etc/hosts`, neither of which exists
+    # there. The suite covers Windows; this journey does not, and saying so beats a job that
+    # silently skips the half that matters.
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4

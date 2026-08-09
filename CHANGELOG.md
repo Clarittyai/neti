@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.3.2 — 2026-08-09
 
 ### A count of 3,668 in a project that tracks 213
 

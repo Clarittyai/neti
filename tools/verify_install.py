@@ -34,6 +34,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import shutil
 import subprocess
 import sys
@@ -289,8 +290,12 @@ def journey(r: Result, work: Path, source: str, local: bool) -> int:
     # ---------------------------------------------------------------- install
     started = time.monotonic()
     run([sys.executable, "-m", "venv", str(venv)])
-    pip = venv / "bin" / "pip"
-    neti = venv / "bin" / "neti"
+    # `Scripts` on Windows, `bin` everywhere else. Hard-coding `bin` is why this only ever ran on
+    # two of the three platforms CI already tests the suite on — and the bug fixed today, `/tmp`
+    # against `tempfile.gettempdir()`, existed on exactly one of them.
+    binaries = venv / ("Scripts" if os.name == "nt" else "bin")
+    pip = binaries / "pip"
+    neti = binaries / "neti"
     # `neti[all]` from PyPI, or `/path/to/repo[all]` for a working tree. pip takes the same shape
     # for both, which is the whole reason this can test either without a second code path.
     out = run([str(pip), "install", "-q", f"{source}[all]"])
@@ -306,7 +311,7 @@ def journey(r: Result, work: Path, source: str, local: bool) -> int:
     version = run([str(neti), "version"]).stdout.strip()
     r.check("neti version", bool(version), version)
 
-    probe = run([str(venv / "bin" / "python"), "-c", "import neti; print(neti.__file__)"])
+    probe = run([str(binaries / "python"), "-c", "import neti; print(neti.__file__)"])
     r.check("import neti", probe.returncode == 0, why=probe.stderr.strip()[-200:])
 
     pkg = Path(probe.stdout.strip()).parent
