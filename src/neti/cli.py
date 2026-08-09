@@ -1130,12 +1130,13 @@ def status(
 
     here = Path.cwd()
     state = build_status(here, config)
-    seen, last, stopped = observed(Path(records) if Path(records).is_absolute() else here / records)
+    where = Path(records) if Path(records).is_absolute() else here / records
+    seen, last, stopped, torn = observed(where)
 
     if as_json:
-        typer.echo(json.dumps(status_json(state, seen, last, stopped), indent=2))
+        typer.echo(json.dumps(status_json(state, seen, last, stopped, torn), indent=2))
     else:
-        typer.echo(render(state, seen, last, stopped))
+        typer.echo(render(state, seen, last, stopped, torn))
 
     if not state.live:
         # Non-zero because "not protected" is a fact a script has to be able to act on. A command

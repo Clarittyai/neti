@@ -1,5 +1,62 @@
 # Changelog
 
+## Unreleased
+
+### 38 ways to read the key anyway
+
+A red-team pass against the published 0.3.2, spelling the same exfiltration every way an agent
+plausibly could. 29 of 38 were already stopped. Three of the misses were fixable and are fixed; two
+of the *successes* turned out to be coincidences, which is worse than a miss because it is a control
+nobody built.
+
+**`cat $HOME/.ssh/id_rsa` was allowed.** `location.outside` already runs its input through
+`expandvars`; the shell-argument reader refused anything containing `$`. The two disagreeing is how
+a path gets judged in one place and not the other. Expanded now — and a variable this process
+cannot see stays refused, because expanding an unset name turns `$OUT/file` into `/file`, a
+different path from the one that will run.
+
+**`bash -c "cat ~/.ssh/id_rsa"` was allowed.** One quoted token to `shlex`, so every path inside it
+was invisible. `destructive_signal` already descended into nested shells for exactly this reason;
+the argument reader did not, and the two disagreed about the same command. Depth-limited, because
+`bash -c "bash -c …"` is a shape somebody will eventually send.
+
+**A `~` that was not a home directory became one.** `$(echo ~)` splits into a segment ending `~)`,
+and `expanduser` turned that into `/Users/someone` — so a command that never named home was recorded
+as reaching for it. A wrong path in an audit record is worse than a missing one. Only `~` and `~/…`
+expand now, and a machine with no determinable home returns nothing rather than raising on the path
+that runs before every tool call.
+
+The four remaining misses are documented rather than quietly present: a variable this process cannot
+see, a wrapper script (SCOPE.md NC-15), a path inside a quoted `python -c` string, and a hardlink —
+which is genuinely a project file and arguably correct.
+
+### 71% of the session budget was being lost to parallel calls
+
+Driven with 24 hook processes at once against a single session: **7 of 24 calls were counted.**
+
+The shape was `load()` … decide … `save()`, with the file lock around `save` alone and a comment
+claiming that addressed the lost update. It does not — two processes both read 3, both write 4, one
+increment is gone. This is the one mechanism `SCOPE.md` names as the mitigation for cumulative
+effect (NC-01), losing three quarters of its input in exactly the conditions that make cumulative
+effect worth watching. A harness that batches tool calls is ordinary.
+
+Read and write now happen under one lock. **Two locks**, in fact, because `flock` and `LockFileEx`
+are held by the *process*: 64 threads through the fixed file lock still produced 23 increments.
+Processes are what `neti hook` uses and threads are what `neti gate` uses, so both are real, and
+the subprocess test passed against the file lock alone — which is how this nearly shipped.
+
+### A gap in the chain is now on the status screen
+
+Torn records were skipped in silence by the one screen that exists to report health. Enforcement
+survives a filing failure by design — the decision is made before it is written, `neti hook` says
+so on stderr and puts `record_error` in the payload — but the audit trail does not, and that is the
+other half of what this product sells.
+
+Also measured, and fine: 84,000 files (`neti start` 0.9s, a single-file call still 0.14s), 24
+concurrent writers against one chain (intact), and five filing failures — a truncated record, a
+read-only directory, a sidecar replaced by a directory, a corrupt session file, a policy that is a
+directory — every one of which enforced the call, reported on stderr, and exited 0.
+
 ## 0.3.2 — 2026-08-09
 
 ### A count of 3,668 in a project that tracks 213

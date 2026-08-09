@@ -30,10 +30,12 @@ from __future__ import annotations
 import json
 import os
 import re
+import threading
 import time
 from pathlib import Path
 
 from neti.core.budget import SessionTally
+from neti.core.types import ArgDecision
 from neti.store.jsonl import _exclusive
 
 __all__ = ["SessionStore"]
@@ -54,6 +56,22 @@ def _safe_name(session_id: str) -> str:
     return _SAFE.sub("_", session_id)[:120] or "anonymous"
 
 
+_THREADS = threading.Lock()
+"""Serialises threads within this process; `_exclusive` serialises processes. Held for the length
+of one small read-modify-write, so contention is not worth measuring."""
+
+
+def _parse(raw: str) -> SessionTally:
+    """A stored tally, or an empty one. Never raises — a half-written file is not a reason to
+    fail a tool call."""
+    try:
+        data = json.loads(raw or "{}")
+        totals = {str(k): int(v) for k, v in (data.get("totals") or {}).items()}
+        return SessionTally(totals=totals, calls=int(data.get("calls") or 0))
+    except (ValueError, TypeError, AttributeError):
+        return SessionTally()
+
+
 class SessionStore:
     """Per-session running totals, on disk beside the records.
 
@@ -70,30 +88,52 @@ class SessionStore:
 
     def load(self, session_id: str) -> SessionTally:
         try:
-            raw = json.loads(self._path(session_id).read_text(encoding="utf-8"))
-            totals = {str(k): int(v) for k, v in (raw.get("totals") or {}).items()}
-            return SessionTally(totals=totals, calls=int(raw.get("calls") or 0))
-        except (OSError, ValueError, TypeError):
-            # No file, unreadable file, or a half-written one. An empty tally under-counts, which
-            # is the direction that costs a missed budget rather than a wrongly blocked call.
+            return _parse(self._path(session_id).read_text(encoding="utf-8"))
+        except OSError:
+            # No file, or one we cannot read. An empty tally under-counts, which is the direction
+            # that costs a missed budget rather than a wrongly blocked call.
             return SessionTally()
 
-    def save(self, session_id: str, tally: SessionTally) -> None:
-        """Write the tally, serialised against other hook processes in the same session.
+    def add(self, session_id: str, args: tuple[ArgDecision, ...]) -> SessionTally:
+        """Apply this call's magnitudes to the stored total, atomically. Returns the new total.
 
-        Locked because parallel tool calls are real — a harness may run several at once, and two
-        unsynchronised read-modify-writes lose one of the increments. Under-counting is the safe
-        direction, but it is not free, and the lock is microseconds.
+        **Read and write under one lock, because locking only the write does not help.** The
+        previous shape was `load()` … decide … `save()`, with the lock around `save` alone and a
+        comment claiming that addressed the lost update. It does not: two processes both read 3,
+        both write 4, and one increment is gone. Driven with 24 hook processes at once against a
+        single session, **7 of 24 calls were counted** — a 71% loss on the one mechanism `SCOPE.md`
+        names as the mitigation for cumulative effect (NC-01), in exactly the situation that makes
+        cumulative effect worth watching.
+
+        Parallel tool calls are not exotic. A harness that batches several in one turn is ordinary,
+        and this repository's own agent does it constantly.
+
+        The *verdict* for two simultaneous calls still races, and that is inherent — neither can see
+        a total the other has not written yet. What must not happen is the total forgetting them
+        afterwards.
+
+        **Two locks, because one of them does not do what it looks like it does.** `flock` and
+        `LockFileEx` are held by the *process*, so two threads in one process both acquire it and
+        neither waits: with the file lock alone, 64 threads produced 23 increments. Processes are
+        the deployment `neti hook` uses, threads are the one `neti gate` uses — uvicorn serves
+        concurrently — so both are real and only the pair covers both. The subprocess test passed
+        against the file lock alone, which is how this nearly shipped.
         """
         try:
             self.root.mkdir(parents=True, exist_ok=True)
             path = self._path(session_id)
-            with path.open("a+", encoding="utf-8") as fh, _exclusive(fh):
+            with _THREADS, path.open("a+", encoding="utf-8") as fh, _exclusive(fh):
+                fh.seek(0)
+                current = _parse(fh.read())
+                updated = current.add_committed(args)
                 fh.seek(0)
                 fh.truncate()
-                json.dump({"totals": dict(tally.totals), "calls": tally.calls}, fh)
-        except OSError:
-            return
+                json.dump({"totals": dict(updated.totals), "calls": updated.calls}, fh)
+                return updated
+        except (OSError, ValueError, TypeError):
+            # Same contract as `load`: a bookkeeping failure never becomes a gate failure. The
+            # caller gets a tally that is behind rather than an exception it has no answer for.
+            return self.load(session_id).add_committed(args)
 
     def sweep(self) -> None:
         """Drop sessions nobody will add to again.

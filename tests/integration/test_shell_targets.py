@@ -263,3 +263,62 @@ def test_the_git_verbs_that_lose_work(command: str, form: str | None) -> None:
 
     signal = destructive_signal(command)
     assert (signal.form if signal else None) == form
+
+
+# --------------------------------------------------------------------------- the red-team pass
+
+
+@pytest.mark.parametrize(
+    ("command", "expected"),
+    [
+        # Expansion the process can do, so it does. `location.outside` already runs the same
+        # strings through `expandvars` — the two disagreeing is how a path gets judged in one
+        # place and not the other.
+        ("cat $HOME/.ssh/id_rsa", True),
+        ("cat ${HOME}/.ssh/id_rsa", True),
+        # A shell inside a shell. `destructive_signal` already descended here; this did not, and a
+        # red-team pass found them disagreeing about the same command.
+        ('bash -c "cat ~/.ssh/id_rsa"', True),
+        ("sh -c 'cat ~/.ssh/id_rsa'", True),
+        ("""bash -c 'bash -c "cat ~/.ssh/id_rsa"'""", True),
+        # A variable this process cannot see stays refused. Expanding an unset name to nothing
+        # turns `$OUT/file` into `/file`, which is a different path from the one that will run.
+        ("cat $NOT_SET_ANYWHERE/x", False),
+    ],
+)
+def test_the_spellings_a_red_team_reaches_for(command: str, expected: bool) -> None:
+    home = str(Path.home())
+    found = referenced_paths(command)
+    reaches_home = any(p.startswith(home) for p in found)
+    assert reaches_home is expected, f"{command!r} read as {found}"
+
+
+def test_only_a_tilde_that_means_home_is_read_as_home() -> None:
+    """`~/x` is a path, `~someone/x` is a home this process cannot resolve, and a bare `~` is home.
+
+    The third is why `cat $(echo ~)/.ssh/id_rsa` is caught at all: the segment splitter breaks on
+    the parentheses, leaving `echo ~`, and the bare `~` in it is a real reference to the home
+    directory. **Coarse but true** — the recorded target is the directory rather than the file
+    inside it, and the substitution itself is not understood. Stated here so nobody reads that
+    result as substitution handling and builds on it.
+
+    What is NOT allowed is inventing a path from a token that is not one, which is what
+    `~someone/x` would be: a wrong path in an audit record is worse than a missing one, because the
+    record is the artefact this product asks people to keep.
+    """
+    home = str(Path.home())
+    assert referenced_paths("cat ~/x") == (f"{home}/x",)
+    assert referenced_paths("cat ~notauser/x") == ()
+    assert referenced_paths("ls ~") == (home,)
+
+
+def test_no_home_directory_is_not_a_crash(monkeypatch: pytest.MonkeyPatch) -> None:
+    """This runs before every tool call, so it may never raise — whatever the environment.
+
+    `Path.expanduser` raises `RuntimeError` when it cannot determine a home directory, which is a
+    state a daemon or a stripped CI container really can be in.
+    """
+    monkeypatch.setattr(
+        Path, "expanduser", lambda self: (_ for _ in ()).throw(RuntimeError("no home"))
+    )
+    assert referenced_paths("cat ~/.ssh/id_rsa") == ()

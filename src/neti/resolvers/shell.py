@@ -39,6 +39,7 @@ because their errors are not the same error.
 
 from __future__ import annotations
 
+import os
 import re
 import shlex
 from dataclasses import dataclass, field
@@ -219,7 +220,7 @@ def _signal(text: str, *, depth: int) -> Signal | None:
     return None
 
 
-def referenced_paths(command: str) -> tuple[str, ...]:
+def referenced_paths(command: str, depth: int = 0) -> tuple[str, ...]:
     """Every path-like argument of a command, whatever the command is.
 
     **For WHERE and WHAT, never for HOW MANY.** Nothing here is counted: these are handed to the
@@ -259,6 +260,22 @@ def referenced_paths(command: str) -> tuple[str, ...]:
             tokens = shlex.split(segment)
         except ValueError:
             continue
+        if not tokens:
+            continue
+
+        # `bash -c "cat ~/.ssh/id_rsa"` is one quoted token to `shlex`, so every path inside it was
+        # invisible. `destructive_signal` already descends here for the same reason; this did not,
+        # and a red-team pass found the two disagreeing. Depth-limited, because `bash -c "bash -c
+        # …"` is a shape somebody will eventually send.
+        verb = tokens[0].rsplit("/", 1)[-1]
+        if verb in _SHELLS and depth < 2:
+            at = next(
+                (i for i, t in enumerate(tokens) if _is_flag(t) and "c" in t.lstrip("-")), None
+            )
+            if at is not None and at + 1 < len(tokens):
+                for nested in referenced_paths(tokens[at + 1], depth=depth + 1):
+                    seen.setdefault(nested, None)
+
         for token in tokens[1:]:
             path = _as_path(token)
             if path is not None:
@@ -283,16 +300,42 @@ def _as_path(token: str) -> str | None:
     """
     if not token or _is_flag(token):
         return None
-    if any(c.isspace() for c in token) or "$" in token or "`" in token or "://" in token:
+    if any(c.isspace() for c in token) or "`" in token or "://" in token:
         return None
+
     token = token[1:] if token.startswith("@") else token
+
+    if "$" in token:
+        # `cat $HOME/.ssh/id_rsa` is a spelling an agent really produces, and it was invisible.
+        # Expanded rather than refused, which is what `location.outside` already does to the same
+        # strings — the two disagreeing is how a path gets judged in one place and not the other.
+        #
+        # A variable this process cannot see stays refused: an unset name expands to nothing and
+        # would turn `$OUT/file` into `/file`, which is a different path from the one that will run.
+        token = os.path.expandvars(token)
+        if "$" in token:
+            return None
+
     if not token or token in {".", ".."}:
         return None
     # A leading dot with no slash: `.env`, `.npmrc`. Cheap and high-signal — those are the names
     # the identity axis is written about, and they never appear as an ordinary bare argument.
     if "/" not in token and not token.startswith("~") and not token.startswith("."):
         return None
-    return str(Path(token).expanduser()) if token.startswith("~") else token
+
+    # Only a real `~` — `~` alone or `~/…`. `~)` came out of `$(echo ~)` after the segment split and
+    # `expanduser` turned it into the home directory, so a command that never named home was
+    # recorded as reaching for it. A wrong path in an audit record is worse than a missing one.
+    if token == "~" or token.startswith("~/"):
+        try:
+            return str(Path(token).expanduser())
+        except RuntimeError:
+            # No home directory this process can determine. Nothing to expand against, so nothing
+            # to say — never a crash, on a path that runs before every tool call.
+            return None
+    if token.startswith("~"):
+        return None
+    return token
 
 
 @dataclass(frozen=True)

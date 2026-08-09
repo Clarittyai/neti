@@ -461,10 +461,15 @@ class Engine:
         )
 
         if final.proceeds:
-            committed = tally.add_committed(final.args)
+            # Applied under the store's own lock rather than written back from the tally read
+            # above — see `SessionStore.add`. Read-then-write across two calls loses increments
+            # whenever a harness batches tool calls, which is most of them.
+            committed = (
+                persisted.add(session_id, final.args)
+                if persisted is not None
+                else tally.add_committed(final.args)
+            )
             self._tallies[session_id] = committed
-            if persisted is not None:
-                persisted.save(session_id, committed)
             # A call cannot taint itself — the read that ingests untrusted content is judged under
             # the ordinary ceilings, and the tightening applies from here on. Anything else would
             # make the first read of any untrusted file impossible, which is the whole job of a

@@ -155,8 +155,23 @@ def test_an_unreadable_store_does_not_break_the_gate(tmp_path: Path) -> None:
 def test_a_session_id_cannot_escape_the_directory(tmp_path: Path) -> None:
     """A session id is agent-supplied, and this writes to a path derived from it. `../../etc/passwd`
     is a legal string and an illegal filename."""
+    from neti.core.types import ArgDecision, Resolution
+    from neti.core.units import Unit
+    from neti.core.verdict import Verdict
+
     store = SessionStore(tmp_path / "out" / "decisions.ndjson")
-    store.save("../../../etc/passwd", SessionTally(totals={"objects": 1}, calls=1))
+    store.add(
+        "../../../etc/passwd",
+        (
+            ArgDecision(
+                pointer="/p",
+                target="a",
+                verdict=Verdict.ALLOW,
+                resolution=Resolution.resolved(Unit.OBJECTS, 1),
+                rule="r",
+            ),
+        ),
+    )
 
     written = list(store.root.glob("*.json"))
     assert len(written) == 1
@@ -166,3 +181,68 @@ def test_a_session_id_cannot_escape_the_directory(tmp_path: Path) -> None:
     # on the characters was the first version and was testing the wrong thing.
     assert written[0].resolve().parent == store.root.resolve()
     assert store.root.resolve() in written[0].resolve().parents
+
+
+def test_parallel_calls_do_not_lose_increments(tmp_path: Path) -> None:
+    """Locking only the write does not stop a lost update.
+
+    The comment claiming it did was wrong, which is why this exists.
+
+    The shape was `load()` … decide … `save()`, with the lock around `save` alone: two processes
+    both read 3, both write 4, one increment gone. Driven with 24 hook processes at once against a
+    single session, **7 of 24 calls were counted** — a 71% loss on the one mechanism `SCOPE.md`
+    names as the mitigation for cumulative effect, in exactly the conditions that make cumulative
+    effect worth watching. A harness that batches tool calls is ordinary.
+
+    Threads rather than processes here: the lock is `fcntl`/`msvcrt` on a file descriptor, so the
+    contention is real either way, and this stays fast enough to run on every commit.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    from neti.core.types import ArgDecision, Resolution
+    from neti.core.units import Unit
+    from neti.core.verdict import Verdict
+    from neti.store.sessions import SessionStore
+
+    store = SessionStore(tmp_path / "decisions.ndjson")
+    one = (
+        ArgDecision(
+            pointer="/file_path",
+            target="a.ts",
+            verdict=Verdict.ALLOW,
+            resolution=Resolution.resolved(Unit.OBJECTS, 1),
+            rule="under_all_bands",
+        ),
+    )
+
+    with ThreadPoolExecutor(max_workers=16) as pool:
+        list(pool.map(lambda _: store.add("race", one), range(64)))
+
+    final = store.load("race")
+    assert final.calls == 64, f"{64 - final.calls} increments were lost"
+    assert final.totals["objects"] == 64
+
+
+def test_a_bookkeeping_failure_never_becomes_a_gate_failure(tmp_path: Path) -> None:
+    """A directory that cannot be written is a budget that under-counts.
+
+    It is not a tool call that dies."""
+    from neti.core.types import ArgDecision, Resolution
+    from neti.core.units import Unit
+    from neti.core.verdict import Verdict
+    from neti.store.sessions import SessionStore
+
+    store = SessionStore(tmp_path / "nope" / "decisions.ndjson")
+    (tmp_path / "nope").mkdir()
+    (tmp_path / "nope" / "sessions").write_text("not a directory", encoding="utf-8")
+
+    one = (
+        ArgDecision(
+            pointer="/p",
+            target="a",
+            verdict=Verdict.ALLOW,
+            resolution=Resolution.resolved(Unit.OBJECTS, 1),
+            rule="r",
+        ),
+    )
+    assert store.add("s", one).calls == 1, "the caller still gets a usable tally"

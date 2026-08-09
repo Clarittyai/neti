@@ -184,26 +184,32 @@ def test_it_counts_what_the_chain_holds(tmp_path: Path) -> None:
         ),
         encoding="utf-8",
     )
-    seen, last, stopped = observed(records)
+    seen, last, stopped, torn = observed(records)
 
-    assert (seen, stopped) == (4, 2), "confirm and block are what stopped a call; flag proceeds"
+    assert (seen, stopped, torn) == (4, 2, 0), "confirm and block stop a call; flag proceeds"
     assert last == "2026-08-04T00:00:00+00:00"
 
 
 def test_a_missing_records_file_is_zero_and_not_a_crash(tmp_path: Path) -> None:
-    assert observed(tmp_path / "nothing.ndjson") == (0, None, 0)
+    assert observed(tmp_path / "nothing.ndjson") == (0, None, 0, 0)
 
 
-def test_a_half_written_line_does_not_lose_the_rest(tmp_path: Path) -> None:
-    """The sink appends, so the last line can be torn. Counting is not worth failing over."""
+def test_a_half_written_line_is_counted_rather_than_skipped(tmp_path: Path) -> None:
+    """The sink appends, so the last line can be torn — and a gap in the audit trail is exactly
+    what the one screen reporting health must not pass over in silence.
+
+    Enforcement survives it: `neti hook` decides before it files, says so on stderr and puts
+    `record_error` in the payload. The chain does not, and that is the other half of what this
+    product sells.
+    """
     records = tmp_path / "d.ndjson"
     records.write_text(
         json.dumps({"verdict": "allow", "decided_at": "2026-08-01T00:00:00+00:00"})
         + "\n{\"verdict\": \"conf",
         encoding="utf-8",
     )
-    seen, _last, _stopped = observed(records)
-    assert seen == 1
+    seen, _last, _stopped, torn = observed(records)
+    assert (seen, torn) == (1, 1)
 
 
 def test_never_reads_as_never(tmp_path: Path) -> None:

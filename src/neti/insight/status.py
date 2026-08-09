@@ -234,15 +234,15 @@ def build_status(root: str | Path, config: str | Path) -> Status:
     return status
 
 
-def observed(records: str | Path) -> tuple[int, str | None, int]:
-    """How much the chain holds, when it last grew, and how much of it was stopped.
+def observed(records: str | Path) -> tuple[int, str | None, int, int]:
+    """How much the chain holds, when it last grew, how much of it was stopped, and what is torn.
 
     A count and a timestamp rather than a verdict on freshness. "Last decision 6 days ago" means
     something different to somebody who has been on holiday than to somebody who shipped this
     morning, and this does not know which — so it reports the fact and lets them read it.
     """
     path = Path(records)
-    seen = stopped = 0
+    seen = stopped = torn = 0
     last: str | None = None
     try:
         with path.open(encoding="utf-8") as fh:
@@ -252,14 +252,18 @@ def observed(records: str | Path) -> tuple[int, str | None, int]:
                 try:
                     row = json.loads(line)
                 except ValueError:
+                    # Counted, not skipped. A line the reader cannot parse is a gap in the audit
+                    # trail, and the trail is the product's whole claim — silently passing over it
+                    # would leave the one screen that exists to report health reporting none.
+                    torn += 1
                     continue
                 seen += 1
                 last = row.get("decided_at") or last
                 if row.get("verdict") in {"confirm", "block"}:
                     stopped += 1
     except OSError:
-        return 0, None, 0
-    return seen, last, stopped
+        return 0, None, 0, 0
+    return seen, last, stopped, torn
 
 
 def ago(timestamp: str | None) -> str:
@@ -285,7 +289,7 @@ def ago(timestamp: str | None) -> str:
     return f"{int(seconds // 86400)} days ago"
 
 
-def render(status: Status, seen: int, last: str | None, stopped: int) -> str:
+def render(status: Status, seen: int, last: str | None, stopped: int, torn: int = 0) -> str:
     """One screen. The verdict first, because that is the whole question."""
     out: list[str] = []
     headline = (
@@ -305,6 +309,14 @@ def render(status: Status, seen: int, last: str | None, stopped: int) -> str:
     if seen:
         out.append(f"     {seen:,} decision(s), last one {ago(last)}")
         out.append(f"     {stopped:,} of them stopped a call")
+    if torn:
+        # Enforcement survives a torn record — `neti hook` says so on stderr and in the payload, and
+        # the decision is made before it is filed. What does not survive is the audit trail, which
+        # is the other half of what this product sells, so it is said here rather than left for
+        # whoever thinks to run `neti verify`.
+        entries = "entry" if torn == 1 else "entries"
+        out.append(f"     {torn:,} {entries} could not be read — the chain has a gap.")
+        out.append("     Those decisions were still enforced. `neti verify` shows where.")
     else:
         # The honest reading of an empty chain, which is not "you are safe".
         out.append("     nothing yet — no call has reached the gate")
@@ -317,7 +329,9 @@ def render(status: Status, seen: int, last: str | None, stopped: int) -> str:
     return "\n".join(out)
 
 
-def as_json(status: Status, seen: int, last: str | None, stopped: int) -> dict[str, Any]:
+def as_json(
+    status: Status, seen: int, last: str | None, stopped: int, torn: int = 0
+) -> dict[str, Any]:
     """The same answer for a script — an exit code alone cannot say which check failed."""
     return {
         "live": status.live,
@@ -328,5 +342,6 @@ def as_json(status: Status, seen: int, last: str | None, stopped: int) -> dict[s
         "decisions": seen,
         "last_decision_at": last,
         "stopped": stopped,
+        "unreadable": torn,
         "fix": status.fix or None,
     }
