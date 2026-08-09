@@ -80,11 +80,19 @@ def test_the_threshold_scales_with_the_tree(repo: Path) -> None:
 
 
 def test_off_limits_rules_are_only_for_what_is_really_there(repo: Path) -> None:
-    assert [c.match for c in build(repo, 1_000).off_limits] == ["**/.env*"]
+    """Scanned rules are still *real, or absent*. The gate's own files are the one set written
+    unconditionally, and that is consistent rather than an exception: `neti start` has just written
+    `neti.yaml`, so the thing those rules name is on the disk by construction."""
+    from neti.insight.preset import OWN_FILES
+
+    own = [c.match for c in OWN_FILES]
+    assert [c.match for c in build(repo, 1_000).off_limits] == [*own, "**/.env*"]
 
     bare = repo / "empty"
     bare.mkdir()
-    assert build(bare, 1_000).off_limits == []
+    assert [c.match for c in build(bare, 1_000).off_limits] == own, (
+        "nothing was found here, and the gate still protects itself"
+    )
 
 
 # --------------------------------------------------------------------------- what start leaves
@@ -152,7 +160,9 @@ def test_a_fresh_install_protects_something(repo: Path) -> None:
     assert policy.mode.name.lower() == "enforce"
     assert gates, "the shipped example still gates something"
     assert all(policy.gate_specs(t)[p].has_ceiling for t, p in gates)
-    assert [r.match for r in policy.sensitive] == ["**/.env*"]
+    from neti.insight.preset import OWN_FILES
+
+    assert [r.match for r in policy.sensitive] == [*(c.match for c in OWN_FILES), "**/.env*"]
 
 
 def test_it_keeps_every_comment_and_backs_up_the_original(repo: Path) -> None:
@@ -343,3 +353,72 @@ def test_a_budget_somebody_committed_is_never_replaced(repo: Path) -> None:
     budgets = load_policy(target).session_budgets
     assert len(budgets) == 1
     assert budgets[0].bands[0].above == 11
+
+
+# --------------------------------------------------------------------------- the gate's own files
+
+
+@pytest.mark.parametrize(
+    ("tool", "args"),
+    [
+        ("Write", {"file_path": "neti.yaml"}),
+        ("Edit", {"file_path": "neti.yaml"}),
+        ("Write", {"file_path": ".claude/settings.json"}),
+        ("Bash", {"command": "rm neti.yaml"}),
+        ("Bash", {"command": "rm -rf .claude"}),
+        ("Bash", {"command": "mv neti.yaml /tmp/gone"}),
+        ("Bash", {"command": "sed -i '' s/enforce/observe/ neti.yaml"}),
+        ("Bash", {"command": "echo mode: observe > neti.yaml"}),
+        ("Bash", {"command": "rm out/decisions.ndjson"}),
+        ("Bash", {"command": "truncate -s 0 out/decisions.ndjson"}),
+    ],
+)
+def test_the_agent_cannot_quietly_switch_off_its_own_gate(
+    repo: Path, tool: str, args: dict[str, str]
+) -> None:
+    """A gate the gated party can switch off in one call is not a gate.
+
+    Measured against the published 0.3.2 on a fresh install with the hook wired: every one of these
+    was allowed in silence. Not a bypass of a rule — a bypass of the product, one tool call deep,
+    with nothing recorded and nothing to notice afterwards.
+
+    It was not in `SCOPE.md` either, so it was not a known limitation. The reason it survived is
+    that every test wrote the policy *before* the traffic and none of them asked what the traffic
+    could do to the policy.
+    """
+    from neti.core.types import ProposedCall
+    from neti.core.verdict import Mode, Verdict
+    from neti.engine import Engine
+    from neti.insight.edit_policy import apply_preset, plan_preset
+    from neti.insight.preset import build
+    from neti.resolvers.graph_client import ClientCredential, GraphClient
+    from neti.resolvers.registry import resolvers_for_client
+
+    target = policy_at(repo)
+    preset = build(repo, 5_000)
+    apply_preset(
+        plan_preset(
+            target,
+            bands=[{"above": preset.flag_above, "verdict": "flag"}],
+            rules=[
+                {"match": c.match, "verdict": c.verdict, "why": c.why} for c in preset.off_limits
+            ],
+            outside_root="confirm",
+        )
+    )
+    policy = load_policy(target).model_copy(update={"mode": Mode.ENFORCE})
+    providers = dict(policy.providers)
+    providers["fs"] = {**(providers.get("fs") or {}), "root": str(repo)}
+    policy = policy.model_copy(update={"providers": providers})
+
+    engine = Engine(
+        policy=policy,
+        resolvers=resolvers_for_client(
+            GraphClient(ClientCredential("d", "d", "d"), transport=None), policy.providers
+        ),
+    )
+    decision = engine.gate(ProposedCall(tool=tool, args=args)).decision
+
+    assert decision.verdict >= Verdict.CONFIRM, (
+        f"{tool}({args}) would disable the gate and nobody would be asked ({decision.rule})"
+    )

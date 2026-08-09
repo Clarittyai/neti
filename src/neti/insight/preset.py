@@ -83,6 +83,59 @@ def session_budget(reach: int) -> int:
     return max(FLOOR, reach)
 
 
+OWN_FILES: tuple[Candidate, ...] = (
+    Candidate(
+        match="**/neti.yaml*",
+        verdict="confirm",
+        why="this is the policy that gates you",
+        example="neti.yaml",
+    ),
+    # Two patterns, because `rm -rf .claude` names the directory and `Write .claude/settings.json`
+    # names a file inside it, and neither glob matches both.
+    Candidate(
+        match="**/.claude",
+        verdict="confirm",
+        why="this is what wires the gate in",
+        example=".claude",
+    ),
+    Candidate(
+        match="**/.claude/**",
+        verdict="confirm",
+        why="this is what wires the gate in",
+        example=".claude/settings.json",
+    ),
+    Candidate(
+        match="**/decisions.ndjson*",
+        verdict="confirm",
+        why="this is the audit trail",
+        example="out/decisions.ndjson",
+    ),
+)
+"""The gate's own control plane, off limits to the thing it gates.
+
+**A gate the gated party can switch off in one call is not a gate.** Measured against 0.3.2, on a
+fresh install with the hook wired, every one of these was allowed in silence:
+
+    Write(neti.yaml)                    rewrite the policy, remove every rule
+    Write(.claude/settings.json)        unwire the hook entirely
+    Bash(rm neti.yaml)                  delete it — `neti hook` then errors and exits 0
+    Bash(sed -i '' s/enforce/observe/)  quieter, and the file still looks configured
+    Bash(rm out/decisions.ndjson)       delete the evidence that any of it happened
+
+Not a bypass of a rule; a bypass of the product, one tool call deep, with nothing recorded. It was
+not in `SCOPE.md` either, so it was not a known limitation — it was an oversight, and the reason it
+survived is that every test wrote the policy *before* the traffic and never asked what the traffic
+could do to the policy.
+
+`confirm` rather than `block`, for the same reason the other identity rules are: an operator may
+well want the agent's help editing their own policy, and should be asked rather than refused.
+
+These are written unconditionally rather than found by the scan, and that is consistent with *real,
+or absent* rather than an exception to it: `neti start` has just written `neti.yaml`, so the thing
+the rule names is on the disk by construction.
+"""
+
+
 @dataclass(frozen=True)
 class Preset:
     """The day-zero policy, as data. Rendered by the caller, never applied by this module."""
@@ -130,9 +183,11 @@ def build(root: str | Path, reach: int) -> Preset:
         # A tree we cannot walk is a tree we say nothing about. The size threshold still stands:
         # it depends on a number already in hand, not on a second walk.
         found = []
+    # The gate's own files first, so they read as the first thing the policy protects — and so a
+    # later rule cannot shadow them. `sensitive` takes the first match in declared order.
     return Preset(
         reach=reach,
         flag_above=threshold(reach),
         session_above=session_budget(reach),
-        off_limits=found,
+        off_limits=[*OWN_FILES, *found],
     )

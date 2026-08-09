@@ -262,8 +262,16 @@ def start(
     # which could be days. So fire one real call through the real engine, against one of their own
     # files, and show them the answer.
     if applied and preset.off_limits:
+        # One of *their* files, not one of ours. The gate's own policy file is off limits too and
+        # sits first in the list, but "neti protects neti.yaml" is a demonstration about the tool;
+        # "your agent asked before opening .env" is a demonstration about them, and only the second
+        # is worth the six lines it takes. Falls back to whatever is there if nothing was scanned.
+        from neti.insight.preset import OWN_FILES
+
+        ours = {c.match for c in OWN_FILES}
+        theirs = [c for c in preset.off_limits if c.match not in ours]
         typer.secho("6. Here it is working", bold=True)
-        _show_one_call(destination, here, preset.off_limits[0].example)
+        _show_one_call(destination, here, (theirs or preset.off_limits)[0].example)
         typer.echo("")
 
     # ---------------------------------------------------------------- 7. what happens next
@@ -318,8 +326,14 @@ def _show_one_call(policy_path: Path, here: Path, target: str) -> None:
         typer.secho(f"      {sentence}", fg=typer.colors.YELLOW)
         typer.echo("\n   That is the gate. It did not run, and nothing was recorded for this one —")
         typer.echo("   it is a demonstration, not a decision you made.")
-    else:
+    elif result.decision.args:
         typer.echo(f"      allowed — {result.decision.args[0].resolution.magnitude} object(s)")
+    else:
+        # The policy on disk gates nothing for this tool, so there is no magnitude to print and
+        # `args[0]` is not there. Reached by running `neti start` twice with an edited policy in
+        # between — it crashed with an IndexError and a rich traceback, on the command whose entire
+        # job is to be the first thing a stranger runs.
+        typer.echo("      allowed — this policy does not gate reads")
 
 
 def _offer_install(here: Path, policy: Path) -> bool:

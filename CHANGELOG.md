@@ -2,6 +2,42 @@
 
 ## Unreleased
 
+### The agent could switch off its own gate, in one call, silently
+
+Against the published 0.3.2, on a fresh install with the hook wired, **every one of these was
+allowed with nothing recorded**:
+
+    Write(neti.yaml)                    rewrite the policy, remove every rule
+    Write(.claude/settings.json)        unwire the hook entirely
+    Bash(rm neti.yaml)                  delete it — `neti hook` then errors and exits 0
+    Bash(rm -rf .claude)                same, from the other end
+    Bash(sed -i '' s/enforce/observe/)  quieter, and the file still looks configured
+    Bash(rm out/decisions.ndjson)       delete the evidence that any of it happened
+
+Not a bypass of a rule — a bypass of the product, one tool call deep. It was not in `SCOPE.md`
+either, so it was not a known limitation; it was an oversight, and it survived because every test
+in this repository writes the policy *before* the traffic and none of them asked what the traffic
+could do to the policy.
+
+Day zero now declares its own control plane off limits — the policy, the hook wiring, the chain —
+at `confirm`, because an operator may well want the agent's help editing their own policy and
+should be asked rather than refused. All nine spellings ask; ordinary work is unchanged at 0/51.
+
+Closing it needed the shell reader to see a bare filename. `rm neti.yaml` was invisible because
+`neti.yaml` has no slash in it — the gate's own policy sits in the project root, so every rule
+written to protect it could not see the command that deletes it. A dot is the discriminator: `npm
+test` and `git status` have none.
+
+**And it is a speed bump, not a boundary** — now written down as `SCOPE.md` NC-16. The rules live
+*in* the file they protect, so removing them removes the protection, and nothing that writes
+without crossing a tool boundary is affected at all. A gate that lives inside the blast radius
+cannot fully protect itself; what bounds this properly is filesystem permissions, which `neti`
+cannot arrange for you.
+
+Found while red-teaming: `neti start` crashed with an `IndexError` and a rich traceback when run
+twice against a policy that gates nothing — on the command whose entire job is being the first
+thing a stranger runs.
+
 ### 38 ways to read the key anyway
 
 A red-team pass against the published 0.3.2, spelling the same exfiltration every way an agent

@@ -239,6 +239,11 @@ NON_COVERAGE = {
         "and no textual signal will ever see it. `on_unsized_risk` surfaces the recognised-but-"
         "unsizeable half; a wrapper hides the verb outright"
     ),
+    "NC-16": (
+        "an agent that can write to the gate's own files: day zero puts the policy, the hook "
+        "wiring and the record chain off limits, but the rules live in the file they protect — "
+        "a gate inside the blast radius cannot fully protect itself"
+    ),
 }
 
 

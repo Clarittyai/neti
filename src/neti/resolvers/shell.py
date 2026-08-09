@@ -318,9 +318,15 @@ def _as_path(token: str) -> str | None:
 
     if not token or token in {".", ".."}:
         return None
-    # A leading dot with no slash: `.env`, `.npmrc`. Cheap and high-signal — those are the names
-    # the identity axis is written about, and they never appear as an ordinary bare argument.
-    if "/" not in token and not token.startswith("~") and not token.startswith("."):
+    # A bare name with a dot in it — `neti.yaml`, `.env`, `package.json`. Without this, `rm
+    # neti.yaml` and `sed -i '' s/enforce/observe/ neti.yaml` were invisible: the gate's own policy
+    # file sits in the project root, so it is named with no slash in front of it, and every rule
+    # written to protect it could not see the command that deletes it.
+    #
+    # A dot is the discriminator because it is what separates a filename from a subcommand:
+    # `npm test`, `git status`, `cargo build` have none. `requests==2.3.1` has one and is read as a
+    # path, which costs nothing — it resolves inside the root and matches no rule.
+    if "/" not in token and not token.startswith("~") and "." not in token:
         return None
 
     # Only a real `~` — `~` alone or `~/…`. `~)` came out of `$(echo ~)` after the segment split and
