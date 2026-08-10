@@ -55,9 +55,9 @@ def position_lines() -> list[str]:
 
 def test_position_exists_and_states_when_it_was_verified() -> None:
     assert POSITION.exists(), "POSITION.md is referenced by the README and the artifact page"
-    assert re.search(r"\*\*Verified on (\d{4}-\d{2}-\d{2})\.\*\*", POSITION.read_text("utf-8")), (
-        "POSITION.md must open by saying when its claims were last checked against the sources"
-    )
+    assert re.search(
+        r"\*\*Verified on (\d{4}-\d{2}-\d{2})\.\*\*", POSITION.read_text(encoding="utf-8")
+    ), "POSITION.md must open by saying when its claims were last checked against the sources"
 
 
 def test_every_quoted_claim_carries_a_url_and_the_date_it_was_read() -> None:
@@ -100,7 +100,9 @@ def test_the_competitive_claims_have_not_gone_stale() -> None:
     make "somebody re-read the sources" a step that cannot be skipped. Re-read the pages, update the
     quotes that moved, and set the date.
     """
-    stamp = re.search(r"\*\*Verified on (\d{4}-\d{2}-\d{2})\.\*\*", POSITION.read_text("utf-8"))
+    stamp = re.search(
+        r"\*\*Verified on (\d{4}-\d{2}-\d{2})\.\*\*", POSITION.read_text(encoding="utf-8")
+    )
     assert stamp is not None
     verified = date.fromisoformat(stamp.group(1))
     age = (datetime.now(UTC).date() - verified).days
@@ -113,7 +115,7 @@ def test_the_competitive_claims_have_not_gone_stale() -> None:
 
 
 @pytest.mark.parametrize(
-    "reference", sorted(set(re.findall(r"NC-\d+", POSITION.read_text("utf-8"))))
+    "reference", sorted(set(re.findall(r"NC-\d+", POSITION.read_text(encoding="utf-8"))))
 )
 def test_every_scope_reference_points_at_a_row_that_exists(reference: str) -> None:
     """The argument leans on the non-coverage table repeatedly. A dangling reference is an argument
