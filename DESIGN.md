@@ -170,8 +170,15 @@ screen instead of clipping it.
 3. Reduced motion on — every scene still says something.
 4. Keyboard: every interactive thing reachable, with a visible focus ring.
 5. No new hex, no new card, no new empty state that is not `EmptyState`.
-6. If you changed `web/`, **rebuild the console**: its build output is committed at
-   `src/neti/console/`, and a token change nobody rebuilt is a change nobody ships.
+6. If you changed `web/`, **rebuild it locally before you trust what you are looking at**:
+   `just console-sync`. The export lands in `src/neti/console/`, which the wheel ships and
+   `.gitignore` excludes — CI builds it fresh on every run and `just dist` builds it before
+   packaging, so a change in `web/` does reach users without anybody committing the output.
+
+   This line said the output *was* committed until 2026-08-10, which was simply untrue —
+   `.gitignore` has excluded `src/neti/console/` all along. Worth correcting rather than deleting,
+   because the wrong version implied a step that does not exist and left the real one (the local
+   rebuild, so you are reviewing the page you actually changed) unstated.
 
 ---
 

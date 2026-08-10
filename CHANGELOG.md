@@ -1,5 +1,142 @@
 # Changelog
 
+## 0.4.0 — 2026-08-10
+
+A minor bump rather than a patch, because two things change behaviour on policies that already
+exist. Both are stricter, both are in the direction this product only ever moves, and both are
+described first so nobody meets them by surprise.
+
+### Breaking: sensitive rules join, and the strictest one wins
+
+`sensitive:` matched the **first** rule in the list and stopped. That contradicted the invariant
+`decide` states two lines above the code implementing it — *"Joined rather than substituted, so it
+raises a verdict and never lowers one"* — and the contradiction became reachable the moment rules
+could name the tools they apply to. Written the way anybody would write them:
+
+    - { match: "**/.env*", verdict: confirm, why: credentials live here }
+    - { match: "**/.env*", tools: [Write, Edit], verdict: block, why: not recoverable }
+
+the broad rule matched first and `Write(.env)` came back **CONFIRM**. The stricter rule the operator
+had just declared never ran, and nothing said so. Getting the intended verdict required ordering
+them narrowest-first, which is the opposite of how a list is read.
+
+Every matching rule now contributes and the worst verdict wins, like every other axis in `decide`.
+The record carries *all* the reasons rather than the winning one, so an auditor sees the whole case.
+
+**What this costs:** you can no longer write a weaker exception before a broader rule. That is the
+right thing to lose — an axis that can *lower* a verdict is the one shape this product does not
+have. Express the exception as a narrower rule instead.
+
+### Breaking: `sensitive:` on a tool is refused
+
+`tools: {Read: {sensitive: false}}` was in the policy schema and **read by nothing**. An operator
+could write it, commit it, and get exactly the behaviour of having written nothing — the same
+failure `_check_providers` exists because of. It is removed rather than wired up, because
+`SensitiveRule.tools` says it better, and refused *by name* with the replacement in the message:
+somebody who wrote it believed something was switched off.
+
+### Provenance was inert through `neti hook`, which is how most people install this
+
+The taint lived in a dict on the `Engine`, and the hook is one process per tool call — so the dict
+was empty every time and a session could never be downstream of anything. Demonstrated before the
+fix: an untrusted read, then a five-file glob against a tainted band of 2. One long-lived engine
+**blocked** it; a fresh engine per call **allowed** it.
+
+Exactly the defect `SessionStore` was built to fix for budgets, and worse — a budget that forgets
+under-counts, a taint that forgets switches the axis off. Taints persist beside the tallies now, and
+a budgeted call no longer erases one on its way past.
+
+Two holes in what could be declared closed with it. A pattern can now name an argument no resolver
+sizes, so `untrusted: ["https://forum.example/**"]` finally matches a URL instead of quietly
+matching nothing; and `tools:` is glob-matched, so `mcp__scraper__*` declares a whole MCP server
+rather than a list somebody must remember to extend.
+
+### Budgets over a window wider than one conversation
+
+`window:` takes `session`, `day`, `week` and `rolling:<n>h`. A session budget catches one run going
+wrong; it starts every new conversation at zero, so an agent reading steadily for three days tripped
+nothing — the `glean-bulk-download` shape, and two of the seven corpus misses.
+
+`window:` was previously typed as a bare string and **validated by nothing**: `window: dayly` was
+accepted in silence and counted per conversation forever, while the operator had every reason to
+believe a daily budget was running. It is parsed now, and refused with the four legal forms named.
+
+A calendar window resets on its boundary — a `day` budget of 20,000 permits 40,000 across one
+midnight — which is why `rolling:` exists and why both are declared rather than inferred.
+
+`neti propose` derives budgets from whole sessions and whole days of your own traffic, counted in
+*windows* rather than in calls: waiting for thirty days is a rule nobody ever declares. It names the
+two windows it will not propose (`week` needs weeks; `rolling:` cannot be read off daily totals).
+
+### Consequence is not cardinality, so a rule need not name a target
+
+A `sensitive:` rule can now name the tools it applies to, and `match:` is optional. `{ tools:
+[delete_repository], verdict: block }` fires on the *act* — no glob, no resolver, no magnitude —
+which is what `SCOPE.md` NC-05 always needed, because the dangerous thing there is the verb. Before
+this, requiring a human for an irreversible operation meant inventing a resolver binding, and where
+none fitted there was no way to say it at all. A narrow, declared exception to NC-09: an ungated
+tool is out of scope means a tool *nobody mentioned*.
+
+The denial sentence for one of these used to end *"choose a different target"* — which for
+`delete_repository` is not merely unhelpful. An agent that follows it deletes a **different**
+repository, a worse outcome than the call that was blocked, produced by the gate's own instruction.
+It now names the operation and says the remedy is a person.
+
+### The shell recogniser sees the verbs that leave no `rm` behind
+
+`sed -i`, `tee` without `-a`, `rsync --delete`, `git branch -D`, `git stash drop`/`clear`, `docker
+rm`/`rmi`/`prune`, `kubectl delete`, `terraform destroy`, `aws s3 rm`/`rb`, `gsutil rm`.
+
+The **flag** half only — none of them teaches sizing a number, because flagging costs a line in a
+report and mis-sizing lets a deletion through under a ceiling. Every form ships with the
+non-destructive spelling of itself as a negative test. `chmod -R` is deliberately absent: it can
+make a tree unusable and destroys no data, and folding that into the same signal as deletion makes
+the signal mean less.
+
+`neti score` gained **M14**, which states the boundary where somebody reads coverage rather than in
+a document they may not reach: whether the policy in front of you gates `Bash` at all, that a
+wrapper hides the verb, that generated code never crosses a tool boundary, and that what bounds both
+is the sandbox. It refuses to print a count of recognised forms — that number would read as coverage
+and there is no denominator.
+
+### Budgets across the fleet
+
+`SharedTallies` pools totals across machines, because "20,000 objects a day" was twenty thousand
+**per laptop** and an org running forty agents had declared a limit it did not have. The client is
+Apache-2.0 and here; `tests/integration/test_shared_tallies.py` is the protocol, so anybody can
+write a server and hold it to the same properties.
+
+It must not become a new way to fail, so: an outage falls back to this machine's own total — a floor
+rather than a guess — and says once, on stderr, that budgets are being counted per machine. Stated
+plainly, because silence here is dead config that reads as configured: **while the control plane is
+unreachable a fleet budget is not being enforced across the fleet.**
+
+### The documents describe the product that exists
+
+`SCOPE.md` opened with *"It answers how big, and nothing else"*, written when magnitude was the only
+predicate and left standing after four more shipped. `decide` joins five: magnitude, sensitivity,
+location, accumulation, provenance. Four of them say nothing about size. The axis that actually
+distinguishes this product is **declared, not learned** — every predicate is a static comparison
+against something a human wrote, sealed, and re-derivable offline — and `SCOPE.md`, `README.md` and
+the landing page now say so.
+
+`POSITION.md` is new: where this sits against the agent-security market, what it concedes, and the
+sentences it refuses to use about other people's products.
+
+### Smaller, and each one found by a test written for something else
+
+- The day-one scan proposed rules that **could not match their own evidence**: `**/id_rsa*` carried
+  the names `id_ed25519`, `id_ecdsa`, `id_dsa`, so finding one outside `.ssh/` offered a rule that
+  can never fire on it. Fixed as a class — a test now walks the whole table — which immediately
+  caught the same mistake in an entry added minutes earlier.
+- The proposed `sensitive:` fragment **stopped parsing** when a `why` contained a comma: it is
+  interpolated into a YAML flow mapping. Every shipped `why` happened to be comma-free, which was
+  not a property anybody was maintaining.
+- `ruff` is pinned to a minor range. `ruff format --check` is in CI, the formatter's output changes
+  between minors, and two files committed clean under an older ruff were unformatted under 0.16
+  without either file changing.
+- `DESIGN.md` claimed the console build output is committed. `.gitignore` has excluded it all along.
+
 ## 0.3.3 — 2026-08-09
 
 ### A web page could switch off your gate

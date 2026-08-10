@@ -2668,7 +2668,7 @@ wheels = [
 
 [[package]]
 name = "neti"
-version = "0.3.3"
+version = "0.4.0"
 source = { editable = "." }
 dependencies = [
     { name = "pydantic" },
@@ -2773,7 +2773,7 @@ requires-dist = [
     { name = "pyyaml", specifier = ">=6.0" },
     { name = "rich", marker = "extra == 'all'", specifier = ">=13.9" },
     { name = "rich", marker = "extra == 'cli'", specifier = ">=13.9" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.7" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.16,<0.17" },
     { name = "semantic-kernel", marker = "extra == 'sdks-more'", specifier = ">=1.0" },
     { name = "smolagents", marker = "extra == 'sdks-more'", specifier = ">=1.0" },
     { name = "typer", marker = "extra == 'all'", specifier = ">=0.12" },
