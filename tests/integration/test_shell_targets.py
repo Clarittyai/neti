@@ -27,6 +27,7 @@ mattered more than the second.
 
 from __future__ import annotations
 
+import pathlib
 from pathlib import Path
 
 import pytest
@@ -170,11 +171,18 @@ def test_scratch_directories_are_not_escapes() -> None:
     `outside` resolves non-strictly, so a root that does not exist works and is the same on every
     platform. Nothing here needs a real directory.
     """
+    import tempfile
+
     from neti.resolvers.location import outside
 
     root = "/opt/a-project-that-is-not-in-temp"
+    # This platform's own scratch directory, not the literal `/tmp`. Windows has no `/tmp` at all,
+    # so the hard-coded entry drops out of `location.py`'s list and a written-out POSIX path is not
+    # scratch there — it is simply somewhere else. The claim being made is "the temp directory is
+    # exempt", and `gettempdir` is what that phrase means on the machine running the test.
+    scratch = str(pathlib.Path(tempfile.gettempdir()) / "scratch")
 
-    assert not outside("/tmp/scratch", root)
+    assert not outside(scratch, root)
     assert outside(str(Path.home() / ".ssh" / "id_rsa"), root), (
         "the exemption must not have swallowed the home directory with it"
     )
