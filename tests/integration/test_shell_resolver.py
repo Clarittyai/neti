@@ -202,3 +202,50 @@ def test_a_destructive_form_is_flagged_even_though_it_cannot_be_sized(
 )
 def test_a_command_that_destroys_nothing_stays_silent(command: str) -> None:
     assert destructive_signal(command) is None, f"{command!r} was flagged and destroys nothing"
+
+
+# ------------------------------------------------------- the separator that was read as an escape
+
+
+def test_a_windows_path_survives_the_split(monkeypatch: pytest.MonkeyPatch) -> None:
+    """**`shell.paths` could not size any deletion on Windows.**
+
+    `shlex.split` defaults to POSIX mode, where `\\` is an escape character. So
+
+        rm -rf C:\\Users\\me\\build
+
+    split to the single token `C:Usersmebuild` — a path that does not exist, so `fs.paths` could not
+    size it, so the call resolved UNRESOLVED, so the shipped policy's `on_unresolved: allow` let it
+    through. Not sized wrongly: not seen at all, while reporting the same "not a recognised
+    destructive command" note that `npm test` gets. The gate looked identical and gated nothing.
+
+    Forced here rather than left to the Windows CI job, which is the whole point of the test. This
+    was invisible for two compounding reasons — development happens on macOS, where the same
+    string contains no backslashes, and the Windows job has never been green — so a test that only
+    ran the branch on Windows would have stayed exactly as invisible as the bug.
+    """
+    monkeypatch.setattr("neti.resolvers.shell._POSIX", False)
+    windows = r"C:\Users\runneradmin\AppData\Local\Temp\pytest-0\world\tree"
+
+    assert targets_of(rf"rm -rf {windows}").paths == (windows,)
+    assert targets_of(rf'rm -rf "{windows}"').paths == (windows,), "quotes come off in either mode"
+
+
+def test_posix_escapes_still_mean_what_they_mean(monkeypatch: pytest.MonkeyPatch) -> None:
+    """The other half. A backslash on a POSIX shell *is* an escape, and reading it as a separator
+    would split one path into two — the mirror of the bug above, in the direction that under-counts
+    a deletion rather than missing it."""
+    monkeypatch.setattr("neti.resolvers.shell._POSIX", True)
+
+    assert targets_of(r"rm -rf /tmp/a\ b").paths == ("/tmp/a b",)
+    assert targets_of("rm -rf '/tmp/a b'").paths == ("/tmp/a b",)
+
+
+def test_the_split_mode_follows_the_platform() -> None:
+    """A backslash is an escape in `sh` and a separator in `cmd`, and no single reading is right in
+    both. Asserted so that flipping the default is a deliberate act rather than a refactor."""
+    import os
+
+    from neti.resolvers.shell import _POSIX
+
+    assert _POSIX is (os.name != "nt")

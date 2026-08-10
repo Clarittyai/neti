@@ -85,6 +85,9 @@ _PREFIXES = frozenset(
 # number produced that way is exactly the kind this file refuses to invent.
 _SHELLS = frozenset({"sh", "bash", "zsh", "dash", "ksh", "fish"})
 
+# Whether a backslash is an escape character or a path separator. See `_split`.
+_POSIX = os.name != "nt"
+
 # Where one command ends and the next begins, outside quotes. `_segments` below does the walk,
 # because a regex cannot tell `a | b` from `echo "a | b"` and the difference decides whether
 # `bash -c 'find / | xargs rm'` is read as one command or shredded into fragments.
@@ -142,7 +145,7 @@ def _segments(text: str) -> list[str]:
 def _head(segment: str) -> tuple[str, list[str]]:
     """The verb a segment actually runs, with its prefixes peeled, and the rest of its tokens."""
     try:
-        tokens = shlex.split(segment)
+        tokens = _split(segment)
     except ValueError:
         tokens = segment.split()
     saw_prefix = False
@@ -331,7 +334,7 @@ def referenced_paths(command: str, depth: int = 0) -> tuple[str, ...]:
         if not segment.strip():
             continue
         try:
-            tokens = shlex.split(segment)
+            tokens = _split(segment)
         except ValueError:
             continue
         if not tokens:
@@ -427,6 +430,37 @@ class Targets:
     reason: str = "not_a_recognised_destructive_command"
 
 
+def _split(text: str) -> list[str]:
+    """`shlex.split`, without eating the separators out of a Windows path.
+
+    **`shlex.split` defaults to POSIX mode, where `\\` is an escape character.** On Windows that
+    turns `rm -rf C:\\Users\\me\\build` into the single token
+    `C:UsersmebuildC` — a path that does not exist, so `fs.paths` cannot size it, so the call
+    resolves UNRESOLVED, so the shipped policy's `on_unresolved: allow` lets it through.
+
+    Which means: **`shell.paths` could not size any deletion on Windows.** Not "sized it wrongly" —
+    could not see it at all, while reporting the same "not a recognised destructive command" note
+    that `npm test` gets. The gate looked identical and gated nothing.
+
+    It was invisible for the ordinary reason: development happens on macOS, where the same string is
+    a POSIX path with no backslashes in it, and CI's Windows job has never been green.
+
+    So the mode follows the platform, because the platform *is* the difference — a backslash is an
+    escape in `sh` and a separator in `cmd`, and no reading is right in both. Non-POSIX mode
+    leaves quote characters attached to their tokens, so those come off here; nothing else about
+    the parse changes, and on any non-Windows machine this is exactly `shlex.split` as before.
+    """
+    if _POSIX:
+        return shlex.split(text)
+    return [_unquote(token) for token in shlex.split(text, posix=False)]
+
+
+def _unquote(token: str) -> str:
+    if len(token) >= 2 and token[0] == token[-1] and token[0] in {"'", '"'}:
+        return token[1:-1]
+    return token
+
+
 def _is_flag(token: str) -> bool:
     return token.startswith("-") and token != "-"
 
@@ -457,7 +491,7 @@ def targets_of(command: str) -> Targets:
         return Targets(reason="compound_command")
 
     try:
-        tokens = shlex.split(text)
+        tokens = _split(text)
     except ValueError:
         return Targets(reason="unparseable_quoting")
     if not tokens:
