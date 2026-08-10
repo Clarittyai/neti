@@ -153,30 +153,48 @@ def test_ordinary_work_stays_silent(project: Path, command: str) -> None:
     )
 
 
-def test_scratch_directories_are_not_escapes(
-    project: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_scratch_directories_are_not_escapes() -> None:
     """`/tmp` is where a shell command writes its scratch, and confirming that is pure friction.
 
     It was reported as an escape on macOS only: `tempfile.gettempdir()` there is `/var/folders/…`,
     so the exemption never covered `/tmp`. On Linux the two coincide and the bug is invisible —
     which is why it survived until a command line was parsed rather than a file path.
 
-    `gettempdir` is patched away from the real one because **pytest's `tmp_path` lives inside it**,
-    which puts this project in the temp directory and correctly disables the exemption entirely —
-    the trap `location.py` documents, and the reason the first version of this test failed. Pointing
-    it elsewhere is what lets the hard-coded `/tmp` half be exercised at all.
-    """
-    import tempfile
+    **The root here is synthetic, and the first version of this test is why.** It used pytest's
+    `tmp_path`, which lives under the system temp directory — and a project inside temp correctly
+    disables the exemption entirely, which is the trap `location.py` documents. The first fix was to
+    patch `gettempdir` elsewhere, and that worked on macOS and nowhere else: on Linux `tmp_path` is
+    under `/tmp`, which `location.py` hard-codes and no patch of `gettempdir` can move. So the test
+    passed on the author's machine and failed on the platform it was written about.
 
+    `outside` resolves non-strictly, so a root that does not exist works and is the same on every
+    platform. Nothing here needs a real directory.
+    """
     from neti.resolvers.location import outside
 
-    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(project / "elsewhere"))
-    (project / "elsewhere").mkdir()
+    root = "/opt/a-project-that-is-not-in-temp"
 
-    assert not outside("/tmp/scratch", str(project))
-    assert outside(str(Path.home() / ".ssh" / "id_rsa"), str(project)), (
+    assert not outside("/tmp/scratch", root)
+    assert outside(str(Path.home() / ".ssh" / "id_rsa"), root), (
         "the exemption must not have swallowed the home directory with it"
+    )
+
+
+def test_a_project_inside_temp_gets_no_exemption() -> None:
+    """The trap the test above kept falling into, asserted instead of worked around.
+
+    A checkout under the temp directory must not make every sibling there invisible — one of them
+    could hold somebody's keys. So the exemption switches off entirely.
+
+    The root is written out rather than taken from `tmp_path`, so this means the same thing on
+    every platform. `tmp_path` is under `/tmp` on Linux and under `/var/folders/…` on macOS, and a
+    test whose subject changes with the machine is precisely why the sibling test above passed for
+    months while being wrong about the platform it was written for.
+    """
+    from neti.resolvers.location import outside
+
+    assert outside("/tmp/somebody-elses-scratch", "/tmp/a-checkout"), (
+        "with the project itself under /tmp, a sibling there is an escape rather than scratch"
     )
 
 
