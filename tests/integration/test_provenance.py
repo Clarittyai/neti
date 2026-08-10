@@ -26,6 +26,7 @@ from typing import Any
 import pytest
 
 from neti.config.policy import Policy
+from neti.core.budget import Window
 from neti.core.provenance import Provenance, matches, taints
 from neti.core.types import ProposedCall
 from neti.core.verdict import Mode
@@ -250,3 +251,223 @@ def test_a_tool_can_be_untrusted_whatever_its_argument() -> None:
 
     assert taints(prov, "fetch_url", ("https://evil.example/x",)) is not None
     assert taints(prov, "read_files", ("src/app.py",)) is None
+
+
+# --------------------------------------------------- surviving the process, and what can declare it
+
+
+def test_a_taint_survives_a_restart(tree: Path) -> None:
+    """**Provenance was inert through `neti hook` until this.**
+
+    The taint lived in a dict on the `Engine`, and `neti hook` is one process per tool call — so the
+    dict was empty every time and a session could never be downstream of anything. Exactly the
+    defect `SessionStore` was built to fix for budgets, and worse: a budget that forgets
+    under-counts, a taint that forgets turns the whole axis off.
+
+    Measured before the fix, with a fresh engine per call: the tainted `purge` was ALLOWED.
+    """
+    from neti.store.sessions import SessionStore
+
+    records = tree / "out" / "decisions.ndjson"
+
+    def fresh() -> Engine:
+        engine = engine_for(
+            tree,
+            untrusted=["**/customer_data/**"],
+            bands=[{"above": 0, "verdict": "block"}],
+        )
+        engine.sessions = SessionStore(records)
+        return engine
+
+    assert fire(fresh(), "read_files", str(tree / "customer_data" / "ticket_1.md")) == "ALLOW"
+    assert fire(fresh(), "purge", str(tree / "src" / "secrets.env")) == "BLOCK", (
+        "one object, under every declared ceiling — stopped only because the session is downstream"
+    )
+
+
+def test_a_restart_does_not_taint_a_different_session(tree: Path) -> None:
+    """The sidecar is keyed per conversation, so persistence must not leak between them."""
+    from neti.store.sessions import SessionStore
+
+    records = tree / "out" / "decisions.ndjson"
+
+    def fresh() -> Engine:
+        engine = engine_for(
+            tree,
+            untrusted=["**/customer_data/**"],
+            bands=[{"above": 0, "verdict": "block"}],
+        )
+        engine.sessions = SessionStore(records)
+        return engine
+
+    fire(fresh(), "read_files", str(tree / "customer_data" / "ticket_1.md"), session="tainted")
+    assert fire(fresh(), "purge", str(tree / "src" / "secrets.env"), session="clean") == "ALLOW"
+
+
+def test_a_budgeted_call_does_not_erase_the_session_taint(tree: Path) -> None:
+    """Both features write the same session file, and `add` rewrites the whole of it.
+
+    Without carrying the taint across that write, switching a budget on would silently switch
+    provenance off — in the one configuration where an operator has asked for both.
+    """
+    from neti.core.provenance import Taint
+    from neti.core.types import ArgDecision, Resolution
+    from neti.core.units import Unit
+    from neti.core.verdict import Verdict
+    from neti.store.sessions import SessionStore
+
+    store = SessionStore(tree / "out" / "decisions.ndjson")
+    store.remember_taint("s", Taint(pattern="**/customer_data/**", target="t.md", tool="read"))
+    store.add(
+        Window(),
+        "s",
+        0.0,
+        (
+            ArgDecision(
+                pointer="/p",
+                target="a",
+                verdict=Verdict.ALLOW,
+                resolution=Resolution.resolved(Unit.OBJECTS, 1),
+                rule="r",
+            ),
+        ),
+    )
+
+    assert store.load_taint("s") is not None, "the budget write erased the taint"
+    assert store.load(Window(), "s", 0.0).total(Unit.OBJECTS) == 1
+
+
+def test_a_taint_latches_and_the_first_one_wins(tree: Path) -> None:
+    """There is no un-reading a stranger's file, and no overwriting the evidence of which one."""
+    from neti.core.provenance import Taint
+    from neti.store.sessions import SessionStore
+
+    store = SessionStore(tree / "out" / "decisions.ndjson")
+    store.remember_taint("s", Taint(pattern="p1", target="first.md", tool="read"))
+    store.remember_taint("s", Taint(pattern="p2", target="second.md", tool="read"))
+
+    remembered = store.load_taint("s")
+    assert remembered is not None
+    assert remembered.target == "first.md"
+
+
+def test_an_untrusted_mcp_server_can_be_declared_in_one_line() -> None:
+    """Listing a federated server's tools by hand means re-listing them whenever it adds one.
+
+    A tool nobody remembered to add is a tool whose output was silently trusted, which is the
+    failure mode this project keeps finding: config that reads as complete and is not.
+    """
+    prov = Provenance(tools=frozenset({"mcp__scraper__*"}))
+
+    assert taints(prov, "mcp__scraper__fetch", ("https://x/y",)) is not None
+    assert taints(prov, "mcp__scraper__anything_added_later", ("q",)) is not None
+    assert taints(prov, "mcp__internal__fetch", ("https://x/y",)) is None
+
+
+def test_an_exact_tool_name_still_means_exactly_that() -> None:
+    """A name with no wildcard must behave as it did before glob matching arrived."""
+    prov = Provenance(tools=frozenset({"fetch_url"}))
+
+    assert taints(prov, "fetch_url", ("https://x",)) is not None
+    assert taints(prov, "fetch_url_admin", ("https://x",)) is None
+
+
+def test_a_pattern_can_name_an_argument_no_resolver_sizes(tree: Path) -> None:
+    """The hole that made `provenance.tools` the only workable option.
+
+    A URL has no cardinality, so it is never gated, so it never reached the taint check — and
+    `untrusted: ["https://forum.example/**"]` matched nothing while reading as configured. Declaring
+    the entire tool untrusted was the alternative, which is far blunter than most operators want:
+    it taints an internal fetch as readily as a public forum.
+    """
+    engine = engine_for(
+        tree,
+        untrusted=["https://forum.example/**"],
+        bands=[{"above": 0, "verdict": "block"}],
+    )
+    engine.gate(
+        ProposedCall(tool="fetch", args={"url": "https://forum.example/thread/9"}, session_id="s")
+    )
+    assert fire(engine, "purge", str(tree / "src" / "secrets.env")) == "BLOCK"
+
+
+def test_an_argument_the_pattern_does_not_name_leaves_the_session_clean(tree: Path) -> None:
+    engine = engine_for(
+        tree,
+        untrusted=["https://forum.example/**"],
+        bands=[{"above": 0, "verdict": "block"}],
+    )
+    engine.gate(
+        ProposedCall(tool="fetch", args={"url": "https://internal.corp/status"}, session_id="s")
+    )
+    assert fire(engine, "purge", str(tree / "src" / "secrets.env")) == "ALLOW"
+
+
+# --------------------------------------------------- telling somebody the axis exists
+
+
+def _write_policy(path: Path, *, with_provenance: bool) -> None:
+    prov = (
+        "provenance:\n"
+        '  untrusted: ["**/customer_data/**"]\n'
+        "  bands:\n"
+        "    - { above: 50, verdict: confirm }\n"
+        if with_provenance
+        else ""
+    )
+    path.write_text(
+        "version: 1\nmode: observe\n"
+        + prov
+        + "tools:\n  Read:\n    gate:\n      /file_path: { resolver: fs.paths }\n",
+        encoding="utf-8",
+    )
+
+
+def test_propose_names_provenance_when_it_is_undeclared(tmp_path: Path) -> None:
+    """`sensitive:` shipped commented out and mentioned only in a changelog, and that is the same
+    as not shipping it. This axis does not get to repeat that."""
+    from neti.cli import _provenance_note
+
+    policy = tmp_path / "neti.yaml"
+    _write_policy(policy, with_provenance=False)
+
+    note = _provenance_note(str(policy))
+    assert "provenance:" in note
+    assert "untrusted:" in note
+
+
+def test_propose_stays_quiet_once_provenance_is_declared(tmp_path: Path) -> None:
+    """Advice that will not get out of the way is a permanent reminder of a finished job."""
+    from neti.cli import _provenance_note
+
+    policy = tmp_path / "neti.yaml"
+    _write_policy(policy, with_provenance=True)
+
+    assert _provenance_note(str(policy)) == ""
+
+
+def test_propose_says_nothing_when_there_is_no_policy_to_read(tmp_path: Path) -> None:
+    """`--records` works without a policy, and a missing file is not an error here."""
+    from neti.cli import _provenance_note
+
+    assert _provenance_note(str(tmp_path / "absent.yaml")) == ""
+
+
+def test_propose_does_not_guess_a_pattern_from_a_directory_name(tmp_path: Path) -> None:
+    """The line this command will not cross.
+
+    A directory called `uploads/` is a stranger's files in one repository and build output in the
+    next, and nothing on the filesystem tells them apart. Proposing from it would be a claim about
+    the operator's business made from a filename — the semantic guess `neti suggest` is quarantined
+    for, in output that is meant to be pasted.
+    """
+    from neti.cli import _provenance_note
+
+    (tmp_path / "uploads").mkdir()
+    (tmp_path / "uploads" / "from_a_stranger.pdf").write_text("x", encoding="utf-8")
+    policy = tmp_path / "neti.yaml"
+    _write_policy(policy, with_provenance=False)
+
+    note = _provenance_note(str(policy))
+    assert "uploads" in note, "it is named as the example of what cannot be decided from a name"
+    assert '"**/uploads/**"' not in note, "and never offered as a rule to paste"

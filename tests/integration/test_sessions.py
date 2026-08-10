@@ -16,12 +16,20 @@ import json
 from pathlib import Path
 
 from neti.config.policy import Policy
-from neti.core.budget import SessionTally
+from neti.core.budget import SessionTally, Window
 from neti.core.types import ProposedCall
 from neti.core.verdict import Mode
 from neti.engine import Engine
 from neti.resolvers.filesystem import FilesystemResolver
 from neti.store.sessions import SessionStore
+
+SESSION = Window()
+"""The default window. These tests predate windows existing, and every one of them is about the
+session bucket, so they say so explicitly rather than leaning on a default."""
+
+NOW = 1_760_000_000.0
+"""A fixed clock. A session bucket ignores it entirely; pinning it here means these tests cannot
+start depending on the real one by accident."""
 
 
 def tree(tmp_path: Path, n: int = 40) -> Path:
@@ -143,7 +151,7 @@ def test_an_unreadable_store_does_not_break_the_gate(tmp_path: Path) -> None:
     store.root.mkdir(parents=True)
     (store.root / "s.json").write_text("{ not json", encoding="utf-8")
 
-    assert store.load("s") == SessionTally()
+    assert store.load(SESSION, "s", NOW) == SessionTally()
     result = Engine(
         policy=policy_with_budget(),
         resolvers={"fs.paths": FilesystemResolver(root=work)},
@@ -161,7 +169,9 @@ def test_a_session_id_cannot_escape_the_directory(tmp_path: Path) -> None:
 
     store = SessionStore(tmp_path / "out" / "decisions.ndjson")
     store.add(
+        SESSION,
         "../../../etc/passwd",
+        NOW,
         (
             ArgDecision(
                 pointer="/p",
@@ -216,9 +226,9 @@ def test_parallel_calls_do_not_lose_increments(tmp_path: Path) -> None:
     )
 
     with ThreadPoolExecutor(max_workers=16) as pool:
-        list(pool.map(lambda _: store.add("race", one), range(64)))
+        list(pool.map(lambda _: store.add(SESSION, "race", NOW, one), range(64)))
 
-    final = store.load("race")
+    final = store.load(SESSION, "race", NOW)
     assert final.calls == 64, f"{64 - final.calls} increments were lost"
     assert final.totals["objects"] == 64
 
@@ -245,4 +255,4 @@ def test_a_bookkeeping_failure_never_becomes_a_gate_failure(tmp_path: Path) -> N
             rule="r",
         ),
     )
-    assert store.add("s", one).calls == 1, "the caller still gets a usable tally"
+    assert store.add(SESSION, "s", NOW, one).calls == 1, "the caller still gets a usable tally"

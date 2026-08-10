@@ -76,8 +76,29 @@ KNOWN: tuple[Known, ...] = (
     ),
     Known("**/*.pem", "confirm", "private keys"),
     Known("**/*.key", "confirm", "private keys"),
+    Known("**/*.p12", "confirm", "a certificate bundle, private key included"),
+    Known("**/*.pfx", "confirm", "a certificate bundle, private key included"),
+    Known("**/*.jks", "confirm", "a Java keystore"),
+    Known(
+        "**/.npmrc",
+        "confirm",
+        "registry auth tokens live here",
+        names=(".npmrc",),
+    ),
+    Known("**/.pypirc", "confirm", "package index credentials", names=(".pypirc",)),
+    Known("**/.netrc", "block", "machine credentials in plain text", names=(".netrc",)),
+    Known("**/_netrc", "block", "machine credentials in plain text", names=("_netrc",)),
     Known("**/.ssh/**", "block", "nothing here is an agent's business", dirs=(".ssh",)),
     Known("**/.aws/**", "block", "cloud credentials", dirs=(".aws",)),
+    Known("**/.kube/**", "block", "cluster credentials", dirs=(".kube",)),
+    Known("**/.gnupg/**", "block", "private keyring", dirs=(".gnupg",)),
+    Known("**/.docker/**", "confirm", "registry auth is kept here", dirs=(".docker",)),
+    Known(
+        "**/terraform.tfstate*",
+        "confirm",
+        "state holds every value the plan applied, secrets included",
+        names=("terraform.tfstate", "terraform.tfstate.backup"),
+    ),
     Known(
         "**/.git/**",
         "confirm",
@@ -85,7 +106,17 @@ KNOWN: tuple[Known, ...] = (
         dirs=(".git",),
     ),
     Known("**/secrets/**", "block", "named for what it holds", dirs=("secrets",)),
-    Known("**/id_rsa*", "block", "an SSH private key", names=("id_rsa", "id_ed25519")),
+    # One entry per key type, and not one `**/id_rsa*` rule listing all four names.
+    #
+    # It was the latter, and the rule could not match three of the files that justified it: an
+    # `id_ed25519` outside `.ssh/` proposed `**/id_rsa*`, which does not match `id_ed25519`. That is
+    # precisely the dead config this module exists to avoid — a rule offered *because* of a file it
+    # can never fire on. `test_every_known_rule_matches_its_own_evidence` now makes the whole class
+    # unrepresentable rather than fixing the one instance.
+    Known("**/id_rsa*", "block", "an SSH private key", names=("id_rsa",)),
+    Known("**/id_ed25519*", "block", "an SSH private key", names=("id_ed25519",)),
+    Known("**/id_ecdsa*", "block", "an SSH private key", names=("id_ecdsa",)),
+    Known("**/id_dsa*", "block", "an SSH private key", names=("id_dsa",)),
 )
 
 
@@ -99,7 +130,15 @@ class Candidate:
     real example beside it is one somebody accepts or rejects on evidence."""
 
     def as_yaml(self) -> str:
-        return f'  - {{ match: "{self.match}", verdict: {self.verdict}, why: {self.why} }}'
+        """One rule, as a line somebody pastes.
+
+        `why` is quoted because this is a YAML *flow* mapping: an unquoted comma inside it ends the
+        value and turns the remainder into a key, so `why: a bundle, private key included` parsed as
+        a rule with a stray field and the whole fragment stopped loading. Every `why` shipped before
+        happened to contain no comma, which is not a property anybody was maintaining on purpose.
+        """
+        why = self.why.replace('"', "'")
+        return f'  - {{ match: "{self.match}", verdict: {self.verdict}, why: "{why}" }}'
 
 
 def scan(root: str | Path, *, cap: int = 20_000) -> list[Candidate]:

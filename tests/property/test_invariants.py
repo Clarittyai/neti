@@ -197,7 +197,7 @@ def test_four_thousand_single_recipient_sends_trip_the_budget() -> None:
         arg = decide_arg("/to", f"user{i}@example.com", per_call_ceiling, res)
         assert arg.verdict is Verdict.ALLOW, "per-call gate is structurally blind here"
 
-        budget = check_budgets("send_email", (arg,), tally, rules)
+        budget = check_budgets("send_email", (arg,), {"session": tally}, rules)
         if budget.verdict is Verdict.CONFIRM and first_confirm is None:
             first_confirm = i
         if budget.verdict is Verdict.BLOCK and first_block is None:
@@ -226,7 +226,7 @@ def test_blocked_calls_do_not_consume_budget() -> None:
             bands=(Band(above=1000, verdict=Verdict.BLOCK),),
         ),
     )
-    assert check_budgets("send_email", (arg,), tally, rules).verdict is Verdict.BLOCK
+    assert check_budgets("send_email", (arg,), {"session": tally}, rules).verdict is Verdict.BLOCK
     # the caller did not commit, so the tally is untouched
     assert tally.total(Unit.RECIPIENTS) == 100
 

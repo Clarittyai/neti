@@ -35,7 +35,16 @@ from dataclasses import dataclass, field, replace
 
 from neti.insight.report import Distribution, ReportSummary
 
-__all__ = ["MIN_SAMPLES", "Proposal", "format_proposals", "propose"]
+__all__ = [
+    "MIN_BUCKETS",
+    "MIN_SAMPLES",
+    "BudgetProposal",
+    "Proposal",
+    "format_budget_proposals",
+    "format_proposals",
+    "propose",
+    "propose_budgets",
+]
 
 MIN_DESTRUCTIVE_SAMPLES = 1
 """One sized deletion is enough to propose from, because a second may be months away.
@@ -295,6 +304,203 @@ def _propose_one(dist: Distribution) -> Proposal:
         unresolved=dist.unresolved,
         examples=examples,
     )
+
+
+MIN_BUCKETS = 5
+"""How many sessions or days a budget proposal needs before it will say a number.
+
+Deliberately far below `MIN_SAMPLES`, and for the reason that made `MIN_DESTRUCTIVE_SAMPLES`
+necessary: **the unit of observation is the window, not the call.** Thirty days is a month of
+waiting, and a rule that waits a month is a rule that is never declared — which is precisely how
+`Bash` ended up ungated while the operator believed they had followed every instruction.
+
+Five is not a claim of statistical significance. It is a claim that a number an operator reviews and
+edits beats the nothing they had, and the printed rationale says so in those words rather than
+implying a rigour that is not there.
+"""
+
+BUDGET_CONFIRM_MULTIPLE = 2
+BUDGET_BLOCK_MULTIPLE = 5
+"""Tighter than the per-call `BLOCK_MULTIPLE` of 10, because a total is already an aggregate.
+
+A single call ten times normal is a plausible mistake. A *day* ten times a normal day is not a
+mistake anybody makes by accident, and by the time it has happened the reading is finished.
+"""
+
+
+@dataclass
+class BudgetProposal:
+    """A cumulative ceiling, derived from what whole sessions and days actually came to."""
+
+    window: str
+    unit: str
+    buckets: int
+    """How many sessions or days were observed. The sample size that matters here."""
+
+    median: int
+    observed_max: int
+    confirm_above: int | None
+    block_above: int | None
+    rationale: str
+    would_trip: int = 0
+    """How many of the observed buckets would have crossed `block_above`."""
+
+    busiest: list[int] = field(default_factory=list)
+
+    @property
+    def actionable(self) -> bool:
+        return self.confirm_above is not None
+
+
+def _median(values: list[int]) -> int:
+    ordered = sorted(values)
+    mid = len(ordered) // 2
+    if not ordered:
+        return 0
+    if len(ordered) % 2:
+        return ordered[mid]
+    return (ordered[mid - 1] + ordered[mid]) // 2
+
+
+def propose_budgets(summary: ReportSummary) -> list[BudgetProposal]:
+    """One proposal per `(window, unit)` the records can support.
+
+    Anchored on the **median** bucket rather than a percentile. A budget already sums a window's
+    worth of calls, so the aggregation that makes a percentile useful for single calls has happened
+    twice by the time it gets here; at five to thirty buckets a p95 is just the maximum wearing a
+    different name.
+    """
+    out: list[BudgetProposal] = []
+    for (window, unit), totals in sorted(summary.bucket_totals.items()):
+        values = [v for v in totals.values() if v > 0]
+        if not values:
+            continue
+        median, biggest = _median(values), max(values)
+        if len(values) < MIN_BUCKETS:
+            out.append(
+                BudgetProposal(
+                    window=window,
+                    unit=unit,
+                    buckets=len(values),
+                    median=median,
+                    observed_max=biggest,
+                    confirm_above=None,
+                    block_above=None,
+                    rationale=(
+                        f"only {len(values)} {window}(s) observed; {MIN_BUCKETS} needed before a "
+                        "cumulative ceiling means anything. Keep observing."
+                    ),
+                )
+            )
+            continue
+
+        confirm = _round_up_human(max(1, median * BUDGET_CONFIRM_MULTIPLE))
+        block = _round_up_human(max(confirm + 1, median * BUDGET_BLOCK_MULTIPLE))
+        rationale = (
+            f"{BUDGET_CONFIRM_MULTIPLE}x and {BUDGET_BLOCK_MULTIPLE}x the median {window} "
+            f"({median:,} {unit}). Anchored on the median rather than a percentile: a budget "
+            f"already sums a window of calls, and at {len(values)} {window}(s) a p95 is the "
+            "maximum under another name"
+        )
+        if len(values) < MIN_SAMPLES:
+            rationale += (
+                f". Derived from {len(values)} {window}(s), which is a judgement rather than a "
+                "statistic — review it before committing"
+            )
+        if biggest > block * 2:
+            rationale += (
+                f". Your busiest {window} came to {biggest:,}, well past this ceiling — check that "
+                "it was intended before declaring a number that would have stopped it"
+            )
+
+        out.append(
+            BudgetProposal(
+                window=window,
+                unit=unit,
+                buckets=len(values),
+                median=median,
+                observed_max=biggest,
+                confirm_above=confirm,
+                block_above=block,
+                rationale=rationale,
+                would_trip=sum(1 for v in values if v > block),
+                busiest=sorted(values, reverse=True)[:3],
+            )
+        )
+    return out
+
+
+def format_budget_proposals(proposals: list[BudgetProposal]) -> str:
+    """The cumulative half of `neti propose`. Empty string when there is nothing to say."""
+    if not proposals:
+        return ""
+
+    actionable = [p for p in proposals if p.actionable]
+    waiting = [p for p in proposals if not p.actionable]
+
+    if not actionable:
+        # Two lines, not eight. The long-form explanation below earns its space next to numbers
+        # an operator is about to paste; above "keep observing" it is a wall of text.
+        return "\n".join(
+            ["Not enough traffic to propose a cumulative budget for:"]
+            + [f"  {p.unit} per {p.window} — {p.rationale}" for p in waiting]
+        )
+
+    out: list[str] = [
+        "Cumulative budgets — the ceiling a per-call ceiling cannot be.",
+        "",
+        "A per-call gate is structurally blind to four thousand calls of one object each: every",
+        "one is under every ceiling anybody would write (SCOPE.md NC-01, NC-12). Only a declared",
+        "budget sees it, and only over a window wide enough to contain the behaviour.",
+        "",
+    ]
+
+    for p in actionable:
+        out.append(f"{p.unit} per {p.window}:")
+        out.append(
+            f"  observed  {p.buckets:,} {p.window}(s)  median={p.median:,}  "
+            f"max={p.observed_max:,}  [{p.unit}]"
+        )
+        out.append(f"  proposed  confirm above {p.confirm_above:,}   block above {p.block_above:,}")
+        out.append(f"  rationale {p.rationale}")
+        if p.would_trip:
+            shown = ", ".join(f"{b:,}" for b in p.busiest)
+            out.append(
+                f"  IMPACT    {p.would_trip:,} of the {p.buckets:,} observed {p.window}(s) would "
+                f"have crossed this. Busiest: {shown}"
+            )
+        else:
+            out.append(
+                f"  IMPACT    no observed {p.window} would have crossed this — it binds only on "
+                "behaviour you have not seen yet"
+            )
+        out.append("")
+        out.append("  session_budgets:")
+        out.append("    - tools: [...]        # the tools whose totals this counts")
+        out.append(f"      unit: {p.unit}")
+        out.append(f"      window: {p.window}")
+        out.append("      bands:")
+        out.append(f"        - {{ above: {p.confirm_above}, verdict: confirm }}")
+        out.append(f"        - {{ above: {p.block_above}, verdict: block }}")
+        out.append("")
+
+    for p in waiting:
+        out.append(f"{p.unit} per {p.window}:  {p.rationale}")
+    if waiting:
+        out.append("")
+
+    # Said rather than left to be noticed. A reader who sees `session` and `day` proposed will
+    # reasonably assume the other two were considered and rejected on the evidence.
+    out.append(
+        "Only `session` and `day` are proposed here. A `week` budget needs weeks of traffic before"
+    )
+    out.append(
+        "its median means anything, and a `rolling:<n>h` window cannot be derived from daily totals"
+    )
+    out.append(
+        "at all — both are declarations to make deliberately, not numbers to read off a file."
+    )
+    return "\n".join(out)
 
 
 def format_proposals(proposals: list[Proposal]) -> str:

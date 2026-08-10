@@ -185,7 +185,19 @@ def decide(
     scope (SCOPE.md NC-09), and failing closed on everything undeclared would make the gate
     unusable on its first day.
     """
-    if not gated:
+    # Rules that name an *operation* rather than a target, evaluated before the not-gated shortcut
+    # because they do not need a target — or a resolver, or a magnitude — to mean something.
+    # `delete_repository` is irreversible whatever it is pointed at.
+    #
+    # This is a deliberate, narrow exception to NC-09. "An ungated tool is out of scope" means a
+    # tool *nobody mentioned*; one named in `sensitive:` has been mentioned, in the file that
+    # decides. Without the exception the only way to require a human for an unsizeable operation was
+    # to invent a resolver binding for it, and where none fitted there was no way at all.
+    tool_hits = tuple(
+        ("", rule) for rule in sensitive if not rule.match and _applies_to(call.tool, rule)
+    )
+
+    if not gated and not tool_hits:
         return Decision(
             verdict=Verdict.ALLOW,
             tool=call.tool,
@@ -212,13 +224,7 @@ def decide(
     # Every target the pointer names, not only the argument itself. A shell command's argument list
     # holds paths — `cat .env | base64` is one call whose target string is a command, and the thing
     # worth stopping is inside it. The resolver surfaces them; nothing is measured here.
-    hits = tuple(
-        (pointer, rule)
-        for pointer, target, _ in gated
-        for candidate in ((target,) if target else ()) + tuple(extra_targets.get(pointer, ()))
-        for rule in (_sensitive_hit(candidate, sensitive),)
-        if rule is not None
-    )
+    hits = tool_hits + _target_hits(call.tool, gated, sensitive, extra_targets)
     verdicts.extend(rule.verdict for _, rule in hits)
 
     # And where the target *is*, which no ceiling and no scan of the project can reach.
@@ -239,7 +245,12 @@ def decide(
         args=args,
         budget=budget,
         sensitive=tuple(
-            {"pointer": p, "match": r.match, "verdict": r.verdict.name.lower(), "why": r.why}
+            {
+                "pointer": p,
+                "match": r.match or f"tool:{call.tool}",
+                "verdict": r.verdict.name.lower(),
+                "why": r.why,
+            }
             for p, r in hits
         ),
         tool=call.tool,
@@ -247,27 +258,90 @@ def decide(
         rule=(
             f"{escapes[0]}:outside_root"
             if escapes and outside_root is worst
-            else _sensitive_rule(hits, worst) or _dominant_rule(args, budget, worst)
+            else _sensitive_rule(call.tool, hits, worst) or _dominant_rule(args, budget, worst)
         ),
     )
 
 
-def _sensitive_hit(target: str, rules: tuple[Any, ...]) -> Any:
-    """The first declared rule this target matches. First, not worst: the operator wrote them in an
-    order, and a list read top-down is one they can reason about."""
+def _target_hits(
+    tool: str,
+    gated: tuple[tuple[str, str | None, Ceiling], ...],
+    sensitive: tuple[Any, ...],
+    extra_targets: Mapping[str, tuple[str, ...]],
+) -> tuple[tuple[str, Any], ...]:
+    """Every `(pointer, rule)` pair this call trips, each recorded once.
+
+    One rule, one entry per pointer. A shell command surfaces several paths, and a rule matching two
+    of them is still one reason rather than two — the record should read as evidence, not as a tally
+    of how many targets happened to trip the same glob.
+    """
+    found: list[tuple[str, Any]] = []
+    seen: set[tuple[str, int]] = set()
+    for pointer, target, _ in gated:
+        candidates = ((target,) if target else ()) + tuple(extra_targets.get(pointer, ()))
+        for candidate in candidates:
+            for rule in _sensitive_hits(tool, candidate, sensitive):
+                key = (pointer, id(rule))
+                if key in seen:
+                    continue
+                seen.add(key)
+                found.append((pointer, rule))
+    return tuple(found)
+
+
+def _applies_to(tool: str, rule: Any) -> bool:
+    """Does this rule cover the tool being called?
+
+    An empty `tools` covers everything, which is what every rule written before this did and what
+    most rules still want. Glob-matched otherwise, so `mcp__github__delete_*` is one line rather
+    than a list somebody has to remember to extend.
+    """
     from neti.core.globs import matches
 
-    for rule in rules:
-        if matches(target, (rule.match,)) is not None:
-            return rule
-    return None
+    declared = tuple(getattr(rule, "tools", ()) or ())
+    return not declared or matches(tool, declared) is not None
 
 
-def _sensitive_rule(hits: tuple[tuple[str, Any], ...], worst: Verdict) -> str:
-    """Name the sensitivity rule in the record, but only when it is what decided the call."""
+def _sensitive_hits(tool: str, target: str, rules: tuple[Any, ...]) -> tuple[Any, ...]:
+    """**Every** declared rule this call matches, in the order they were written.
+
+    It used to return only the first, and that was a real under-enforcement bug the moment rules
+    could be scoped to tools. Written the way anybody would write them —
+
+        - { match: "**/.env*", verdict: confirm, why: credentials live here }
+        - { match: "**/.env*", tools: [Write, Edit], verdict: block, why: not recoverable }
+
+    — the broad rule matched first and `Write(.env)` came back CONFIRM. The stricter rule the
+    operator had just declared never ran, and nothing said so. The only way to get the intended
+    verdict was to order them narrowest-first, which is the opposite of how people read a list.
+
+    Returning all of them puts this axis back under the same rule as every other one in `decide`:
+    verdicts JOIN, so a declaration can only ever raise the outcome. A rule written too widely still
+    costs a confirmation and never a silent allow — and now a rule written too *narrowly* cannot
+    quietly cancel a stricter neighbour either.
+
+    A rule with no `match` is skipped here: it fires on the tool alone and has already been
+    considered, because it does not need a target to be true.
+    """
+    from neti.core.globs import matches
+
+    return tuple(
+        rule
+        for rule in rules
+        if rule.match and _applies_to(tool, rule) and matches(target, (rule.match,)) is not None
+    )
+
+
+def _sensitive_rule(tool: str, hits: tuple[tuple[str, Any], ...], worst: Verdict) -> str:
+    """Name the sensitivity rule in the record, but only when it is what decided the call.
+
+    A rule that named an operation rather than a target is credited as `sensitive:tool:<name>`,
+    the same spelling `Taint` uses for the same idea — there is no glob to print, and printing an
+    empty one would read as a rule that matched everything.
+    """
     for pointer, rule in hits:
         if rule.verdict is worst:
-            return f"{pointer}:sensitive:{rule.match}"
+            return f"{pointer}:sensitive:{rule.match}" if rule.match else f"sensitive:tool:{tool}"
     return ""
 
 

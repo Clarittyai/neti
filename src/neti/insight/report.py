@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import math
 from collections.abc import Iterable
+from contextlib import suppress
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from neti.core.record import DecisionRecord
 from neti.core.units import Direction, may_allow
@@ -157,6 +159,18 @@ class ReportSummary:
     flagged: list[Flagged] = field(default_factory=list)
     """Every unmeasured deletion in the window, in the order it happened."""
 
+    bucket_totals: dict[tuple[str, str], dict[str, int]] = field(default_factory=dict)
+    """`(window, unit)` → `bucket` → the total that bucket accumulated.
+
+    What a *budget* is declared against, and it cannot be read off the per-call distributions above:
+    a ceiling asks "how big was one call", a budget asks "how much did one day come to". The same
+    call contributes to both, and to a different number in each.
+
+    Only calls that **proceeded** are counted, because that is what the engine tallies — a blocked
+    attempt must not consume budget, or one rejected call poisons the rest of the window. In observe
+    mode everything proceeded, which is exactly the traffic a first budget should be derived from.
+    """
+
     synthetic: int = 0
     """How many of these decisions came from `--demo` rather than from a provider.
 
@@ -169,6 +183,34 @@ class ReportSummary:
     @property
     def ordered(self) -> list[Distribution]:
         return sorted(self.distributions.values(), key=lambda d: (-len(d.over_ceiling), -d.maximum))
+
+
+def _proceeded(record: DecisionRecord) -> bool:
+    """Did this call actually run, and therefore consume budget?
+
+    `allow` and `flag` proceed by definition. In observe mode nothing is stopped, so every record is
+    a call that ran whatever its verdict says it would have been. A `confirm` that a human later
+    approved also ran, and is deliberately *not* counted here: the record cannot tell us whether the
+    approval arrived, and a budget proposal that over-counts is one that proposes a ceiling too high
+    to ever fire.
+    """
+    return record.verdict in ("allow", "flag") or record.mode == "observe"
+
+
+def _buckets_of(record: DecisionRecord) -> tuple[tuple[str, str], ...]:
+    """Which `(window, bucket)` pairs this record's magnitudes count toward.
+
+    `session` and `day` only. A `week` window needs weeks of traffic before its median means
+    anything, and `rolling:` cannot be read off buckets at all — it is a different question about
+    the same records, and proposing one from daily totals would be inventing a number rather than
+    deriving it. `format_budget_proposals` says so rather than leaving the absence to be noticed.
+    """
+    pairs: list[tuple[str, str]] = [("session", record.session_id or "anonymous")]
+    # A record whose timestamp will not parse still counts toward its session. Dropping it entirely
+    # would silently shrink a total that another window can still measure.
+    with suppress(TypeError, ValueError):
+        pairs.append(("day", f"{datetime.fromisoformat(record.decided_at):%Y-%m-%d}"))
+    return tuple(pairs)
 
 
 def build_report(records: Iterable[DecisionRecord]) -> ReportSummary:
@@ -212,6 +254,11 @@ def build_report(records: Iterable[DecisionRecord]) -> ReportSummary:
                         )
                     )
                 continue
+            if _proceeded(record):
+                for window, bucket in _buckets_of(record):
+                    per_bucket = summary.bucket_totals.setdefault((window, str(cause["unit"])), {})
+                    per_bucket[bucket] = per_bucket.get(bucket, 0) + int(magnitude)
+
             dist.observations.append(
                 Observation(
                     magnitude=int(magnitude),

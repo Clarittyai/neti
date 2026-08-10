@@ -17,7 +17,7 @@ from pathlib import Path
 from typing import Any
 
 import yaml
-from pydantic import Field, model_validator
+from pydantic import Field, field_serializer, model_validator
 
 from neti.core.budget import BudgetRule
 from neti.core.canonical import canonical_bytes
@@ -115,13 +115,52 @@ class SensitiveRule(Frozen):
     the verdict is still replayable from the record.
     """
 
-    match: str
-    """A glob over the gated target. `**` spans separators, `*` does not."""
+    match: str = ""
+    """A glob over the gated target. `**` spans separators, `*` does not.
+
+    Optional, because consequence is not always a property of the target. `delete_repository` is
+    irreversible whatever it is pointed at, and a rule with `tools:` and no `match:` fires on the
+    *act* — no glob, no resolver, no magnitude. That is the only way to declare NC-05's "revoking
+    one admin's access", which is one principal and under every ceiling anybody would write.
+    """
+
+    tools: frozenset[str] = frozenset()
+    """Which tools this rule applies to. Empty means all of them, which is what it always did.
+
+    Glob-matched, so `mcp__github__delete_*` covers a family. This is what lets the same target
+    carry two different consequences: reading `.env` is a `confirm` and overwriting it is a `block`,
+    which is not a statement about size and could not be said at all before.
+    """
 
     verdict: VerdictValue = Verdict.CONFIRM
     why: str = ""
     """Shown to the agent and written into the record. A block with no reason is a block somebody
     disables; `"credentials live here"` is one they work around correctly."""
+
+    @field_serializer("tools")
+    def _sorted_tools(self, tools: frozenset[str]) -> list[str]:
+        """Sorted, because this is dumped into `Policy.digest()`.
+
+        A `frozenset` serialises in *hash order*, which varies with `PYTHONHASHSEED`, so the same
+        policy file would produce a different digest in different processes — stamped into every
+        record, and enough to make an approval refuse to match itself across a retry. Found once
+        already on `BudgetRule.tools`; the second occurrence was avoided by remembering the first.
+        """
+        return sorted(tools)
+
+    @model_validator(mode="after")
+    def _says_something(self) -> SensitiveRule:
+        """A rule with neither a target nor a tool matches every call there has ever been.
+
+        Refused rather than obeyed. Nobody means it, and the failure is silent in the worst
+        direction: every call in the project confirming, which is how a gate gets switched off.
+        """
+        if not self.match and not self.tools:
+            raise ValueError(
+                "a sensitive rule needs `match:` (a target glob), `tools:` (which tools it "
+                "applies to), or both. One with neither would fire on every call."
+            )
+        return self
 
 
 class ProvenanceSpec(Frozen):
@@ -157,7 +196,30 @@ class ProvenanceSpec(Frozen):
 
 class ToolSpec(Frozen):
     gate: dict[str, GateSpec] = Field(default_factory=dict)
-    sensitive: bool = True
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_the_knob_that_never_worked(cls, data: Any) -> Any:
+        """`sensitive: true|false` on a tool was in the schema and **read by nothing.**
+
+        An operator could write `tools: {Read: {sensitive: false, …}}`, commit it, and get exactly
+        the behaviour of having written nothing — the same failure `_check_providers` exists
+        because of. It is removed rather than wired up, because `SensitiveRule.tools` now says the
+        same thing better: a rule that names the tools it applies to is more expressive than a tool
+        that opts out of every rule at once, and two ways to say one thing is how a config file
+        becomes unreadable.
+
+        Rejected by name rather than by pydantic's generic "extra fields not permitted", for the
+        same reason `notify.on` is: an operator who wrote it believed something was switched off,
+        and deserves to be told exactly what to write instead.
+        """
+        if isinstance(data, dict) and "sensitive" in data:
+            raise ValueError(
+                "`sensitive:` on a tool was never read by anything and has been removed. To scope "
+                "a sensitive rule to particular tools, name them on the rule instead:\n"
+                '  sensitive:\n    - { match: "**/.env*", tools: [Write, Edit], verdict: block }'
+            )
+        return data
 
 
 class Policy(Frozen):

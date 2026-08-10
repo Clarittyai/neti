@@ -69,7 +69,7 @@ def test_unsorted_budget_bands_still_block() -> None:
         rule="under_all_bands",
     )
     tally = SessionTally(totals={"recipients": 1000})
-    assert check_budgets("send_email", (arg,), tally, (rule,)).verdict is Verdict.BLOCK
+    assert check_budgets("send_email", (arg,), {"session": tally}, (rule,)).verdict is Verdict.BLOCK
 
 
 def test_every_breach_is_recorded_not_just_the_deciding_one() -> None:

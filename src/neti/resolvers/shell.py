@@ -175,6 +175,77 @@ def destructive_signal(command: str) -> Signal | None:
     return _signal(command or "", depth=0)
 
 
+def _subcommand_signal(verb: str, rest: list[str]) -> Signal | None:
+    """Destructive forms that need a flag or a subcommand to be one.
+
+    Every entry here widens the **flag** half only. Nothing below teaches `targets_of` to produce a
+    number, and that asymmetry is the design: flagging a command costs a line in `neti report`, and
+    mis-sizing one lets a deletion through under a ceiling. So this list is allowed to grow much
+    faster than the sizing table, and it leans toward saying *"this destroyed something and I cannot
+    tell you how much"* wherever it is unsure.
+
+    Each form is here because a coding agent reaches for it unprompted, and each one is paired with
+    the spelling that is *not* destructive — `sed` without `-i`, `tee -a`, `rsync` without
+    `--delete`. A recogniser that fired on both would teach an operator to stop reading the flag,
+    which is the same reason `--force-with-lease` is deliberately absent from the `git push` check.
+
+    Deliberately **not** here: `chmod -R` and `chown -R`. They can make a tree unusable and they
+    destroy no data, and folding "broke the permissions" into the same signal as "deleted the files"
+    makes the signal mean less. That is a judgement, and it is written down rather than implied.
+    """
+    flags = {t for t in rest if _is_flag(t)}
+    first = rest[0] if rest else ""
+
+    # In-place edit. The most common way an agent overwrites a file without ever calling `rm`.
+    #
+    # `-i`, `-i.bak`, and bundled short clusters like `-ni`. sed's short flags are
+    # n/e/f/i/E/r/s/u/z, so an `i` inside a cluster is unambiguous — and `--include` is not a
+    # cluster, so the long-flag spelling cannot be caught by accident.
+    if verb == "sed" and any(_has_short(f, "i") or f == "--in-place" for f in flags):
+        return Signal(form="sed_in_place")
+
+    # `tee f` truncates `f`; `tee -a f` does not. The default is the destructive one.
+    #
+    # A bare `tee` in a pipeline writes to stdout and destroys nothing, so a file argument is
+    # required — otherwise the single most common use of the command is flagged forever, which is
+    # how a report stops being read.
+    if verb == "tee" and not (flags & {"-a", "--append"}) and any(not _is_flag(t) for t in rest):
+        return Signal(form="tee_truncate")
+
+    if verb == "rsync" and any(f.startswith("--delete") for f in flags):
+        return Signal(form="rsync_delete")
+
+    if verb == "git" and first == "branch" and any("D" in f.lstrip("-") for f in flags):
+        # `-D` only. `-d` refuses to drop an unmerged branch, which is exactly the distinction
+        # worth preserving.
+        return Signal(form="git_branch_force_delete")
+
+    if verb == "git" and first == "stash" and len(rest) > 1 and rest[1] in {"drop", "clear"}:
+        return Signal(form=f"git_stash_{rest[1]}")
+
+    if verb == "docker":
+        if first in {"rmi", "rm"} or (len(rest) > 1 and rest[0] == "volume" and rest[1] == "rm"):
+            return Signal(form="docker_remove")
+        if "prune" in rest:
+            return Signal(form="docker_prune")
+
+    if verb == "kubectl" and first == "delete":
+        return Signal(form="kubectl_delete")
+
+    if verb == "terraform" and (first == "destroy" or "-destroy" in rest):
+        return Signal(form="terraform_destroy")
+
+    # Object-store deletion. Reaches far more data per keystroke than anything on a local disk, and
+    # `storage.objects` can size the prefix — but only once somebody declares it, so the signal has
+    # to stand on its own until then.
+    if verb == "aws" and first == "s3" and len(rest) > 1 and rest[1] in {"rm", "rb"}:
+        return Signal(form=f"aws_s3_{rest[1]}")
+    if verb in {"gsutil", "gcloud"} and "rm" in rest[:2]:
+        return Signal(form="gsutil_rm")
+
+    return None
+
+
 def _signal(text: str, *, depth: int) -> Signal | None:
     for segment in _segments(text):
         if not segment.strip():
@@ -197,6 +268,9 @@ def _signal(text: str, *, depth: int) -> Signal | None:
             or ("-exec" in rest and any(t.rsplit("/", 1)[-1] in _DESTRUCTIVE_VERBS for t in rest))
         ):
             return Signal(form="find_delete")
+        flagged = _subcommand_signal(verb, rest)
+        if flagged is not None:
+            return flagged
         if verb == "git" and rest:
             sub = rest[0]
             if sub == "rm" or (sub == "clean" and any(_is_flag(f) and "f" in f for f in rest[1:])):
@@ -355,6 +429,15 @@ class Targets:
 
 def _is_flag(token: str) -> bool:
     return token.startswith("-") and token != "-"
+
+
+def _has_short(flag: str, letter: str) -> bool:
+    """Is `letter` present in a bundled short-flag cluster like `-ni`?
+
+    Long flags are excluded on purpose: `--include` must not read as `-i`, and a cluster is by
+    definition a single dash.
+    """
+    return flag.startswith("-") and not flag.startswith("--") and letter in flag[1:]
 
 
 def targets_of(command: str) -> Targets:

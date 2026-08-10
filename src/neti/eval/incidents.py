@@ -38,7 +38,10 @@ class Coverage(StrEnum):
     """The mechanism applies, but the resolver for that unit is not built."""
 
     NEEDS_BUDGET = "needs_budget"
-    """Per-call resolution is structurally blind; only a declared session budget sees it (NC-01)."""
+    """Per-call resolution is structurally blind; only a declared budget sees it (NC-01).
+
+    And often only one declared over the right *window*: accumulation spread across conversations
+    is invisible to a `session` budget, which starts every new conversation at zero."""
 
     OUT_OF_SCOPE = "out_of_scope"
     """Magnitude is the wrong primitive. No resolver would help."""
@@ -147,9 +150,11 @@ INCIDENTS: tuple[Incident, ...] = (
         coverage=Coverage.NEEDS_BUDGET,
         note=(
             "MISS per-call. The volume accumulated across many retrievals, so per-call resolution "
-            "sees a small number every time; only a declared session budget on `objects` sees the "
-            "pattern (NC-01/NC-12). Also worth saying out loud when citing it: this is an "
-            "enterprise-search agent whose job is broad retrieval, and no harm was stated."
+            "sees a small number every time; only a declared budget on `objects` sees the pattern "
+            "(NC-01/NC-12) — and a `session` window may not, because the retrievals need not share "
+            "a conversation. `day`, `week` or `rolling:` is the declaration that catches this "
+            "shape. Also worth saying out loud when citing it: this is an enterprise-search agent "
+            "whose job is broad retrieval, and no harm was stated."
         ),
     ),
     Incident(

@@ -15,6 +15,7 @@ recorded as two different policies. The one approval setting that genuinely does
 from __future__ import annotations
 
 import os
+import sys
 import tomllib
 from dataclasses import dataclass
 from pathlib import Path
@@ -27,6 +28,7 @@ __all__ = [
     "Credentials",
     "HttpApprover",
     "OrgClient",
+    "SharedTallies",
     "credentials_path",
     "load_credentials",
     "org_client",
@@ -255,6 +257,40 @@ class OrgClient:
             json={"granted": granted, "decided_by": decided_by, "reason": reason},
         )
 
+    # ------------------------------------------------------------------ shared budget totals
+    #
+    # Two calls, and deliberately no vocabulary of their own: a bucket key is the string
+    # `neti.store.sessions.bucket_key` already produces for the local sidecar, and a total is the
+    # same `{unit: integer}` shape `SessionTally` stores. A server that speaks these two endpoints
+    # is a complete implementation.
+
+    def totals(self, bucket: str) -> dict[str, Any]:
+        """What the organisation has accumulated in this bucket.
+
+        **A 404 raises rather than reading as an empty bucket**, and getting that backwards is the
+        more dangerous of the two options. It was written the other way first, reasoning that the
+        first call of a new day asks for a bucket nobody has written yet — true, and it makes a
+        server that does *not implement this route at all* indistinguishable from one that does.
+        `neti-cloud` today serves approvals and health and nothing else, so every `GET` would
+        have returned "empty", every fleet total would have read **zero**, and a budget would
+        have been compared against a number lower than what this machine alone had already done.
+
+        Raising sends `SharedTallies` to the local store instead, which is a floor rather than a
+        guess. On a server that does implement the route, a genuinely new bucket falls back to this
+        machine's own contribution — at most the fleet total, never more — and self-corrects on the
+        next write. Both readings under-count; only one under-counts by *everything*.
+        """
+        return self._json("GET", f"/v1/totals/{bucket}")
+
+    def add_totals(self, bucket: str, contribution: dict[str, int]) -> dict[str, Any]:
+        """Add this call's magnitudes and return the new organisation total.
+
+        Add-and-read in one request on purpose. Two round trips would race exactly the way
+        `SessionStore.add` used to before it read and wrote under one lock — two agents both read
+        3, both write 4, and one call is forgotten. The increment has to be the server's job.
+        """
+        return self._json("POST", f"/v1/totals/{bucket}", json={"add": contribution})
+
     def _json(self, method: str, path: str, **kw: Any) -> dict[str, Any]:
         import httpx
 
@@ -272,6 +308,136 @@ class OrgClient:
             raise ApproverError(f"control plane returned {response.status_code}")
         parsed: dict[str, Any] = response.json()
         return parsed
+
+
+@dataclass
+class SharedTallies:
+    """Budget totals pooled across every machine in the organisation.
+
+    **The hole it closes.** `SessionStore` made a budget survive a restart, and windows made one
+    span a day — but both are still *this machine*. A declared "20,000 objects a day" is twenty
+    thousand per laptop, so an org running forty agents declared a limit it does not have. That is
+    the last shape of `SCOPE.md` NC-01 that a single machine structurally cannot see, and it is why
+    `LICENSING.md` lists shared budgets as paid: the rule there is *can one machine do this?*, and
+    one machine cannot know what the other thirty-nine did.
+
+    **Same four methods as `SessionStore` and `MemoryTallies`**, so the engine does not branch. It
+    duck-types `sessions` for exactly this reason.
+
+    ---
+
+    Two properties this must keep, and both are about *not* becoming a new way to fail.
+
+    **1. An outage degrades to the free tier; it never blocks more.** Every remote call falls back
+    to the local store, which is a floor rather than a guess: it holds what *this* machine did, so
+    the fallback total is a lower bound on the fleet total. Under-counting costs a missed budget.
+    Over-counting would cost a wrongly blocked call, and a control plane that can stop work by being
+    unreachable is precisely what `LICENSING.md` promises paying for does not buy you. Stated
+    plainly rather than implied: **while the control plane is unreachable, a fleet budget is not
+    being enforced across the fleet.** It is being enforced per machine, which is the free tier.
+
+    **2. The local write always happens.** Posting remotely and skipping the local record would mean
+    an outage started the fallback from zero — so the first minute of every outage would forget
+    everything the machine had already done. Local first, remote second, and the remote answer wins
+    only when there is one.
+
+    The wire is four calls and no vocabulary of its own. Read it, write a server, and hold it to
+    `tests/integration/test_shared_tallies.py`, which pins every property above. What the hosted
+    tier sells is a server that is running, not a secret about how to talk to it.
+    """
+
+    local: Any
+    """A `SessionStore`. The floor, and the whole fallback path."""
+
+    client: OrgClient
+    agent: str = "default"
+    """Which machine this is, for the control plane's own reporting. Never part of a bucket key —
+    the point of a shared total is that every agent counts into the same one."""
+
+    _warned: bool = False
+    """Whether this process has already said that budgets are counting per machine."""
+
+    def load(self, window: Any, session_id: str, now: float) -> Any:
+        from neti.core.budget import SessionTally
+        from neti.store.sessions import bucket_key
+
+        if _is_session_window(window):
+            # A `session` window is one conversation on one machine. Pooling it across the fleet
+            # would add up unrelated conversations that merely share an id, which is not a total
+            # anybody declared. Only the wider windows are org-scoped.
+            return self.local.load(window, session_id, now)
+
+        key = bucket_key(window, session_id, now)
+        try:
+            body = self.client.totals(key)
+        except ApproverError as exc:
+            self._degraded(exc)
+            return self.local.load(window, session_id, now)
+        totals = {str(k): int(v) for k, v in (body.get("totals") or {}).items()}
+        return SessionTally(totals=totals, calls=int(body.get("calls") or 0))
+
+    def _degraded(self, exc: ApproverError) -> None:
+        """Say once, on stderr, that a fleet budget is currently a per-machine one.
+
+        Silence here is the failure this project keeps finding under a different name. An operator
+        who passed `--org` believes their twenty-thousand-a-day is twenty thousand across the fleet;
+        if the control plane cannot answer, it is twenty thousand *per machine* and nothing anywhere
+        says so. That is dead config that reads as configured.
+
+        Once, not per call: `neti hook` is a fresh process each time, so a per-call warning would be
+        one line of stderr for every tool the agent runs. Per process is the most this can say
+        without becoming the noise that gets a gate switched off.
+        """
+        if self._warned:
+            return
+        object.__setattr__(self, "_warned", True)
+        print(
+            f"neti: shared budgets unavailable ({exc}). Counting per machine until the control "
+            "plane answers — a declared fleet budget is not being enforced across the fleet.",
+            file=sys.stderr,
+        )
+
+    def add(self, window: Any, session_id: str, now: float, args: tuple[Any, ...]) -> Any:
+        from neti.store.sessions import bucket_key
+
+        # Local first, always — see property 2 above.
+        local_total = self.local.add(window, session_id, now, args)
+        if _is_session_window(window):
+            return local_total
+
+        from neti.core.budget import SessionTally
+        from neti.core.verdict import ResolutionState
+
+        contribution: dict[str, int] = {}
+        for arg in args:
+            res = arg.resolution
+            if res.state is ResolutionState.RESOLVED and res.magnitude is not None:
+                contribution[res.unit.value] = contribution.get(res.unit.value, 0) + res.magnitude
+        try:
+            body = self.client.add_totals(bucket_key(window, session_id, now), contribution)
+        except ApproverError as exc:
+            self._degraded(exc)
+            return local_total
+        totals = {str(k): int(v) for k, v in (body.get("totals") or {}).items()}
+        return SessionTally(totals=totals, calls=int(body.get("calls") or 0))
+
+    # A taint is a fact about one conversation on one machine, so it stays local. Sharing it would
+    # mean an agent that read a support ticket here is downstream of it in an unrelated
+    # conversation on somebody else's laptop, which is not what provenance claims.
+    def load_taint(self, session_id: str) -> Any:
+        return self.local.load_taint(session_id)
+
+    def remember_taint(self, session_id: str, taint: Any) -> None:
+        self.local.remember_taint(session_id, taint)
+
+    def sweep(self) -> None:
+        self.local.sweep()
+
+
+def _is_session_window(window: Any) -> bool:
+    from neti.core.budget import WindowKind
+
+    return getattr(window, "kind", None) is WindowKind.SESSION
 
 
 def org_client() -> OrgClient | None:
