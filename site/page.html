@@ -290,7 +290,13 @@
              font-size: .75rem; display: block; margin-top: .2rem; }
   .why { font-size: .875rem; color: var(--fg-muted); }
   .steps { display: grid; gap: 1px; background: var(--border); }
-  .v { font-family: var(--mono); }
+  /* The verdict, in front of the sentence that explains it. `margin-inline-end` is load-bearing
+     rather than decoration: `.v` and `.why` are adjacent inline spans written by one `innerHTML`
+     with no separator between them, so without it the simulator's own output read
+     `BLOCKPreflight blocked this call:` — on the landing page, above the fold, in the one element
+     that is supposed to demonstrate the product working. */
+  .v { font-family: var(--mono); font-weight: 600; letter-spacing: .06em;
+       margin-inline-end: .4rem; }
   .sig { color: var(--fg-faint); }
 
   footer { padding-block: clamp(2.5rem, 5vw, 4rem); border-top: 1px solid var(--fg);
@@ -1013,7 +1019,10 @@
       ? ` <span class="why">One dot is about ${comma(Math.round(perDot))} principals. ` +
         `A field this size does not fit on a screen, which is rather the point.</span>` : '';
     out.innerHTML =
-      `<span class="v" style="color:${d.colour}">${d.verdict}</span>` +
+      // The space between the two spans is real, not a margin. `.v` carries one as well, but a
+      // margin is invisible to `innerText`, to a screen reader and to anybody who copies the line
+      // — all three of which read `BLOCKPreflight blocked this call:` without this.
+      `<span class="v" style="color:${d.colour}">${d.verdict}</span> ` +
       `<span class="why">${d.why}</span>${scale}`;
     paint();
   }
