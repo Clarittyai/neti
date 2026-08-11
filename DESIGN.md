@@ -1,7 +1,7 @@
 # neti — design rules
 
 The design language is Claritty's — same neutrals, same structural instincts — with the system's
-own primary, Fireblocks' `#4568F3`. This file exists because that was true once
+own primary, Claritty's `#5B7FFF`. This file exists because that was true once
 and then stopped being true: the console re-skinned itself to violet while the website kept
 Claritty's indigo, the console filled up with cards the website never had, and every "nothing here
 yet" moment got hand-rolled a different way. None of that was disagreement. There was simply nothing
@@ -32,8 +32,23 @@ catch it.
 
 ## Colour
 
-**The primary is `#4568F3`** — Fireblocks' brand accent, read off their own site's computed styles
-rather than eyeballed from a screenshot. neti is part of that system, so it wears that colour.
+**The primary is `#5B7FFF`** — Claritty's own accent, read off `claritty.ai`'s computed styles
+rather than eyeballed from a screenshot. It is the most-painted non-neutral on that page, 102
+elements, and its focus ring is the same value.
+
+**This reverses a decision recorded further down this file, and the reversal is the point.** The
+anti-pattern table says the console once drifted to violet `#8B5CF6` while `site/page.html` kept
+`#5B7FFF`, and the fix was to move everything to Fireblocks' `#4568F3` — because neti was wearing
+Claritty's identity by accident, which is not the same as belonging to it.
+
+What changed is where neti lives. It is served from `neti.claritty.ai` now, a Claritty subdomain, so
+the family accent is *correct* rather than accidental. The two colours are close enough that this is
+a small visual move and a large intentional one: `#4568F3` was a deliberate act of separation, and
+undoing it silently would leave this file arguing for a separation the product had abandoned.
+
+Measured before adopting, to the same standard the old value was held to: `#5B7FFF` clears the
+ΔE2000 floor at **43.7** against blocked-red, its nearest reserved neighbour — against `#4568F3`'s
+43.8. Nothing about legibility changes.
 
 The neutrals are Claritty's, unchanged: `#0F0F10` background, `#1A1A1C` surface, `#27272A` border,
 `#F8FAFC` foreground, `#94A3B8` muted, and `--surface-deep` `#0d1117` for code, which is identical in
@@ -54,12 +69,12 @@ learned that red means blocked must never be shown a red that means something el
 scale survives colour blindness, a monochrome print and a screenshot in a bug report.
 
 **Measured, not asserted.** The primary clears a **ΔE2000 floor of 15** against all three reserved
-verdicts — measured minimum **43.8**, against `#EF4444`. `test_design_rules_hold.py` recomputes this,
+verdicts — measured minimum **43.7**, against `#EF4444`. `test_design_rules_hold.py` recomputes this,
 so the claim fails the build rather than aging in a comment. It replaces a header comment that
 claimed a validator had been run against a validator that was never committed.
 
 **Tokens only, never a hex.** `bg-accent`, `text-muted-foreground`, `border-border`. A hardcoded
-`#4568F3` in a component is a light-mode-only bug waiting to happen, and it is the exact mistake that
+`#5B7FFF` in a component is a light-mode-only bug waiting to happen, and it is the exact mistake that
 let the two surfaces drift apart.
 
 ---
@@ -186,7 +201,7 @@ screen instead of clipping it.
 
 | ❌ what happened | ✅ what should have |
 |---|---|
-| The console re-skinned to violet `#8B5CF6` while `site/page.html` kept `#5B7FFF`, so neti had two identities and one of them was Claritty's | One `--accent`, `#4568F3`, asserted equal in both files by a test |
+| The console re-skinned to violet `#8B5CF6` while `site/page.html` kept `#5B7FFF`, so neti had two identities and one of them was Claritty's | One `--accent`, asserted equal in both files by a test. The value moved to Fireblocks' `#4568F3` to end the accident, and back to Claritty's `#5B7FFF` on 2026-08-11 once neti was actually served from `neti.claritty.ai` — deliberately this time, and recorded at the top of this file rather than here |
 | `globals.css` claimed the accent "was CHOSEN BY RUNNING THE PALETTE VALIDATOR" — no validator existed anywhere in the repo, and its cited number could not be reproduced | The measurement lives in a test that recomputes it |
 | `/gate`'s empty state was a dashed rounded rectangle | `EmptyState`, open space, a live scene |
 | The overview was three bordered boxes stacked on a bordered table | Sections separated by rules |

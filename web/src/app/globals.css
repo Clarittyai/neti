@@ -2,7 +2,7 @@
    than imported on purpose: neti is a standalone repo and a build-time dependency on the monorepo
    would undo that. See DESIGN.md at the repo root for the rules these tokens serve.
 
-   THE ACCENT IS #4568F3 — Fireblocks' brand accent, read off their own site's computed styles
+   THE ACCENT IS #5B7FFF — Claritty's own accent, read off claritty.ai's computed styles
    rather than eyeballed. It is the system's colour, so neti wears it.
 
    It was briefly #3B82F6 (Claritty's `--info`) and before that violet. Both are recorded in
@@ -53,7 +53,7 @@
      * the hue does not move. The dark theme's own value already measures 7.6:1. */
     --muted-foreground: 215 16% 44%;
 
-    --accent: 228 88% 61%;             /* #4568F3 — Fireblocks. See header, DESIGN.md */
+    --accent: 227 100% 68%;             /* #5B7FFF — Claritty. See header, DESIGN.md */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;          /* #EF4444 */
@@ -77,7 +77,7 @@
 
     --status-success: 152 81% 39%;     /* emerald-500 */
     --status-error: 0 84% 60%;         /* red-500 (matches --destructive in light) */
-    --status-running: 228 88% 61%;     /* matches --accent */
+    --status-running: 227 100% 68%;     /* matches --accent */
     --status-idle: 215 16% 44%;        /* matches --muted-foreground */
     --canvas-grid: 214 32% 91%;        /* matches --border */
     --canvas-bg: 220 20% 98%;          /* page bg + 1% accent tint */
@@ -122,7 +122,7 @@
     --muted: 240 4% 16%;
     --muted-foreground: 215 20% 65%;
 
-    --accent: 228 88% 61%;             /* #4568F3 — Fireblocks. See header, DESIGN.md */
+    --accent: 227 100% 68%;             /* #5B7FFF — Claritty. See header, DESIGN.md */
     --accent-foreground: 0 0% 100%;
 
     --destructive: 0 63% 31%;          /* #DC2626 darker for dark mode */
@@ -153,7 +153,7 @@
 
     --status-success: 158 64% 52%;     /* emerald-400 */
     --status-error: 0 91% 71%;         /* red-400 */
-    --status-running: 228 88% 61%;     /* matches --accent */
+    --status-running: 227 100% 68%;     /* matches --accent */
     --status-idle: 215 20% 65%;        /* matches --muted-foreground */
     --canvas-grid: 240 4% 20%;         /* dim grid on dark canvas */
     --canvas-bg: 240 6% 5%;            /* slightly darker than page bg */

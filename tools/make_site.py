@@ -117,6 +117,28 @@ CLOUD_DESCRIPTION = (
 )
 
 
+def csp_hashes(html: str, tag: str) -> list[str]:
+    """`sha256-…` for every inline `<tag>` block in a built page.
+
+    The page inlines its own styles, script and images on purpose — `fragment()` says why: it has to
+    work from a `file://` URL, an email attachment or a preview host with no relative paths. That
+    rules out `script-src 'self'`, and it would be an ugly thing for *this* product to ship
+    `'unsafe-inline'` and hope nobody reads the header.
+
+    So the inline blocks are hashed and named in `vercel.json` instead. A stale hash fails
+    `test_the_csp_covers_what_the_page_actually_inlines` rather than silently blocking the page's
+    own script in a browser, which is a failure a visitor would find before anybody here did.
+    """
+    import hashlib
+    import re
+
+    out: list[str] = []
+    for block in re.findall(rf"<{tag}[^>]*>(.*?)</{tag}>", html, re.S):
+        digest = hashlib.sha256(block.encode("utf-8")).digest()
+        out.append("sha256-" + base64.b64encode(digest).decode("ascii"))
+    return out
+
+
 def expected() -> dict[Path, str]:
     """Every page this builds, and what each should contain.
 
