@@ -85,6 +85,9 @@ _PREFIXES = frozenset(
 # number produced that way is exactly the kind this file refuses to invent.
 _SHELLS = frozenset({"sh", "bash", "zsh", "dash", "ksh", "fish"})
 
+# Whether a backslash is an escape character or a path separator. See `_split`.
+_POSIX = os.name != "nt"
+
 # Where one command ends and the next begins, outside quotes. `_segments` below does the walk,
 # because a regex cannot tell `a | b` from `echo "a | b"` and the difference decides whether
 # `bash -c 'find / | xargs rm'` is read as one command or shredded into fragments.
@@ -142,7 +145,7 @@ def _segments(text: str) -> list[str]:
 def _head(segment: str) -> tuple[str, list[str]]:
     """The verb a segment actually runs, with its prefixes peeled, and the rest of its tokens."""
     try:
-        tokens = shlex.split(segment)
+        tokens = _split(segment)
     except ValueError:
         tokens = segment.split()
     saw_prefix = False
@@ -175,6 +178,77 @@ def destructive_signal(command: str) -> Signal | None:
     return _signal(command or "", depth=0)
 
 
+def _subcommand_signal(verb: str, rest: list[str]) -> Signal | None:
+    """Destructive forms that need a flag or a subcommand to be one.
+
+    Every entry here widens the **flag** half only. Nothing below teaches `targets_of` to produce a
+    number, and that asymmetry is the design: flagging a command costs a line in `neti report`, and
+    mis-sizing one lets a deletion through under a ceiling. So this list is allowed to grow much
+    faster than the sizing table, and it leans toward saying *"this destroyed something and I cannot
+    tell you how much"* wherever it is unsure.
+
+    Each form is here because a coding agent reaches for it unprompted, and each one is paired with
+    the spelling that is *not* destructive — `sed` without `-i`, `tee -a`, `rsync` without
+    `--delete`. A recogniser that fired on both would teach an operator to stop reading the flag,
+    which is the same reason `--force-with-lease` is deliberately absent from the `git push` check.
+
+    Deliberately **not** here: `chmod -R` and `chown -R`. They can make a tree unusable and they
+    destroy no data, and folding "broke the permissions" into the same signal as "deleted the files"
+    makes the signal mean less. That is a judgement, and it is written down rather than implied.
+    """
+    flags = {t for t in rest if _is_flag(t)}
+    first = rest[0] if rest else ""
+
+    # In-place edit. The most common way an agent overwrites a file without ever calling `rm`.
+    #
+    # `-i`, `-i.bak`, and bundled short clusters like `-ni`. sed's short flags are
+    # n/e/f/i/E/r/s/u/z, so an `i` inside a cluster is unambiguous — and `--include` is not a
+    # cluster, so the long-flag spelling cannot be caught by accident.
+    if verb == "sed" and any(_has_short(f, "i") or f == "--in-place" for f in flags):
+        return Signal(form="sed_in_place")
+
+    # `tee f` truncates `f`; `tee -a f` does not. The default is the destructive one.
+    #
+    # A bare `tee` in a pipeline writes to stdout and destroys nothing, so a file argument is
+    # required — otherwise the single most common use of the command is flagged forever, which is
+    # how a report stops being read.
+    if verb == "tee" and not (flags & {"-a", "--append"}) and any(not _is_flag(t) for t in rest):
+        return Signal(form="tee_truncate")
+
+    if verb == "rsync" and any(f.startswith("--delete") for f in flags):
+        return Signal(form="rsync_delete")
+
+    if verb == "git" and first == "branch" and any("D" in f.lstrip("-") for f in flags):
+        # `-D` only. `-d` refuses to drop an unmerged branch, which is exactly the distinction
+        # worth preserving.
+        return Signal(form="git_branch_force_delete")
+
+    if verb == "git" and first == "stash" and len(rest) > 1 and rest[1] in {"drop", "clear"}:
+        return Signal(form=f"git_stash_{rest[1]}")
+
+    if verb == "docker":
+        if first in {"rmi", "rm"} or (len(rest) > 1 and rest[0] == "volume" and rest[1] == "rm"):
+            return Signal(form="docker_remove")
+        if "prune" in rest:
+            return Signal(form="docker_prune")
+
+    if verb == "kubectl" and first == "delete":
+        return Signal(form="kubectl_delete")
+
+    if verb == "terraform" and (first == "destroy" or "-destroy" in rest):
+        return Signal(form="terraform_destroy")
+
+    # Object-store deletion. Reaches far more data per keystroke than anything on a local disk, and
+    # `storage.objects` can size the prefix — but only once somebody declares it, so the signal has
+    # to stand on its own until then.
+    if verb == "aws" and first == "s3" and len(rest) > 1 and rest[1] in {"rm", "rb"}:
+        return Signal(form=f"aws_s3_{rest[1]}")
+    if verb in {"gsutil", "gcloud"} and "rm" in rest[:2]:
+        return Signal(form="gsutil_rm")
+
+    return None
+
+
 def _signal(text: str, *, depth: int) -> Signal | None:
     for segment in _segments(text):
         if not segment.strip():
@@ -197,6 +271,9 @@ def _signal(text: str, *, depth: int) -> Signal | None:
             or ("-exec" in rest and any(t.rsplit("/", 1)[-1] in _DESTRUCTIVE_VERBS for t in rest))
         ):
             return Signal(form="find_delete")
+        flagged = _subcommand_signal(verb, rest)
+        if flagged is not None:
+            return flagged
         if verb == "git" and rest:
             sub = rest[0]
             if sub == "rm" or (sub == "clean" and any(_is_flag(f) and "f" in f for f in rest[1:])):
@@ -257,7 +334,7 @@ def referenced_paths(command: str, depth: int = 0) -> tuple[str, ...]:
         if not segment.strip():
             continue
         try:
-            tokens = shlex.split(segment)
+            tokens = _split(segment)
         except ValueError:
             continue
         if not tokens:
@@ -353,8 +430,48 @@ class Targets:
     reason: str = "not_a_recognised_destructive_command"
 
 
+def _split(text: str) -> list[str]:
+    """`shlex.split`, without eating the separators out of a Windows path.
+
+    **`shlex.split` defaults to POSIX mode, where `\\` is an escape character.** On Windows that
+    turns `rm -rf C:\\Users\\me\\build` into the single token
+    `C:UsersmebuildC` — a path that does not exist, so `fs.paths` cannot size it, so the call
+    resolves UNRESOLVED, so the shipped policy's `on_unresolved: allow` lets it through.
+
+    Which means: **`shell.paths` could not size any deletion on Windows.** Not "sized it wrongly" —
+    could not see it at all, while reporting the same "not a recognised destructive command" note
+    that `npm test` gets. The gate looked identical and gated nothing.
+
+    It was invisible for the ordinary reason: development happens on macOS, where the same string is
+    a POSIX path with no backslashes in it, and CI's Windows job has never been green.
+
+    So the mode follows the platform, because the platform *is* the difference — a backslash is an
+    escape in `sh` and a separator in `cmd`, and no reading is right in both. Non-POSIX mode
+    leaves quote characters attached to their tokens, so those come off here; nothing else about
+    the parse changes, and on any non-Windows machine this is exactly `shlex.split` as before.
+    """
+    if _POSIX:
+        return shlex.split(text)
+    return [_unquote(token) for token in shlex.split(text, posix=False)]
+
+
+def _unquote(token: str) -> str:
+    if len(token) >= 2 and token[0] == token[-1] and token[0] in {"'", '"'}:
+        return token[1:-1]
+    return token
+
+
 def _is_flag(token: str) -> bool:
     return token.startswith("-") and token != "-"
+
+
+def _has_short(flag: str, letter: str) -> bool:
+    """Is `letter` present in a bundled short-flag cluster like `-ni`?
+
+    Long flags are excluded on purpose: `--include` must not read as `-i`, and a cluster is by
+    definition a single dash.
+    """
+    return flag.startswith("-") and not flag.startswith("--") and letter in flag[1:]
 
 
 def targets_of(command: str) -> Targets:
@@ -374,7 +491,7 @@ def targets_of(command: str) -> Targets:
         return Targets(reason="compound_command")
 
     try:
-        tokens = shlex.split(text)
+        tokens = _split(text)
     except ValueError:
         return Targets(reason="unparseable_quoting")
     if not tokens:

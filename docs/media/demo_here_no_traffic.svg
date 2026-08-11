@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 952 800" width="952" height="800" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace" font-size="14">
+<rect width="952" height="800" rx="12" fill="#0d1117"/>
+<text x="22" y="36.93" fill="#94a3b8" xml:space="preserve">$ neti demo --here --repo &lt;path&gt; -c &lt;path&gt;</text>
+<text x="22" y="58.63" fill="#c9d1d9" xml:space="preserve">neti demo — measured on &lt;path&gt;</text>
+<text x="22" y="80.33" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="102.03" fill="#c9d1d9" xml:space="preserve">── 1. DISCOVER ─────────────────────────────────────────  read from this machine</text>
+<text x="22" y="123.73" fill="#c9d1d9" xml:space="preserve">   no MCP servers configured on this machine</text>
+<text x="22" y="145.43" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="167.13" fill="#c9d1d9" xml:space="preserve">── 2. REACH ────────────────────────────────────────────  MEASURED here, no traffic needed</text>
+<text x="22" y="188.83" fill="#c9d1d9" xml:space="preserve">   listening   filesystem                 32 objects</text>
+<text x="22" y="210.53" fill="#c9d1d9" xml:space="preserve">   dark        source control              — export NETI_GITHUB_TOKEN</text>
+<text x="22" y="232.23" fill="#c9d1d9" xml:space="preserve">   dark        database                    — export NETI_DATABASE_URL</text>
+<text x="22" y="253.93" fill="#c9d1d9" xml:space="preserve">   dark        object storage              — export AWS_ACCESS_KEY_ID</text>
+<text x="22" y="275.63" fill="#c9d1d9" xml:space="preserve">   dark        directory                   — export NETI_TENANT_ID</text>
+<text x="22" y="297.33" fill="#c9d1d9" xml:space="preserve">   listening   infrastructure              — reachable_max_requires_terraform_state</text>
+<text x="22" y="319.03" fill="#c9d1d9" xml:space="preserve">   listening   shell                      32 objects</text>
+<text x="22" y="340.73" fill="#c9d1d9" xml:space="preserve">   no resolver messaging                   — Slack, Teams, outbound email outside a directory</text>
+<text x="22" y="362.43" fill="#c9d1d9" xml:space="preserve">   no resolver SaaS records                — CRM objects, tickets, documents in a vendor's own store</text>
+<text x="22" y="384.13" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="405.83" fill="#c9d1d9" xml:space="preserve">   3 layer(s) listening · 4 dark for want of a credential · 2 with no resolver at all</text>
+<text x="22" y="427.53" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="449.23" fill="#c9d1d9" xml:space="preserve">   An agent working here reaches 32 objects, across 1 gated parameter(s).</text>
+<text x="22" y="470.93" fill="#c9d1d9" xml:space="preserve">   It bounds what one credential can address here; it does not measure any single call. Nothing in a</text>
+<text x="22" y="492.63" fill="#c9d1d9" xml:space="preserve">permission system reports either number — it answers whether, not how many.</text>
+<text x="22" y="514.33" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="536.03" fill="#c9d1d9" xml:space="preserve">Acts 3-6 need traffic, and you have none yet.</text>
+<text x="22" y="557.73" fill="#c9d1d9" xml:space="preserve">   Install the hook and work normally for an afternoon:</text>
+<text x="22" y="579.43" fill="#c9d1d9" xml:space="preserve">     {"hooks": {"PreToolUse": [{"matcher": "*",</text>
+<text x="22" y="601.13" fill="#c9d1d9" xml:space="preserve">       "hooks": [{"type": "command", "command": "neti hook -c neti.yaml"}]}]}}</text>
+<text x="22" y="622.83" fill="#c9d1d9" xml:space="preserve">   Then run this again — acts 3 to 6 need traffic, and that is how you get it.</text>
+<text x="22" y="644.53" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="666.23" fill="#c9d1d9" xml:space="preserve">Measured on this machine. Every number above was produced by walking these files, through the same decision</text>
+<text x="22" y="687.93" fill="#c9d1d9" xml:space="preserve">path the gate uses in production.</text>
+<text x="22" y="709.63" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="731.33" fill="#c9d1d9" xml:space="preserve">Nothing to wait for on the other half: `neti prove` runs one call through every door</text>
+<text x="22" y="753.03" fill="#c9d1d9" xml:space="preserve">this machine has and shows they all reach the same verdict, with a chain you can</text>
+<text x="22" y="774.73" fill="#c9d1d9" xml:space="preserve">re-check yourself.</text>
+</svg>

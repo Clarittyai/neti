@@ -210,6 +210,27 @@ def explain_denial(result: GateResult, payload: dict[str, Any]) -> str:
         )
 
     sensitive = payload.get("sensitive")
+    if sensitive and not sensitive.get("pointer"):
+        # A rule that named the *operation* rather than a target. There is no parameter to blame and
+        # no smaller target that would help: `delete_repository` is irreversible whatever it points
+        # at, which is the entire reason somebody declared it this way.
+        #
+        # The general sensitivity sentence below ends "choose a different target", and here that is
+        # not merely unhelpful — it is the wrong instruction. An agent that follows it retries the
+        # same irreversible verb against a *different* repository, which is a worse outcome than the
+        # one that was blocked. The remedy is a person, so the sentence says a person.
+        why = sensitive.get("why") or "it is declared sensitive"
+        act = result.decision.tool or "this operation"
+        return (
+            f"Preflight {'blocked this call' if verdict is Verdict.BLOCK else 'needs confirmation'}"
+            f": `{act}` is gated on being the operation it is, not on how much it touches — {why}. "
+            + (
+                "No target makes this call acceptable; an operator has to run it themselves."
+                if verdict is Verdict.BLOCK
+                else "Ask an operator to approve this one."
+            )
+        )
+
     if sensitive:
         why = sensitive.get("why") or "it is declared sensitive"
         return (

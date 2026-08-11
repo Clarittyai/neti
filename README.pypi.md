@@ -4,7 +4,7 @@
 <p align="center">
   <b>A preflight gate for agent tool calls.</b><br>
   Before an agent acts, <code>neti</code> resolves what the action will actually touch —<br>
-  and blocks it when that is bigger than you said it should be.
+  and stops it when that crosses a line you declared.
 </p>
 
 <p align="center">
@@ -16,7 +16,7 @@
 </p>
 
 <p align="center">
-  <b><a href="https://neti-security.github.io/neti/">neti-security.github.io/neti</a></b>
+  <b><a href="https://neti.claritty.ai/">neti.claritty.ai</a></b>
 </p>
 
 ```
@@ -31,6 +31,18 @@ applications** — and stops the call, because you declared a ceiling of 200.
 The agent gets back a number, not a refusal — which is what makes it narrow the target and try again
 instead of giving up or routing around. Nothing about the gate leaks into the prompt.
 
+Size is the line nobody else can draw, so it leads. It is not the only one:
+
+```
+Read(.env)                        stopped — one file, under every ceiling, and off limits
+Read(~/.ssh/id_rsa)               stopped — outside the tree you pointed the agent at
+purge("customer_data")            stopped — this session already read a ticket a stranger wrote
+Read(#1), Read(#2) … Read(#3,998) stopped — the session total, not any one call
+```
+
+None of those four is a statement about how big anything is, and all four are the same mechanism:
+**a rule a human wrote, compared without a model, sealed into a chain you can re-derive offline.**
+
 **Every image on this page is generated from a transcript the test suite pins byte for byte.** They
 cannot show something the product no longer prints: change the wording and the build fails until the
 picture is regenerated. See [`tools/make_media.py`](https://github.com/Neti-Security/neti/blob/main/tools/make_media.py).
@@ -38,8 +50,27 @@ picture is regenerated. See [`tools/make_media.py`](https://github.com/Neti-Secu
 ## Why
 
 An agent asks to do one thing. That one thing turns out to be a million things. Nobody finds out
-until after. Alignment, authorization, provenance, sandboxing, anomaly detection and rollback all
-answer a different question; none of them answers *how big is this*.
+until after. Alignment, authorization, sandboxing, anomaly detection and rollback all answer a
+different question; none of them answers *how big is this*.
+
+That is the question `neti` was built for, and it is one of five it now answers. Each is a separate
+declaration, and a call is stopped if **any** of them says so:
+
+| | the question | you declare |
+|---|---|---|
+| **magnitude** | how big is the set this argument addresses | a ceiling, in a unit |
+| **sensitivity** | what *is* this target, whatever its size | a glob, and why |
+| **location** | is it outside the tree the agent was pointed at | one verdict |
+| **accumulation** | how much has this session touched already | a budget per unit |
+| **provenance** | is this session downstream of untrusted input | where untrusted input lives |
+
+**Declared, not learned** — and that is the part that matters more than the list. Nothing here is
+scored, inferred, or served from somebody's cloud. Every verdict is a static comparison against
+something a human wrote, which is why a false block is always *"the rule you wrote is too tight"* —
+readable in five seconds, fixable in one line, and never *"the model found it suspicious."*
+
+That is the difference between a control you leave switched on and one that gets switched off in
+month two.
 
 ## Getting value from it
 
@@ -89,6 +120,14 @@ credentials, no configuration, no traffic to wait for.
 
 It is not an alert. Nothing has gone wrong. It is a fact about your capability surface that you
 could not previously obtain.
+
+<img src="https://raw.githubusercontent.com/Neti-Security/neti/main/docs/media/demo_here_no_traffic.svg" alt="neti demo --here on a machine with no traffic: three layers listening, four dark for want of a credential, and the total an agent working here can reach">
+
+**This is the whole of day zero**, and the only picture on this page that needs neither traffic nor
+a credential — `neti demo --here` walks your own files through the same decision path the gate uses
+in production. Three layers are listening, four are dark for want of a credential, and two have no
+resolver at all. The tool tells you which is which rather than reporting a number and letting you
+assume it covered everything.
 
 …and then it turns itself on:
 
@@ -157,6 +196,29 @@ ceiling means anything."* That refusal is the feature.
 
 You can also declare a ceiling from the console: `/policy` shows the distribution beside the field,
 tells you how many recorded calls it would have stopped, shows you the diff, and backs up the file.
+
+**And it proposes the ceiling a per-call ceiling cannot be.** Four thousand reads of one file each
+are four thousand calls of magnitude 1, and every one of them is under every ceiling anybody would
+write ([`SCOPE.md`](https://github.com/Neti-Security/neti/blob/main/SCOPE.md) NC-01, NC-12). Only a cumulative budget sees that — so `propose` also
+totals up whole *sessions* and whole *days* and suggests one:
+
+```
+objects per day:
+  observed  9 day(s)  median=1,240  max=3,180  [objects]
+  proposed  confirm above 2,500   block above 5,000
+  rationale 2x and 5x the median day (1,240 objects). Anchored on the median rather than a
+            percentile: a budget already sums a window of calls, and at 9 day(s) a p95 is the
+            maximum under another name. Derived from 9 day(s), which is a judgement rather
+            than a statistic — review it before committing
+  IMPACT    0 of the 9 observed day(s) would have crossed this
+```
+
+The window matters as much as the number. A `session` budget catches one run going wrong; it starts
+every new conversation at zero, so an agent reading steadily for three days trips nothing. `day`,
+`week` and `rolling:<n>h` span conversations. A calendar window resets on its boundary — a `day`
+budget of 20,000 permits 40,000 across one midnight — which is why `rolling:` exists and why
+`propose` will not invent one for you: only `session` and `day` can be read off recorded traffic,
+and it says so.
 
 **And it proposes the other axis, which needs no traffic at all.** A ceiling cannot reach a single
 file — `.env` is one object, under every ceiling anybody would write. So `neti propose` also looks
@@ -524,7 +586,7 @@ A `confirm` band means *somebody other than the agent's operator should decide t
 machine there is nobody to ask, so the gate stops the call and says so. That is correct, and it is
 what a free install will keep doing.
 
-The hosted tier — [`neti-cloud`](https://neti-security.github.io/neti/), BUSL-1.1 — is the somewhere the
+The hosted tier — [`neti-cloud`](https://neti.claritty.ai/cloud/), BUSL-1.1 — is the somewhere the
 question can go:
 
 ```console
@@ -746,7 +808,7 @@ Open an issue with the tool and the parameter and we will tell you honestly whet
 ---
 
 <p align="center">
-  <a href="https://neti-security.github.io/neti/"><b>neti-security.github.io/neti</b></a> ·
+  <a href="https://neti.claritty.ai/"><b>neti.claritty.ai</b></a> ·
   <a href="https://github.com/Neti-Security/neti/blob/main/LICENSING.md">Apache-2.0</a> ·
   no telemetry, no phone-home, no licence check
 </p>

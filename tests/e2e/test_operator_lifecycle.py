@@ -251,12 +251,26 @@ def _predicted_impact(stdout: str) -> dict[str, int]:
 
 
 def _yaml_fragment(stdout: str) -> dict[str, object]:
-    """The merge fragment, taken from where the output actually puts it."""
-    marker = "tools:"
-    index = stdout.find(f"\n{marker}")
-    if index < 0:
+    """The merge fragment, taken the way a person would select it.
+
+    Reads from `tools:` to the end of its indented block, rather than to the end of the output.
+    Those were the same thing while the ceilings were the last thing `propose` printed, and stopped
+    being the same thing when cumulative budgets and the provenance note were added after them —
+    at which point "everything to EOF" was prose, and `yaml.safe_load` said so.
+
+    The looser reading was never right, only lucky: the output has always had prose *above* the
+    fragment, so the fragment was always a block inside a document rather than the document.
+    """
+    lines = stdout.splitlines()
+    start = next((i for i, line in enumerate(lines) if line.rstrip() == "tools:"), None)
+    if start is None:
         return {}
-    parsed = yaml.safe_load(stdout[index:])
+    block = [lines[start]]
+    for line in lines[start + 1 :]:
+        if line.strip() and not line.startswith((" ", "\t")):
+            break
+        block.append(line)
+    parsed = yaml.safe_load("\n".join(block))
     return parsed if isinstance(parsed, dict) else {}
 
 

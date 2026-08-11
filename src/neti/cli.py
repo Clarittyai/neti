@@ -927,6 +927,36 @@ def gate(
         client.close()
 
 
+def _tallies(records: Path | str, org: bool) -> Any:
+    """Where budget totals live: this machine, or the whole organisation.
+
+    Local unless `--org` *and* a login, and the local store is still constructed either way — it is
+    the floor `SharedTallies` falls back to, so a control plane going away degrades to exactly what
+    a free install does rather than to nothing.
+
+    Never fatal. Unlike `--approver`, a missing login here costs accuracy rather than a mechanism:
+    a per-machine budget still fires, it just does not see the other machines. Exiting would take
+    the tool call down over a bookkeeping question.
+    """
+    from neti.store.sessions import SessionStore
+
+    local = SessionStore(records)
+    if not org:
+        return local
+
+    from neti.cloud import SharedTallies, org_client
+
+    client = org_client()
+    if client is None:
+        print(
+            "neti: --org needs a control plane for shared budgets; run `neti login` first. "
+            "Budgets are being counted per machine until then.",
+            file=sys.stderr,
+        )
+        return local
+    return SharedTallies(local=local, client=client)
+
+
 def _approver(org: bool, *, fatal: bool = True) -> Any:
     """A control plane, if the operator asked for one and is logged in.
 
@@ -1049,7 +1079,6 @@ def hook(
     from neti.engine import Engine
     from neti.resolvers.base import ResolveContext
     from neti.store.jsonl import JsonlSink, chain_head
-    from neti.store.sessions import SessionStore
 
     try:
         event = read_event(sys.stdin.read())
@@ -1089,7 +1118,7 @@ def hook(
             # One process per tool call, so the in-memory tally is empty every time and a declared
             # session budget could never fire here — which made `SCOPE.md` NC-01's "mitigated only
             # by declared session budgets" false on the integration most people use.
-            sessions=SessionStore(records),
+            sessions=_tallies(records, org),
         )
     except Exception as exc:
         # Deliberately every exception. A hook that cannot run must not take the session down with
@@ -1348,9 +1377,75 @@ def suggest(
     typer.echo("Nothing is active until you delete the `#` in front of it yourself.")
 
 
+def _provenance_note(config: str) -> str:
+    """The third axis, named here because this is where somebody asks *what should I declare*.
+
+    **And deliberately not proposed.** The ceilings above came from observed traffic and the
+    `sensitive:` rules from files that are really on this disk — both are facts. Where *untrusted
+    input* lives is not a fact about a disk, it is a claim about a business: a directory called
+    `uploads/` is a stranger's files in one repository and build artifacts in the next, and nothing
+    on the filesystem distinguishes them. Proposing a pattern from a directory name would be exactly
+    the semantic guess `neti suggest` is quarantined for — commented out, empty bands, never loaded
+    by the gate — and this command's output is meant to be pasted.
+
+    So it says the axis exists, shows the shape, and stops. Silence would be worse: `sensitive:`
+    shipped commented out and mentioned only in a changelog, and a capability nobody can find is a
+    capability nobody has.
+
+    Prints nothing once provenance is declared, and nothing when there is no policy to read.
+    """
+    from neti.config.policy import PolicyError, load_policy
+
+    path = Path(config)
+    if not path.exists():
+        return ""
+    try:
+        if load_policy(str(path)).provenance.declared:
+            return ""
+    except (PolicyError, OSError, ValueError):
+        return ""
+
+    return "\n".join(
+        [
+            "",
+            "─" * 78,
+            "",
+            "Provenance — the axis this command will not propose for you.",
+            "",
+            "A prompt injection is small at both ends: the ingest is one support ticket and",
+            "the payload can be one file. No ceiling reaches it. What does is one mechanical",
+            "question — *has this session already read something you declared untrusted?* —",
+            "which an attacker cannot write the answer to. The injected text can claim",
+            "anything; it cannot change that the session read customer_data/ two calls ago.",
+            "",
+            "Every other number here came from your traffic or your disk. This one cannot:",
+            "whether `uploads/` holds a stranger's files or your build output is a fact about",
+            "your business, not your filesystem. So the patterns are yours to write. The shape:",
+            "",
+            "  provenance:",
+            '    untrusted: ["**/customer_data/**", "https://forum.example/**"]',
+            '    tools: ["mcp__scraper__*"]      # a whole MCP server, whatever it grows',
+            "    bands:",
+            "      - { above: 50, verdict: confirm }   # applied ON TOP of each gate's own bands",
+            "",
+            "Escalate-only, so a pattern written too widely costs a confirmation and never a",
+            "silent allow. A call cannot taint itself: reading the first ticket is an ordinary",
+            "read, and the tightening applies from the next call onward.",
+        ]
+    )
+
+
 @app.command(rich_help_panel="Every day")
 def propose(
     records: Annotated[str, typer.Option("--records", "-r")] = "out/decisions.ndjson",
+    config: Annotated[
+        str,
+        typer.Option(
+            "--config",
+            "-c",
+            help="Read to skip axes you have already declared. Missing is fine.",
+        ),
+    ] = "neti.yaml",
     since: Annotated[
         str | None,
         typer.Option("--since", help="Only calls in this window: 90s, 30m, 12h, 7d, 2w."),
@@ -1372,7 +1467,11 @@ def propose(
     magnitudes come from the built-in tenant, and a ceiling fitted to a fixture is worse than no
     ceiling because somebody will defend it.
     """
-    from neti.insight.propose import format_proposals
+    from neti.insight.propose import (
+        format_budget_proposals,
+        format_proposals,
+        propose_budgets,
+    )
     from neti.insight.propose import propose as build
     from neti.insight.report import build_report
     from neti.insight.window import parse_since, within
@@ -1417,7 +1516,17 @@ def propose(
             "These numbers describe the built-in tenant, not your agents.",
             fg=typer.colors.YELLOW,
         )
-    typer.echo(format_proposals(build(summary)))
+    # The cumulative half comes after the per-call ceilings: it answers a different question and
+    # reads as noise before the operator has the first one. Empty when the records carry nothing to
+    # derive a budget from, so a fresh install sees no dangling heading.
+    #
+    # Joined rather than echoed twice, so the blank line between the two sections does not depend on
+    # whether the section above happened to end with one.
+    sections = [format_proposals(build(summary)).strip("\n")]
+    budgets = format_budget_proposals(propose_budgets(summary)).strip("\n")
+    if budgets:
+        sections.append(budgets)
+    typer.echo("\n\n".join(sections))
 
     # The other axis, and the reason it is here rather than in its own command: this is already
     # the place somebody comes to ask *what should I declare*. `sensitive:` shipped commented out
@@ -1436,6 +1545,10 @@ def propose(
     if found:
         typer.echo("\n" + "─" * 78 + "\n")
         typer.echo(found)
+
+    note = _provenance_note(config)
+    if note:
+        typer.echo(note)
 
 
 @app.command(hidden=True)

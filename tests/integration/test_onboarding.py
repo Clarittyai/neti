@@ -108,8 +108,11 @@ def test_the_command_names_the_policy_the_console_is_actually_holding(repo: Path
     A walkthrough that prints a placeholder is a walkthrough somebody has to translate, and the
     translation is where they get it wrong — the console can be running any policy path.
     """
-    st = state(repo, policy_path=Path("configs/prod.yaml"))
-    assert "configs/prod.yaml" in step(st, "install").command  # type: ignore[attr-defined]
+    policy = Path("configs/prod.yaml")
+    st = state(repo, policy_path=policy)
+    # `str(policy)`, so the assertion is about the path being *named* rather than about which
+    # separator this machine spells it with. `configs\\prod.yaml` is correct on Windows.
+    assert str(policy) in step(st, "install").command  # type: ignore[attr-defined]
 
 
 def test_the_project_hook_is_offered_before_the_user_one(repo: Path) -> None:

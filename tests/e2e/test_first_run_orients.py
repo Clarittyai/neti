@@ -45,12 +45,26 @@ def test_the_first_screen_is_not_nineteen_commands() -> None:
 
 
 def test_start_is_offered_before_anything_else() -> None:
-    """`Start here` has to be the first panel, or the ordering is doing nothing."""
+    """`Start here` has to be the first panel, or the ordering is doing nothing.
+
+    Read by where the panel *titles* fall rather than by counting `╭─` lines. Rich substitutes
+    ASCII box-drawing whenever the output encoding cannot carry the rounded characters, which is
+    the ordinary state of a CI runner — so the old reading found no panels at all and failed with
+    "the commands are not grouped", on every platform, while the grouping was perfectly fine.
+
+    The claim was never about box-drawing. It is that somebody opening `--help` for the first time
+    meets `Start here` before anything else.
+    """
     result = runner.invoke(app, ["--help"])
-    panels = [line for line in result.output.splitlines() if line.startswith("╭─")]
-    named = [p for p in panels if "Options" not in p]
-    assert named, "the commands are not grouped at all"
-    assert "Start here" in named[0], f"the first command panel is {named[0]!r}"
+    at = {
+        title: result.output.find(title)
+        for title in ("Start here", "Every day", "When you need it")
+    }
+    found = {title: where for title, where in at.items() if where >= 0}
+
+    assert found, f"the commands are not grouped at all:\n{result.output}"
+    first = min(found, key=lambda title: found[title])
+    assert first == "Start here", f"the first command panel is {first!r}"
 
 
 def test_start_ends_by_measuring_this_machine(tmp_path: Path) -> None:

@@ -220,7 +220,7 @@ def test_a_half_written_line_is_counted_rather_than_skipped(tmp_path: Path) -> N
     records = tmp_path / "d.ndjson"
     records.write_text(
         json.dumps({"verdict": "allow", "decided_at": "2026-08-01T00:00:00+00:00"})
-        + "\n{\"verdict\": \"conf",
+        + '\n{"verdict": "conf',
         encoding="utf-8",
     )
     seen, _last, _stopped, torn = observed(records)

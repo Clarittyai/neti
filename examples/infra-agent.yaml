@@ -76,7 +76,17 @@ tools:
 # NC-01 applies here too, though less sharply than elsewhere: an agent that applies eleven one-
 # resource plans has destroyed eleven resources, and every call passed a ceiling of ten.
 #
-# Per-process in this release: a restart resets the total.
+# Totals persist beside the records, so a restart no longer resets them.
+#
+# `window:` decides what "cumulative" is counted over:
+#
+#   session       one conversation. The default, and what every policy written before this meant.
+#   day           a UTC calendar day, shared across every session on this machine.
+#   week          a UTC ISO week.
+#   rolling:24h   the last N hours, always. 1h to 168h.
+#
+# A calendar window resets on its boundary — a `day` budget of 20,000 permits 40,000 across a single
+# midnight. Declare `rolling:` when the number is a safety limit rather than an accounting period.
 #
 # session_budgets:
 #   - tools: [terraform_apply, apply_plan]

@@ -53,11 +53,51 @@ notify:
 # Commented out because the right list is yours, not a generator's. These four are the ones almost
 # every repository wants; delete the `#` on the ones that apply.
 #
+# A rule can also name the *tools* it applies to, which is how one target carries two consequences:
+# reading `.env` is worth a confirmation, overwriting it is not recoverable. That is not a statement
+# about size — both are one object.
+#
+# And `match:` is optional. A rule with only `tools:` fires on the *act*, with no glob, no resolver
+# and no magnitude behind it: `delete_repository` is irreversible whatever it is pointed at, and
+# that is the shape SCOPE.md NC-05 ("revoking one admin's access") actually needs.
+#
+# Rules JOIN, worst wins — so a rule written too widely costs a confirmation, and a stricter rule
+# declared after a broader one is not silently shadowed by it.
+#
 # sensitive:
 #   - { match: "**/*.env",       verdict: confirm, why: credentials live here }
 #   - { match: "**/*.pem",       verdict: confirm, why: private keys }
 #   - { match: "**/.git/**",     verdict: confirm, why: rewriting history is not reversible }
 #   - { match: "**/.ssh/**",     verdict: block,   why: nothing here is an agent's business }
+#   - { match: "**/*.env", tools: [Write, Edit], verdict: block, why: overwriting is not recoverable }
+#   - { tools: ["mcp__github__delete_*"], verdict: confirm, why: there is no undo }
+
+# ---------------------------------------------------------------- gated on WHAT IT ALREADY READ
+#
+# The third axis, and the one aimed at prompt injection. A coding agent fetches a web page, reads
+# an issue, opens a downloaded file — and whatever comes back is a stranger's words sitting in the
+# context window. The injection is small at both ends: the ingest is one page, and a well-chosen
+# payload is one file. No ceiling reaches either.
+#
+# This does not read the prompt, score anything, or ask the model what it meant. It answers one
+# mechanical question an attacker cannot write the answer to: *has this session already read
+# something you declared untrusted?* If it has, every later call in that session also has to clear
+# the tighter `bands` below — added to each gate's own, never replacing them.
+#
+# Commented out because where untrusted input lives is a fact about your work, not about your disk.
+# A directory called `uploads/` is a stranger's files in one repository and build output in the
+# next, and nothing on the filesystem tells them apart — so `neti propose` will not guess it either.
+#
+# Escalate-only: a pattern written too widely costs a confirmation, never a silent allow. And a call
+# cannot taint itself, so reading the first page is an ordinary read.
+#
+# provenance:
+#   untrusted:
+#     - "**/node_modules/**"        # code you did not write, and did not review
+#     - "https://**"                # anything fetched off the open web
+#   tools: ["WebFetch", "mcp__*"]   # or name a whole MCP server: every tool it has, and grows
+#   bands:
+#     - { above: 50, verdict: confirm }
 
 tools:
   # ---------------------------------------------------------------- the broad reads and writes
@@ -178,8 +218,17 @@ tools:
 # sees it. For a coding agent this is the realistic exfiltration shape — nothing is ever "too big",
 # there is just a great deal of it.
 #
-# Per-process in this release: a restart resets the total, and the mitigation stops applying until
-# the next call. Stated rather than discovered.
+# Totals persist beside the records, so a restart no longer resets them.
+#
+# `window:` decides what "cumulative" is counted over:
+#
+#   session       one conversation. The default, and what every policy written before this meant.
+#   day           a UTC calendar day, shared across every session on this machine.
+#   week          a UTC ISO week.
+#   rolling:24h   the last N hours, always. 1h to 168h.
+#
+# A calendar window resets on its boundary — a `day` budget of 20,000 permits 40,000 across a single
+# midnight. Declare `rolling:` when the number is a safety limit rather than an accounting period.
 #
 # session_budgets:
 #   - tools: [Read, Grep, Glob]

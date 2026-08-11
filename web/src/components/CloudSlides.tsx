@@ -30,7 +30,7 @@ import { ConnectScene } from "./live/scenes/ConnectScene";
 import { GateScene } from "./live/scenes/GateScene";
 import { ReachScene } from "./live/scenes/ReachScene";
 
-const WEBSITE = "https://neti-security.github.io/neti/";
+const WEBSITE = "https://neti.claritty.ai/";
 
 /** Each one is something one machine cannot do — not a feature withheld from it. */
 const SLIDES = [

@@ -37,9 +37,16 @@ is withheld, nothing is time-limited, and there is no telemetry.
   human requires somewhere for the request to go and somewhere for the answer to come back.
 - **Organisation policy.** One version, signed, pinned by digest, across every agent. Without a
   server each machine has its own file, and they drift.
-- **Session budgets that survive a restart.** Today's tallies live in memory in one process
-  (`Engine._tallies`), so a restart mid-session resets the cumulative total to zero — the mitigation
-  for `SCOPE.md` NC-01 quietly stops applying. A shared tally needs shared state.
+- **Budgets across the fleet.** Tallies survive a restart and span a day on their own now, but only
+  *per machine* — so a declared "20,000 objects a day" is twenty thousand per laptop, and an
+  organisation running forty agents declared a limit it does not have. One machine cannot know what
+  the other thirty-nine did, which is the rule at the top of this file deciding the case.
+  `SharedTallies` in `cloud.py` is the client, and `tests/integration/test_shared_tallies.py` pins
+  every property it must keep — including the one that matters most: **while the control plane is
+  unreachable it falls back to this machine's own total**, which is a lower bound on the fleet
+  total. An outage under-counts, so a budget is missed rather than wrongly fired, and enforcement
+  takes on no new availability risk. Stated plainly: during an outage a fleet budget is being
+  enforced per machine, which is the free tier.
 - **Audit and fleet across every agent.** Per-machine chains, anchored in one place, so a deleted
   local file becomes detectable.
 - **The reviewed detection catalogue.** `neti init` gates what its rule table can claim, and that

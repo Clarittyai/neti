@@ -58,8 +58,13 @@ class Provenance:
     tools: frozenset[str] = frozenset()
     """Tools whose *results* are untrusted whatever their argument — a web fetch, an inbox read.
 
-    Separate from `untrusted` because the target of `fetch_url("https://…")` is not a path and no
-    glob over the filesystem will ever name it."""
+    Separate from `untrusted` because sometimes the tool is the answer: every result of
+    `read_inbox` is a stranger's words regardless of which mailbox it read.
+
+    **Glob-matched, not compared for equality.** A name with no wildcard in it behaves exactly as it
+    always did, and `mcp__scraper__*` now declares a whole MCP server untrusted in one line. Listing
+    a federated server's tools by hand meant re-listing them whenever the server added one, and a
+    tool nobody remembered to add was a tool whose output was silently trusted."""
 
     @property
     def declared(self) -> bool:
@@ -71,10 +76,20 @@ def taints(provenance: Provenance, tool: str, targets: tuple[str | None, ...]) -
 
     Asked *after* the call is decided, about the session's future — never about this call's own
     verdict. A read of an untrusted file is an ordinary read; what changes is what comes next.
+
+    `targets` carries the call's gated targets **and its plain string arguments**, in that order.
+    Gated targets alone were not enough: the argument that names untrusted input is very often one
+    no resolver can size. `fetch(url="https://forum.example/thread/9")` has no cardinality, so it
+    was never gated, so it never reached this function — and `untrusted: ["https://forum.example/**"]`
+    matched nothing while reading as configured. Declaring the whole tool untrusted was the only
+    option, which is far blunter than most operators want.
+
+    Gated targets come first so that the recorded evidence names the resolved path where there is
+    one, rather than whatever spelling the model happened to use.
     """
     if not provenance.declared:
         return None
-    if tool in provenance.tools:
+    if matches(tool, tuple(provenance.tools)) is not None:
         first = next((t for t in targets if t), "")
         return Taint(pattern=f"tool:{tool}", target=first, tool=tool)
     for target in targets:

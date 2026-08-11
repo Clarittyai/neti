@@ -18,9 +18,9 @@ from typing import Any, Protocol
 
 from neti._version import __version__
 from neti.config.policy import Policy
-from neti.core.budget import SessionTally, check_budgets
+from neti.core.budget import Window, check_budgets
 from neti.core.decide import decide
-from neti.core.provenance import Provenance, Taint, taints
+from neti.core.provenance import Provenance, taints
 from neti.core.record import DecisionRecord, build_record
 from neti.core.types import Ceiling, Decision, ProposedCall, Resolution, sorted_bands
 from neti.core.units import Unit
@@ -28,6 +28,7 @@ from neti.core.verdict import ResolutionState
 from neti.resolvers.base import ResolveContext, Resolver
 from neti.resolvers.location import outside
 from neti.resolvers.registry import PROVIDER_OPTIONS
+from neti.store.sessions import MemoryTallies
 
 __all__ = [
     "BOUND",
@@ -116,12 +117,12 @@ class Engine:
     budget could never fire on the integration most people use.
     """
 
-    _tallies: dict[str, SessionTally] = field(default_factory=dict, init=False)
-    _tainted: dict[str, Taint] = field(default_factory=dict, init=False)
-    """Per session: the first call that put it downstream of untrusted input, if any.
+    _memory: MemoryTallies = field(default_factory=MemoryTallies, init=False)
+    """The in-process fallback, with the same window arithmetic as the on-disk store.
 
-    Latching rather than counting — once a session has read something a stranger wrote, every later
-    call in it is downstream, and there is no un-reading it."""
+    It is a `MemoryTallies` rather than a bare dict because a dict keyed by session id silently
+    *is* a session window, and would have kept counting a `day` budget straight through midnight.
+    """
 
     _policy_digest: str = field(default="", init=False)
 
@@ -251,6 +252,51 @@ class Engine:
                 "policy has session budgets that can never fire:\n  " + "\n  ".join(problems)
             )
 
+    def _budget_windows(self) -> tuple[Window, ...]:
+        """Every distinct window a budget rule declares, once each.
+
+        Two rules on the same window share one running total — which is the point, since a `day`
+        budget in `objects` and a `day` budget in `rows` are two ceilings over one day's traffic.
+        """
+        seen: dict[str, Window] = {}
+        for rule in self.policy.session_budgets:
+            seen.setdefault(str(rule.window), rule.window)
+        return tuple(seen.values())
+
+    def _watching_taint(self) -> bool:
+        """Only when provenance is declared.
+
+        The same reasoning as `_budget_store`: reading a sidecar on every gated call to answer a
+        question nobody asked is paying for a feature that is switched off, on the hot path of every
+        tool call in a session.
+        """
+        return self.policy.provenance.declared
+
+    def _taint_store(self) -> Any:
+        """Where a session's taint lives.
+
+        **This was `dict[str, Taint]` on the Engine until 2026-08-10, and that made provenance
+        inert through `neti hook`** — one process per tool call, so the dict was empty every time
+        and a session could never be downstream of anything. Demonstrated before the fix: read an
+        untrusted file, then glob five files against a tainted band of 2. One long-lived engine
+        blocked it; a fresh engine per call allowed it.
+
+        Exactly the defect `SessionStore` was built to fix for budgets, and worse — a taint latches,
+        so losing it does not under-count, it turns the whole axis off.
+        """
+        return self.sessions if self.sessions is not None else self._memory
+
+    def _budget_store(self) -> Any:
+        """Where running totals live, or `None` when no budget is declared.
+
+        `self.sessions` when a caller supplied one — `neti hook`, which is a fresh process per tool
+        call and has nowhere else to keep a total. Otherwise the in-process fallback, which is right
+        for `neti gate`. Both satisfy the same four methods, so nothing above this line branches.
+        """
+        if not self.policy.session_budgets:
+            return None
+        return self.sessions if self.sessions is not None else self._memory
+
     def gate(self, call: ProposedCall, observe: Observer | None = None) -> GateResult:
         """Resolve, decide, record. The whole hot path.
 
@@ -353,11 +399,17 @@ class Engine:
         # Only when a budget is declared. Reading a sidecar on every gated call to answer a question
         # nobody asked would be paying the cost of a feature that is not switched on — and this runs
         # on the hot path of every tool call in a session.
-        persisted = self.sessions if self.policy.session_budgets else None
-        tally = (
-            persisted.load(session_id)
-            if persisted is not None
-            else self._tallies.get(session_id, SessionTally())
+        #
+        # One tally per declared *window*, not one per session: a `day` budget and a `session`
+        # budget count the same call into two different running totals, and neither may see the
+        # other's. The clock is read exactly here and passed down, so nothing below this line can
+        # make a decision depend on when it happened to run.
+        now = datetime.now(UTC).timestamp()
+        store = self._budget_store()
+        tallies = (
+            {str(w): store.load(w, session_id, now) for w in self._budget_windows()}
+            if store is not None
+            else {}
         )
 
         # **The session's provenance, applied before the verdict.** If an earlier call in this
@@ -365,7 +417,7 @@ class Engine:
         # the tighter `provenance.bands` — added to its own, never replacing them, so this can only
         # raise a verdict. A prompt injection is small at the ingest and small at the payload; what
         # it cannot hide is that the two happened in the same session, in that order.
-        tainted = self._tainted.get(session_id)
+        tainted = self._taint_store().load_taint(session_id) if self._watching_taint() else None
         if tainted is not None and self.policy.provenance.bands:
             gated = [
                 (
@@ -414,7 +466,7 @@ class Engine:
             escaped=escaped,
             extra_targets=extra,
         )
-        budget = check_budgets(call.tool, prelim.args, tally, self.policy.session_budgets)
+        budget = check_budgets(call.tool, prelim.args, tallies, self.policy.session_budgets)
         final = decide(
             call,
             tuple(gated),
@@ -464,27 +516,33 @@ class Engine:
             # Applied under the store's own lock rather than written back from the tally read
             # above — see `SessionStore.add`. Read-then-write across two calls loses increments
             # whenever a harness batches tool calls, which is most of them.
-            committed = (
-                persisted.add(session_id, final.args)
-                if persisted is not None
-                else tally.add_committed(final.args)
-            )
-            self._tallies[session_id] = committed
+            #
+            # Every declared window is credited, with the same `now` the read used. Re-reading the
+            # clock here would let a call be *judged* against one day's total and *counted* into the
+            # next one's, which is a straddled-midnight call vanishing from both.
+            if store is not None:
+                for window in self._budget_windows():
+                    store.add(window, session_id, now, final.args)
             # A call cannot taint itself — the read that ingests untrusted content is judged under
             # the ordinary ceilings, and the tightening applies from here on. Anything else would
             # make the first read of any untrusted file impossible, which is the whole job of a
             # support agent. Only a call that actually proceeds can have ingested anything.
-            if self._tainted.get(session_id) is None:
+            if self._watching_taint() and tainted is None:
                 hit = taints(
                     Provenance(
                         untrusted=self.policy.provenance.untrusted,
                         tools=self.policy.provenance.tools,
                     ),
                     call.tool,
-                    tuple(t for _, t, _ in gated),
+                    # Gated targets first, then the call's own string arguments — so a pattern can
+                    # name untrusted input that no resolver sizes, which is most of it. Top-level
+                    # strings only: a glob against a nested structure is a guess about a shape
+                    # nobody declared, and this axis does not guess.
+                    tuple(t for _, t, _ in gated)
+                    + tuple(v for v in call.args.values() if isinstance(v, str)),
                 )
                 if hit is not None:
-                    self._tainted[session_id] = hit
+                    self._taint_store().remember_taint(session_id, hit)
 
         record = build_record(
             final,
@@ -572,8 +630,14 @@ class Engine:
         return payload
 
     def session_total(self, session_id: str, unit: Unit) -> int:
-        tally = self._tallies.get(session_id)
-        return 0 if tally is None else tally.total(unit)
+        """This session's running total, in the `session` window.
+
+        Deliberately the session window and not the widest declared one: a caller asking for a
+        *session* total wants the conversation, and a `day` total answered here would silently
+        include every other conversation on the machine.
+        """
+        store = self.sessions if self.sessions is not None else self._memory
+        return store.load(Window(), session_id, datetime.now(UTC).timestamp()).total(unit)
 
 
 def _relabel(resolution: Resolution, unit: Unit) -> Resolution:

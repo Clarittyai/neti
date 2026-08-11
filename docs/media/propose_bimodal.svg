@@ -1,5 +1,5 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 885 648" width="885" height="648" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace" font-size="14">
-<rect width="885" height="648" rx="12" fill="#0d1117"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 885 1299" width="885" height="1299" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace" font-size="14">
+<rect width="885" height="1299" rx="12" fill="#0d1117"/>
 <text x="22" y="36.93" fill="#94a3b8" xml:space="preserve">$ neti propose -r d.ndjson</text>
 <text x="22" y="58.63" fill="#c9d1d9" xml:space="preserve">Proposed ceilings, derived from YOUR observed traffic.</text>
 <text x="22" y="80.33" fill="#c9d1d9" xml:space="preserve"></text>
@@ -28,4 +28,34 @@
 <text x="22" y="579.43" fill="#c9d1d9" xml:space="preserve">        bands:</text>
 <text x="22" y="601.13" fill="#c9d1d9" xml:space="preserve">          - { above: 50, verdict: confirm }</text>
 <text x="22" y="622.83" fill="#c9d1d9" xml:space="preserve">          - { above: 500, verdict: block }</text>
+<text x="22" y="644.53" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="666.23" fill="#c9d1d9" xml:space="preserve">Not enough traffic to propose a cumulative budget for:</text>
+<text x="22" y="687.93" fill="#c9d1d9" xml:space="preserve">  recipients per day — only 1 day(s) observed; 5 needed before a cumulative ceiling means anything.</text>
+<text x="22" y="709.63" fill="#c9d1d9" xml:space="preserve">Keep observing.</text>
+<text x="22" y="731.33" fill="#c9d1d9" xml:space="preserve">  recipients per session — only 1 session(s) observed; 5 needed before a cumulative ceiling means</text>
+<text x="22" y="753.03" fill="#c9d1d9" xml:space="preserve">anything. Keep observing.</text>
+<text x="22" y="774.73" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="796.43" fill="#c9d1d9" xml:space="preserve">──────────────────────────────────────────────────────────────────────────────</text>
+<text x="22" y="818.13" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="839.83" fill="#c9d1d9" xml:space="preserve">Provenance — the axis this command will not propose for you.</text>
+<text x="22" y="861.53" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="883.23" fill="#c9d1d9" xml:space="preserve">A prompt injection is small at both ends: the ingest is one support ticket and</text>
+<text x="22" y="904.93" fill="#c9d1d9" xml:space="preserve">the payload can be one file. No ceiling reaches it. What does is one mechanical</text>
+<text x="22" y="926.63" fill="#c9d1d9" xml:space="preserve">question — *has this session already read something you declared untrusted?* —</text>
+<text x="22" y="948.33" fill="#c9d1d9" xml:space="preserve">which an attacker cannot write the answer to. The injected text can claim</text>
+<text x="22" y="970.03" fill="#c9d1d9" xml:space="preserve">anything; it cannot change that the session read customer_data/ two calls ago.</text>
+<text x="22" y="991.73" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="1013.43" fill="#c9d1d9" xml:space="preserve">Every other number here came from your traffic or your disk. This one cannot:</text>
+<text x="22" y="1035.13" fill="#c9d1d9" xml:space="preserve">whether `uploads/` holds a stranger's files or your build output is a fact about</text>
+<text x="22" y="1056.83" fill="#c9d1d9" xml:space="preserve">your business, not your filesystem. So the patterns are yours to write. The shape:</text>
+<text x="22" y="1078.53" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="1100.23" fill="#c9d1d9" xml:space="preserve">  provenance:</text>
+<text x="22" y="1121.93" fill="#c9d1d9" xml:space="preserve">    untrusted: ["**/customer_data/**", "https://forum.example/**"]</text>
+<text x="22" y="1143.63" fill="#c9d1d9" xml:space="preserve">    tools: ["mcp__scraper__*"]      # a whole MCP server, whatever it grows</text>
+<text x="22" y="1165.33" fill="#c9d1d9" xml:space="preserve">    bands:</text>
+<text x="22" y="1187.03" fill="#c9d1d9" xml:space="preserve">      - { above: 50, verdict: confirm }   # applied ON TOP of each gate's own bands</text>
+<text x="22" y="1208.73" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="1230.43" fill="#c9d1d9" xml:space="preserve">Escalate-only, so a pattern written too widely costs a confirmation and never a</text>
+<text x="22" y="1252.13" fill="#c9d1d9" xml:space="preserve">silent allow. A call cannot taint itself: reading the first ticket is an ordinary</text>
+<text x="22" y="1273.83" fill="#c9d1d9" xml:space="preserve">read, and the tightening applies from the next call onward.</text>
 </svg>

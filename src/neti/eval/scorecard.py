@@ -355,6 +355,14 @@ class Scorecard:
     """M13's live half, from `eval/results/conformance_live.json`: the same runtimes with a real
     provider behind them. Absent means nobody has spent a key here, which is the normal state."""
 
+    shell: dict[str, Any] | None = None
+    """M14: what the policy declares about shell commands, and what no declaration reaches.
+
+    Derived from the policy alone — no traffic needed — because the honest half of this section is
+    not a measurement at all. It is the statement that a wrapper script and generated code are
+    outside what a tool-boundary gate can see, printed where somebody reads coverage rather than
+    left in a paragraph of SCOPE.md they may not reach."""
+
     policy_digest: str | None = None
     gated_tools: int = 0
     gated_params: int = 0
@@ -390,6 +398,21 @@ def build_scorecard(
         conformance=conformance,
         conformance_live=conformance_live,
     )
+
+    if policy is not None:
+        bash = policy.tools.get("Bash")
+        bash_gate = (bash.gate if bash else {}) or {}
+        pointer = next(iter(bash_gate), None)
+        declared = bash_gate[pointer] if pointer else None
+        card.shell = {
+            "gated": declared is not None,
+            "resolver": declared.resolver if declared else None,
+            "on_unsized_risk": (
+                (declared.on_unsized_risk or declared.on_unresolved).name.lower()
+                if declared
+                else None
+            ),
+        }
 
     card.outstanding = [
         "M1 resolution correctness — covered by the offline suite against the synthetic tenant",
@@ -509,6 +532,60 @@ def format_scorecard(card: Scorecard) -> str:
             )
     out.append("")
 
+    out.append("M14 THE SHELL BOUNDARY (what a command does that no gate here can see)")
+    out.append("    evidence: src/neti/resolvers/shell.py + SCOPE.md NC-14, NC-15")
+    if card.shell is None:
+        out.append("    no policy read, so nothing to say about how this one gates Bash")
+    elif not card.shell["gated"]:
+        out.append(
+            "    Bash is NOT gated by this policy. `rm -rf`, `git clean -fd` and every other "
+            "deletion"
+        )
+        out.append(
+            "    falls through `unknown_tool: allow` unseen — out of scope rather than denied "
+            "(NC-09),"
+        )
+        out.append("    and an agent that wants to delete something does not reach for Write.")
+    else:
+        out.append(
+            f"    Bash is gated by `{card.shell['resolver']}`. A destructive command it recognises "
+            "but cannot"
+        )
+        out.append(
+            f"    size takes `{card.shell['on_unsized_risk']}` — recorded and surfaced rather than "
+            "indistinguishable from `npm test`."
+        )
+    out.append("")
+    out.append("    Not reached, whatever is declared:")
+    out.append(
+        "      - a wrapper. `./cleanup.sh` deletes, and no textual signal will ever see the verb."
+    )
+    out.append(
+        "      - code the agent wrote and ran. `python -c`, a Makefile target, an import that "
+        "reaches"
+    )
+    out.append(
+        "        the network: none of these crosses a tool boundary, so no gate at one sizes them."
+    )
+    out.append(
+        "    What bounds those is the sandbox the command runs in and its import allow-list, and "
+        "neti"
+    )
+    out.append(
+        "    cannot arrange either. If that is unacceptable the answer is to take Bash away in"
+    )
+    out.append("    .claude/settings.json, which is where permissions live.")
+    out.append("")
+    out.append(
+        "    The count of forms this recognises is deliberately not printed. It would read as a "
+        "coverage"
+    )
+    out.append(
+        "    figure, and there is no denominator: the set of ways a shell can destroy something is "
+        "not"
+    )
+    out.append("    enumerable, which is the whole content of NC-15.")
+    out.append("")
     out.append("M10 COVERAGE IN THE WILD (what `neti init` gates on a real machine)")
     out.append(f"    evidence: {EVIDENCE['M10']}")
     if card.wild is None:

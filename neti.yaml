@@ -29,6 +29,10 @@ providers:
     cap: 200000
 
 sensitive:
+  - { match: "**/neti.yaml*", verdict: confirm, why: this is the policy that gates you }
+  - { match: "**/.claude", verdict: confirm, why: the directory that wires the gate in }
+  - { match: "**/.claude/**", verdict: confirm, why: the settings that wire the gate in }
+  - { match: "**/decisions.ndjson*", verdict: confirm, why: this is the audit trail }
   - { match: "**/.git/**", verdict: confirm, why: rewriting history is not reversible }
 
 session_budgets:
@@ -142,8 +146,25 @@ tools:
 # sees it. For a coding agent this is the realistic exfiltration shape — nothing is ever "too big",
 # there is just a great deal of it.
 #
-# Per-process in this release: a restart resets the total, and the mitigation stops applying until
-# the next call. Stated rather than discovered.
+# Totals persist beside the records, so a restart no longer resets them — `neti hook` is one process
+# per tool call, and for a while that meant a declared budget could never fire on the integration
+# most people use.
+#
+# `window:` decides what "cumulative" is counted over. A session is a conversation, which is the
+# right frame for one run going wrong and the wrong one for an agent reading steadily for three days
+# — each new conversation starts that total at zero.
+#
+#   session       one conversation. The default, and what every policy written before this meant.
+#   day           a UTC calendar day, shared across every session on this machine.
+#   week          a UTC ISO week.
+#   rolling:24h   the last N hours, always. 1h to 168h.
+#
+# A calendar window resets on its boundary, and that is worth knowing rather than discovering: a
+# `day` budget of 20,000 permits 40,000 across a single midnight. Declare `rolling:` when the number
+# is a safety limit rather than an accounting period — it has no boundary to straddle.
+#
+# Declare more than one. A tight session ceiling catches the run that goes wrong; a wider daily one
+# catches the patient version that opens a new conversation each time.
 #
 # session_budgets:
 #   - tools: [Read, Grep, Glob]
@@ -151,6 +172,11 @@ tools:
 #     window: session
 #     bands:
 #       - { above: 20000, verdict: confirm }
+#   - tools: [Read, Grep, Glob]
+#     unit: objects
+#     window: rolling:24h
+#     bands:
+#       - { above: 200000, verdict: confirm }
 
 defaults:
   # An ungated tool is out of scope, not denied (NC-09). Failing closed on everything undeclared

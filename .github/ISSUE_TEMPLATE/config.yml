@@ -4,7 +4,7 @@ contact_links:
     url: https://github.com/Neti-Security/neti/blob/main/SCOPE.md
     about: "SCOPE.md is short, numbered, and says plainly what neti does not do. NC-01 to NC-13 are the known holes — citing one in an issue is welcome."
   - name: "The hosted tier"
-    url: https://neti-security.github.io/neti/
+    url: https://neti.claritty.ai/
     about: "Approvals, org policy, fleet audit — the things one machine cannot do."
   - name: "Reporting a security issue"
     url: https://github.com/Neti-Security/neti/blob/main/SECURITY.md

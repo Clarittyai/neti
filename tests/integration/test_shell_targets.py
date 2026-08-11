@@ -27,6 +27,7 @@ mattered more than the second.
 
 from __future__ import annotations
 
+import pathlib
 from pathlib import Path
 
 import pytest
@@ -153,30 +154,55 @@ def test_ordinary_work_stays_silent(project: Path, command: str) -> None:
     )
 
 
-def test_scratch_directories_are_not_escapes(
-    project: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_scratch_directories_are_not_escapes() -> None:
     """`/tmp` is where a shell command writes its scratch, and confirming that is pure friction.
 
     It was reported as an escape on macOS only: `tempfile.gettempdir()` there is `/var/folders/…`,
     so the exemption never covered `/tmp`. On Linux the two coincide and the bug is invisible —
     which is why it survived until a command line was parsed rather than a file path.
 
-    `gettempdir` is patched away from the real one because **pytest's `tmp_path` lives inside it**,
-    which puts this project in the temp directory and correctly disables the exemption entirely —
-    the trap `location.py` documents, and the reason the first version of this test failed. Pointing
-    it elsewhere is what lets the hard-coded `/tmp` half be exercised at all.
+    **The root here is synthetic, and the first version of this test is why.** It used pytest's
+    `tmp_path`, which lives under the system temp directory — and a project inside temp correctly
+    disables the exemption entirely, which is the trap `location.py` documents. The first fix was to
+    patch `gettempdir` elsewhere, and that worked on macOS and nowhere else: on Linux `tmp_path` is
+    under `/tmp`, which `location.py` hard-codes and no patch of `gettempdir` can move. So the test
+    passed on the author's machine and failed on the platform it was written about.
+
+    `outside` resolves non-strictly, so a root that does not exist works and is the same on every
+    platform. Nothing here needs a real directory.
     """
     import tempfile
 
     from neti.resolvers.location import outside
 
-    monkeypatch.setattr(tempfile, "gettempdir", lambda: str(project / "elsewhere"))
-    (project / "elsewhere").mkdir()
+    root = "/opt/a-project-that-is-not-in-temp"
+    # This platform's own scratch directory, not the literal `/tmp`. Windows has no `/tmp` at all,
+    # so the hard-coded entry drops out of `location.py`'s list and a written-out POSIX path is not
+    # scratch there — it is simply somewhere else. The claim being made is "the temp directory is
+    # exempt", and `gettempdir` is what that phrase means on the machine running the test.
+    scratch = str(pathlib.Path(tempfile.gettempdir()) / "scratch")
 
-    assert not outside("/tmp/scratch", str(project))
-    assert outside(str(Path.home() / ".ssh" / "id_rsa"), str(project)), (
+    assert not outside(scratch, root)
+    assert outside(str(Path.home() / ".ssh" / "id_rsa"), root), (
         "the exemption must not have swallowed the home directory with it"
+    )
+
+
+def test_a_project_inside_temp_gets_no_exemption() -> None:
+    """The trap the test above kept falling into, asserted instead of worked around.
+
+    A checkout under the temp directory must not make every sibling there invisible — one of them
+    could hold somebody's keys. So the exemption switches off entirely.
+
+    The root is written out rather than taken from `tmp_path`, so this means the same thing on
+    every platform. `tmp_path` is under `/tmp` on Linux and under `/var/folders/…` on macOS, and a
+    test whose subject changes with the machine is precisely why the sibling test above passed for
+    months while being wrong about the platform it was written for.
+    """
+    from neti.resolvers.location import outside
+
+    assert outside("/tmp/somebody-elses-scratch", "/tmp/a-checkout"), (
+        "with the project itself under /tmp, a sibling there is an escape rather than scratch"
     )
 
 
@@ -286,8 +312,18 @@ def test_the_git_verbs_that_lose_work(command: str, form: str | None) -> None:
         ("cat $NOT_SET_ANYWHERE/x", False),
     ],
 )
-def test_the_spellings_a_red_team_reaches_for(command: str, expected: bool) -> None:
+def test_the_spellings_a_red_team_reaches_for(
+    command: str, expected: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`$HOME` is set explicitly rather than read from the ambient environment.
+
+    Windows does not set `HOME` — it uses `USERPROFILE` — so `cat $HOME/.ssh/id_rsa` expanded to
+    nothing there and the path was correctly refused — so a test about *expansion* failed for a
+    reason that had nothing to do with expansion. Setting it here asks what the test means to ask,
+    on every platform: when the variable resolves, is the path seen?
+    """
     home = str(Path.home())
+    monkeypatch.setenv("HOME", home)
     found = referenced_paths(command)
     reaches_home = any(p.startswith(home) for p in found)
     assert reaches_home is expected, f"{command!r} read as {found}"
@@ -307,7 +343,10 @@ def test_only_a_tilde_that_means_home_is_read_as_home() -> None:
     record is the artefact this product asks people to keep.
     """
     home = str(Path.home())
-    assert referenced_paths("cat ~/x") == (f"{home}/x",)
+    # `Path.home() / "x"`, not `f"{home}/x"`. `expanduser` returns a real path, so on Windows it
+    # spells itself `C:\\Users\\me\\x` — and asserting the POSIX form was asserting the author's
+    # operating system rather than the expansion.
+    assert referenced_paths("cat ~/x") == (str(Path.home() / "x"),)
     assert referenced_paths("cat ~notauser/x") == ()
     assert referenced_paths("ls ~") == (home,)
 

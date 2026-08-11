@@ -116,8 +116,17 @@ tools:
 # never fires. The engine refuses such a policy at construction rather than letting it sit there
 # looking configured.
 #
-# Per-process in this release: a restart resets the total, and the mitigation stops applying until
-# the next call. Stated rather than discovered.
+# Totals persist beside the records, so a restart no longer resets them.
+#
+# `window:` decides what "cumulative" is counted over:
+#
+#   session       one conversation. The default, and what every policy written before this meant.
+#   day           a UTC calendar day, shared across every session on this machine.
+#   week          a UTC ISO week.
+#   rolling:24h   the last N hours, always. 1h to 168h.
+#
+# A calendar window resets on its boundary — a `day` budget of 20,000 permits 40,000 across a single
+# midnight. Declare `rolling:` when the number is a safety limit rather than an accounting period.
 #
 # session_budgets:
 #   - tools: [execute_sql, query]

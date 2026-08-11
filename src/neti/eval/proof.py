@@ -750,9 +750,7 @@ def format_proof(proof: Proof) -> str:
         # The claim has to follow the call. Saying "from the synthetic tenant" over magnitudes
         # measured on this disk would be false in the direction that matters — the marker inside
         # the digest says otherwise, and a banner contradicting the record is worse than no banner.
-        out.append(
-            "   Measured on this machine against your own policy, and every record says so."
-        )
+        out.append("   Measured on this machine against your own policy, and every record says so.")
         out.append("   What it proves is the part that is hard to take on trust:")
         out.append("   the door your agent uses does not change the answer it gets.")
         return "\n".join(out)

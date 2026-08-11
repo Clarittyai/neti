@@ -155,7 +155,10 @@ def test_a_real_key_beside_the_fixtures_still_earns_its_rule(tmp_path: Path) -> 
 
     found = scan(tmp_path)
     assert [c.match for c in found] == ["**/*.pem"]
-    assert found[0].example == "deploy/prod.pem", (
+    # `Path(...)`, not the literal, because the example is a real relative path and its separator
+    # is the platform's — `deploy\\prod.pem` on Windows. Hard-coding `/` asserted the developer's
+    # operating system rather than the behaviour, which is what this whole file exists to catch.
+    assert found[0].example == str(Path("deploy") / "prod.pem"), (
         "the example beside a rule has to be the file that makes the case for it, "
         "not whichever one the walk reached first"
     )
@@ -171,3 +174,68 @@ def test_only_the_directory_matters_not_the_filename(tmp_path: Path) -> None:
     (tmp_path / "src" / "test_server.pem").write_text("x", encoding="utf-8")
 
     assert [c.match for c in scan(tmp_path)] == ["**/*.pem"]
+
+
+def test_every_known_rule_matches_its_own_evidence() -> None:
+    """A rule is only ever proposed because something real was found. It has to match that thing.
+
+    **It did not, for three of four SSH key types.** One entry carried the glob `**/id_rsa*` and the
+    names `id_rsa`, `id_ed25519`, `id_ecdsa`, `id_dsa` — so finding an `id_ed25519` outside `.ssh/`
+    proposed a rule that cannot match `id_ed25519`. Dead config, offered *because* of a file it
+    could never fire on, by the one module whose entire discipline is "real, or absent".
+
+    Asserted over the whole table rather than fixed in place, because the next entry somebody adds
+    is where this comes back.
+    """
+    from neti.core.globs import matches
+    from neti.insight.secrets_scan import KNOWN
+
+    for rule in KNOWN:
+        for name in rule.names:
+            target = f"/project/{name}"
+            assert matches(target, (rule.match,)) is not None, (
+                f"{rule.match!r} is proposed when {name!r} is found, and does not match it"
+            )
+        for directory in rule.dirs:
+            target = f"/project/{directory}/something"
+            assert matches(target, (rule.match,)) is not None, (
+                f"{rule.match!r} is proposed when {directory}/ is found, and does not match it"
+            )
+
+
+def test_every_known_rule_declares_a_usable_verdict() -> None:
+    """The fragment is pasted into a policy, so `verdict:` has to be one the policy accepts."""
+    from neti.core.verdict import Verdict
+    from neti.insight.secrets_scan import KNOWN
+
+    allowed = {v.name.lower() for v in Verdict}
+    for rule in KNOWN:
+        assert rule.verdict in allowed, f"{rule.match!r} proposes verdict {rule.verdict!r}"
+        assert rule.why, f"{rule.match!r} has no reason, and a rule with no reason gets disabled"
+
+
+def test_the_proposed_fragment_loads_as_a_policy(tmp_path: Path) -> None:
+    """Everything this prints is meant to be pasted.
+
+    If it does not parse, the instruction is a lie.
+    """
+    import yaml
+
+    from neti.config.policy import Policy
+    from neti.insight.secrets_scan import render, scan
+
+    (tmp_path / ".env").write_text("K=v", encoding="utf-8")
+    (tmp_path / ".npmrc").write_text("//registry:_authToken=x", encoding="utf-8")
+    (tmp_path / "server.p12").write_text("x", encoding="utf-8")
+    (tmp_path / ".ssh").mkdir()
+    (tmp_path / ".ssh" / "id_ed25519").write_text("x", encoding="utf-8")
+
+    fragment = render(scan(tmp_path))
+    body = "\n".join(line for line in fragment.splitlines() if not line.lstrip().startswith("#"))
+    start = body.find("sensitive:")
+    assert start >= 0, f"no pasteable block in:\n{fragment}"
+
+    parsed = yaml.safe_load(body[start:])
+    policy = Policy.model_validate({"version": 1, **parsed})
+    matched = {r.match for r in policy.sensitive}
+    assert "**/.env*" in matched and "**/.npmrc" in matched and "**/*.p12" in matched

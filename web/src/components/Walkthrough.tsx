@@ -86,8 +86,9 @@ export function Walkthrough({ compact = false }: { compact?: boolean }) {
             ) : (
               <>
                 Authorization answers <em>may you</em>, sandboxing answers <em>where</em>, approval
-                answers <em>did a human say yes</em>. None of them answers <strong>how big</strong>.
-                Five steps, read live off this machine — they tick themselves as you go.
+                answers <em>did a human say yes</em>. None of them answers <strong>how big</strong>,
+                nor <em>what is this</em>, nor <em>what has this session already read</em>. Five
+                steps, read live off this machine — they tick themselves as you go.
               </>
             )}
           </p>

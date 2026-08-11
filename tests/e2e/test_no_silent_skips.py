@@ -30,7 +30,6 @@ REQUIRED = {
     "langchain": "the LangChain conformance row, which builds a real create_agent",
     "llama_index.core": "the LlamaIndex adapter",
     "smolagents": "the smolagents adapter",
-    "semantic_kernel": "the Semantic Kernel adapter",
     "agents": "the OpenAI Agents SDK adapter",
     "langchain_core": "the LangChain adapter",
     "langgraph": "the LangGraph ToolNode path — the only thing that caught the ToolMessage defect",
@@ -56,6 +55,22 @@ REQUIRED = {
     "psycopg": "the Postgres half of `db.rows` — sqlite goes through the stdlib and proves nothing",
 }
 
+SPLIT = {
+    "semantic_kernel": "the Semantic Kernel adapter",
+}
+"""Runtimes that **cannot share an environment with the rest**, and are tested in their own.
+
+`semantic-kernel` 1.36 requires `pydantic<2.12`; `openai-agents` requires `>=2.12.2`. No version
+satisfies both, and the newer semantic-kernel that would depends on an `azure-ai-agents` pre-release
+with no stable version. `pyproject.toml` declares the conflict and `uv` resolves the two separately.
+
+This list is the dangerous part of that split, which is why it is a list rather than a deletion.
+Moving a runtime out of `REQUIRED` is exactly the "it skipped and nobody noticed" failure this whole
+file exists to prevent — so the entries here are asserted from **both** sides: absent in the main
+environment, and present in their own. A runtime that quietly stopped being tested anywhere would
+have to fail one of the two.
+"""
+
 requires_full_install = pytest.mark.skipif(
     os.environ.get("NETI_REQUIRE_SDKS") != "1",
     reason="set NETI_REQUIRE_SDKS=1 (CI does) to require the full install",
@@ -74,6 +89,38 @@ def test_every_optional_dependency_is_actually_installed(module: str) -> None:
             "Install `.[dev,cli,graph,mcp,console,sdks,sdks-extended,storage,database]`."
         )
         raise AssertionError from exc
+
+
+@requires_full_install
+@pytest.mark.parametrize("module", sorted(SPLIT))
+def test_a_split_runtime_is_tested_in_exactly_one_environment(module: str) -> None:
+    """Both sides of the split, so a runtime cannot fall out of both and go quiet.
+
+    `NETI_SPLIT_ENV=1` says this is the dedicated environment, and there the module must import —
+    that is the job the separate CI runs exist to do. Everywhere else it must be **absent**, which
+    is the assertion that keeps the split honest: if a resolver ever quietly satisfies both at once
+    again, the main environment stops being the one the lockfile describes and this says so.
+    """
+    dedicated = os.environ.get("NETI_SPLIT_ENV") == "1"
+    try:
+        importlib.import_module(module)
+        installed = True
+    except ImportError:
+        installed = False
+
+    if dedicated:
+        assert installed, (
+            f"`{module}` is missing from its own environment, so {SPLIT[module]} is not being "
+            "tested anywhere. Install `.[dev,cli,graph,mcp,console,sdks-semantic-kernel]`."
+        )
+    else:
+        assert not installed, (
+            f"`{module}` is installed alongside the other runtimes, which `pyproject.toml` "
+            "declares as a conflict. Either it was resolved upstream — move it back into "
+            f"REQUIRED if so — or this environment was assembled by hand and {module} is "
+            "running outside its own declared constraints, which is how the conformance table came "
+            "to claim a version no resolver could produce."
+        )
 
 
 @requires_full_install
@@ -150,7 +197,14 @@ def test_the_ci_workflow_installs_what_the_tests_import() -> None:
     installed.
     """
     workflow = (REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-    install_lines = [ln for ln in workflow.splitlines() if "uv pip install" in ln]
+    # Both forms. The suite jobs install from the lockfile with `uv sync --frozen --extra …`,
+    # because resolving fresh on every run is what made the published SDK versions drift; the
+    # `installed` job still uses `uv pip install`, since its whole subject is a wheel going into an
+    # environment that has never seen this checkout. Reading only one spelling would have made this
+    # check vacuous the moment the other arrived — which is the failure it exists to prevent.
+    install_lines = [
+        ln for ln in workflow.splitlines() if "uv pip install" in ln or "uv sync" in ln
+    ]
     assert install_lines, "no install line found in ci.yml — has the workflow changed shape?"
 
     # The bench and packaging jobs deliberately differ; the job that runs the suite is the one that

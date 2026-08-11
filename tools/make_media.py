@@ -79,6 +79,13 @@ class Shot:
 # second picture that answers the first one is decoration.
 SHOTS = (
     Shot("hook_block", "The block: what a gated call looks like when it is too big"),
+    # Day zero, and the only picture on the page that needs neither traffic nor a credential. It is
+    # the first thing a stranger can reproduce on their own machine, which is why it comes early.
+    Shot(
+        "demo_here_no_traffic",
+        "Day zero: what an agent here can reach, before any traffic and with no credentials",
+        cap=108,
+    ),
     Shot("demo_here_full", "The six acts, measured on one machine", cap=108),
     # Wide enough for the whole table: its longest row is 136 columns, and alignment is the point.
     Shot("inventory_rows", "What one credential can address, before any traffic", cap=140),

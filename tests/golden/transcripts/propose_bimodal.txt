@@ -24,3 +24,31 @@ tools:
         bands:
           - { above: 50, verdict: confirm }
           - { above: 500, verdict: block }
+
+Not enough traffic to propose a cumulative budget for:
+  recipients per day — only 1 day(s) observed; 5 needed before a cumulative ceiling means anything. Keep observing.
+  recipients per session — only 1 session(s) observed; 5 needed before a cumulative ceiling means anything. Keep observing.
+
+──────────────────────────────────────────────────────────────────────────────
+
+Provenance — the axis this command will not propose for you.
+
+A prompt injection is small at both ends: the ingest is one support ticket and
+the payload can be one file. No ceiling reaches it. What does is one mechanical
+question — *has this session already read something you declared untrusted?* —
+which an attacker cannot write the answer to. The injected text can claim
+anything; it cannot change that the session read customer_data/ two calls ago.
+
+Every other number here came from your traffic or your disk. This one cannot:
+whether `uploads/` holds a stranger's files or your build output is a fact about
+your business, not your filesystem. So the patterns are yours to write. The shape:
+
+  provenance:
+    untrusted: ["**/customer_data/**", "https://forum.example/**"]
+    tools: ["mcp__scraper__*"]      # a whole MCP server, whatever it grows
+    bands:
+      - { above: 50, verdict: confirm }   # applied ON TOP of each gate's own bands
+
+Escalate-only, so a pattern written too widely costs a confirmation and never a
+silent allow. A call cannot taint itself: reading the first ticket is an ordinary
+read, and the tightening applies from the next call onward.

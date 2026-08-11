@@ -32,7 +32,7 @@ SITE = REPO / "site" / "page.html"
 WEB_SRC = REPO / "web" / "src"
 BUILT_CSS = REPO / "src" / "neti" / "console" / "_next" / "static" / "css"
 
-ACCENT = "#4568F3"
+ACCENT = "#5B7FFF"
 """neti's primary: Fireblocks' brand accent, read off their own site rather than eyeballed."""
 
 RESERVED = {"block": "#EF4444", "confirm": "#F59E0B", "allow": "#10B981"}
