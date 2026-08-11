@@ -585,7 +585,7 @@ A `confirm` band means *somebody other than the agent's operator should decide t
 machine there is nobody to ask, so the gate stops the call and says so. That is correct, and it is
 what a free install will keep doing.
 
-The hosted tier — [`neti-cloud`](https://neti.claritty.ai/), BUSL-1.1 — is the somewhere the
+The hosted tier — [`neti-cloud`](https://neti.claritty.ai/cloud/), BUSL-1.1 — is the somewhere the
 question can go:
 
 ```console

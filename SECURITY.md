@@ -19,9 +19,12 @@ Worth being precise, because the trust surface is smaller than it looks:
 
 ## What it is not
 
-`neti` runs *after* authorization and answers one question: **how big is this?** It does not decide
-whether the caller should be doing this at all (that is upstream), whether the action is correct
-(NC-02), or contain anything after the fact (NC-11). The numbered non-coverage list in
+`neti` runs *after* authorization and answers five declared questions — how big is this, what *is*
+this target, where does it live, how much has this session touched already, and is this session
+downstream of untrusted input. Every one is a static comparison against something a human wrote;
+none of them is scored, inferred or served from a vendor. It does not decide whether the caller
+should be doing this at all (that is upstream), whether the action is correct (NC-02), or contain
+anything after the fact (NC-11). The numbered non-coverage list in
 [SCOPE.md](SCOPE.md) is exhaustive and `neti score` prints it.
 
 A `neti` that is broken, misconfigured or switched off leaves you exactly where you were before you
