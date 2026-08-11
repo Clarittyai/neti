@@ -39,9 +39,32 @@ DECISION_BUDGET_MS = 1.0
 """Generous by three orders of magnitude against the modelled ~5us. Set as a tripwire for
 algorithmic regressions, not as a performance target — a tight bound here would just be flaky."""
 
-OVERHEAD_BUDGET_MS = 15.0
-"""Our own per-resolution overhead with the network mocked out. Comfortably under the 800ms
-provider budget so that a regression shows up as ours."""
+OVERHEAD_BUDGET_MS = 8.0
+"""Our own per-resolution overhead with the network mocked out, measured at the **median**.
+
+It was a p99 against 15ms, and it went red on `windows-latest` at 36ms while the same commit passed
+on every other runner and measured **p99 0.67ms** locally — 22x under the budget it had supposedly
+blown. Nothing in the gate is fifty times slower on Windows. A p99 over 200 samples is the third
+slowest of the two hundred, and on a shared CI VM three scheduler stalls are not a rare event, they
+are Tuesday. The assertion was measuring GitHub's hypervisor.
+
+Widening the budget until the noise fits underneath it is the tempting fix and the wrong one: it
+keeps a statistic that cannot distinguish our code from a noisy neighbour, and it raises the bar a
+real regression has to clear before anyone hears about it.
+
+So this measures the median instead, and the budget comes *down* — 8ms against a local median of
+0.37ms is still 20x of headroom, and it is a strictly tighter tripwire than the 15ms p99 it
+replaces. That works because of what the two statistics actually detect: an algorithmic regression —
+a walk where there was a syscall, a re-read where there was a cache — makes *every* call slower and
+moves the median immediately. Only the tail is noise, and the tail is the part we cannot measure on
+hardware we do not own.
+
+This repository had already worked that out once and written it down.
+`tests/property/test_regressions.py::test_the_head_is_read_from_the_sidecar_rather_than_by_walking`
+proves the chain head is O(1) by making the walk raise instead of by timing it, and says why in one
+line: *"a timing assertion would be flaky and would prove less."* The strongest checks on the hot
+path are the deterministic ones over there. This file is the weaker, noisier complement, so it
+should claim the least it can get away with."""
 
 
 def percentile(values: list[float], q: float) -> float:
@@ -123,10 +146,13 @@ def test_end_to_end_gate_overhead_excluding_the_network(tenant: SyntheticTenant)
     finally:
         client.close()
 
-    p99 = percentile(samples, 0.99)
-    assert p99 < OVERHEAD_BUDGET_MS, (
-        f"gate overhead p99 {p99:.2f}ms exceeds {OVERHEAD_BUDGET_MS}ms with the network mocked; "
-        "the real budget is 800ms and the provider needs most of it"
+    # Median, not p99 — see `OVERHEAD_BUDGET_MS`. The p99 of 200 samples on a shared CI runner is
+    # the third-slowest sample on somebody else's hypervisor, and that is what it was measuring.
+    typical = median(samples)
+    assert typical < OVERHEAD_BUDGET_MS, (
+        f"gate overhead median {typical:.2f}ms exceeds {OVERHEAD_BUDGET_MS}ms with the network "
+        f"mocked (p99 {percentile(samples, 0.99):.2f}ms, slowest {max(samples):.2f}ms); the real "
+        "budget is 800ms and the provider needs most of it"
     )
 
 
