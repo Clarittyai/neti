@@ -57,8 +57,9 @@
   }
 
   /* ══════════════════════════════════════════════════════════════════════ base */
+  /* 16px/24px — Claritty's body metrics exactly. */
   .neti { background: var(--bg); color: var(--fg); font-family: var(--sans);
-          font-size: 1rem; line-height: 1.55; -webkit-font-smoothing: antialiased;
+          font-size: 1rem; line-height: 1.5; -webkit-font-smoothing: antialiased;
           font-variant-numeric: tabular-nums; }
   .neti *, .neti *::before, .neti *::after { box-sizing: border-box; }
   .neti :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
@@ -70,16 +71,24 @@
   .neti em { font-style: italic; }
 
   .shell { max-width: 76rem; margin-inline: auto; padding-inline: clamp(1.25rem, 4vw, 2.5rem); }
-  /* A hairline between sections, not a slab. The rule is the structure. */
-  section { padding-block: clamp(3.5rem, 7vw, 6rem); border-top: 1px solid var(--border); }
+  /* A hairline between sections, not a slab. The rule is the structure.
+     The rhythm is Claritty's, measured off `claritty.ai` rather than guessed: its sections run
+     96 / 112 / 128 / 160px and 112 is the one it uses most, so that is what this lands on at
+     desktop width. Family resemblance between two sites is carried by air and type scale far more
+     than by colour — the accent was the easy half. */
+  section { padding-block: clamp(4rem, 8vw, 7rem); border-top: 1px solid var(--border); }
 
   /* Headings are quieter than they were. The measurement is the loud thing on this page; a
      headline competing with it is two things shouting. */
-  h1, h2, h3 { margin: 0; font-weight: 600; letter-spacing: -.025em; text-wrap: balance;
-               line-height: 1.1; }
-  h1 { font-size: clamp(1.9rem, 3.4vw, 2.75rem); }
-  h2 { font-size: clamp(1.4rem, 2.4vw, 2rem); line-height: 1.15; }
-  h3 { font-size: 1rem; letter-spacing: -.005em; line-height: 1.4; }
+  /* Weight and tracking are Claritty's — 700 on headings, -0.03em, line-height 1.0 at display
+     sizes. The *scale* deliberately is not: Claritty's h1 is 72px because a sentence is its hero,
+     and here the hero is a 144px figure. Headings sit below it rather than competing, which is the
+     one place these two pages should differ and the reason they can share everything else. */
+  h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.03em; text-wrap: balance;
+               line-height: 1.05; }
+  h1 { font-size: clamp(2.25rem, 4vw, 3.25rem); }
+  h2 { font-size: clamp(1.75rem, 3.2vw, 2.75rem); line-height: 1.08; }
+  h3 { font-size: 1.0625rem; letter-spacing: -.01em; line-height: 1.4; }
   .lede { font-size: clamp(1rem, .6vw + .9rem, 1.125rem); color: var(--fg-muted);
           line-height: 1.55; max-width: 40em; }
   .muted { color: var(--fg-muted); }
