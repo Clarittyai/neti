@@ -5,7 +5,7 @@ people to get in touch can reach somebody, and it is the only server-side thing 
 
 ```
 browser ──POST /api/contact──▶ Next.js on Vercel ──POST + shared secret──▶ Lambda ──▶ SES ──▶ inbox
-          (same origin only)     validates, rate-limits        (Function URL)   (execution role)
+          (same origin only)     validates, rate-limits       (API Gateway)   (execution role)
 ```
 
 ## Why the extra hop
@@ -35,12 +35,12 @@ CONTACT_SECRET=$(openssl rand -hex 32) ./deploy.sh
 Idempotent: every step checks before it creates, so re-running after an edit to `index.mjs` is safe.
 There is no `delete` anywhere in it — removing the function is a deliberate manual act.
 
-It prints the Function URL. Put both of these in the Vercel project (Settings → Environment
+It prints the endpoint. Put both of these in the Vercel project (Settings → Environment
 Variables):
 
 | variable | value |
 |---|---|
-| `CONTACT_LAMBDA_URL` | the Function URL the script prints |
+| `CONTACT_LAMBDA_URL` | the endpoint the script prints |
 | `CONTACT_LAMBDA_SECRET` | the `CONTACT_SECRET` you passed in |
 
 What it creates, all in `us-east-1` unless `AWS_REGION` says otherwise:
@@ -48,11 +48,25 @@ What it creates, all in `us-east-1` unless `AWS_REGION` says otherwise:
 - IAM role `neti-contact-lambda` — `ses:SendEmail` for one From address, plus the standard
   CloudWatch Logs policy
 - Lambda `neti-contact` — Node 22, 256 MB, 15 s
-- a Function URL with `AuthType NONE`
+- an API Gateway HTTP API, `neti-contact`, whose default route targets the function
 
-`AuthType NONE` is deliberate. IAM auth would mean giving Vercel an AWS key to sign requests with,
-which is the thing this design exists to avoid. The door is guarded by the shared secret instead,
-compared in constant time, and a missing secret **fails closed**.
+The endpoint is unauthenticated at the AWS layer and guarded by the shared secret instead, compared
+in constant time, with a missing secret **failing closed**. IAM auth would mean giving Vercel an AWS
+key to sign requests with, which is the thing this whole design exists to avoid.
+
+### Why an HTTP API and not a Lambda Function URL
+
+A Function URL is the obvious choice and it was the first thing built. With `AuthType NONE` and the
+textbook resource policy — `Principal: "*"`, `lambda:InvokeFunctionUrl`, conditioned on
+`FunctionUrlAuthType: NONE` — **every request returned `403 AccessDeniedException` from the
+platform**, before reaching the handler, in an account with no organization and therefore no SCP.
+The same function invoked directly returned `200`, so neither the code nor the execution role was
+ever in question.
+
+Something above the function blocks public function URLs in this account. The API that would say
+what is not present in the installed SDK, so there was nothing to read — and changing an account
+security control on a hunch is not a thing to do in order to ship a contact form. An HTTP API is not
+subject to it, costs nothing here, and is the older and duller path.
 
 ## What is checked, and where
 

@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Create or update `neti-contact` and print its Function URL.
+# Create or update `neti-contact` and print the endpoint the website should post to.
 #
 # Idempotent on purpose: every step checks for the thing before making it, so this is safe to run
 # again after a change to `index.mjs` and safe to run twice by accident. Nothing here destroys
@@ -81,22 +81,38 @@ else
 fi
 aws lambda wait function-updated --function-name "$FUNCTION" --region "$REGION"
 
-say "4/5  function URL"
-if ! aws lambda get-function-url-config --function-name "$FUNCTION" --region "$REGION" >/dev/null 2>&1
-then
-  # AuthType NONE, guarded by the shared secret the function checks in constant time. IAM auth
-  # would mean giving Vercel an AWS key to sign with, which is the thing this design avoids.
-  aws lambda create-function-url-config --function-name "$FUNCTION" --region "$REGION" \
-    --auth-type NONE >/dev/null
-  aws lambda add-permission --function-name "$FUNCTION" --region "$REGION" \
-    --statement-id public-function-url --action lambda:InvokeFunctionUrl \
-    --principal '*' --function-url-auth-type NONE >/dev/null
-  echo "  created"
+say "4/5  public endpoint"
+# An HTTP API rather than a Lambda Function URL, and not by preference.
+#
+# The first version used a Function URL with `AuthType NONE` and the textbook resource policy —
+# `Principal: "*"`, `lambda:InvokeFunctionUrl`, conditioned on `FunctionUrlAuthType: NONE`. Every
+# request came back `403 AccessDeniedException` from the platform, before reaching the handler, in
+# an account with no organization and therefore no SCP. The same function invoked directly returned
+# 200, so the code and the execution role were never in question. Something above the function
+# blocks public function URLs in this account, and the API that would say what is not in the
+# installed SDK, so there was nothing to read and nothing to safely change.
+#
+# An HTTP API is not subject to that, and it costs nothing here: the same shared secret guards it,
+# the same execution role sends the mail, and API Gateway is the older, duller path.
+API_ID="$(aws apigatewayv2 get-apis --region "$REGION" \
+  --query "Items[?Name=='$FUNCTION'].ApiId | [0]" --output text)"
+if [[ "$API_ID" == "None" || -z "$API_ID" ]]; then
+  API_ID="$(aws apigatewayv2 create-api --name "$FUNCTION" --protocol-type HTTP \
+    --target "$(aws lambda get-function --function-name "$FUNCTION" --region "$REGION" \
+      --query Configuration.FunctionArn --output text)" \
+    --region "$REGION" --query ApiId --output text)"
+  echo "  created api $API_ID"
 else
-  echo "  exists"
+  echo "  api $API_ID exists"
 fi
-URL="$(aws lambda get-function-url-config --function-name "$FUNCTION" --region "$REGION" \
-  --query FunctionUrl --output text)"
+# Idempotent: re-adding an existing statement id fails, and that is not a reason to stop.
+aws lambda add-permission --function-name "$FUNCTION" --region "$REGION" \
+  --statement-id apigw-invoke --action lambda:InvokeFunction \
+  --principal apigateway.amazonaws.com \
+  --source-arn "arn:aws:execute-api:$REGION:$(aws sts get-caller-identity --query Account --output text):$API_ID/*" \
+  >/dev/null 2>&1 || true
+URL="$(aws apigatewayv2 get-api --api-id "$API_ID" --region "$REGION" \
+  --query ApiEndpoint --output text)/"
 
 say "5/5  done"
 cat <<EOF
