@@ -110,10 +110,11 @@ def document(body: str, *, title: str = "", description: str = "") -> str:
 """
 
 
-CLOUD_TITLE = "neti cloud — approvals, org policy and fleet audit"
+CLOUD_TITLE = "neti cloud — a confirm has to reach somebody"
 CLOUD_DESCRIPTION = (
-    "The paid tier: the things one machine cannot do. Coming soon. The gate itself is "
-    "Apache-2.0 and complete without it."
+    "Approvals that reach a human — by webhook into Slack or Teams, or in the console. Org "
+    "policy, fleet budgets and audit across every agent. The gate itself is Apache-2.0 and "
+    "complete without any of it."
 )
 
 
