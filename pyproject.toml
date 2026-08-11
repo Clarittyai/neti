@@ -108,8 +108,29 @@ sdks-extended = [
 sdks-more = [
     "llama-index-core>=0.12",
     "smolagents>=1.0",
-    "semantic-kernel>=1.0",
 ]
+# **Semantic Kernel cannot share an environment with the OpenAI Agents SDK**, and pretending
+# otherwise is how this project ended up publishing a claim nobody could reproduce.
+#
+#     openai-agents 0.19.2   requires pydantic>=2.12.2,<3
+#     semantic-kernel 1.36   requires pydantic<2.12
+#
+# There is no version of pydantic that satisfies both. The environment the conformance table was
+# recorded in had semantic-kernel 1.36.0 running against pydantic 2.13.4 — outside its own declared
+# range — because packages were installed one at a time and each step skipped the constraint the
+# last one set. The suite passed, and `neti score` printed "tested with semantic-kernel 1.36.0"
+# against an environment no resolver would ever produce. That is exactly the unfalsifiable claim
+# this repository exists not to make.
+#
+# The newer semantic-kernel that does allow pydantic 2.12 depends on `azure-ai-agents>=1.2.0b3`,
+# which has no stable release, so taking it means enabling pre-releases for everything.
+#
+# So the two are declared as what they are: incompatible. `[tool.uv] conflicts` below tells the
+# resolver to solve them separately, and CI installs this extra into its own environment. The
+# conformance row for Semantic Kernel is produced there and is as real as every other row — it is
+# simply not produced in the same virtualenv, which is a fact about the ecosystem rather than about
+# this gate.
+sdks-semantic-kernel = ["semantic-kernel==1.36.0"]
 dev = [
     "pytest>=8.3",
     "types-pyyaml>=6.0",
@@ -195,9 +216,23 @@ disallow_any_explicit = false   # Resolution.evidence is deliberately dict[str, 
 # and mypy starts reporting the ignore itself as unused, so `uv run mypy` passes or fails depending
 # on which optional extras happen to be in the venv. That is the same failure `test_no_silent_skips`
 # exists to prevent, one layer up — a gate whose result depends on the machine it ran on.
+#
+# `semantic_kernel` joined them when it moved to its own extra: it conflicts with `openai-agents`
+# over pydantic, so the environment `gates` runs mypy in cannot contain it. Same reasoning, and the
+# same fix — the adapter imports it inside the function that needs it, so its absence is the
+# ordinary case rather than a broken install.
 [[tool.mypy.overrides]]
-module = ["psycopg.*", "boto3.*", "botocore.*", "smolagents.*"]
+module = ["psycopg.*", "boto3.*", "botocore.*", "smolagents.*", "semantic_kernel.*"]
 ignore_missing_imports = true
+
+# The cost of the line above, paid in one place rather than with an inline ignore. Once
+# `semantic_kernel` is untyped, its `@kernel_function` decorator is untyped, so the function it
+# decorates becomes untyped too. An inline `type: ignore` here would be correct only while the
+# package is absent and would report itself as unused the moment somebody installs the extra —
+# which is the machine-dependent gate the comment above exists to avoid.
+[[tool.mypy.overrides]]
+module = "neti.eval.proof"
+disallow_untyped_decorators = false
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -220,4 +255,20 @@ filterwarnings = [
     # control and cannot opt out of; turning it into a test failure would only mean the ADK
     # conformance row stops running the first time Google marks another feature experimental.
     "default:\\[EXPERIMENTAL\\]:UserWarning",
+]
+
+[tool.uv]
+# Declared rather than discovered. Without this the resolver has to find one environment that
+# satisfies both, and there isn't one — so it either fails outright or quietly picks a
+# semantic-kernel old enough to satisfy everybody (1.8.0), which the adapter cannot use and which
+# fails eleven seam tests. Naming the conflict is what lets `uv lock` produce both environments.
+#
+# Needs uv >= 0.5.29, where `conflicts` was added. An older uv prints "unknown field `conflicts`"
+# and carries on ignoring it, which resolves the wrong environment rather than refusing — so if the
+# semantic-kernel tests start failing on a machine where they used to pass, check `uv --version`
+# first. CI pins nothing here because `astral-sh/setup-uv` installs a current release.
+conflicts = [
+    [{ extra = "sdks" }, { extra = "sdks-semantic-kernel" }],
+    [{ extra = "sdks-extended" }, { extra = "sdks-semantic-kernel" }],
+    [{ extra = "sdks-more" }, { extra = "sdks-semantic-kernel" }],
 ]

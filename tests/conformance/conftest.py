@@ -79,6 +79,29 @@ def pytest_sessionfinish(session: Any, exitstatus: int) -> None:
         }
         for runtime in RUNTIMES
     }
+
+    # **An environment that cannot run a runtime has nothing to say about it.**
+    #
+    # `semantic-kernel` cannot share an environment with `openai-agents` — no pydantic satisfies
+    # both — so `pyproject.toml` declares the conflict and CI runs the two separately. Which means
+    # this file is written by more than one environment, and a plain overwrite makes the last one
+    # to run erase every row it could not measure: run the main suite and Semantic Kernel drops to
+    # "not installed here"; run the split suite and the other ten do.
+    #
+    # So a row that this environment could not produce keeps whatever a previous run recorded. It
+    # is the same asymmetry the resolvers follow — absence is not a measurement, and the safe
+    # direction is to decline rather than to claim. A row that goes genuinely stale is caught by
+    # `test_every_version_in_the_table_is_the_version_installed_here`, in the environment that can
+    # actually see it.
+    if RESULTS.exists():
+        try:
+            previous = json.loads(RESULTS.read_text(encoding="utf-8")).get("runtimes") or {}
+        except (OSError, ValueError):
+            previous = {}
+        for name, row in rows.items():
+            if not row["version"] and name in previous:
+                rows[name] = previous[name]
+
     RESULTS.parent.mkdir(parents=True, exist_ok=True)
     RESULTS.write_text(
         json.dumps(

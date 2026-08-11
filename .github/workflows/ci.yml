@@ -49,6 +49,27 @@ jobs:
       - run: uv pip install -e '.[dev,cli,graph,mcp,console,sdks,sdks-extended,sdks-more,storage,database]'
       - run: uv run pytest -q
 
+  # Semantic Kernel cannot share an environment with the OpenAI Agents SDK — `semantic-kernel` 1.36
+  # requires `pydantic<2.12` and `openai-agents` requires `>=2.12.2`, and no version satisfies both.
+  # `pyproject.toml` declares the conflict; this is where the other half of it runs.
+  #
+  # Without this job the split would be the exact failure `test_no_silent_skips.py` exists to
+  # prevent: a runtime quietly tested nowhere, with a green build over the top. That file asserts
+  # both sides — absent in the main environment above, present here — so a runtime cannot fall out
+  # of both and go unnoticed.
+  split-runtime:
+    runs-on: ubuntu-latest
+    env:
+      NETI_REQUIRE_SDKS: "1"
+      NETI_SPLIT_ENV: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v4
+      - run: uv venv --python 3.12
+      - run: uv pip install -e '.[dev,cli,graph,mcp,console,sdks-semantic-kernel]'
+      - name: the Semantic Kernel seams, and the assertion that they ran
+        run: uv run pytest -q -k "semantic_kernel or semantic-kernel" tests/e2e/test_no_silent_skips.py tests/e2e/test_seam_equivalence.py tests/conformance
+
   gates:
     runs-on: ubuntu-latest
     steps:
