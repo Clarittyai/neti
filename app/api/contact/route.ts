@@ -5,36 +5,34 @@
  * and the whole product works with this file deleted; it exists so that the one page asking people
  * to get in touch can actually reach somebody.
  *
- * **It is also a public, unauthenticated endpoint that sends email**, which is the most abusable
- * shape on the web. Everything below that looks like paranoia is load-bearing:
+ * ## Where the mail is actually sent
  *
- * 1. **The recipient is `CONTACT_TO`, from the environment, and is never read from the request.**
- *    This is the line separating a contact form from an open relay. A handler that mails
- *    `body.to` gets found by a scanner within days and used to send other people's mail from our
- *    domain — and the first anyone hears of it is `claritty.ai` on a blocklist and legitimate mail
- *    silently stopping.
- * 2. **CR and LF are stripped from every value that reaches a header.** Resend takes JSON rather
- *    than raw SMTP, so this is defence in depth rather than the only guard — but `reply_to` and
- *    `subject` do become headers downstream, and a name containing "\r\nBcc: …" is exactly the
- *    input that has broken mailers for thirty years.
- * 3. **The visitor's address is `reply_to`, never `from`.** `from` is our own verified domain.
- *    Putting a stranger's address in `from` is what SPF and DMARC exist to reject, and doing it
- *    gets the whole domain distrusted — including mail with nothing to do with this form.
- * 4. **A honeypot, and a rate limit.** The honeypot stops the bots that fill every input; the limit
- *    raises the cost of the ones that do not.
+ * Not here. This validates, rate-limits, and forwards to a Lambda in the Claritty AWS account
+ * (`infra/lambda/contact/`), which sends through SES as `noreply@mail.claritty.ai`.
  *
- * The rate limit is per warm instance and in memory, which is worth stating plainly rather than
- * implying: Vercel runs several instances and recycles them, so a determined sender gets more than
- * `MAX_PER_WINDOW` through. It is a speed bump, not a control. A real one needs shared state — the
- * same conclusion `SCOPE.md` reaches about per-machine budgets, for the same reason.
+ * The shortcut would be to call SES straight from this function, and it would mean putting a
+ * long-lived `AWS_SECRET_ACCESS_KEY` into Vercel — a key that by SES's nature can send mail as
+ * `@mail.claritty.ai` to anyone on earth. The extra hop keeps that permission inside AWS on the
+ * Lambda's execution role, scoped to one From address. What lives on Vercel is a shared secret
+ * whose entire power is "ask that function to send one message to one address it already knows".
+ * If it leaks, the damage is spam to our own inbox rather than mail sent as Claritty to the world.
+ *
+ * **The recipient is not configured here.** It lives on the Lambda, so nothing on the web side —
+ * including a compromised deployment of this app — can redirect where the mail goes.
+ *
+ * It also keeps the page's CSP at `connect-src 'self'`: the browser still only ever talks to its
+ * own origin, and the hop to AWS is server to server.
+ *
+ * ## Why the guards are duplicated
+ *
+ * Every check here also exists in the Lambda. That is not an oversight. This layer rejects the
+ * obvious cases without spending an invocation, and the Lambda repeats them because a Function URL
+ * is on the public internet and must not depend on its caller having been careful.
  */
 
-import { Resend } from 'resend'
-
-/** Node, not Edge. Nothing here needs the edge runtime, and the Node one is the better-trodden
- *  path for a route that talks to a third-party SDK. */
+/** Node, not Edge. Nothing needs the edge runtime, and Node is the better-trodden path. */
 export const runtime = 'nodejs'
-/** Never prerendered, never cached. The two page routes are `force-static`; this one must not be. */
+/** Never prerendered, never cached. The two page routes are `force-static`; this must not be. */
 export const dynamic = 'force-dynamic'
 
 /** Field caps. A contact form has no legitimate use for more, and unbounded strings are how a small
@@ -57,7 +55,7 @@ const seen = new Map<string, number[]>()
  *  -an-address and leaves the rest to the reply. */
 const LOOKS_LIKE_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-/** Everything that can reach a mail header goes through this. See note 2 above. */
+/** Everything that can reach a mail header goes through this. The Lambda does it again. */
 function oneLine(value: unknown, max: number): string {
   return String(value ?? '')
     .replace(/[\r\n]+/g, ' ')
@@ -93,12 +91,12 @@ function json(body: unknown, status: number) {
 }
 
 export async function POST(request: Request) {
-  const to = process.env.CONTACT_TO
-  const key = process.env.RESEND_API_KEY
-  if (!to || !key) {
+  const url = process.env.CONTACT_LAMBDA_URL
+  const secret = process.env.CONTACT_LAMBDA_SECRET
+  if (!url || !secret) {
     // Never leaks which one is missing. The sentence a visitor sees says nothing about our
     // configuration; the one in the log says everything, because that is where it is useful.
-    console.error('contact: missing env', { CONTACT_TO: !!to, RESEND_API_KEY: !!key })
+    console.error('contact: missing env', { url: !!url, secret: !!secret })
     return json({ error: 'The contact form is not configured yet.' }, 500)
   }
 
@@ -113,58 +111,45 @@ export async function POST(request: Request) {
   // gets a 200 rather than an error on purpose: a rejection tells the sender what to change.
   if (oneLine(data.website, 200)) return json({ ok: true }, 200)
 
-  const name = oneLine(data.name, LIMITS.name)
-  const email = oneLine(data.email, LIMITS.email)
-  const org = oneLine(data.org, LIMITS.org)
-  const agents = oneLine(data.agents, LIMITS.agents)
-  const where = oneLine(data.where, LIMITS.where)
-  const want = multiLine(data.want, LIMITS.want)
+  const payload = {
+    name: oneLine(data.name, LIMITS.name),
+    email: oneLine(data.email, LIMITS.email),
+    org: oneLine(data.org, LIMITS.org),
+    agents: oneLine(data.agents, LIMITS.agents),
+    where: oneLine(data.where, LIMITS.where),
+    want: multiLine(data.want, LIMITS.want),
+    ip: '',
+  }
 
-  if (!name || !email || !org || !want) {
+  if (!payload.name || !payload.email || !payload.org || !payload.want) {
     return json({ error: 'Name, email, company and the last field are required.' }, 400)
   }
-  if (!LOOKS_LIKE_EMAIL.test(email)) {
+  if (!LOOKS_LIKE_EMAIL.test(payload.email)) {
     return json({ error: 'That email address does not look right.' }, 400)
   }
 
-  const ip = oneLine(
-    request.headers.get('x-forwarded-for')?.split(',')[0] ?? 'unknown',
-    64,
-  )
+  const ip = oneLine(request.headers.get('x-forwarded-for')?.split(',')[0] ?? 'unknown', 64)
   if (limited(ip)) {
     return json({ error: 'Too many messages from here. Try again later.' }, 429)
   }
-
-  const text = [
-    `Name:     ${name}`,
-    `Email:    ${email}`,
-    `Company:  ${org}`,
-    `Agents:   ${agents || '—'}`,
-    `Runs on:  ${where || '—'}`,
-    '',
-    'What a human should see before it happens:',
-    want,
-    '',
-    `— neti.claritty.ai/cloud · ${ip}`,
-  ].join('\n')
+  payload.ip = ip
 
   try {
-    const { error } = await new Resend(key).emails.send({
-      // Our own verified sender, not the visitor's. See note 3.
-      from: oneLine(process.env.CONTACT_FROM || 'neti@claritty.ai', 200),
-      to,
-      replyTo: `${name} <${email}>`,
-      subject: `neti cloud — ${org}`,
-      text,
+    const sent = await fetch(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-neti-secret': secret },
+      body: JSON.stringify(payload),
+      // A cold Lambda plus SES is a couple of seconds; a minute is not. Without a deadline this
+      // request holds the function open until the platform kills it, and the visitor watches a
+      // spinner the whole time rather than being told to copy the message instead.
+      signal: AbortSignal.timeout(20_000),
     })
-    // The SDK reports failure in the payload as well as by throwing, and a version that only
-    // checked the throw would answer 200 to a message that was never accepted.
-    if (error) throw new Error(`${error.name}: ${error.message}`)
+    if (!sent.ok) throw new Error(`the mailer answered ${sent.status}`)
   } catch (err) {
     // The visitor gets a sentence they can act on and no internals. The address is in it because
     // the point of failing gracefully here is that the enquiry still reaches us.
     console.error('contact: send failed', err)
-    return json({ error: `Could not send. Please email ${to} directly.` }, 502)
+    return json({ error: 'Could not send. Please email shahar@claritty.ai directly.' }, 502)
   }
 
   return json({ ok: true }, 200)
