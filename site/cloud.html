@@ -72,7 +72,13 @@
   /* The two routes. A table, because they are the same object decided two ways. */
   .routes { display: grid; gap: 1px; background: var(--border);
             border: 1px solid var(--border); border-radius: .75rem; overflow: hidden; }
-  @media (min-width: 48rem) { .routes { grid-template-columns: 1fr 1fr; } }
+  /* `minmax(0, 1fr)`, not `1fr`. A bare `1fr` is `minmax(auto, 1fr)`, so the column refuses to go
+     below its content's min-content width — and the `<pre>` inside route one has a long unbroken
+     command in it. The track won, the grid grew past its own border box, and `overflow: hidden`
+     (which is there for the rounded corners) silently amputated the right-hand card instead of
+     scrolling it. Zeroing the floor lets the track shrink and hands the overflow to the `<pre>`,
+     which has `overflow-x: auto` and is the element that should own it. */
+  @media (min-width: 48rem) { .routes { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
   .route { background: var(--surface); padding: 1.75rem 1.5rem; }
   .route .lbl { color: var(--accent); }
   .route h3 { margin: .9rem 0 .6rem; }
@@ -94,7 +100,7 @@
 
   .split { display: grid; gap: 1px; background: var(--border);
            border-block: 1px solid var(--border); margin: 2.5rem 0 0; }
-  @media (min-width: 48rem) { .split { grid-template-columns: 1fr 1fr; } }
+  @media (min-width: 48rem) { .split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
   .split > div { background: var(--bg); padding: 1.75rem 1.5rem; }
   .split ul { margin: 0; padding-left: 1.1rem; display: grid; gap: .6rem; font-size: .9375rem; }
   .split li { color: var(--fg-muted); }

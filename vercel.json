@@ -23,7 +23,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'none'; img-src 'self' data:; style-src 'sha256-5ntiZZKMdJU3bmzLFPuxFmXXns0xlFabR/cgMmgfut4=' 'sha256-WA7k+u599Wewqyxs77MzD/TYpDZq3T0KX8FAf1pNuz0=' 'sha256-jN6AN/D3/3msuUJxIl4QRcFDx+FtyApvlEfP1dsQ44Q='; script-src 'sha256-mhpYlQhj1EM1ldG/eCD5TvbjI34dSnpRARWILj5OZjU=' 'sha256-x6hdWJjGUnJM7pC4drF3AarxSDWJ69lIv05W1xsZbqU='; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
+          "value": "default-src 'none'; img-src 'self' data:; style-src 'sha256-jN6AN/D3/3msuUJxIl4QRcFDx+FtyApvlEfP1dsQ44Q=' 'sha256-QowRHWfLPVn83+Yk2goR9lOQiwzYD7PIJfXRWoHdy6c=' 'sha256-CviaS2phKkn1qwSmdYbP8eLusBKDe8RK/Q9S74qHG6U='; script-src 'sha256-mhpYlQhj1EM1ldG/eCD5TvbjI34dSnpRARWILj5OZjU=' 'sha256-x6hdWJjGUnJM7pC4drF3AarxSDWJ69lIv05W1xsZbqU='; base-uri 'none'; form-action 'none'; frame-ancestors 'none'"
         }
       ]
     }
