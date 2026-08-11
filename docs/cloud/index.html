@@ -265,7 +265,7 @@
     border: 1px solid var(--border); border-radius: .5rem; padding: .6rem .75rem; width: 100%; }
   .fld textarea { resize: vertical; min-height: 5rem; line-height: 1.55; }
   .fld input::placeholder, .fld textarea::placeholder { color: var(--fg-faint); }
-  .two { display: grid; gap: 0 1rem; }
+  .two { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 1rem; }
   @media (min-width: 30rem) { .two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
 
   /* Off-screen, not `display: none` and not `hidden` — both are skipped by the crawlers this is
