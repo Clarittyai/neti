@@ -183,7 +183,16 @@ packages = ["src/neti"]
 "examples" = "neti/examples"
 
 [tool.hatch.build.targets.sdist]
-exclude = ["web/node_modules", "web/.next", "web/out", ".venv", "out", "dist"]
+exclude = [
+    "web/node_modules",
+    "web/.next",
+    "web/out",
+    "node_modules",
+    ".next",
+    ".venv",
+    "out",
+    "dist",
+]
 
 [tool.ruff]
 line-length = 100
