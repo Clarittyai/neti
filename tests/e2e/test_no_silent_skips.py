@@ -197,7 +197,14 @@ def test_the_ci_workflow_installs_what_the_tests_import() -> None:
     installed.
     """
     workflow = (REPO / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
-    install_lines = [ln for ln in workflow.splitlines() if "uv pip install" in ln]
+    # Both forms. The suite jobs install from the lockfile with `uv sync --frozen --extra …`,
+    # because resolving fresh on every run is what made the published SDK versions drift; the
+    # `installed` job still uses `uv pip install`, since its whole subject is a wheel going into an
+    # environment that has never seen this checkout. Reading only one spelling would have made this
+    # check vacuous the moment the other arrived — which is the failure it exists to prevent.
+    install_lines = [
+        ln for ln in workflow.splitlines() if "uv pip install" in ln or "uv sync" in ln
+    ]
     assert install_lines, "no install line found in ci.yml — has the workflow changed shape?"
 
     # The bench and packaging jobs deliberately differ; the job that runs the suite is the one that
