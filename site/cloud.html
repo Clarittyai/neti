@@ -201,14 +201,13 @@
      A `<dialog>`, so the focus trap, the Escape key, the inert background and the top layer are the
      browser's job rather than three hundred lines of ours that get one of them subtly wrong.
 
-     **Where it sends, and why that is the design.** This page is served under
-     `default-src 'none'` with no `connect-src`, which means the page cannot make a network request
-     of any kind — that is deliberate, it is the header a security reviewer reads first, and it is
-     the same promise as `no telemetry, no phone-home` in the footer. So the form does not POST
-     anywhere. It composes the message and hands it to the visitor's own mail client, addressed to
-     shahar@claritty.ai, with a copy-to-clipboard fallback for anyone whose browser has no mailto
-     handler. Nothing typed here reaches a server until the visitor presses send in their own
-     client, which is the correct default for a page about not doing things on someone's behalf. */
+     **Where it sends.** `POST /api/contact`, this site's own function, which relays over SMTP to
+     shahar@claritty.ai. That required widening the CSP from `default-src 'none'` with nothing else
+     to `connect-src 'self'` — a deliberate, minimal change: the page may talk to itself and to
+     nothing else, so `no telemetry, no phone-home` in the footer stays true, because there is still
+     no third party anywhere in this page. `api/contact.js` says what the endpoint will and will not
+     do; the short version is that the recipient comes from the environment and never from the
+     request. The copy-to-clipboard button stays as the fallback for a failed send. */
   dialog { border: 1px solid var(--border); border-radius: .9rem; background: var(--surface);
            color: var(--fg); padding: 0; width: min(38rem, calc(100vw - 2rem)); max-height: 88vh;
            overflow: auto; }
@@ -231,6 +230,11 @@
   .fld input::placeholder, .fld textarea::placeholder { color: var(--fg-faint); }
   .two { display: grid; gap: 0 1rem; }
   @media (min-width: 30rem) { .two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+
+  /* Off-screen, not `display: none` and not `hidden` — both are skipped by the crawlers this is
+     meant to catch, and by nothing else. `aria-hidden` and `tabindex="-1"` keep it away from
+     anybody using a screen reader or the keyboard. */
+  .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
 
   .dlg-foot { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-top: .25rem; }
   .dlg-foot .note { margin: 0; border: 0; padding: 0; font-size: .8125rem; }
@@ -471,9 +475,8 @@ is granted.</pre>
     <button type="button" class="dlg-x" id="contact-x" aria-label="Close">&times;</button>
   </div>
   <div class="dlg-body">
-    <p>Tell us what you are running and what you want a human to see before it happens. This opens
-      your own mail client, addressed to <code>shahar@claritty.ai</code> &mdash; nothing is sent
-      until you press send there.</p>
+    <p>Tell us what you are running and what you want a human to see before it happens. It goes
+      straight to <code>shahar@claritty.ai</code>, and you will get a reply from a person.</p>
     <form id="contact-form">
       <div class="two">
         <div class="fld">
@@ -512,14 +515,22 @@ is granted.</pre>
         <textarea id="c-want" name="want" required rows="4"
           placeholder="Anything that touches more than a handful of accounts, deletes a repository, or reads a secret."></textarea>
       </div>
-      <div class="dlg-foot">
-        <button type="submit" class="send">Open in mail</button>
-        <button type="button" class="copy" id="contact-copy">Copy it instead</button>
-        <span class="said" id="contact-said" role="status"></span>
+      <!-- The honeypot. Off-screen rather than `display: none`, because the crawlers worth
+           stopping skip hidden inputs but not positioned ones. Nothing reaches a human that has
+           this filled in. -->
+      <div class="hp" aria-hidden="true">
+        <label for="c-website">Website</label>
+        <input id="c-website" name="website" tabindex="-1" autocomplete="off">
       </div>
-      <p class="note" style="margin-top:1.25rem">Goes to <b>shahar@claritty.ai</b>. This page makes
-        no network requests of its own &mdash; the header says <code>default-src &#39;none&#39;</code>
-        and that is the whole point of it.</p>
+      <div class="dlg-foot">
+        <button type="submit" class="send" id="contact-send">Send</button>
+        <button type="button" class="copy" id="contact-copy">Copy it instead</button>
+        <span class="said" id="contact-said" role="status" aria-live="polite"></span>
+      </div>
+      <p class="note" style="margin-top:1.25rem">Goes to <b>shahar@claritty.ai</b>. Pressing send is
+        the only request this page makes, it goes to this site and nowhere else, and the header
+        still says <code>connect-src &#39;self&#39;</code> &mdash; there is no analytics, no tag
+        manager and no third party in it.</p>
     </form>
   </div>
 </dialog>
@@ -603,21 +614,23 @@ is granted.</pre>
  * browser. `showModal()` also restores focus to whichever trigger opened it, which matters because
  * there are two of them, one at each end of the page.
  *
- * There is no POST. The page is served under `default-src 'none'` with no `connect-src`, which is
- * the header the footer's "no telemetry, no phone-home" cashes out to, and quietly opening an
- * exception in it so a marketing form could work would be the wrong trade on this page of all
- * pages. So the message is composed here and handed to the visitor's own mail client. Nothing they
- * type leaves the browser until they press send themselves.
+ * Submitting POSTs JSON to `/api/contact` — this site's own function, which relays over SMTP. That
+ * is the only network request this page makes, which is why the CSP says `connect-src 'self'` and
+ * not `*`: the page may talk to itself and to nothing else. There is no analytics and no third
+ * party here, so `no telemetry, no phone-home` in the footer is still true.
  *
- * `mailto:` is not universal — a browser with no handler registered does nothing at all, silently,
- * which would lose the enquiry and tell nobody. Hence "Copy it instead", and hence the address in
- * plain text on the page rather than only inside a link. */
+ * **A send can fail** — the network drops, the function is cold, the SMTP credentials expire. A
+ * form that silently does nothing in those cases loses the enquiry and tells nobody, so every
+ * failure path says what happened and leaves "Copy it instead" and the address in plain sight. The
+ * point of the fallback is that a broken endpoint costs a paste, not a customer.
+ */
 (function () {
   var dlg = document.getElementById('contact');
   if (!dlg || typeof dlg.showModal !== 'function') return;  /* no <dialog>: the address is on the page */
 
   var form = document.getElementById('contact-form'),
       said = document.getElementById('contact-said'),
+      send = document.getElementById('contact-send'),
       copy = document.getElementById('contact-copy'),
       close = document.getElementById('contact-x'),
       TO = 'shahar@claritty.ai';
@@ -626,6 +639,7 @@ is granted.</pre>
   for (var i = 0; i < triggers.length; i++) {
     triggers[i].addEventListener('click', function () {
       said.textContent = '';
+      said.style.color = '';
       dlg.showModal();
       var first = document.getElementById('c-name');
       if (first) first.focus();
@@ -641,45 +655,76 @@ is granted.</pre>
     return el ? String(el.value || '').trim() : '';
   }
 
-  function message() {
-    var org = value('c-org');
+  function payload() {
     return {
-      subject: 'neti cloud — ' + (org || 'enquiry'),
-      body: [
-        'Name:     ' + value('c-name'),
-        'Email:    ' + value('c-email'),
-        'Company:  ' + org,
-        'Agents:   ' + value('c-agents'),
-        'Runs on:  ' + (value('c-where') || '—'),
-        '',
-        'What a human should see before it happens:',
-        value('c-want'),
-        '',
-        '— sent from neti.claritty.ai/cloud'
-      ].join('\n')
+      name: value('c-name'),
+      email: value('c-email'),
+      org: value('c-org'),
+      agents: value('c-agents'),
+      where: value('c-where'),
+      want: value('c-want'),
+      website: value('c-website')  /* the honeypot, sent as-is so the server can judge it */
     };
   }
 
+  function say(text, bad) {
+    said.textContent = text;
+    said.style.color = bad ? 'var(--destructive)' : '';
+  }
+
   form.addEventListener('submit', function (e) {
-    e.preventDefault();  /* `form-action 'none'` would block a real submit anyway; this is explicit. */
-    var m = message();
-    said.textContent = 'Opening your mail client…';
-    window.location.href = 'mailto:' + TO +
-      '?subject=' + encodeURIComponent(m.subject) +
-      '&body=' + encodeURIComponent(m.body);
+    e.preventDefault();
+    send.disabled = true;
+    say('Sending…');
+
+    fetch('/api/contact', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload())
+    }).then(function (r) {
+      return r.json().then(function (d) { return { ok: r.ok, data: d || {} }; },
+                           function () { return { ok: r.ok, data: {} }; });
+    }).then(function (r) {
+      if (r.ok && r.data.ok) {
+        /* The form is replaced by the confirmation rather than sitting there looking submittable.
+           A visitor who cannot tell whether it went sends it again. */
+        form.innerHTML = '';
+        var done = document.createElement('p');
+        done.className = 'note';
+        done.style.marginTop = '0';
+        done.innerHTML = '<b>Sent.</b> It is in ' + TO + ' now, and you will get a reply from a ' +
+          'person rather than a sequence.';
+        form.appendChild(done);
+        return;
+      }
+      send.disabled = false;
+      say(r.data.error || ('Could not send — email ' + TO + ' directly.'), true);
+    }).catch(function () {
+      send.disabled = false;
+      say('No connection. Copy it instead, or email ' + TO + '.', true);
+    });
   });
 
   copy.addEventListener('click', function () {
-    var m = message();
-    var text = 'To: ' + TO + '\nSubject: ' + m.subject + '\n\n' + m.body;
-    var done = function () { said.textContent = 'Copied — paste it to ' + TO; };
+    var d = payload();
+    var text = 'To: ' + TO + '\nSubject: neti cloud — ' + (d.org || 'enquiry') + '\n\n' + [
+      'Name:     ' + d.name,
+      'Email:    ' + d.email,
+      'Company:  ' + d.org,
+      'Agents:   ' + d.agents,
+      'Runs on:  ' + (d.where || '—'),
+      '',
+      'What a human should see before it happens:',
+      d.want
+    ].join('\n');
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(done, function () {
-        said.textContent = 'Could not copy — the address is ' + TO;
-      });
+      navigator.clipboard.writeText(text).then(
+        function () { say('Copied — paste it to ' + TO); },
+        function () { say('Could not copy — the address is ' + TO, true); }
+      );
       return;
     }
-    said.textContent = 'Could not copy — the address is ' + TO;
+    say('Could not copy — the address is ' + TO, true);
   });
 })();
 </script>

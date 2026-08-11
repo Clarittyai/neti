@@ -1,0 +1,13 @@
+{
+  "name": "neti-site",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "description": "Serverless functions for neti.claritty.ai. The product itself is the Python package; this exists only so /api/contact can send mail.",
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "nodemailer": "^9.0.5"
+  }
+}

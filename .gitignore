@@ -13,6 +13,7 @@ out/
 
 # web
 web/node_modules/
+node_modules/
 web/.next/
 web/out/
 out/
