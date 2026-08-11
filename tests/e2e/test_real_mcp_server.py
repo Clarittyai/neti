@@ -19,11 +19,14 @@ The first run downloads the package, which is why the timeout is generous.
 
 from __future__ import annotations
 
+import contextlib
 import json
 import os
 import shutil
 import subprocess
 import sys
+import threading
+import time
 from pathlib import Path
 from typing import Any
 
@@ -94,8 +97,24 @@ def tree(tmp_path_factory: pytest.TempPathFactory) -> Path:
 
 
 def gate(tree: Path, policy: Path, lines: list[str], timeout: int = 300) -> dict[str, Any]:
-    """Run the gate in front of the real server and return `{id: response}`."""
-    out = subprocess.run(
+    """Run the gate in front of the real server and return `{id: response}`.
+
+    **One request at a time, each answered before the next is sent.** This used to write every line
+    into stdin at once and read the whole of stdout afterwards, which is not how an MCP client
+    behaves and is why this file went red on `windows-latest` roughly one run in ten with
+    `KeyError: 'result'` on the handshake.
+
+    `serve_stdio` dispatches each incoming message to a thread pool of eight, on purpose — one slow
+    `tools/call` must not block every other request on the connection. Feeding it two lines in one
+    write therefore starts `initialize` and `tools/list` concurrently and lets them race, and the
+    MCP specification is explicit that a client must not send anything but a ping until the
+    initialize response has come back. On a fast machine the handshake won; on a loaded Windows
+    runner it did not, and the gate reported the resulting upstream failure as a JSON-RPC error on
+    id 1 — which is the correct thing for it to do, and exactly what the assertion then tripped on.
+
+    So the flake was in the client written here, not in the gate. This waits, like a real one.
+    """
+    proc = subprocess.Popen(
         [
             sys.executable,
             "-m",
@@ -111,28 +130,80 @@ def gate(tree: Path, policy: Path, lines: list[str], timeout: int = 300) -> dict
             SERVER_PACKAGE,
             str(tree),
         ],
-        input="\n".join(lines) + "\n",
-        capture_output=True,
+        stdin=subprocess.PIPE,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
         text=True,
-        timeout=timeout,
+        bufsize=1,
+        encoding="utf-8",
         # `npx` needs a real PATH and HOME to find or fetch the package.
         env={**os.environ},
     )
-    assert out.returncode == 0, f"the gate exited {out.returncode}\n{out.stderr[-2000:]}"
+    assert proc.stdin and proc.stdout and proc.stderr
+
+    # Drained in a thread rather than read at the end. The child's stderr banner is small, but a
+    # pipe nobody reads is a pipe that eventually fills and deadlocks the process writing to it —
+    # and the whole point of this file is that the server has a real stderr.
+    tail: list[str] = []
+
+    def drain() -> None:
+        assert proc.stderr
+        for line in proc.stderr:
+            tail.append(line.rstrip())
+
+    errs = threading.Thread(target=drain, daemon=True)
+    errs.start()
 
     responses: dict[str, Any] = {}
-    for line in out.stdout.splitlines():
-        if not line.strip():
+    try:
+        for line in lines:
+            proc.stdin.write(line + "\n")
+            proc.stdin.flush()
+            responses.update(_await_response(proc, timeout, tail))
+        proc.stdin.close()
+        proc.wait(timeout=60)
+    finally:
+        if proc.poll() is None:  # pragma: no cover - only on a hang
+            proc.kill()
+            proc.wait(timeout=10)
+        errs.join(timeout=5)
+        # `subprocess.run` closed these; `Popen` does not, and an unclosed pipe raises a
+        # ResourceWarning that this suite turns into a failure — which is the correct setting, and
+        # was the first thing this rewrite tripped over.
+        for pipe in (proc.stdin, proc.stdout, proc.stderr):
+            if pipe is not None:
+                with contextlib.suppress(OSError, ValueError):
+                    pipe.close()
+
+    assert proc.returncode == 0, f"the gate exited {proc.returncode}\n" + "\n".join(tail[-20:])
+    return responses
+
+
+def _await_response(proc: subprocess.Popen[str], timeout: int, tail: list[str]) -> dict[str, Any]:
+    """Read stdout until the response to the request just sent arrives.
+
+    The first call carries the cost of `npx` fetching the package, which is why the timeout is
+    generous; a blank line or a notification does not end the wait.
+    """
+    assert proc.stdout
+    deadline = time.monotonic() + timeout
+    while True:
+        if time.monotonic() > deadline:  # pragma: no cover - only on a hang
+            pytest.fail("the gate never answered\n" + "\n".join(tail[-20:]))
+        raw = proc.stdout.readline()
+        if not raw:  # pragma: no cover - only when the gate dies mid-handshake
+            pytest.fail("the gate closed its output mid-exchange\n" + "\n".join(tail[-20:]))
+        raw = raw.strip()
+        if not raw:
             continue
         # Every line on stdout must be JSON-RPC. This is the assertion the stderr banner exists to
         # threaten: one byte of server chatter here and a real client's parser gives up.
         try:
-            message = json.loads(line)
+            message = json.loads(raw)
         except json.JSONDecodeError as exc:  # pragma: no cover - the failure path is the point
-            pytest.fail(f"non-JSON on stdout, which corrupts the stream: {line[:200]!r} ({exc})")
+            pytest.fail(f"non-JSON on stdout, which corrupts the stream: {raw[:200]!r} ({exc})")
         if "id" in message:
-            responses[str(message["id"])] = message
-    return responses
+            return {str(message["id"]): message}
 
 
 @pytest.fixture(scope="module")
