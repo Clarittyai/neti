@@ -314,6 +314,52 @@
            font-family: var(--mono); font-size: .75rem; letter-spacing: .06em;
            color: var(--fg-faint); line-height: 2; }
   footer a { text-decoration: none; color: var(--fg-muted); }
+
+  /* ══════════════════════════════════════════════════════════════════════ hero, second attempt
+     The first version made the measurement the headline: `41,203` at display size and no sentence
+     at all. Seen live, that is a poster rather than a landing page — a stranger arrives, meets a
+     number, and has nothing telling them what this is or why the number matters.
+
+     So the sentence leads and the figures become evidence beside it, which is the arrangement that
+     actually works: a claim you can read in two seconds, and the numbers standing behind it. The
+     accent break on the last phrase is doing the same job the eyebrow used to and doing it in the
+     one place the eye is already looking. */
+  .lead { padding-block: clamp(3rem, 7vw, 5.5rem) clamp(2rem, 4vw, 3rem); display: grid;
+          gap: clamp(2.5rem, 5vw, 4rem); align-items: center; }
+  @media (min-width: 62rem) { .lead { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); } }
+  .lead h1 { font-size: clamp(2.5rem, 5.4vw, 4.25rem); line-height: 1.02; letter-spacing: -.035em;
+             font-weight: 800; }
+  .lead h1 em { font-style: normal; color: var(--accent); }
+  .lead .sub { font-size: clamp(1.0625rem, .6vw + .95rem, 1.1875rem); color: var(--fg-muted);
+               margin-top: 1.5rem; max-width: 40em; line-height: 1.55; }
+  /* Monospace tokens sitting inside prose. They carry the product's own vocabulary — a unit, a
+     resolver, a verdict — without a code block interrupting the sentence. */
+  .tok { font-family: var(--mono); font-size: .8125em; border: 1px solid var(--border);
+         border-radius: 4px; padding: .1em .4em; color: var(--fg); white-space: nowrap; }
+
+  /* The evidence panel. One hairline-separated row per fact: a figure, what it is, and the detail
+     that stops it being a boast. */
+  .facts { border: 1px solid var(--border); border-radius: .75rem; background: var(--surface);
+           overflow: hidden; }
+  .fact { display: grid; grid-template-columns: minmax(3rem, auto) minmax(0, 1fr);
+          gap: .25rem .9rem; align-items: baseline; padding: 1.15rem 1.35rem;
+          border-top: 1px solid var(--hair); }
+  .fact:first-child { border-top: 0; }
+  .fact b { font-family: var(--mono); font-size: clamp(1.5rem, 2.6vw, 2rem); font-weight: 500;
+            letter-spacing: -.04em; color: var(--accent); line-height: 1; }
+  .fact .t { font-size: .9375rem; font-weight: 600; }
+  .fact .d { grid-column: 2; font-size: .8125rem; color: var(--fg-faint); line-height: 1.5; }
+
+  /* A floating pill rather than a full-bleed bar: it lifts the page off the top edge and makes the
+     one filled action read as the only thing to press. */
+  .nav { position: sticky; top: 0; z-index: 20; background: transparent; border-bottom: 0;
+         padding-top: .85rem; }
+  .nav-in { max-width: 72rem; margin-inline: auto; padding: .6rem .75rem .6rem 1.35rem;
+            display: flex; align-items: center; gap: 1.5rem;
+            background: var(--surface); border: 1px solid var(--border); border-radius: 999px; }
+  .nav .ghb { background: var(--accent); color: #fff; border-radius: 999px;
+              padding: .5rem 1.1rem; letter-spacing: .06em; }
+  .nav .ghb:hover { color: #fff; background: #4A6BE8; }
 </style>
 
 <div class="neti">
@@ -325,53 +371,48 @@
       <a class="opt" href="#seams">Where it plugs in</a>
       <a class="opt" href="#scope">What it does not do</a>
       <a class="on" href="/cloud/">Cloud</a>
-      <a href="https://github.com/Neti-Security/neti">GitHub</a>
+      <a class="ghb" href="https://github.com/Neti-Security/neti">GitHub</a>
     </div>
   </nav>
 
-  <!-- ═══════════════════════════════════════════ hero: the measurement is the headline.
-       A number set at display size with tabular figures, the call it came from above it, and the
-       comparison beside it ruled like the table it is. No sentence competing with the figure —
-       the product's claim *is* the figure, and a headline about it would be a paraphrase. -->
+  <!-- ═══════════════════════════════════════════ hero: a sentence, then the evidence.
+       Rewritten after seeing the first version live. It led with `41,203` at display size and no
+       headline at all — striking, and useless to somebody who has just arrived. -->
   <header class="shell">
-    <div class="measure">
-      <div class="left">
-        <div class="lbl" style="margin-bottom:1.25rem">Preflight · resolved before execution</div>
-        <p class="call">remove_group_members(group: <b>"engineering-all"</b>)</p>
-
-        <div class="figure">
-          <span class="n">41,203</span>
-          <span class="unit">principals<em>lower bound · entra.principals</em></span>
-        </div>
-
-        <div class="verdict-line">
-          <span class="chip blocked">Blocked</span>
-          <span class="said">Your permission system sees a group name on an allowlist. neti sees
-            the people. The agent is told the number, not refused — which is what makes it narrow
-            the target and try again rather than route around.</span>
-        </div>
-
+    <div class="lead">
+      <div>
+        <h1>Count what a tool call will touch <em>before it runs.</em></h1>
+        <p class="sub">Your permission system sees <span class="tok">remove_group_members</span> on
+          an allowlist and the name is allowed. neti resolves it to <span class="tok">41,203
+          principals</span>, compares that to a ceiling you declared, and stops the call — handing
+          the agent the number rather than a refusal, which is what makes it narrow the target and
+          try again.</p>
         <div class="actions">
           <a class="pill" href="https://github.com/Neti-Security/neti">Get started</a>
           <a class="quiet" href="/cloud/">Hosted version</a>
         </div>
       </div>
 
-      <div class="ledger">
-        <div class="lbl" style="margin-bottom:1rem">The comparison</div>
-        <div class="rows" style="border-top:0">
-          <div class="row"><span class="row-k">measured</span><span class="row-v v" style="color:var(--destructive)">41,203</span></div>
-          <div class="row"><span class="row-k">declared ceiling</span><span class="row-v v" style="color:var(--warning)">200</span></div>
-          <div class="row"><span class="row-k">direction</span><span class="row-v v">lower_bound</span></div>
-          <div class="row"><span class="row-k">sound to block</span><span class="row-v v">yes</span></div>
-          <div class="row"><span class="row-k">model in the path</span><span class="row-v v">none</span></div>
+      <div class="facts">
+        <div class="fact">
+          <b>5</b><span class="t">declared predicates</span>
+          <span class="d">Magnitude, sensitivity, location, accumulation, provenance. A call is
+            stopped if any of them says so.</span>
         </div>
-        <div class="scale">
-          <div class="track"><span class="fill"></span><span class="mark-ceil" style="left:.5%"></span></div>
-          <div class="scale-legend">
-            <span class="lbl" style="color:var(--warning)">ceiling 200</span>
-            <span class="lbl" style="color:var(--destructive)">measured 41,203</span>
-          </div>
+        <div class="fact">
+          <b>15</b><span class="t">seams, no code change</span>
+          <span class="d">MCP over stdio and HTTP, the Claude Code hook, and eleven SDK adapters —
+            all asserted to give the same verdict byte for byte.</span>
+        </div>
+        <div class="fact">
+          <b>11</b><span class="t">resolvers that count</span>
+          <span class="d">Files, shell targets, rows, objects, repositories, principals, apps,
+            infrastructure resources.</span>
+        </div>
+        <div class="fact">
+          <b>0</b><span class="t">models in the decision path</span>
+          <span class="d">Every verdict is a static comparison against a number a human wrote,
+            sealed into a chain you can re-derive offline.</span>
         </div>
       </div>
     </div>
