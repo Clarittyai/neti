@@ -22,3 +22,9 @@ src/neti/console/
 
 # Backups written by `neti install` and the policy editor. Never committed.
 *.bak
+
+# Written by `vercel link` and `vercel dev`. `.vercel` holds the project id; `.env*.local` is where
+# SMTP credentials for `api/contact.js` land when anybody runs the site locally. Neither belongs in
+# a public repository, and the second one is the reason this entry is not merely tidiness.
+.vercel
+.env*.local
