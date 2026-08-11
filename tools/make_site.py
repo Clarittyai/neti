@@ -29,9 +29,11 @@ from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 SOURCE = REPO / "site" / "page.html"
+CLOUD_SOURCE = REPO / "site" / "cloud.html"
 MEDIA = REPO / "docs" / "media"
 CONSOLE = MEDIA / "console"
 PAGE = REPO / "docs" / "index.html"
+CLOUD_PAGE = REPO / "docs" / "cloud" / "index.html"
 FRAGMENT = REPO / "build" / "page.html"
 
 PLACEHOLDER = re.compile(r"\{\{MEDIA:([a-z0-9_]+)\}\}")
@@ -57,9 +59,9 @@ def _data_uri(path: Path, mime: str, hint: str) -> str:
     return f"data:{mime};base64,{base64.b64encode(path.read_bytes()).decode('ascii')}"
 
 
-def fragment() -> str:
+def fragment(source: Path = SOURCE) -> str:
     """The body: styles, markup and script, with every image inlined. No document wrapper."""
-    text = SOURCE.read_text(encoding="utf-8")
+    text = source.read_text(encoding="utf-8")
     text = PLACEHOLDER.sub(
         lambda m: _data_uri(
             MEDIA / f"{m.group(1)}.svg",
@@ -78,17 +80,19 @@ def fragment() -> str:
     )
 
 
-def document(body: str) -> str:
+def document(body: str, *, title: str = "", description: str = "") -> str:
     """The same body inside a complete document, for a static host to serve."""
+    title = title or TITLE
+    description = description or DESCRIPTION
     return f"""<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>{TITLE}</title>
-<meta name="description" content="{DESCRIPTION}">
-<meta property="og:title" content="{TITLE}">
-<meta property="og:description" content="{DESCRIPTION}">
+<title>{title}</title>
+<meta name="description" content="{description}">
+<meta property="og:title" content="{title}">
+<meta property="og:description" content="{description}">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
 <style>
@@ -106,9 +110,27 @@ def document(body: str) -> str:
 """
 
 
+CLOUD_TITLE = "neti cloud — approvals, org policy and fleet audit"
+CLOUD_DESCRIPTION = (
+    "The paid tier: the things one machine cannot do. Coming soon. The gate itself is "
+    "Apache-2.0 and complete without it."
+)
+
+
 def expected() -> dict[Path, str]:
+    """Every page this builds, and what each should contain.
+
+    A dict rather than two named returns because `--check` and `main` both walk it, and a page that
+    somebody adds to one and forgets in the other is a page that goes stale without anything saying
+    so — which is the failure this whole file exists to prevent for the images.
+    """
     body = fragment()
-    return {PAGE: document(body), FRAGMENT: body}
+    pages = {PAGE: document(body), FRAGMENT: body}
+    if CLOUD_SOURCE.exists():
+        pages[CLOUD_PAGE] = document(
+            fragment(CLOUD_SOURCE), title=CLOUD_TITLE, description=CLOUD_DESCRIPTION
+        )
+    return pages
 
 
 def main() -> int:

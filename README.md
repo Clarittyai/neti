@@ -15,7 +15,7 @@
 </p>
 
 <p align="center">
-  <b><a href="https://neti-security.github.io/neti/">neti-security.github.io/neti</a></b>
+  <b><a href="https://neti.claritty.ai/">neti.claritty.ai</a></b>
 </p>
 
 ```
@@ -119,6 +119,14 @@ credentials, no configuration, no traffic to wait for.
 
 It is not an alert. Nothing has gone wrong. It is a fact about your capability surface that you
 could not previously obtain.
+
+<img src="docs/media/demo_here_no_traffic.svg" alt="neti demo --here on a machine with no traffic: three layers listening, four dark for want of a credential, and the total an agent working here can reach">
+
+**This is the whole of day zero**, and the only picture on this page that needs neither traffic nor
+a credential — `neti demo --here` walks your own files through the same decision path the gate uses
+in production. Three layers are listening, four are dark for want of a credential, and two have no
+resolver at all. The tool tells you which is which rather than reporting a number and letting you
+assume it covered everything.
 
 …and then it turns itself on:
 
@@ -577,7 +585,7 @@ A `confirm` band means *somebody other than the agent's operator should decide t
 machine there is nobody to ask, so the gate stops the call and says so. That is correct, and it is
 what a free install will keep doing.
 
-The hosted tier — [`neti-cloud`](https://neti-security.github.io/neti/), BUSL-1.1 — is the somewhere the
+The hosted tier — [`neti-cloud`](https://neti.claritty.ai/), BUSL-1.1 — is the somewhere the
 question can go:
 
 ```console
@@ -799,7 +807,7 @@ Open an issue with the tool and the parameter and we will tell you honestly whet
 ---
 
 <p align="center">
-  <a href="https://neti-security.github.io/neti/"><b>neti-security.github.io/neti</b></a> ·
+  <a href="https://neti.claritty.ai/"><b>neti.claritty.ai</b></a> ·
   <a href="LICENSING.md">Apache-2.0</a> ·
   no telemetry, no phone-home, no licence check
 </p>

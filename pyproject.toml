@@ -30,7 +30,7 @@ dependencies = [
 
 [project.urls]
 # Kept in step with src/neti/_website.py by tests/property/test_urls_agree.py — one place to edit.
-Homepage = "https://neti-security.github.io/neti/"
+Homepage = "https://neti.claritty.ai/"
 Source = "https://github.com/Neti-Security/neti"
 Issues = "https://github.com/Neti-Security/neti/issues"
 Licensing = "https://github.com/Neti-Security/neti/blob/main/LICENSING.md"

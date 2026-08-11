@@ -5,14 +5,15 @@ URL that will be wrong in some of them. `tests/property/test_urls_agree.py` asse
 address written anywhere in this repository is one of the two below, so moving is an edit here and
 nowhere else.
 
-`WEBSITE` is a GitHub Pages address today because it is one that works without anyone buying a
-domain first. Pointing it at a custom domain is a one-line change here plus a CNAME; nothing else in
-the repository knows the difference.
+`WEBSITE` was a GitHub Pages address until 2026-08-11, chosen because it works without anyone
+buying a domain first. It is a custom domain now — which took exactly what this docstring predicted:
+one line here, a `docs/CNAME`, and nothing else in the repository noticed. `test_urls_agree.py` is
+what made that true rather than hopeful.
 """
 
 from __future__ import annotations
 
-WEBSITE = "https://neti-security.github.io/neti/"
+WEBSITE = "https://neti.claritty.ai/"
 """The product site: what neti is, for someone who has not decided to install anything yet."""
 
 REPOSITORY = "https://github.com/Neti-Security/neti"
