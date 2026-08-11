@@ -82,9 +82,14 @@
                margin-top: 1.5rem; line-height: 1.55; }
 
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem; margin-top: 2rem; }
-  .pill { background: var(--accent); color: #fff; font-weight: 600; font-size: .875rem;
-          padding: .7rem 1.5rem; border-radius: 999px; }
-  .pill:hover { background: #4A6BE8; color: #fff; }
+  /* `font: inherit` and the border reset are here because `.pill` is worn by a `<button>` as well
+     as an `<a>` — the contact trigger opens a dialog, and a thing that opens a dialog is a button,
+     not a link to nowhere. Without the reset the two would render at different sizes in the same
+     row, which is how "it looks slightly off" bugs start. */
+  .pill { font: inherit; background: var(--accent); color: #fff; font-weight: 600;
+          font-size: .875rem; padding: .7rem 1.5rem; border-radius: 999px;
+          border: 1px solid var(--accent); cursor: pointer; }
+  .pill:hover { background: #4A6BE8; border-color: #4A6BE8; color: #fff; }
   .quiet { font-family: var(--mono); font-size: .75rem; letter-spacing: .08em;
            text-transform: uppercase; color: var(--fg-muted);
            border-bottom: 1px solid var(--border); padding-bottom: 2px; }
@@ -212,6 +217,53 @@
   .record .ok { color: var(--success); }
   .record .no { color: var(--destructive); }
 
+  /* ═══════════════════════════════════════════════════════════════════ the contact modal
+     A `<dialog>`, so the focus trap, the Escape key, the inert background and the top layer are the
+     browser's job rather than three hundred lines of ours that get one of them subtly wrong.
+
+     **Where it sends, and why that is the design.** This page is served under
+     `default-src 'none'` with no `connect-src`, which means the page cannot make a network request
+     of any kind — that is deliberate, it is the header a security reviewer reads first, and it is
+     the same promise as `no telemetry, no phone-home` in the footer. So the form does not POST
+     anywhere. It composes the message and hands it to the visitor's own mail client, addressed to
+     shahar@claritty.ai, with a copy-to-clipboard fallback for anyone whose browser has no mailto
+     handler. Nothing typed here reaches a server until the visitor presses send in their own
+     client, which is the correct default for a page about not doing things on someone's behalf. */
+  dialog { border: 1px solid var(--border); border-radius: .9rem; background: var(--surface);
+           color: var(--fg); padding: 0; width: min(38rem, calc(100vw - 2rem)); max-height: 88vh;
+           overflow: auto; }
+  dialog::backdrop { background: rgba(8, 8, 10, .62); }
+  .dlg-top { display: flex; align-items: baseline; gap: 1rem; padding: 1.4rem 1.5rem 0; }
+  .dlg-top h2 { font-size: 1.5rem; }
+  .dlg-x { margin-left: auto; font: inherit; font-size: 1.25rem; line-height: 1; color: var(--fg-muted);
+           background: none; border: 0; cursor: pointer; padding: .25rem .5rem; border-radius: 999px; }
+  .dlg-x:hover { color: var(--fg); }
+  .dlg-body { padding: 1.1rem 1.5rem 1.5rem; }
+  .dlg-body > p { font-size: .9375rem; line-height: 1.6; color: var(--fg-muted); }
+
+  .fld { display: grid; gap: .35rem; margin-bottom: 1rem; }
+  .fld label { font-family: var(--mono); font-size: .625rem; letter-spacing: .13em;
+               text-transform: uppercase; color: var(--fg-faint); }
+  .fld input, .fld select, .fld textarea {
+    font: inherit; font-size: .9375rem; color: var(--fg); background: var(--bg);
+    border: 1px solid var(--border); border-radius: .5rem; padding: .6rem .75rem; width: 100%; }
+  .fld textarea { resize: vertical; min-height: 5rem; line-height: 1.55; }
+  .fld input::placeholder, .fld textarea::placeholder { color: var(--fg-faint); }
+  .two { display: grid; gap: 0 1rem; }
+  @media (min-width: 30rem) { .two { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+
+  .dlg-foot { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin-top: .25rem; }
+  .dlg-foot .note { margin: 0; border: 0; padding: 0; font-size: .8125rem; }
+  .send { font: inherit; font-size: .875rem; font-weight: 600; background: var(--accent);
+          color: #fff; border: 1px solid var(--accent); border-radius: 999px; padding: .7rem 1.5rem;
+          cursor: pointer; }
+  .send:hover { background: #4A6BE8; border-color: #4A6BE8; }
+  .copy { font: inherit; font-size: .8125rem; color: var(--fg-muted); background: none;
+          border: 1px solid var(--border); border-radius: 999px; padding: .55rem 1.1rem;
+          cursor: pointer; }
+  .copy:hover { color: var(--fg); border-color: var(--fg-faint); }
+  .said { font-size: .8125rem; color: var(--success); }
+
   footer { padding-block: clamp(2.5rem, 5vw, 4rem); border-top: 1px solid var(--fg);
            font-family: var(--mono); font-size: .75rem; letter-spacing: .06em;
            color: var(--fg-faint); line-height: 2; }
@@ -234,8 +286,7 @@
       the end of the story. The hosted tier is where the question goes: to a person, through
       whatever your organisation already uses to reach one.</p>
     <div class="actions">
-      <!-- Replace with your sales address. GitHub is the route that works today. -->
-      <a class="pill" href="https://github.com/Neti-Security/neti/issues/new?title=neti%20cloud%20enquiry">Contact us</a>
+      <button type="button" class="pill contact">Contact us</button>
       <a class="quiet" href="/">Back to neti</a>
     </div>
   </div>
@@ -428,11 +479,70 @@ is granted.</pre>
       running and what you want a human to see before it happens. If the free tier already covers
       you, we will say so.</p>
     <div class="actions">
-      <a class="pill" href="https://github.com/Neti-Security/neti/issues/new?title=neti%20cloud%20enquiry">Contact us</a>
+      <button type="button" class="pill contact">Contact us</button>
       <a class="quiet" href="https://github.com/Neti-Security/neti">Read the source</a>
     </div>
   </section>
 </div>
+
+<dialog id="contact" aria-labelledby="contact-h">
+  <div class="dlg-top">
+    <h2 id="contact-h">Talk to us.</h2>
+    <button type="button" class="dlg-x" id="contact-x" aria-label="Close">&times;</button>
+  </div>
+  <div class="dlg-body">
+    <p>Tell us what you are running and what you want a human to see before it happens. This opens
+      your own mail client, addressed to <code>shahar@claritty.ai</code> &mdash; nothing is sent
+      until you press send there.</p>
+    <form id="contact-form">
+      <div class="two">
+        <div class="fld">
+          <label for="c-name">Your name</label>
+          <input id="c-name" name="name" required autocomplete="name" placeholder="Dana Levi">
+        </div>
+        <div class="fld">
+          <label for="c-email">Work email</label>
+          <input id="c-email" name="email" type="email" required autocomplete="email"
+                 placeholder="dana@company.com">
+        </div>
+      </div>
+      <div class="two">
+        <div class="fld">
+          <label for="c-org">Company</label>
+          <input id="c-org" name="org" required autocomplete="organization" placeholder="Company">
+        </div>
+        <div class="fld">
+          <label for="c-agents">Agents running</label>
+          <select id="c-agents" name="agents">
+            <option>1&ndash;5</option>
+            <option>5&ndash;25</option>
+            <option>25&ndash;100</option>
+            <option>100+</option>
+            <option>Not yet &mdash; evaluating</option>
+          </select>
+        </div>
+      </div>
+      <div class="fld">
+        <label for="c-where">Where the agents run</label>
+        <input id="c-where" name="where"
+               placeholder="Claude Code, MCP servers, LangChain, an internal harness&hellip;">
+      </div>
+      <div class="fld">
+        <label for="c-want">What should a human see before it happens?</label>
+        <textarea id="c-want" name="want" required rows="4"
+          placeholder="Anything that touches more than a handful of accounts, deletes a repository, or reads a secret."></textarea>
+      </div>
+      <div class="dlg-foot">
+        <button type="submit" class="send">Open in mail</button>
+        <button type="button" class="copy" id="contact-copy">Copy it instead</button>
+        <span class="said" id="contact-said" role="status"></span>
+      </div>
+      <p class="note" style="margin-top:1.25rem">Goes to <b>shahar@claritty.ai</b>. This page makes
+        no network requests of its own &mdash; the header says <code>default-src &#39;none&#39;</code>
+        and that is the whole point of it.</p>
+    </form>
+  </div>
+</dialog>
 
 <div class="shell">
   <footer>
@@ -505,6 +615,92 @@ is granted.</pre>
 
   yes.addEventListener('click', function () { decide('approve'); });
   no.addEventListener('click', function () { decide('deny'); });
+})();
+
+/* The contact modal.
+ *
+ * A `<dialog>`, so the focus trap, Escape, the inert background and the top layer come from the
+ * browser. `showModal()` also restores focus to whichever trigger opened it, which matters because
+ * there are two of them, one at each end of the page.
+ *
+ * There is no POST. The page is served under `default-src 'none'` with no `connect-src`, which is
+ * the header the footer's "no telemetry, no phone-home" cashes out to, and quietly opening an
+ * exception in it so a marketing form could work would be the wrong trade on this page of all
+ * pages. So the message is composed here and handed to the visitor's own mail client. Nothing they
+ * type leaves the browser until they press send themselves.
+ *
+ * `mailto:` is not universal — a browser with no handler registered does nothing at all, silently,
+ * which would lose the enquiry and tell nobody. Hence "Copy it instead", and hence the address in
+ * plain text on the page rather than only inside a link. */
+(function () {
+  var dlg = document.getElementById('contact');
+  if (!dlg || typeof dlg.showModal !== 'function') return;  /* no <dialog>: the address is on the page */
+
+  var form = document.getElementById('contact-form'),
+      said = document.getElementById('contact-said'),
+      copy = document.getElementById('contact-copy'),
+      close = document.getElementById('contact-x'),
+      TO = 'shahar@claritty.ai';
+
+  var triggers = document.querySelectorAll('.contact');
+  for (var i = 0; i < triggers.length; i++) {
+    triggers[i].addEventListener('click', function () {
+      said.textContent = '';
+      dlg.showModal();
+      var first = document.getElementById('c-name');
+      if (first) first.focus();
+    });
+  }
+  close.addEventListener('click', function () { dlg.close(); });
+  /* Clicking the backdrop closes it. The backdrop is the dialog's own box outside its content, so
+     the test is "did the click land on the element itself", not on anything inside it. */
+  dlg.addEventListener('click', function (e) { if (e.target === dlg) dlg.close(); });
+
+  function value(id) {
+    var el = document.getElementById(id);
+    return el ? String(el.value || '').trim() : '';
+  }
+
+  function message() {
+    var org = value('c-org');
+    return {
+      subject: 'neti cloud — ' + (org || 'enquiry'),
+      body: [
+        'Name:     ' + value('c-name'),
+        'Email:    ' + value('c-email'),
+        'Company:  ' + org,
+        'Agents:   ' + value('c-agents'),
+        'Runs on:  ' + (value('c-where') || '—'),
+        '',
+        'What a human should see before it happens:',
+        value('c-want'),
+        '',
+        '— sent from neti.claritty.ai/cloud'
+      ].join('\n')
+    };
+  }
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();  /* `form-action 'none'` would block a real submit anyway; this is explicit. */
+    var m = message();
+    said.textContent = 'Opening your mail client…';
+    window.location.href = 'mailto:' + TO +
+      '?subject=' + encodeURIComponent(m.subject) +
+      '&body=' + encodeURIComponent(m.body);
+  });
+
+  copy.addEventListener('click', function () {
+    var m = message();
+    var text = 'To: ' + TO + '\nSubject: ' + m.subject + '\n\n' + m.body;
+    var done = function () { said.textContent = 'Copied — paste it to ' + TO; };
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text).then(done, function () {
+        said.textContent = 'Could not copy — the address is ' + TO;
+      });
+      return;
+    }
+    said.textContent = 'Could not copy — the address is ' + TO;
+  });
 })();
 </script>
 
