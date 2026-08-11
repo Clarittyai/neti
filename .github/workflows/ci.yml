@@ -45,8 +45,12 @@ jobs:
       - name: build the console
         run: cd web && npm ci --silent && npm run build
       - run: cp -R web/out src/neti/console
-      - run: uv venv --python 3.12
-      - run: uv pip install -e '.[dev,cli,graph,mcp,console,sdks,sdks-extended,sdks-more,storage,database]'
+      # `uv sync --frozen`, not `uv pip install`. The lockfile is committed and was being ignored:
+      # every run resolved fresh, so the SDK versions drifted from the ones `neti score` publishes
+      # and the conformance table went red on any upstream release, with no defect behind it. This
+      # installs exactly what the lock says, which is what makes "tested with LangChain 1.3.14" a
+      # sentence somebody can reproduce.
+      - run: uv sync --frozen --extra dev --extra cli --extra graph --extra mcp --extra console --extra sdks --extra sdks-extended --extra sdks-more --extra storage --extra database
       - run: uv run pytest -q
 
   # Semantic Kernel cannot share an environment with the OpenAI Agents SDK — `semantic-kernel` 1.36
@@ -65,8 +69,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - run: uv venv --python 3.12
-      - run: uv pip install -e '.[dev,cli,graph,mcp,console,sdks-semantic-kernel]'
+      - run: uv sync --frozen --extra dev --extra cli --extra graph --extra mcp --extra console --extra sdks-semantic-kernel
       - name: the Semantic Kernel seams, and the assertion that they ran
         run: uv run pytest -q -k "semantic_kernel or semantic-kernel" tests/e2e/test_no_silent_skips.py tests/e2e/test_seam_equivalence.py tests/conformance
 
@@ -75,8 +78,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v4
-      - run: uv venv --python 3.12
-      - run: uv pip install -e '.[dev,cli,graph,mcp,console,sdks,sdks-extended,sdks-more,storage,database]'
+      # `uv sync --frozen`, not `uv pip install`. The lockfile is committed and was being ignored:
+      # every run resolved fresh, so the SDK versions drifted from the ones `neti score` publishes
+      # and the conformance table went red on any upstream release, with no defect behind it. This
+      # installs exactly what the lock says, which is what makes "tested with LangChain 1.3.14" a
+      # sentence somebody can reproduce.
+      - run: uv sync --frozen --extra dev --extra cli --extra graph --extra mcp --extra console --extra sdks --extra sdks-extended --extra sdks-more --extra storage --extra database
       - name: types
         run: uv run mypy
       - name: lint
