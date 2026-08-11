@@ -1,6 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
-  "buildCommand": "python3 tools/make_site.py",
+  "installCommand": "echo 'no install: docs/ is committed and asserted current by the suite'",
   "outputDirectory": "docs",
   "framework": null,
   "cleanUrls": true,
