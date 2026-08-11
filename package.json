@@ -2,12 +2,25 @@
   "name": "neti-site",
   "private": true,
   "version": "0.0.0",
-  "type": "module",
-  "description": "Serverless functions for neti.claritty.ai. The product itself is the Python package; this exists only so /api/contact can send mail.",
+  "description": "neti.claritty.ai. The product itself is the Python package in src/neti; this Next.js app serves the two built pages and the one route that can send mail.",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "typecheck": "tsc --noEmit"
+  },
   "engines": {
     "node": ">=20"
   },
   "dependencies": {
-    "nodemailer": "^9.0.5"
+    "next": "^16.3.0",
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
+    "resend": "^6.19.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.2.0",
+    "typescript": "^5.9.0"
   }
 }
