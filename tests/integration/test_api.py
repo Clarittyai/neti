@@ -461,7 +461,8 @@ def test_the_walkthrough_endpoint_answers_on_a_first_run(tmp_path: Path) -> None
             ]
             # The command has to name the policy this console is holding, not a placeholder.
             install = next(s for s in body["steps"] if s["id"] == "install")
-            assert "examples/coding-agent.yaml" in install["command"]
+            # The separator is the platform's; what matters is that the real policy is named.
+            assert str(Path("examples/coding-agent.yaml")) in install["command"]
     finally:
         state.close()
 

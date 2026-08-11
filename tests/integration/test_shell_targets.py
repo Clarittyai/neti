@@ -312,8 +312,18 @@ def test_the_git_verbs_that_lose_work(command: str, form: str | None) -> None:
         ("cat $NOT_SET_ANYWHERE/x", False),
     ],
 )
-def test_the_spellings_a_red_team_reaches_for(command: str, expected: bool) -> None:
+def test_the_spellings_a_red_team_reaches_for(
+    command: str, expected: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`$HOME` is set explicitly rather than read from the ambient environment.
+
+    Windows does not set `HOME` — it uses `USERPROFILE` — so `cat $HOME/.ssh/id_rsa` expanded to
+    nothing there and the path was correctly refused — so a test about *expansion* failed for a
+    reason that had nothing to do with expansion. Setting it here asks what the test means to ask,
+    on every platform: when the variable resolves, is the path seen?
+    """
     home = str(Path.home())
+    monkeypatch.setenv("HOME", home)
     found = referenced_paths(command)
     reaches_home = any(p.startswith(home) for p in found)
     assert reaches_home is expected, f"{command!r} read as {found}"
@@ -333,7 +343,10 @@ def test_only_a_tilde_that_means_home_is_read_as_home() -> None:
     record is the artefact this product asks people to keep.
     """
     home = str(Path.home())
-    assert referenced_paths("cat ~/x") == (f"{home}/x",)
+    # `Path.home() / "x"`, not `f"{home}/x"`. `expanduser` returns a real path, so on Windows it
+    # spells itself `C:\\Users\\me\\x` — and asserting the POSIX form was asserting the author's
+    # operating system rather than the expansion.
+    assert referenced_paths("cat ~/x") == (str(Path.home() / "x"),)
     assert referenced_paths("cat ~notauser/x") == ()
     assert referenced_paths("ls ~") == (home,)
 

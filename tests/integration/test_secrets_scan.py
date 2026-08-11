@@ -155,7 +155,10 @@ def test_a_real_key_beside_the_fixtures_still_earns_its_rule(tmp_path: Path) -> 
 
     found = scan(tmp_path)
     assert [c.match for c in found] == ["**/*.pem"]
-    assert found[0].example == "deploy/prod.pem", (
+    # `Path(...)`, not the literal, because the example is a real relative path and its separator
+    # is the platform's — `deploy\\prod.pem` on Windows. Hard-coding `/` asserted the developer's
+    # operating system rather than the behaviour, which is what this whole file exists to catch.
+    assert found[0].example == str(Path("deploy") / "prod.pem"), (
         "the example beside a rule has to be the file that makes the case for it, "
         "not whichever one the walk reached first"
     )
