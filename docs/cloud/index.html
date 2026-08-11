@@ -25,18 +25,21 @@
   :root {
     --bg: #0F0F10; --surface: #141517; --fg: #F8FAFC; --fg-muted: #94A3B8; --fg-faint: #6B7684;
     --border: #27272A; --hair: #1D1E21; --accent: #5B7FFF; --success: #34C759; --code: #0d1117;
+    --warning: #FF9500; --destructive: #F87171;
     --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
     --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
       --bg: #FBFBF9; --surface: #FFFFFF; --fg: #14161A; --fg-muted: #565B66; --fg-faint: #9AA0AC;
-      --border: #DFDFD8; --hair: #EDEDE7; --success: #2E7D45;
+      --border: #DFDFD8; --hair: #EDEDE7; --success: #2E7D45; --warning: #B26A00;
+      --destructive: #C62828;
     }
   }
   :root[data-theme="light"] {
     --bg: #FBFBF9; --surface: #FFFFFF; --fg: #14161A; --fg-muted: #565B66; --fg-faint: #9AA0AC;
-    --border: #DFDFD8; --hair: #EDEDE7; --success: #2E7D45;
+    --border: #DFDFD8; --hair: #EDEDE7; --success: #2E7D45; --warning: #B26A00;
+    --destructive: #C62828;
   }
 
   body { margin: 0; background: var(--bg); color: var(--fg); font-family: var(--sans);
@@ -129,6 +132,86 @@
   .note { font-size: .9375rem; line-height: 1.6; color: var(--fg-muted);
           border-left: 2px solid var(--accent); padding-left: 1rem; margin-top: 2rem; }
 
+  /* ═══════════════════════════════════════════════════ the approval, as it actually arrives
+     The "where Claude fits" argument was four rows of prose, and prose is the wrong medium for it:
+     the claim is *spatial* — there is a line, some things are above it, the two buttons are below
+     it, and nothing above can reach below. A reader has to be able to see that, and the only honest
+     way to show it is to let them work the thing and find that the briefing changes what they know
+     and never what happens.
+
+     So this is the reviewer's screen, driven by real buttons. Ask Claude and a briefing composes
+     itself out of the same fields the payload already carries; press Approve or Deny and the record
+     line appears with your name on it. The demo cannot cheat, because the one action it will not
+     perform is the one the page is claiming it will not perform. */
+  .appr { border: 1px solid var(--border); border-radius: .75rem; overflow: hidden;
+          background: var(--surface); }
+  .appr-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: .6rem 1rem;
+              padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+  .appr-top .lbl { color: var(--warning); }
+  .appr-top .when { margin-left: auto; color: var(--fg-faint); font-family: var(--mono);
+                    font-size: .6875rem; }
+  .appr-body { padding: 1.25rem; display: grid; gap: 1.25rem; }
+
+  /* The payload. Deliberately the same six fields the webhook posts, above — the briefing is not
+     given anything extra, which is what makes "it reads the pending approval" a true sentence. */
+  .facts { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border);
+           border-radius: .5rem; overflow: hidden; }
+  @media (min-width: 34rem) { .facts { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+  .facts > div { background: var(--bg); padding: .8rem .9rem; min-width: 0; }
+  .facts dt { font-family: var(--mono); font-size: .625rem; letter-spacing: .13em;
+              text-transform: uppercase; color: var(--fg-faint); }
+  .facts dd { margin: .3rem 0 0; font-family: var(--mono); font-size: .8125rem; color: var(--fg);
+              overflow-wrap: anywhere; }
+  .facts dd.over { color: var(--warning); }
+
+  .brief { border: 1px solid var(--border); border-radius: .5rem; padding: 1rem 1.1rem;
+           background: var(--bg); }
+  .brief[hidden] { display: none; }
+  .brief-who { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; }
+  .brief-who .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--accent);
+                    flex: none; }
+  .brief-who .lbl { color: var(--accent); }
+  .brief p { margin: 0 0 .65rem; font-size: .9375rem; line-height: 1.6; color: var(--fg-muted); }
+  .brief p:last-child { margin-bottom: 0; }
+  .brief b { color: var(--fg); font-weight: 600; }
+  /* Each line arrives as Claude produces it. `prefers-reduced-motion` gets the whole briefing at
+     once — the information is the point, the arrival is not. */
+  .brief p { opacity: 0; animation: rise .45s ease forwards; }
+  @keyframes rise { from { opacity: 0 } to { opacity: 1 } }
+  @media (prefers-reduced-motion: reduce) { .brief p { opacity: 1; animation: none; } }
+
+  .reason { font-family: var(--mono); font-size: .8125rem; line-height: 1.6; color: var(--fg);
+            background: var(--bg); border: 1px solid var(--border); border-radius: .5rem;
+            padding: .8rem .9rem; width: 100%; resize: vertical; min-height: 4.5rem; }
+  .reason::placeholder { color: var(--fg-faint); }
+
+  /* The whole argument, drawn. Everything above this rule is Claude's; everything below it is a
+     person's, and the rule is labelled so nobody has to infer it. */
+  .cross { display: flex; align-items: center; gap: .9rem; margin: .25rem 0 0; }
+  .cross::before, .cross::after { content: ""; height: 1px; background: var(--border); flex: 1; }
+  .cross span { font-family: var(--mono); font-size: .625rem; letter-spacing: .12em;
+                text-transform: uppercase; color: var(--fg-faint); white-space: nowrap; }
+
+  .decide { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; }
+  .btn { font: inherit; font-size: .8125rem; font-weight: 600; border-radius: 999px;
+         padding: .6rem 1.35rem; border: 1px solid var(--border); background: transparent;
+         color: var(--fg); cursor: pointer; }
+  .btn:hover { border-color: var(--fg-faint); }
+  .btn.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+  .btn.on:hover { background: #4A6BE8; border-color: #4A6BE8; }
+  .btn.yes { color: var(--success); border-color: var(--success); }
+  .btn.no { color: var(--destructive); border-color: var(--destructive); }
+  .btn[disabled] { opacity: .45; cursor: default; }
+  .btn[disabled]:hover { border-color: var(--border); }
+  .decide .hint { font-size: .8125rem; color: var(--fg-muted); }
+
+  .record { font-family: var(--mono); font-size: .75rem; line-height: 1.9; color: var(--fg-muted);
+            border-top: 1px solid var(--border); padding: 1rem 1.25rem; background: var(--bg); }
+  .record[hidden] { display: none; }
+  .record b { color: var(--fg); font-weight: 600; }
+  .record .ok { color: var(--success); }
+  .record .no { color: var(--destructive); }
+
   footer { padding-block: clamp(2.5rem, 5vw, 4rem); border-top: 1px solid var(--fg);
            font-family: var(--mono); font-size: .75rem; letter-spacing: .06em;
            color: var(--fg-faint); line-height: 2; }
@@ -203,28 +286,81 @@ is granted.</pre>
     <div class="duo">
       <div>
         <h2>Where Claude fits, and where it does not.</h2>
-        <p class="small" style="margin-top:1.25rem">Claude is very good at the part around the
-          decision. It is deliberately not the part that decides.</p>
+        <p class="small" style="margin-top:1.25rem">This is the screen, working. Press <b>Ask
+          Claude</b> and see what a reviewer gets instead of a number — then notice that the
+          briefing changed what you know and nothing about what happens.</p>
+        <p class="small">Claude is very good at the part around the decision. It is deliberately not
+          the part that decides.</p>
       </div>
       <div>
-        <div class="rows">
+        <!-- Working, not a picture of working. Ask Claude and the briefing is composed from the six
+             fields above it; press a button and the record is written. The one thing the demo will
+             not do is grant, which is the sentence the section is making. -->
+        <div class="appr" id="appr">
+          <div class="appr-top">
+            <span class="lbl">1 approval waiting</span>
+            <code>remove_group_members</code>
+            <span class="when">expires in 4:52</span>
+          </div>
+
+          <div class="appr-body">
+            <dl class="facts">
+              <div><dt>magnitude</dt><dd class="over">41,203 principals</dd></div>
+              <div><dt>ceiling</dt><dd>200</dd></div>
+              <div><dt>verdict</dt><dd class="over">confirm</dd></div>
+              <div><dt>session</dt><dd>s_9f21c4</dd></div>
+              <div><dt>agent</dt><dd>offboarding-bot</dd></div>
+              <div><dt>policy digest</dt><dd>a7f3e0…</dd></div>
+            </dl>
+
+            <!-- Above the rule, so the geometry does not contradict the caption: asking is a thing
+                 the reviewer does *with* Claude, and it lives in Claude's half of the card. -->
+            <div class="decide">
+              <button type="button" class="btn on" id="ask">Ask Claude</button>
+              <span class="hint" id="hint">Reads the six fields above. Nothing else.</span>
+            </div>
+
+            <div class="brief" id="brief" hidden>
+              <div class="brief-who"><span class="dot"></span><span class="lbl">Claude</span></div>
+              <p style="animation-delay:.05s">The 41,203 are every member of <b>all-staff</b>, not
+                the nine leavers in the ticket. The group is nested inside nine applications, so the
+                same call removes their access to each.</p>
+              <p style="animation-delay:.55s">This session read <b>offboarding-week-32.csv</b>
+                eleven minutes ago. That file has nine rows. The number in front of you is four
+                thousand times the number in the source it was working from.</p>
+              <p style="animation-delay:1.05s">A call sized <b>9</b> would be under the ceiling and
+                would not have reached you at all. <b>This does not look like the change that was
+                asked for.</b></p>
+            </div>
+
+            <textarea class="reason" id="reason" rows="3" aria-label="Reason for the record"
+              placeholder="Reason — goes into the record beside your name."></textarea>
+
+            <div class="cross"><span>Claude stops here</span></div>
+
+            <div class="decide">
+              <button type="button" class="btn yes" id="yes">Approve</button>
+              <button type="button" class="btn no" id="no">Deny</button>
+              <span class="hint">Only these two change what happens, and only a person can reach
+                them.</span>
+            </div>
+          </div>
+
+          <div class="record" id="record" hidden></div>
+        </div>
+
+        <div class="rows" style="margin-top:2rem">
           <div class="row">
             <span class="k">Claude does</span>
-            <span class="v">Read the pending approval and <b>say what it means</b> — which 41,203
-              people, which nine applications, what else this session has already touched, whether
-              this looks like the change that was asked for. A reviewer gets a briefing rather than
-              a number.</span>
+            <span class="v">Everything above that line — <b>read the pending approval and say what
+              it means</b>, and <b>draft the reason</b> that goes into the record, so the audit
+              trail says why a human said yes rather than only that they did.</span>
           </div>
           <div class="row">
             <span class="k">Claude does</span>
-            <span class="v">Draft the <b>reason</b> that goes into the record, so the audit trail
-              says why a human said yes rather than only that they did.</span>
-          </div>
-          <div class="row">
-            <span class="k">Claude does</span>
-            <span class="v">Narrow the call. Handed a number instead of a refusal, the agent
-              <b>retries with a smaller target</b> — which is the whole reason the denial sentence
-              carries the magnitude.</span>
+            <span class="v">Narrow the call, on the agent's side. Handed a number instead of a
+              refusal, it <b>retries with a smaller target</b> — which is the whole reason the
+              denial sentence carries the magnitude.</span>
           </div>
           <div class="row">
             <span class="k">Claude does not</span>
@@ -306,6 +442,71 @@ is granted.</pre>
     Apache-2.0, no telemetry
   </footer>
 </div>
+
+<script>
+/* The approval card, working.
+ *
+ * Small enough to read in one sitting, which is deliberate: this is the page that claims no model
+ * sits in the decision path, and a reader who wants to check that claim can View Source and see
+ * that the only two handlers which write a record are wired to the two buttons a person presses.
+ *
+ * Nothing here is fetched. A live console needs a control plane behind it, and a marketing page
+ * that opens a socket to one would be the first thing a security reviewer objects to. The numbers
+ * are the ones the `<pre>` in route one already shows, so the two halves of the page agree. */
+(function () {
+  var ask = document.getElementById('ask'),
+      brief = document.getElementById('brief'),
+      reason = document.getElementById('reason'),
+      record = document.getElementById('record'),
+      hint = document.getElementById('hint'),
+      yes = document.getElementById('yes'),
+      no = document.getElementById('no');
+  if (!ask || !brief || !reason || !record || !yes || !no) return;
+
+  var DRAFT = 'Removes all-staff (41,203) rather than the 9 leavers in the source file. ' +
+              'Sized 4,578x the ticket. Not the change that was asked for.';
+
+  ask.addEventListener('click', function () {
+    brief.hidden = false;
+    ask.disabled = true;
+    ask.textContent = 'Claude has read it';
+    if (hint) hint.textContent = 'It has not touched anything below the line.';
+    /* The drafted reason lands with the last paragraph rather than before the first — a reason that
+       appears before the argument for it reads as canned, which is the thing a drafted reason is
+       most easily accused of being. */
+    var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (still) { reason.value = DRAFT; return; }
+    window.setTimeout(function () { reason.value = DRAFT; }, 1500);
+  });
+
+  function decide(verdict) {
+    var granted = verdict === 'approve';
+    var why = reason.value.trim() || '(no reason given)';
+    record.hidden = false;
+    /* `textContent` for the reason, because it is the one field on this page a visitor types into,
+       and a demo about not widening a blast radius should not have an injection in it. */
+    record.textContent = '';
+    var head = document.createElement('div');
+    head.innerHTML = 'record &middot; <b>' + (granted
+      ? '<span class="ok">granted</span></b> &mdash; single-use, bound to digest a7f3e0…, expires in 5:00'
+      : '<span class="no">denied</span></b> &mdash; the call does not run');
+    var by = document.createElement('div');
+    by.innerHTML = 'decided_by &middot; <b>you</b>, on this screen. Claude drafted the reason and ' +
+      'could not press either button.';
+    var line = document.createElement('div');
+    line.appendChild(document.createTextNode('reason · ' + why));
+    record.appendChild(head);
+    record.appendChild(by);
+    record.appendChild(line);
+
+    yes.disabled = no.disabled = true;
+    (granted ? yes : no).textContent = granted ? 'Approved by you' : 'Denied by you';
+  }
+
+  yes.addEventListener('click', function () { decide('approve'); });
+  no.addEventListener('click', function () { decide('deny'); });
+})();
+</script>
 
 </body>
 </html>
