@@ -207,7 +207,7 @@
      nothing else, so `no telemetry, no phone-home` in the footer stays true, because there is still
      no third party anywhere in this page. `api/contact.js` says what the endpoint will and will not
      do; the short version is that the recipient comes from the environment and never from the
-     request. The copy-to-clipboard button stays as the fallback for a failed send. */
+     request. A failed send says so and names the address; there is no copy button. */
   dialog { border: 1px solid var(--border); border-radius: .9rem; background: var(--surface);
            color: var(--fg); padding: 0; width: min(38rem, calc(100vw - 2rem)); max-height: 88vh;
            overflow: auto; }
@@ -242,10 +242,6 @@
           color: #fff; border: 1px solid var(--accent); border-radius: 999px; padding: .7rem 1.5rem;
           cursor: pointer; }
   .send:hover { background: #4A6BE8; border-color: #4A6BE8; }
-  .copy { font: inherit; font-size: .8125rem; color: var(--fg-muted); background: none;
-          border: 1px solid var(--border); border-radius: 999px; padding: .55rem 1.1rem;
-          cursor: pointer; }
-  .copy:hover { color: var(--fg); border-color: var(--fg-faint); }
   .said { font-size: .8125rem; color: var(--success); }
 
   footer { padding-block: clamp(2.5rem, 5vw, 4rem); border-top: 1px solid var(--fg);
@@ -524,13 +520,8 @@ is granted.</pre>
       </div>
       <div class="dlg-foot">
         <button type="submit" class="send" id="contact-send">Send</button>
-        <button type="button" class="copy" id="contact-copy">Copy it instead</button>
         <span class="said" id="contact-said" role="status" aria-live="polite"></span>
       </div>
-      <p class="note" style="margin-top:1.25rem">Goes to <b>shahar@claritty.ai</b>. Pressing send is
-        the only request this page makes, it goes to this site and nowhere else, and the header
-        still says <code>connect-src &#39;self&#39;</code> &mdash; there is no analytics, no tag
-        manager and no third party in it.</p>
     </form>
   </div>
 </dialog>
@@ -619,10 +610,11 @@ is granted.</pre>
  * not `*`: the page may talk to itself and to nothing else. There is no analytics and no third
  * party here, so `no telemetry, no phone-home` in the footer is still true.
  *
- * **A send can fail** — the network drops, the function is cold, the SMTP credentials expire. A
- * form that silently does nothing in those cases loses the enquiry and tells nobody, so every
- * failure path says what happened and leaves "Copy it instead" and the address in plain sight. The
- * point of the fallback is that a broken endpoint costs a paste, not a customer.
+ * **A send can fail** — the network drops, the function is cold, the mailer is down. A form that
+ * silently does nothing in those cases loses the enquiry and tells nobody, so every failure path
+ * says so and names the address. It does not offer to put the message on their clipboard: that is
+ * a workaround written from the implementer's side of the screen, and somebody who came here to
+ * talk to a person does not want to be handed a copy button.
  */
 (function () {
   var dlg = document.getElementById('contact');
@@ -631,9 +623,11 @@ is granted.</pre>
   var form = document.getElementById('contact-form'),
       said = document.getElementById('contact-said'),
       send = document.getElementById('contact-send'),
-      copy = document.getElementById('contact-copy'),
       close = document.getElementById('contact-x'),
-      TO = 'shahar@claritty.ai';
+      TO = 'shahar@claritty.ai',
+      /* One sentence, and it is the only one worth saying when a send fails: the thing they came
+         here to do, done another way. Not a diagnosis, not a workaround involving their clipboard. */
+      FAILED = 'That did not send. Email ' + TO + ' and it will reach us.';
 
   var triggers = document.querySelectorAll('.contact');
   for (var i = 0; i < triggers.length; i++) {
@@ -698,33 +692,12 @@ is granted.</pre>
         return;
       }
       send.disabled = false;
-      say(r.data.error || ('Could not send — email ' + TO + ' directly.'), true);
+      say(r.data.error || FAILED, true);
     }).catch(function () {
       send.disabled = false;
-      say('No connection. Copy it instead, or email ' + TO + '.', true);
+      say(FAILED, true);
     });
   });
 
-  copy.addEventListener('click', function () {
-    var d = payload();
-    var text = 'To: ' + TO + '\nSubject: neti cloud — ' + (d.org || 'enquiry') + '\n\n' + [
-      'Name:     ' + d.name,
-      'Email:    ' + d.email,
-      'Company:  ' + d.org,
-      'Agents:   ' + d.agents,
-      'Runs on:  ' + (d.where || '—'),
-      '',
-      'What a human should see before it happens:',
-      d.want
-    ].join('\n');
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text).then(
-        function () { say('Copied — paste it to ' + TO); },
-        function () { say('Could not copy — the address is ' + TO, true); }
-      );
-      return;
-    }
-    say('Could not copy — the address is ' + TO, true);
-  });
 })();
 </script>
