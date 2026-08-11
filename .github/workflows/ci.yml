@@ -107,6 +107,44 @@ jobs:
       - run: uv run pytest -q tests/bench || true
       - run: uv run pytest -q tests/bench
 
+  # The site is a Next.js app now, and nothing in this file built it. That is not hypothetical: the
+  # migration merged, every Vercel deploy failed for the next hour, and the only signal was an email
+  # to one person's inbox. Two stale *project settings* — `framework: fastapi` and
+  # `outputDirectory: docs`, left over from when this was a static import and not overridable from
+  # `vercel.json` — sent the build hunting for `docs/routes-manifest.json`.
+  #
+  # A CI job cannot catch a wrong dashboard setting. It can catch everything else that breaks this
+  # build, and it turns "the site is down and nobody has noticed" into a red check on the PR. The
+  # byte-for-byte assertion is the one that matters most: the pages are served verbatim so their
+  # inline scripts run and the CSP hashes stay valid, and a well-meaning move to a React page would
+  # silently kill every live demo on the site.
+  site:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: npx tsc --noEmit
+      - run: npx next build
+      - name: the pages are still served byte for byte
+        run: |
+          npx next start -p 4123 &
+          for i in $(seq 1 40); do curl -sfo /dev/null http://127.0.0.1:4123/cloud && break; sleep 1; done
+          for pair in "/:docs/index.html" "/cloud:docs/cloud/index.html"; do
+            url="${pair%%:*}"; file="${pair##*:}"
+            curl -sS "http://127.0.0.1:4123$url" -o /tmp/served.html
+            if ! cmp -s /tmp/served.html "$file"; then
+              echo "::error::$url no longer matches $file byte for byte."
+              echo "The pages carry inline <script> — the demos and the contact modal. Serving"
+              echo "anything but the built file kills them silently and invalidates the CSP hashes."
+              exit 1
+            fi
+            echo "  $url == $file ($(wc -c <"$file") bytes)"
+          done
+
   # This wheel says Apache-2.0 in its metadata, and metadata is what tooling and auditors read. BUSL
   # code inside it would be a licence misstatement that no README corrects.
   #
