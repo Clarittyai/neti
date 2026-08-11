@@ -122,13 +122,27 @@
     text-transform: uppercase; color: var(--fg-faint);
   }
 
-  .duo { display: grid; gap: clamp(2rem, 4vw, 3.5rem); align-items: start; }
+  /* Every grid below declares its single-column form explicitly as `minmax(0, 1fr)`.
+     Leaving it out looks harmless — one implicit column, full width — but an implicit track is
+     sized `auto`, which is `minmax(auto, max-content)`. So the track grows to the *widest
+     unwrapped thing inside it* and drags the page with it. On a 390px phone that was a monospace
+     call signature in `.cmd`: the track went to 394px, the page to 414px, and the whole landing
+     page scrolled sideways. `.cmd` is already a scroll container with `overflow-x: auto`, which
+     does nothing here — a scroll container still reports its full max-content to the track sizing
+     it. Only a zero floor on the track stops it.
+
+     The media queries further down were fixed for this once already. They set `minmax(0, 1fr)` for
+     the *multi*-column case, which is the case that was visible on the machine I was looking at,
+     and left the single-column case — every phone — still broken. */
+  .duo { display: grid; grid-template-columns: minmax(0, 1fr);
+         gap: clamp(2rem, 4vw, 3.5rem); align-items: start; }
   @media (min-width: 60rem) {
     .duo { grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); }
     .duo.flip { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
     .duo.flip > :first-child { order: 2; }
   }
-  .duo-wide { display: grid; gap: clamp(2rem, 4vw, 3.5rem); }
+  .duo-wide { display: grid; grid-template-columns: minmax(0, 1fr);
+              gap: clamp(2rem, 4vw, 3.5rem); }
   @media (min-width: 60rem) { .duo-wide { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); } }
 
   /* ══════════════════════════════════════════════════════════════════════ nav */
@@ -148,7 +162,7 @@
   /* ══════════════════════════════════════════════════════════════════════ the measurement
      A figure set at display size with tabular numerals, its unit beneath it, and the call it came
      from above. This is the hero. */
-  .measure { display: grid; gap: 0; }
+  .measure { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0; }
   @media (min-width: 62rem) { .measure { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); } }
   .measure .left { padding-block: clamp(2.5rem, 6vw, 4.5rem) clamp(2rem, 4vw, 3rem); }
   .call { font-family: var(--mono); font-size: clamp(.8125rem, 1.3vw, .9375rem);
@@ -207,7 +221,8 @@
      label voice, a value on the right in tabular monospace, one hairline between neighbours and
      none floating above the first. */
   .rows { border-top: 1px solid var(--border); }
-  .row { display: grid; gap: .35rem 1.5rem; padding: 1rem 0; border-bottom: 1px solid var(--hair); }
+  .row { display: grid; grid-template-columns: minmax(0, 1fr); gap: .35rem 1.5rem;
+         padding: 1rem 0; border-bottom: 1px solid var(--hair); }
   @media (min-width: 44rem) { .row { grid-template-columns: minmax(9rem, 2fr) minmax(0, 7fr);
                                      align-items: baseline; } }
   .row:last-child { border-bottom: 0; }
@@ -217,7 +232,8 @@
   .row-v b, .row-v strong { color: var(--fg); }
 
   /* ══════════════════════════════════════════════════════════════════════ stats */
-  .stat-strip { display: grid; gap: 1px; background: var(--border);
+  .stat-strip { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px;
+                background: var(--border);
                 border-block: 1px solid var(--border); }
   /* `minmax(0, 1fr)` — see the note on `.routes` in cloud.html. Five equal tracks that each refuse
      to go under their min-content width are five tracks that add up to more than the viewport on a
@@ -334,6 +350,7 @@
      accent break on the last phrase is doing the same job the eyebrow used to and doing it in the
      one place the eye is already looking. */
   .lead { padding-block: clamp(3rem, 7vw, 5.5rem) clamp(2rem, 4vw, 3rem); display: grid;
+          grid-template-columns: minmax(0, 1fr);
           gap: clamp(2.5rem, 5vw, 4rem); align-items: center; }
   @media (min-width: 62rem) { .lead { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); } }
   .lead h1 { font-size: clamp(2.5rem, 5.4vw, 4.25rem); line-height: 1.02; letter-spacing: -.035em;

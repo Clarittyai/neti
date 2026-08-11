@@ -94,11 +94,25 @@
            text-transform: uppercase; color: var(--fg-muted);
            border-bottom: 1px solid var(--border); padding-bottom: 2px; }
 
-  .duo { display: grid; gap: clamp(2rem, 4vw, 3.5rem); align-items: start; }
+  /* Every grid below declares its single-column form explicitly as `minmax(0, 1fr)`.
+     Leaving it out looks harmless — one implicit column, full width — but an implicit track is
+     sized `auto`, which is `minmax(auto, max-content)`. So the track grows to the *widest
+     unwrapped thing inside it* and drags the page with it. On a 390px phone that was a monospace
+     call signature in `.cmd`: the track went to 394px, the page to 414px, and the whole landing
+     page scrolled sideways. `.cmd` is already a scroll container with `overflow-x: auto`, which
+     does nothing here — a scroll container still reports its full max-content to the track sizing
+     it. Only a zero floor on the track stops it.
+
+     The media queries further down were fixed for this once already. They set `minmax(0, 1fr)` for
+     the *multi*-column case, which is the case that was visible on the machine I was looking at,
+     and left the single-column case — every phone — still broken. */
+  .duo { display: grid; grid-template-columns: minmax(0, 1fr);
+         gap: clamp(2rem, 4vw, 3.5rem); align-items: start; }
   @media (min-width: 60rem) { .duo { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); } }
 
   /* The two routes. A table, because they are the same object decided two ways. */
-  .routes { display: grid; gap: 1px; background: var(--border);
+  .routes { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px;
+            background: var(--border);
             border: 1px solid var(--border); border-radius: .75rem; overflow: hidden; }
   /* `minmax(0, 1fr)`, not `1fr`. A bare `1fr` is `minmax(auto, 1fr)`, so the column refuses to go
      below its content's min-content width — and the `<pre>` inside route one has a long unbroken
@@ -117,7 +131,8 @@
   .route pre .c { color: #6b7688; }
 
   .rows { border-top: 1px solid var(--border); }
-  .row { display: grid; gap: .35rem 1.5rem; padding: 1rem 0; border-bottom: 1px solid var(--hair); }
+  .row { display: grid; grid-template-columns: minmax(0, 1fr); gap: .35rem 1.5rem;
+         padding: 1rem 0; border-bottom: 1px solid var(--hair); }
   @media (min-width: 44rem) { .row { grid-template-columns: minmax(10rem, 2fr) minmax(0, 7fr);
                                      align-items: baseline; } }
   .row:last-child { border-bottom: 0; }
@@ -126,7 +141,8 @@
   .row .v { font-size: .9375rem; color: var(--fg-muted); line-height: 1.6; }
   .row .v b { color: var(--fg); }
 
-  .split { display: grid; gap: 1px; background: var(--border);
+  .split { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px;
+           background: var(--border);
            border-block: 1px solid var(--border); margin: 2.5rem 0 0; }
   @media (min-width: 48rem) { .split { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
   .split > div { background: var(--bg); padding: 1.75rem 1.5rem; }
@@ -159,7 +175,8 @@
 
   /* The payload. Deliberately the same six fields the webhook posts, above — the briefing is not
      given anything extra, which is what makes "it reads the pending approval" a true sentence. */
-  .facts { display: grid; gap: 1px; background: var(--border); border: 1px solid var(--border);
+  .facts { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px;
+           background: var(--border); border: 1px solid var(--border);
            border-radius: .5rem; overflow: hidden; }
   @media (min-width: 34rem) { .facts { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
   .facts > div { background: var(--bg); padding: .8rem .9rem; min-width: 0; }
