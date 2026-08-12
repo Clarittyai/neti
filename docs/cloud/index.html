@@ -125,9 +125,15 @@
   .route .lbl { color: var(--accent); }
   .route h3 { margin: .9rem 0 .6rem; }
   .route p { font-size: .9375rem; color: var(--fg-muted); line-height: 1.6; margin: 0 0 .8rem; }
+  /* Wraps rather than scrolls. `overflow-x: auto` is the reflex for a code block and it was wrong
+     here: this is a six-line illustration of a payload, not code anybody types, and a horizontal
+     scrollbar under it turns an exhibit into a control — something to drag, with a grey bar across
+     the bottom of an otherwise calm card. It should read like an image.
+     `overflow-wrap: anywhere` is the safety net for a narrow phone; the content below is short
+     enough that it does not normally come up. */
   .route pre { background: var(--code); color: #c9d1d9; border-radius: .5rem; padding: .85rem 1rem;
-               overflow-x: auto; font-family: var(--mono); font-size: .78rem; line-height: 1.7;
-               margin: 0; }
+               white-space: pre-wrap; overflow-wrap: anywhere;
+               font-family: var(--mono); font-size: .78rem; line-height: 1.7; margin: 0; }
   .route pre .c { color: #6b7688; }
 
   .rows { border-top: 1px solid var(--border); }
@@ -340,13 +346,13 @@
           <p>The control plane posts the pending approval wherever your team already looks — Slack,
             Teams, PagerDuty, an internal tool. No new inbox, and the on-call rotation you already
             trust decides who sees it.</p>
-          <pre><span class="c"># the payload carries evidence, never your arguments</span>
+          <pre><span class="c"># evidence, never your arguments</span>
 {
-  "digest":    "a7f3…",
-  "tool":      "remove_group_members",
+  "digest": "a7f3…",
+  "tool": "remove_group_members",
   "magnitude": 41203,
-  "unit":      "principals",
-  "ceiling":   200,
+  "unit": "principals",
+  "ceiling": 200,
   "expires_at": "…"
 }</pre>
         </div>
