@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.4.0 — 2026-08-10
+## 0.4.0 — 2026-08-12
 
 A minor bump rather than a patch, because two things change behaviour on policies that already
 exist. Both are stricter, both are in the direction this product only ever moves, and both are
@@ -136,6 +136,50 @@ sentences it refuses to use about other people's products.
   between minors, and two files committed clean under an older ruff were unformatted under 0.16
   without either file changing.
 - `DESIGN.md` claimed the console build output is committed. `.gitignore` has excluded it all along.
+
+### `pip install neti` installs something that works
+
+Found by building the wheel and installing it into an empty virtualenv, which is the only place any
+of this is visible: every environment the suite runs in already has the extras.
+
+- **The command could not start on a plain install.** `typer` and `rich` lived behind the `cli`
+  extra, so `pip install neti` left a `neti` executable that printed an apology. Both are base
+  dependencies now, and the README says `pip install neti` with no quoting. A bare install still
+  pulls in no provider SDK and no cloud client.
+- **And that uncovered a second failure hiding behind the first.** With the CLI able to start,
+  `neti start` — the command `neti --help` sends every new person to — died on a
+  `ModuleNotFoundError`, because it built a synthetic Microsoft Graph tenant to hold a client and
+  that imports `httpx`, while measuring a directory of files. No Graph client is built now unless
+  the policy actually gates Graph; when it does and the extra is missing, it says so rather than
+  tracebacking.
+- **`neti --version` exited 2 with a usage dump.** There has always been a `neti version`
+  subcommand, but `--version` is what people type, and a usage error reads as a broken install at
+  exactly the moment somebody is checking whether the install worked.
+- The message shown when `typer` is missing said `pip install 'neti[cli]'`. That extra is empty
+  now, so the advice would have installed nothing and left the command just as broken.
+
+### `neti start` named four rules and wrote eight
+
+Step 4 is headed *"Off limits from now on — these are really here"* and printed
+`off_limits[:4]`, with nothing to say there were more. The gate's own files sort first, so the four
+shown were always `neti.yaml`, `.claude`, `.claude/**` and `decisions.ndjson` — while `**/.env*`,
+`**/.git/**`, `**/secrets/**` and `**/id_rsa*` went into the policy unmentioned.
+
+Somebody read that their new security tool protects its own config, and had no way to know it had
+just put their credentials and SSH keys off limits — the most valuable thing the first run does, and
+two of those verdicts are `block` rather than `confirm`. Every unit test asserted on the *policy*,
+and the policy was always right.
+
+### `neti verify --expect`, because a chain cannot see a truncated tail
+
+Altering, reordering or removing a record from the **middle** breaks the links and is caught — as
+are a forged append and a renamed target. Removing records from the **end** breaks nothing: what
+remains is a shorter chain that verifies perfectly, and the records most worth deleting are the ones
+written last. `verify` answered `chain intact`, exit 0.
+
+Nothing self-contained fixes that; the anchor has to live where the same hands cannot reach. So
+`--expect <digest>` compares the head against the one you kept — in CI, in a ticket, anywhere else —
+and the plain success line now states the limit instead of implying coverage it does not have.
 
 ## 0.3.3 — 2026-08-09
 
