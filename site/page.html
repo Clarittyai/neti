@@ -313,6 +313,8 @@
      that is supposed to demonstrate the product working. */
   .v { font-family: var(--mono); font-weight: 600; letter-spacing: .06em;
        margin-inline-end: .4rem; }
+  .v.is-block { color: var(--destructive); }
+  .v.is-allow { color: var(--accent); }
   .sig { color: var(--fg-faint); }
 
   footer { padding-block: clamp(2.5rem, 5vw, 4rem); border-top: 1px solid var(--fg);
@@ -950,7 +952,6 @@
   const MAX_DOTS = 1100;
   const LO = 10, HI = 50000;              // the ceiling slider's range, log scaled
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
-  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
   const comma = n => n.toLocaleString('en-US');
 
   let magnitude = 41203, group = 'engineering-all';
@@ -969,13 +970,13 @@
     const c = ceiling();
     if (magnitude > c) {
       return {
-        verdict: 'BLOCK', colour: css('--destructive'),
+        verdict: 'BLOCK', tone: 'is-block',
         why: `Preflight blocked this call: /group resolves to ${comma(magnitude)} principals, ` +
              `above the declared ceiling of ${comma(c)}. Narrow the target and try again.`,
       };
     }
     return {
-      verdict: 'ALLOW', colour: css('--accent'),
+      verdict: 'ALLOW', tone: 'is-allow',
       why: `${comma(magnitude)} principals is at or under ${comma(c)}. The gate says nothing, ` +
            `the call runs, and your existing permission rules decide it as they always did.`,
     };
@@ -1039,7 +1040,11 @@
       // The space between the two spans is real, not a margin. `.v` carries one as well, but a
       // margin is invisible to `innerText`, to a screen reader and to anybody who copies the line
       // — all three of which read `BLOCKPreflight blocked this call:` without this.
-      `<span class="v" style="color:${d.colour}">${d.verdict}</span> ` +
+      // A class, not `style="color:…"`. An inline style attribute is governed by CSP
+      // `style-src-attr`, which our hash-based `style-src` does not satisfy — so the colour
+      // was silently dropped in production and the verdict rendered in body grey. It worked
+      // in every local check because `next start` does not apply `vercel.json` headers.
+      `<span class="v ${d.tone}">${d.verdict}</span> ` +
       `<span class="why">${d.why}</span>${scale}`;
     paint();
   }

@@ -285,6 +285,21 @@
            font-family: var(--mono); font-size: .75rem; letter-spacing: .06em;
            color: var(--fg-faint); line-height: 2; }
   footer a { color: var(--fg-muted); }
+
+  /* ═════════════════════════════════ hoisted from `style="…"` by tools/make_site.py
+     Not hand-written and not to be edited here — each one's source is a style
+     attribute in `site/*.html`. They live in the stylesheet because a hash-based
+     `style-src` does not authorise style *attributes*, so inline ones are dropped
+     browser on the deployed site while working perfectly in every local check. */
+  .h0 { margin-bottom:1.5rem !important; }
+  .h1 { margin-top:1.25rem !important; }
+  .h2 { animation-delay:.05s !important; }
+  .h3 { animation-delay:.55s !important; }
+  .h4 { animation-delay:1.05s !important; }
+  .h5 { margin-top:2rem !important; }
+  .h6 { color:var(--accent) !important; margin-bottom:1rem !important; }
+  .h7 { margin-bottom:1rem !important; }
+  .h8 { margin-top:1.25rem !important; max-width:52ch !important; }
 </style>
 
 <nav class="nav">
@@ -297,7 +312,7 @@
 
 <div class="shell">
   <div class="lead">
-    <div class="lbl" style="margin-bottom:1.5rem">neti cloud</div>
+    <div class="lbl h0">neti cloud</div>
     <h1>A <em>confirm</em> has to reach somebody.</h1>
     <p class="sub">On one machine there is nobody to ask, so the gate stops the call — correct, and
       the end of the story. The hosted tier is where the question goes: to a person, through
@@ -314,7 +329,7 @@
     <div class="duo">
       <div>
         <h2>Two routes, one decision.</h2>
-        <p class="small" style="margin-top:1.25rem">A pending approval carries the magnitude, the
+        <p class="small h1">A pending approval carries the magnitude, the
           ceiling it crossed, and the policy digest it was judged under. How it reaches a human is
           yours to choose — and it is always a human who answers.</p>
       </div>
@@ -354,7 +369,7 @@ is granted.</pre>
     <div class="duo">
       <div>
         <h2>Where Claude fits, and where it does not.</h2>
-        <p class="small" style="margin-top:1.25rem">This is the screen, working. Press <b>Ask
+        <p class="small h1">This is the screen, working. Press <b>Ask
           Claude</b> and see what a reviewer gets instead of a number — then notice that the
           briefing changed what you know and nothing about what happens.</p>
         <p class="small">Claude is very good at the part around the decision. It is deliberately not
@@ -390,13 +405,13 @@ is granted.</pre>
 
             <div class="brief" id="brief" hidden>
               <div class="brief-who"><span class="dot"></span><span class="lbl">Claude</span></div>
-              <p style="animation-delay:.05s">The 41,203 are every member of <b>all-staff</b>, not
+              <p class="h2">The 41,203 are every member of <b>all-staff</b>, not
                 the nine leavers in the ticket. The group is nested inside nine applications, so the
                 same call removes their access to each.</p>
-              <p style="animation-delay:.55s">This session read <b>offboarding-week-32.csv</b>
+              <p class="h3">This session read <b>offboarding-week-32.csv</b>
                 eleven minutes ago. That file has nine rows. The number in front of you is four
                 thousand times the number in the source it was working from.</p>
-              <p style="animation-delay:1.05s">A call sized <b>9</b> would be under the ceiling and
+              <p class="h4">A call sized <b>9</b> would be under the ceiling and
                 would not have reached you at all. <b>This does not look like the change that was
                 asked for.</b></p>
             </div>
@@ -417,7 +432,7 @@ is granted.</pre>
           <div class="record" id="record" hidden></div>
         </div>
 
-        <div class="rows" style="margin-top:2rem">
+        <div class="rows h5">
           <div class="row">
             <span class="k">Claude does</span>
             <span class="v">Everything above that line — <b>read the pending approval and say what
@@ -451,7 +466,7 @@ is granted.</pre>
     <div class="duo">
       <div>
         <h2>The line is one question.</h2>
-        <p class="small" style="margin-top:1.25rem"><strong>Can one machine do this?</strong> If
+        <p class="small h1"><strong>Can one machine do this?</strong> If
           yes, it is Apache-2.0 and free forever. Enforcement runs on one machine, so blocking is
           free. A second person answering does not, so it is not.</p>
         <p class="small">Every paid item is a hole
@@ -461,7 +476,7 @@ is granted.</pre>
       <div>
         <div class="split">
           <div>
-            <div class="lbl" style="color:var(--accent);margin-bottom:1rem">Free — Apache-2.0, today</div>
+            <div class="lbl h6">Free — Apache-2.0, today</div>
             <ul>
               <li>The engine, <b>all fifteen seams</b>, observe <b>and enforce</b></li>
               <li>Every resolver, and the record chain</li>
@@ -471,7 +486,7 @@ is granted.</pre>
             </ul>
           </div>
           <div>
-            <div class="lbl" style="margin-bottom:1rem">Cloud</div>
+            <div class="lbl h7">Cloud</div>
             <ul>
               <li>A <b>second human</b> answering a <code>confirm</code></li>
               <li>Webhook delivery into Slack, Teams or your own system</li>
@@ -492,7 +507,7 @@ is granted.</pre>
 
   <section>
     <h2>Talk to us.</h2>
-    <p class="small" style="margin-top:1.25rem;max-width:52ch">Tell us how many agents you are
+    <p class="small h8">Tell us how many agents you are
       running and what you want a human to see before it happens. If the free tier already covers
       you, we will say so.</p>
     <div class="actions">

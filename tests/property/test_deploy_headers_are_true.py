@@ -86,3 +86,32 @@ def test_the_policy_refuses_the_easy_way_out() -> None:
     assert "unsafe-inline" not in header
     assert "unsafe-eval" not in header
     assert "default-src 'none'" in header
+
+
+def test_the_built_pages_carry_no_inline_style_attributes() -> None:
+    """A hash authorises a `<style>` *block*. It says nothing about a style *attribute*.
+
+    CSP governs those separately, through `style-src-attr`, and a hash-based `style-src` does not
+    satisfy it — so every `style="…"` on these pages was being dropped by the browser on the
+    deployed site. The verdict on the landing page rendered in body grey instead of red, and
+    `margin-top: 1.25rem` computed to `0px` in forty-two places.
+
+    It was invisible to every local check, and that is the part worth remembering: `next start` does
+    not apply `vercel.json`, so the header only exists on the deployed site. The page still *looked*
+    like a page. It was just wrong, and had been since the CSP shipped.
+
+    `tools/make_site.py::hoist_inline_styles` now moves them into the stylesheet at build time —
+    authors keep writing `style="…"` in `site/*.html` where it reads best, and the shipped page has
+    none. This asserts the output, because a build step nobody checks is a build step that quietly
+    stops running.
+    """
+    for page in PAGES:
+        html = page.read_text(encoding="utf-8")
+        # Only the markup. A `style="…"` inside a script is a string the page writes at runtime,
+        # and inside a `<style>` block it is prose about this very rule.
+        markup = re.sub(r"<(script|style)\b.*?</\1>", "", html, flags=re.S)
+        found = re.findall(r"<[^>]*\sstyle=\"[^\"]*\"", markup)
+        assert not found, (
+            f"{page.name} ships {len(found)} inline style attribute(s), which the CSP drops in a "
+            "visitor's browser while every local check passes:\n  " + "\n  ".join(found[:6])
+        )

@@ -44,6 +44,9 @@ PLACEHOLDER = re.compile(r"\{\{MEDIA:([a-z0-9_]+)\}\}")
 # nothing can tell you automatically when they stop being true. `docs/media/console/PROVENANCE.md`
 # records when each was taken and the exact commands that reproduce it, because the alternative is
 # leaving somebody to discover the difference.
+ATTR = re.compile(r'<([a-zA-Z][^>]*?)\s+style="([^"]*)"([^>]*?)>')
+"""Every `style="…"` attribute on an element in the markup."""
+
 CONSOLE_PLACEHOLDER = re.compile(r"\{\{CONSOLE:([a-z0-9_]+)\}\}")
 
 TITLE = "neti — how big is this?"
@@ -70,7 +73,7 @@ def fragment(source: Path = SOURCE) -> str:
         ),
         text,
     )
-    return CONSOLE_PLACEHOLDER.sub(
+    text = CONSOLE_PLACEHOLDER.sub(
         lambda m: _data_uri(
             CONSOLE / f"{m.group(1)}.png",
             "image/png",
@@ -78,6 +81,80 @@ def fragment(source: Path = SOURCE) -> str:
         ),
         text,
     )
+    return hoist_inline_styles(text)
+
+
+def hoist_inline_styles(body: str) -> str:
+    """Move every `style="…"` attribute in the markup into the page's own stylesheet.
+
+    **This fixes a defect that was live in production and invisible everywhere else.** The pages are
+    served under a hash-based `style-src`, and a hash authorises a `<style>` *block* — it says
+    nothing about a style *attribute*, which CSP governs separately through `style-src-attr`. So
+    every one of the 52 inline styles on these two pages was being dropped by the browser: the
+    verdict on the landing page rendered in body grey instead of red, and `margin-top: 1.25rem`
+    computed to `0px` in forty-two places.
+
+    Nothing local could see it. `next start` does not apply `vercel.json`, so the headers only exist
+    on the deployed site, where the page still *looked* plausible — just wrong.
+
+    The alternative was `style-src-attr 'unsafe-inline'`. It is a narrow relaxation and it would
+    have worked, and it would also have put the word `unsafe-inline` into the header of the one page
+    whose argument is that the strict thing is the workable thing. Hoisting costs a build step and
+    keeps the claim true.
+
+    Authors keep writing `style="…"` where it reads best — that is what it is for — and the shipped
+    page has none. `test_the_built_pages_carry_no_inline_styles` asserts the output.
+    """
+    import re
+
+    seen: dict[str, str] = {}
+
+    def swap(match: re.Match[str]) -> str:
+        before, decls, after = match.group(1), match.group(2).strip().rstrip(";"), match.group(3)
+        if not decls:
+            return f"<{before}{after}>"
+        name = seen.setdefault(decls, f"h{len(seen)}")
+        tag = f"<{before}{after}>"
+        # Merge into an existing class attribute rather than adding a second one, which is invalid
+        # and which browsers resolve by ignoring the later of the two.
+        if re.search(r'\bclass="', tag):
+            add = lambda c: f'class="{c.group(1)} {name}"'  # noqa: E731
+            return re.sub(r'\bclass="([^"]*)"', add, tag, count=1)
+        return f'<{before} class="{name}"{after}>'
+
+    # Only the markup. A `style="…"` inside <script> is a template the page writes at runtime, and
+    # rewriting it here would silently break the thing it builds.
+    out, cursor = [], 0
+    for block in re.finditer(r"<script\b.*?</script>", body, re.S):
+        out.append(ATTR.sub(swap, body[cursor : block.start()]))
+        out.append(block.group(0))
+        cursor = block.end()
+    out.append(ATTR.sub(swap, body[cursor:]))
+    hoisted = "".join(out)
+
+    if not seen:
+        return hoisted
+
+    # `!important`, and it is the faithful translation rather than a shortcut. An inline style
+    # attribute outranks every rule in the stylesheet; a plain class does not, and the first
+    # version of this hoist proved it — `.neti p { margin: 0 0 1rem }` is a class *and* an element,
+    # so it beat the hoisted `.h5` and every `margin-top` on the page silently became `0`. Since
+    # nothing in either stylesheet uses `!important`, marking these reproduces inline precedence
+    # exactly: they win over the cascade and lose to nothing.
+    def rule(decls: str, name: str) -> str:
+        marked = "; ".join(d.strip() + " !important" for d in decls.split(";") if d.strip())
+        return f"  .{name} {{ {marked}; }}"
+
+    rules = "\n".join(rule(decls, name) for decls, name in seen.items())
+    block = (
+        '\n  /* ═════════════════════════════════ hoisted from `style="…"` by tools/make_site.py\n'
+        "     Not hand-written and not to be edited here — each one's source is a style\n"
+        "     attribute in `site/*.html`. They live in the stylesheet because a hash-based\n"
+        "     `style-src` does not authorise style *attributes*, so inline ones are dropped\n"
+        "     browser on the deployed site while working perfectly in every local check. */\n"
+        f"{rules}\n</style>"
+    )
+    return hoisted.replace("</style>", block, 1)
 
 
 def document(body: str, *, title: str = "", description: str = "") -> str:
