@@ -116,3 +116,88 @@ def test_every_flexible_track_has_a_zero_floor(page: Path) -> None:
         "one long unbreakable string widens the whole page. Write `minmax(0, 1fr)`:\n  "
         + "\n  ".join(offenders)
     )
+
+
+def test_the_page_script_defines_everything_it_calls() -> None:
+    """A `ReferenceError` in the simulator empties the hero and leaves the rest of the page intact.
+
+    `paint()` calls `css('--accent')`. The helper that defines `css` was deleted in the commit that
+    moved the verdict colour onto a class — it looked unused, because after that change the only
+    remaining call sites were inside `paint`, and I checked for uses of the *colour* rather than
+    uses of the *helper*. Every render then threw, the dot field never drew, and the page still
+    looked finished: the number and the verdict are written **before** `paint()` runs, so what
+    shipped was a large empty rectangle where the product's one visual argument should be.
+
+    Nothing here could see it. The suite does not execute the page's JavaScript, and the DOM checks
+    I ran afterwards read `.sim-out`, which is exactly the part that still worked.
+
+    So: every bare identifier the inline script calls must be defined in it. Deliberately narrow —
+    it looks for `name(` and checks that `name` is declared or is a known global. It cannot catch a
+    typo inside a string or a property that does not exist. It does catch the whole class of "the
+    helper is gone and the call site is not".
+    """
+    import re as _re
+
+    page = (REPO / "docs" / "index.html").read_text(encoding="utf-8")
+    script = "\n".join(_re.findall(r"<script[^>]*>(.*?)</script>", page, _re.S))
+    body = _re.sub(r"//[^\n]*", "", _re.sub(r"/\*.*?\*/", "", script, flags=_re.S))
+
+    declared = set(_re.findall(r"\b(?:const|let|var|function)\s+([A-Za-z_$][\w$]*)", body))
+    declared |= set(
+        _re.findall(r"([A-Za-z_$][\w$]*)\s*(?:=|:)\s*(?:\([^)]*\)|[A-Za-z_$][\w$]*)\s*=>", body)
+    )
+    known = {
+        "if",
+        "for",
+        "while",
+        "switch",
+        "catch",
+        "return",
+        "typeof",
+        "new",
+        "function",
+        "requestAnimationFrame",
+        "cancelAnimationFrame",
+        "setTimeout",
+        "clearTimeout",
+        "setInterval",
+        "clearInterval",
+        "matchMedia",
+        "getComputedStyle",
+        "addEventListener",
+        "removeEventListener",
+        "parseInt",
+        "parseFloat",
+        "isNaN",
+        "String",
+        "Number",
+        "Boolean",
+        "Array",
+        "Object",
+        "Math",
+        "JSON",
+        "Date",
+        "Set",
+        "Map",
+        "RegExp",
+        "Error",
+        "fetch",
+        "encodeURIComponent",
+        "decodeURIComponent",
+        "IntersectionObserver",
+        "MutationObserver",
+        "KeyboardEvent",
+        "Event",
+        "CustomEvent",
+        "Promise",
+        "queueMicrotask",
+        "structuredClone",
+    }
+    called = {m for m in _re.findall(r"(?<![.\w$])([a-z_$][\w$]*)\s*\(", body)}
+
+    undefined = sorted(called - declared - known)
+    assert not undefined, (
+        "the inline script calls these and never defines them, so the first call throws and "
+        "everything after it in that function silently does not happen:\n  "
+        + "\n  ".join(undefined)
+    )

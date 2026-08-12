@@ -954,6 +954,13 @@
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const comma = n => n.toLocaleString('en-US');
 
+  /* Reads a design token at paint time, so the dot field follows the theme rather than baking a
+     colour in. Deleted once, in the commit that moved the verdict colour onto a class: it looked
+     unused because the only *grep hit* left was here inside `paint`, and removing it made every
+     render throw `ReferenceError` — the number and the verdict still rendered, because they are
+     written before `paint()` is called, so the page looked merely empty rather than broken. */
+  const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
   let magnitude = 41203, group = 'engineering-all';
   let grown = 1;                          // 0..1, how much of the field has bloomed in
   let raf = null, settle = null;
