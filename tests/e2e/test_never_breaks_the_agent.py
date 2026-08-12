@@ -533,17 +533,25 @@ def test_wrapping_the_table_gates_every_tool_in_it(tmp_path: Path) -> None:
 def test_the_cli_without_its_extra_says_so_instead_of_tracebacking() -> None:
     """`[project.scripts]` installs the `neti` command whatever extras you asked for.
 
-    `typer` lives in the `cli` extra, so `pip install neti` leaves a command that cannot start, and
-    it answered with a `ModuleNotFoundError` traceback. Found by installing the actual wheel into an
-    empty venv — the suite could never see it, because every environment the suite runs in has the
-    extra.
+    `typer` used to live in the `cli` extra, so `pip install neti` left a command that could not
+    start and answered with a `ModuleNotFoundError` traceback. Found by installing the actual wheel
+    into an empty venv — the suite could never see it, because every environment the suite runs in
+    has typer.
+
+    That is fixed at the source now: typer and rich are base dependencies. This path remains for an
+    environment that loses typer some other way, and what it must not do is repeat the old advice —
+    `pip install 'neti[cli]'` names an extra that is now empty, so following it would install
+    nothing and leave the command exactly as broken.
     """
     from neti.cli import missing_cli_extra
 
     code, message = missing_cli_extra(["neti", "--help"])
 
     assert code == 2
-    assert "pip install 'neti[cli]'" in message
+    assert "pip install --upgrade neti" in message
+    assert "neti[cli]" not in message, (
+        "the `cli` extra is empty now; telling somebody to install it repairs nothing"
+    )
     assert "from neti import Preflight" in message, (
         "the message should say what still works, not only what does not"
     )

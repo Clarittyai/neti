@@ -19,10 +19,18 @@ from typing import Annotated, Any
 def missing_cli_extra(argv: list[str]) -> tuple[int, str]:
     """What to say, and what to exit with, when `typer` is not installed.
 
-    `[project.scripts]` installs the `neti` command unconditionally, but `typer` lives in the `cli`
-    extra — so `pip install neti` leaves a command that cannot start. It used to answer with a
-    `ModuleNotFoundError` traceback, which is a poor first impression everywhere and a genuine
-    hazard in one place:
+    `[project.scripts]` installs the `neti` command unconditionally, and `typer` used to live in the
+    `cli` extra — so `pip install neti` left a command that could not start. That is fixed at the
+    source: `typer` and `rich` are base dependencies now, and a plain install works.
+
+    This stays because an environment can still lose typer — a partial upgrade, a resolver pinning
+    it out, somebody uninstalling it. What changed is the advice. It used to say
+    `pip install 'neti[cli]'`, and that extra is now empty, so following it would have installed
+    nothing and left the command just as broken. Reinstalling the package is what actually repairs
+    it.
+
+    Without this the answer is a `ModuleNotFoundError` traceback, which is a poor first impression
+    everywhere and a genuine hazard in one place:
 
     **`neti hook` exits 0 even here.** A `PreToolUse` hook that exits non-zero fails the tool call
     it was asked about, so an operator who hand-wrote the hook config on a base install would have
@@ -34,9 +42,9 @@ def missing_cli_extra(argv: list[str]) -> tuple[int, str]:
     uninstalling anything.
     """
     hint = (
-        "neti: the command line needs the `cli` extra, which this install does not have.\n"
-        "  pip install 'neti[cli]'      # or neti[all] for the console and Graph resolvers too\n"
-        "The library itself is fine: `from neti import Preflight` works on a base install."
+        "neti: the command line needs `typer`, and this environment does not have it.\n"
+        "  pip install --upgrade neti      # typer and rich ship with the package itself\n"
+        "The library itself is fine: `from neti import Preflight` works without it."
     )
     if len(argv) > 1 and argv[1] == "hook":
         return 0, (

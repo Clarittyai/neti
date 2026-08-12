@@ -58,7 +58,7 @@ an appointed representative at an online or offline event.
 
 Instances of abusive, harassing, or otherwise unacceptable behavior may be reported to the
 maintainers through a
-[private security advisory](https://github.com/Neti-Security/neti/security/advisories/new), which is
+[private security advisory](https://github.com/Clarittyai/neti/security/advisories/new), which is
 this project's only private channel today. All complaints will be reviewed and investigated promptly
 and fairly.
 

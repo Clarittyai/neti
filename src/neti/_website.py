@@ -16,8 +16,8 @@ from __future__ import annotations
 WEBSITE = "https://neti.claritty.ai/"
 """The product site: what neti is, for someone who has not decided to install anything yet."""
 
-REPOSITORY = "https://github.com/Neti-Security/neti"
+REPOSITORY = "https://github.com/Clarittyai/neti"
 """The source. Apache-2.0, all of it — see LICENSING.md."""
 
-CLOUD_REPOSITORY = "https://github.com/Neti-Security/neti-cloud"
+CLOUD_REPOSITORY = "https://github.com/Clarittyai/neti-cloud"
 """The control plane. BUSL-1.1, and a separate distribution; not required to run the gate."""

@@ -42,9 +42,9 @@ dependencies = [
 [project.urls]
 # Kept in step with src/neti/_website.py by tests/property/test_urls_agree.py — one place to edit.
 Homepage = "https://neti.claritty.ai/"
-Source = "https://github.com/Neti-Security/neti"
-Issues = "https://github.com/Neti-Security/neti/issues"
-Licensing = "https://github.com/Neti-Security/neti/blob/main/LICENSING.md"
+Source = "https://github.com/Clarittyai/neti"
+Issues = "https://github.com/Clarittyai/neti/issues"
+Licensing = "https://github.com/Clarittyai/neti/blob/main/LICENSING.md"
 
 [project.optional-dependencies]
 graph = ["httpx[http2]>=0.27", "msal>=1.31"]

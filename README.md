@@ -7,7 +7,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Neti-Security/neti/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Neti-Security/neti/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/Clarittyai/neti/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Clarittyai/neti/actions/workflows/ci.yml/badge.svg?branch=main"></a>
   <img alt="licence: Apache-2.0" src="https://img.shields.io/badge/licence-Apache--2.0-blue">
   <img alt="python 3.12+" src="https://img.shields.io/badge/python-3.12%2B-blue">
   <img alt="no telemetry" src="https://img.shields.io/badge/telemetry-none-brightgreen">

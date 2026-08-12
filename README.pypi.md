@@ -8,7 +8,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/Neti-Security/neti/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Neti-Security/neti/actions/workflows/ci.yml/badge.svg?branch=main"></a>
+  <a href="https://github.com/Clarittyai/neti/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/Clarittyai/neti/actions/workflows/ci.yml/badge.svg?branch=main"></a>
   <img alt="licence: Apache-2.0" src="https://img.shields.io/badge/licence-Apache--2.0-blue">
   <img alt="python 3.12+" src="https://img.shields.io/badge/python-3.12%2B-blue">
   <img alt="no telemetry" src="https://img.shields.io/badge/telemetry-none-brightgreen">
@@ -26,7 +26,7 @@ remove_group_members(group: "engineering-all")
 Your policy engine sees a string on an allowlist. `neti` sees **412 people losing access to 9
 applications** — and stops the call, because you declared a ceiling of 200.
 
-<img src="https://raw.githubusercontent.com/Neti-Security/neti/main/docs/media/hook_block.svg" alt="neti hook denying a call that resolves to 41,203 principals against a declared ceiling of 200">
+<img src="https://raw.githubusercontent.com/Clarittyai/neti/main/docs/media/hook_block.svg" alt="neti hook denying a call that resolves to 41,203 principals against a declared ceiling of 200">
 
 The agent gets back a number, not a refusal — which is what makes it narrow the target and try again
 instead of giving up or routing around. Nothing about the gate leaks into the prompt.
@@ -45,7 +45,7 @@ None of those four is a statement about how big anything is, and all four are th
 
 **Every image on this page is generated from a transcript the test suite pins byte for byte.** They
 cannot show something the product no longer prints: change the wording and the build fails until the
-picture is regenerated. See [`tools/make_media.py`](https://github.com/Neti-Security/neti/blob/main/tools/make_media.py).
+picture is regenerated. See [`tools/make_media.py`](https://github.com/Clarittyai/neti/blob/main/tools/make_media.py).
 
 ## Why
 
@@ -124,7 +124,7 @@ credentials, no configuration, no traffic to wait for.
 It is not an alert. Nothing has gone wrong. It is a fact about your capability surface that you
 could not previously obtain.
 
-<img src="https://raw.githubusercontent.com/Neti-Security/neti/main/docs/media/demo_here_no_traffic.svg" alt="neti demo --here on a machine with no traffic: three layers listening, four dark for want of a credential, and the total an agent working here can reach">
+<img src="https://raw.githubusercontent.com/Clarittyai/neti/main/docs/media/demo_here_no_traffic.svg" alt="neti demo --here on a machine with no traffic: three layers listening, four dark for want of a credential, and the total an agent working here can reach">
 
 **This is the whole of day zero**, and the only picture on this page that needs neither traffic nor
 a credential — `neti demo --here` walks your own files through the same decision path the gate uses
@@ -202,7 +202,7 @@ tells you how many recorded calls it would have stopped, shows you the diff, and
 
 **And it proposes the ceiling a per-call ceiling cannot be.** Four thousand reads of one file each
 are four thousand calls of magnitude 1, and every one of them is under every ceiling anybody would
-write ([`SCOPE.md`](https://github.com/Neti-Security/neti/blob/main/SCOPE.md) NC-01, NC-12). Only a cumulative budget sees that — so `propose` also
+write ([`SCOPE.md`](https://github.com/Clarittyai/neti/blob/main/SCOPE.md) NC-01, NC-12). Only a cumulative budget sees that — so `propose` also
 totals up whole *sessions* and whole *days* and suggests one:
 
 ```
@@ -295,7 +295,7 @@ one place the tool is reasoning from too few samples to be statistical, and it t
 A command it recognises as destructive but cannot size — `cat list.txt | xargs rm` — comes back
 **flagged**: the call runs, and it appears in `neti report` under *unmeasured deletions* with what
 the agent said it was doing. What escapes entirely is a wrapper: `./cleanup.sh` deletes and no
-textual signal will ever see it ([`SCOPE.md`](https://github.com/Neti-Security/neti/blob/main/SCOPE.md) NC-15).
+textual signal will ever see it ([`SCOPE.md`](https://github.com/Clarittyai/neti/blob/main/SCOPE.md) NC-15).
 
 Stated here rather than discovered later, because a gap you know about is a decision and a gap you
 do not is a surprise.
@@ -328,7 +328,7 @@ remove_group_members  /group       entra.principals         52,400  no ceiling d
 send_email            /to          entra.principals         52,400  no ceiling declared
 ```
 
-<img src="https://raw.githubusercontent.com/Neti-Security/neti/main/docs/media/inventory_rows.svg" alt="neti inventory listing each gated parameter, its resolver, and the maximum it could reach in one call">
+<img src="https://raw.githubusercontent.com/Clarittyai/neti/main/docs/media/inventory_rows.svg" alt="neti inventory listing each gated parameter, its resolver, and the maximum it could reach in one call">
 
 That is the day-one finding for a directory: *this agent holds a credential that can, in one call,
 reach 52,400 people, and nothing today would stop it.*
@@ -348,12 +348,12 @@ Six acts against your own machine, no credentials: what an agent can reach here,
 did, the ceilings that follow, the same calls re-run with those ceilings on, and a chain that
 re-derives every verdict offline.
 
-<img src="https://raw.githubusercontent.com/Neti-Security/neti/main/docs/media/demo_here_full.svg" alt="the six acts of neti demo --here: discover, reach, observe, report and propose, enforce, audit">
+<img src="https://raw.githubusercontent.com/Clarittyai/neti/main/docs/media/demo_here_full.svg" alt="the six acts of neti demo --here: discover, reach, observe, report and propose, enforce, audit">
 
 `[all]` is everything one machine needs, which is the entire free tier. A bare install leaves a
 `neti` command with no CLI behind it, and says so rather than failing obscurely.
 
-That install is checked rather than asserted. [`tools/verify_install.py`](https://github.com/Neti-Security/neti/blob/main/tools/verify_install.py)
+That install is checked rather than asserted. [`tools/verify_install.py`](https://github.com/Clarittyai/neti/blob/main/tools/verify_install.py)
 builds a fresh virtualenv, installs the published wheel into it, and walks this whole page — measure,
 gate, block, seal, tamper, verify, serve — asserting the numbers. Four defects in this project were
 only ever visible from outside the repository.
@@ -496,7 +496,7 @@ TOOLS = gate_tools(pf, TOOLS)  # once, at the top. The loop below is unchanged.
 
 for block in message.content:
     if block.type == "tool_use":
-        out = TOOLS[block.name](https://github.com/Neti-Security/neti/blob/main/**block.input)
+        out = TOOLS[block.name](https://github.com/Clarittyai/neti/blob/main/**block.input)
 ```
 
 Wrapping the whole table rather than each call is the point: it makes forgetting an all-or-nothing
@@ -521,7 +521,7 @@ credentials at all. Same engine, same decision procedure, same records — only 
 
 Every decision is sealed into a hash chain as it is made, and the chain re-derives offline, forever:
 
-<img src="https://raw.githubusercontent.com/Neti-Security/neti/main/docs/media/verify_intact.svg" alt="neti verify reporting the record chain intact">
+<img src="https://raw.githubusercontent.com/Clarittyai/neti/main/docs/media/verify_intact.svg" alt="neti verify reporting the record chain intact">
 
 `neti verify --config` goes further and replays each decision against the policy, so *"the chain is
 unbroken"* becomes *"and every verdict in it still follows from its evidence"*. Alter one byte of one
@@ -530,7 +530,7 @@ record and it names the decision it broke at.
 `neti propose` shows the same working on a busier window — here the p95 *is* the outlier, so
 multiplying it would propose a ceiling above everything that has ever happened:
 
-<img src="https://raw.githubusercontent.com/Neti-Security/neti/main/docs/media/propose_bimodal.svg" alt="neti propose deriving ceilings from observed traffic, with the rationale and the impact of each">
+<img src="https://raw.githubusercontent.com/Clarittyai/neti/main/docs/media/propose_bimodal.svg" alt="neti propose deriving ceilings from observed traffic, with the rationale and the impact of each">
 
 ## What it costs to run
 
@@ -617,8 +617,8 @@ human — so nothing about paying adds availability risk to enforcement. That is
 | the detection rule table, and every resolver | the reviewed detection catalogue |
 
 The rule is *"can one machine do this?"* — which is why enforcement is free and why every hosted
-feature is a hole [SCOPE.md](https://github.com/Neti-Security/neti/blob/main/SCOPE.md) already documents, or work that only exists because more than
-one person did it. See [LICENSING.md](https://github.com/Neti-Security/neti/blob/main/LICENSING.md).
+feature is a hole [SCOPE.md](https://github.com/Clarittyai/neti/blob/main/SCOPE.md) already documents, or work that only exists because more than
+one person did it. See [LICENSING.md](https://github.com/Clarittyai/neti/blob/main/LICENSING.md).
 
 **The client for the control plane is in this repository, under Apache-2.0**, along with the tests
 pinning every property a grant is allowed to have: bound to one call, single-use, expiring, refused
@@ -652,11 +652,11 @@ soundly and can never allow — so the targets too large to count are exactly th
 slip through quietly.
 
 Sizing something else is ~80 lines against
-[RESOLVER_CONTRACT.md](https://github.com/Neti-Security/neti/blob/main/RESOLVER_CONTRACT.md), and it is the contribution that matters most.
+[RESOLVER_CONTRACT.md](https://github.com/Clarittyai/neti/blob/main/RESOLVER_CONTRACT.md), and it is the contribution that matters most.
 
 ## What it does not do
 
-Read [SCOPE.md](https://github.com/Neti-Security/neti/blob/main/SCOPE.md). It is short, it is honest, and the non-coverage list is numbered so tests
+Read [SCOPE.md](https://github.com/Clarittyai/neti/blob/main/SCOPE.md). It is short, it is honest, and the non-coverage list is numbered so tests
 and write-ups can cite it. The headline: `neti` answers *how big*, not *whether this is a good idea*,
 and a per-call gate cannot see 4,000 individual sends unless you declare a session budget.
 
@@ -664,9 +664,9 @@ and a per-call gate cannot see 4,000 individual sends unless you declare a sessi
 
 | file | what it fixes in place |
 |---|---|
-| [SCOPE.md](https://github.com/Neti-Security/neti/blob/main/SCOPE.md) | what is and is not covered, and the sentences we do not say |
-| [DECISION.md](https://github.com/Neti-Security/neti/blob/main/DECISION.md) | the verdict lattice and the decision procedure, one page |
-| [RESOLVER_CONTRACT.md](https://github.com/Neti-Security/neti/blob/main/RESOLVER_CONTRACT.md) | the resolver spec — this is the actual product |
+| [SCOPE.md](https://github.com/Clarittyai/neti/blob/main/SCOPE.md) | what is and is not covered, and the sentences we do not say |
+| [DECISION.md](https://github.com/Clarittyai/neti/blob/main/DECISION.md) | the verdict lattice and the decision procedure, one page |
+| [RESOLVER_CONTRACT.md](https://github.com/Clarittyai/neti/blob/main/RESOLVER_CONTRACT.md) | the resolver spec — this is the actual product |
 
 ## Development
 
@@ -718,7 +718,7 @@ nothing needed them.
 ### Field trials
 
 `eval/` is the tier above `tests/live/`: real agents and real servers, run by hand rather than by
-CI, because it is non-deterministic and costs tokens. See [eval/README.md](https://github.com/Neti-Security/neti/blob/main/eval/README.md).
+CI, because it is non-deterministic and costs tokens. See [eval/README.md](https://github.com/Clarittyai/neti/blob/main/eval/README.md).
 
 ```console
 uv run python -m eval.surveys.mcp_coverage --markdown
@@ -789,7 +789,7 @@ claims to do it — roughly six percent of what it said was right.
 That is why the output arrives commented out, with empty bands, in a file the gate never loads. A
 suggestion here is a reading prompt, not an answer, and the number saying so is printed on `neti
 score` rather than left for you to discover. The answer key for that last row is an opinion
-([`eval/answers/adjudicate.py`](https://github.com/Neti-Security/neti/blob/main/eval/answers/adjudicate.py)), written as rules with reasons so you
+([`eval/answers/adjudicate.py`](https://github.com/Clarittyai/neti/blob/main/eval/answers/adjudicate.py)), written as rules with reasons so you
 can disagree with it and see exactly which parameters move.
 
 ## Contributing
@@ -799,19 +799,19 @@ count. `tests/corpus/` names 401 parameters across 170 real tools that nothing h
 some of them are sets somebody could measure — a Slack channel's members, the pages in a Notion
 database, the rows a Linear filter matches.
 
-It is about 80 lines against [RESOLVER_CONTRACT.md](https://github.com/Neti-Security/neti/blob/main/RESOLVER_CONTRACT.md), which is short and is the
+It is about 80 lines against [RESOLVER_CONTRACT.md](https://github.com/Clarittyai/neti/blob/main/RESOLVER_CONTRACT.md), which is short and is the
 actual specification of the product. Two rules do most of the work: **never return `0` for something
 you could not reach** — a failure is `UNRESOLVED`, because an unreachable target and an empty one are
 opposite situations with the same number — and **anything capped or estimated reports a
 `LOWER_BOUND`**, which can block soundly and can never allow.
 
 Open an issue with the tool and the parameter and we will tell you honestly whether it can be sized.
-[CONTRIBUTING.md](https://github.com/Neti-Security/neti/blob/main/CONTRIBUTING.md) is the rest.
+[CONTRIBUTING.md](https://github.com/Clarittyai/neti/blob/main/CONTRIBUTING.md) is the rest.
 
 ---
 
 <p align="center">
   <a href="https://neti.claritty.ai/"><b>neti.claritty.ai</b></a> ·
-  <a href="https://github.com/Neti-Security/neti/blob/main/LICENSING.md">Apache-2.0</a> ·
+  <a href="https://github.com/Clarittyai/neti/blob/main/LICENSING.md">Apache-2.0</a> ·
   no telemetry, no phone-home, no licence check
 </p>
