@@ -2893,6 +2893,8 @@ dependencies = [
     { name = "pydantic", version = "2.11.10", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-4-neti-sdks-semantic-kernel'" },
     { name = "pydantic", version = "2.13.4", source = { registry = "https://pypi.org/simple" }, marker = "extra == 'extra-4-neti-sdks' or extra == 'extra-4-neti-sdks-extended' or extra == 'extra-4-neti-sdks-more' or extra != 'extra-4-neti-sdks-semantic-kernel'" },
     { name = "pyyaml" },
+    { name = "rich" },
+    { name = "typer" },
 ]
 
 [package.optional-dependencies]
@@ -2909,10 +2911,6 @@ assist = [
 ]
 assist-openai = [
     { name = "openai" },
-]
-cli = [
-    { name = "rich" },
-    { name = "typer" },
 ]
 console = [
     { name = "fastapi" },
@@ -2993,13 +2991,13 @@ requires-dist = [
     { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.3" },
     { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.24" },
     { name = "pyyaml", specifier = ">=6.0" },
+    { name = "rich", specifier = ">=13.9" },
     { name = "rich", marker = "extra == 'all'", specifier = ">=13.9" },
-    { name = "rich", marker = "extra == 'cli'", specifier = ">=13.9" },
     { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.16,<0.17" },
     { name = "semantic-kernel", marker = "extra == 'sdks-semantic-kernel'", specifier = "==1.36.0" },
     { name = "smolagents", marker = "extra == 'sdks-more'", specifier = ">=1.0" },
+    { name = "typer", specifier = ">=0.12" },
     { name = "typer", marker = "extra == 'all'", specifier = ">=0.12" },
-    { name = "typer", marker = "extra == 'cli'", specifier = ">=0.12" },
     { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
     { name = "uvicorn", marker = "extra == 'all'", specifier = ">=0.32" },
     { name = "uvicorn", marker = "extra == 'console'", specifier = ">=0.32" },

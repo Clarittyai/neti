@@ -1,8 +1,10 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 565 148" width="565" height="148" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace" font-size="14">
-<rect width="565" height="148" rx="12" fill="#0d1117"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 885 192" width="885" height="192" font-family="ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, 'Liberation Mono', 'Courier New', monospace" font-size="14">
+<rect width="885" height="192" rx="12" fill="#0d1117"/>
 <text x="22" y="36.93" fill="#94a3b8" xml:space="preserve">$ neti verify -r d.ndjson</text>
 <text x="22" y="58.63" fill="#c9d1d9" xml:space="preserve">3 records, chain intact</text>
 <text x="22" y="80.33" fill="#c9d1d9" xml:space="preserve">head: &lt;digest&gt;</text>
-<text x="22" y="102.03" fill="#c9d1d9" xml:space="preserve"></text>
-<text x="22" y="123.73" fill="#c9d1d9" xml:space="preserve">Pass --config to also replay each decision against the policy.</text>
+<text x="22" y="102.03" fill="#c9d1d9" xml:space="preserve">note: a chain cannot detect records removed from the end. Keep this digest and pass it as --expect</text>
+<text x="22" y="123.73" fill="#c9d1d9" xml:space="preserve">to catch that.</text>
+<text x="22" y="145.43" fill="#c9d1d9" xml:space="preserve"></text>
+<text x="22" y="167.13" fill="#c9d1d9" xml:space="preserve">Pass --config to also replay each decision against the policy.</text>
 </svg>

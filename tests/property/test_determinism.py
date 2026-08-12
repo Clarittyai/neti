@@ -191,6 +191,37 @@ def test_chain_detects_a_removed_record() -> None:
     assert bad == "d-300"
 
 
+def test_a_truncated_tail_still_verifies_which_is_why_expect_exists() -> None:
+    """The one tamper a hash chain cannot see, asserted rather than assumed.
+
+    Every record commits to the one before it, so altering, reordering or removing from the
+    *middle* breaks a link. Removing from the **end** breaks nothing: what remains is a shorter
+    chain that verifies perfectly — and the records most worth deleting are the ones written last.
+    That is the classic attack on an append-only log.
+
+    Found by installing the wheel and truncating the file: `neti verify` answered "chain intact",
+    exit 0, which is true and reads as "nothing happened". Nothing self-contained can fix it, since
+    the anchor has to live where the same hands cannot reach — so `verify` prints the head and
+    `--expect` compares it against the one an operator kept. This test pins the *limit*, so that
+    the day somebody believes a chain alone covers it, they meet this instead.
+    """
+    records = []
+    prev = None
+    for n in (1, 20, 300):
+        rec = _record(n, prev)
+        records.append(rec)
+        prev = rec.record_digest  # type: ignore[attr-defined]
+
+    ok, bad = verify_chain(records[:-1])  # type: ignore[arg-type]
+    assert ok and bad is None, (
+        "a truncated chain is expected to verify — if this ever fails, the chain gained a length "
+        "commitment and `--expect` is no longer the only defence"
+    )
+    assert records[:-1][-1].record_digest != records[-1].record_digest, (  # type: ignore[attr-defined]
+        "the head moves when the tail is dropped, which is the whole mechanism `--expect` uses"
+    )
+
+
 def test_digest_covers_prev_so_reordering_breaks_it() -> None:
     a = chain_digest(None, {"x": 1})
     b = chain_digest("deadbeef", {"x": 1})

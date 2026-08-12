@@ -98,11 +98,14 @@ read live off your machine, with your paths in the commands. Each step ticks its
 ### 1. Protected — one command
 
 ```console
-$ pip install "neti[all]"
+$ pip install neti
 $ neti start
 ```
 
-That is the whole first run. It measures the machine you are standing on:
+That is the whole first run. No extras, no quoting: the gate, the hook, every filesystem and shell
+resolver, the record chain and the whole command line are in the base install. `neti[all]` adds the
+console, the Microsoft Graph resolvers and MCP over HTTP — and still pulls in no provider SDK, so
+gating a coding agent never installs an LLM client by accident. It measures the machine you are standing on:
 
 ```
 3. Measuring this machine

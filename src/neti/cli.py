@@ -845,7 +845,33 @@ def _build_resolvers(
         client = GraphClient(blank, timeout_ms=timeout_ms)
         return resolvers_for_client(client, providers), client
 
-    from neti.eval.synthetic import default_tenant
+    if not needs_entra:
+        # Demo, but nothing in this policy is Graph-shaped — so there is nothing for a synthetic
+        # tenant to answer, and building one would import `httpx` for a client no resolver here
+        # will call. That is what made `neti start` — the command `neti --help` sends every new
+        # person to — die on a `ModuleNotFoundError` traceback on a plain `pip install neti`,
+        # while measuring a directory of files.
+        #
+        # Invisible until now for an unhappy reason: the CLI could not start at all without the
+        # `cli` extra, so nobody ever got far enough to reach this line. One missing dependency
+        # was hiding another.
+        # The client is returned rather than `None` because every caller closes it. Returning
+        # `None` here was my first attempt and it turned one crash into six: `client.close()` on
+        # `NoneType` took out `neti gate --stdio` and the whole real-MCP-server suite with it.
+        blank = ClientCredential(tenant_id="", client_id="", client_secret="")
+        client = GraphClient(blank, timeout_ms=timeout_ms)
+        return resolvers_for_client(client, providers), client
+
+    try:
+        from neti.eval.synthetic import default_tenant
+    except ModuleNotFoundError as exc:  # pragma: no cover - exercised by installing the wheel
+        # A policy that really does gate Entra, on an install without the extra that can reach it.
+        # Guidance, not a traceback — the same courtesy `missing_cli_extra` extends one level up.
+        raise typer.BadParameter(
+            "this policy gates Microsoft Graph, and the demo tenant needs the `graph` extra:\n"
+            "  pip install 'neti[graph]'      # or neti[all]\n"
+            f"({exc})"
+        ) from exc
 
     credential = ClientCredential(tenant_id="demo", client_id="demo", client_secret="demo")
     client = GraphClient(credential, transport=default_tenant().transport(), timeout_ms=timeout_ms)
@@ -1947,6 +1973,10 @@ def verify(
         str | None,
         typer.Option("--mode", help="Replay as if the policy were in this mode: observe|enforce."),
     ] = None,
+    expect: Annotated[
+        str | None,
+        typer.Option("--expect", help="The head digest you last saw. Catches a truncated tail."),
+    ] = None,
 ) -> None:
     """Verify the hash chain, and with `--config` re-derive every verdict from its evidence.
 
@@ -1955,6 +1985,17 @@ def verify(
     evidence in the record* — that these magnitudes and these declared ceilings still produce this
     answer under today's code. Upgrade `neti`, replay a year of log, and find out whether anything
     would now be decided differently.
+
+    **What a chain cannot see, and what `--expect` is for.** Each record commits to the one before
+    it, so altering, reordering or removing a record from the *middle* breaks the links and is
+    caught. Deleting records from the **end** breaks nothing: what remains is a shorter chain that
+    verifies perfectly. That is the classic attack on an append-only log, and the records most
+    worth deleting are the ones written last.
+
+    Nothing self-contained can fix that — the anchor has to live somewhere the same hands cannot
+    reach. So `verify` prints the head digest, and `--expect` compares against the one you kept:
+    in CI, in a ticket, in another system. Same digest, nothing was dropped; different digest with
+    an intact chain, the tail is gone.
 
     Replay needs the policy because a record stores the resolutions but not the ceilings they were
     compared against. Records written under a different policy are reported, not silently skipped.
@@ -1978,9 +2019,29 @@ def verify(
         typer.secho(f"CHAIN BROKEN at decision {bad}", fg=typer.colors.RED, err=True)
         raise typer.Exit(1)
 
+    head = chain[-1].record_digest if chain else ""
+    if expect and expect != head:
+        # An intact chain that does not end where it used to. The likeliest cause is the one a
+        # chain cannot see by itself, so the message names it rather than leaving an operator to
+        # work out why "intact" and "wrong" are both true.
+        typer.secho(
+            f"HEAD MOVED — {len(chain):,} records, chain intact, but the head is not the one you "
+            f"expected.\n  expected {expect}\n  found    {head}\n"
+            "Records removed from the end leave a shorter chain that still verifies. If nothing "
+            "was written since you recorded that digest, the tail has been dropped.",
+            fg=typer.colors.RED,
+            err=True,
+        )
+        raise typer.Exit(1)
+
     typer.secho(f"{len(chain):,} records, chain intact", fg=typer.colors.GREEN)
     if chain:
-        typer.echo(f"head: {chain[-1].record_digest}")
+        typer.echo(f"head: {head}")
+        if not expect:
+            typer.echo(
+                "note: a chain cannot detect records removed from the end. Keep this digest and "
+                "pass it as --expect to catch that."
+            )
 
     # This is the command an auditor runs, so it is the last place a synthetic row could pass for a
     # measured one. "Chain intact" is a statement about tampering and says nothing about provenance;

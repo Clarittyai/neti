@@ -26,6 +26,17 @@ classifiers = [
 dependencies = [
     "pydantic>=2.9",
     "pyyaml>=6.0",
+    # `typer` and `rich` are here rather than behind the `cli` extra because this package installs a
+    # console script called `neti`, and `pip install neti` leaving a command that cannot start is a
+    # broken install however politely it says so. `missing_cli_extra` still exists and still handles
+    # it — somebody can always remove typer from an environment — but that is now a repair path
+    # rather than the default experience.
+    #
+    # They are two small pure-Python packages. The rule this does not break is the one that matters:
+    # `pip install neti` still pulls in no provider SDK and no cloud client, so nobody gating a
+    # coding agent acquires boto3, msal or an LLM SDK by accident.
+    "typer>=0.12",
+    "rich>=13.9",
 ]
 
 [project.urls]
@@ -38,7 +49,9 @@ Licensing = "https://github.com/Neti-Security/neti/blob/main/LICENSING.md"
 [project.optional-dependencies]
 graph = ["httpx[http2]>=0.27", "msal>=1.31"]
 mcp = ["httpx[http2]>=0.27"]
-cli = ["typer>=0.12", "rich>=13.9"]
+# Kept so `pip install neti[cli]` and every existing lockfile and doc still resolve. Its
+# contents moved into the base dependencies above; naming it is now a no-op, not an error.
+cli = []
 console = ["fastapi>=0.115", "uvicorn>=0.32"]
 # Only `storage.objects` needs this, and it imports boto3 inside the call rather than at module
 # scope — so a policy that never binds that resolver never pays for it. Left out of `all`
