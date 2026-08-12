@@ -105,6 +105,35 @@ app = typer.Typer(
 )
 
 
+def _version(show: bool) -> None:
+    """`--version`, because that is what people type.
+
+    There is a `neti version` subcommand and there always was, but nobody reaches for it first:
+    `--version` is the convention, and it exited 2 with a usage dump — which reads as "this install
+    is broken" at the exact moment somebody is checking whether the install worked.
+    """
+    if not show:
+        return
+    from neti import __version__
+
+    typer.echo(__version__)
+    raise typer.Exit()
+
+
+@app.callback()
+def _root(
+    version: bool = typer.Option(
+        False,
+        "--version",
+        "-V",
+        callback=lambda v: _version(v),
+        is_eager=True,
+        help="Print the version and exit.",
+    ),
+) -> None:
+    """A preflight gate for agent tool calls."""
+
+
 @app.command(rich_help_panel="Start here")
 def start(
     config: Annotated[
@@ -234,8 +263,24 @@ def start(
         if preset.off_limits:
             typer.echo("   Off limits from now on — these are really here, and one file is")
             typer.echo("   under every ceiling anybody would write:\n")
-            for c in preset.off_limits[:4]:
-                typer.echo(f"      {c.match:<16} {c.why}   (found {c.example})")
+            # All of them, not the first four. This used to be `off_limits[:4]`, and because the
+            # gate's own self-protection rules sort first, the four shown were always
+            # `neti.yaml`, `.claude`, `.claude/**` and `decisions.ndjson` — while `**/.env*`,
+            # `**/secrets/**` and `**/id_rsa*` were written to the policy and never mentioned.
+            # A person read "off limits from now on", saw four rules about neti protecting
+            # itself, and had no way to know their credentials and SSH keys were covered — which
+            # is the most valuable thing the first run does, and two of those verdicts are
+            # `block` rather than `confirm`.
+            #
+            # The list is short by construction: it is what the secrets scan found *on this
+            # disk*. If it is ever long, the count is said out loud rather than trimmed in
+            # silence.
+            shown = preset.off_limits[:8]
+            for c in shown:
+                typer.echo(f"      {c.match:<20} {c.why}   (found {c.example})")
+            if len(preset.off_limits) > len(shown):
+                rest = len(preset.off_limits) - len(shown)
+                typer.echo(f"      … and {rest} more, all written to {destination}")
             typer.echo("")
         if reached:
             typer.echo(f"   And anything touching more than {preset.flag_above:,} at once is")

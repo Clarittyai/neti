@@ -95,6 +95,43 @@ def test_off_limits_rules_are_only_for_what_is_really_there(repo: Path) -> None:
     )
 
 
+def test_the_first_run_names_every_rule_it_just_wrote(
+    repo: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """`neti start` step 4 listed `off_limits[:4]`, and never said there were more.
+
+    The gate's own files sort first, so the four shown were always `neti.yaml`, `.claude`,
+    `.claude/**` and `decisions.ndjson` — while `**/.env*`, `**/secrets/**` and `**/id_rsa*` were
+    written into the policy and never mentioned. Somebody read "off limits from now on", saw four
+    rules about neti protecting itself, and had no way to know their credentials and SSH keys were
+    covered. That is the most valuable thing the first run does, and two of those verdicts are
+    `block` rather than `confirm`.
+
+    Found by installing the wheel and reading the output as a new user would, which is the only way
+    it *could* be found: every unit here asserted on the policy, and the policy was always right.
+    """
+    (repo / ".env").write_text("K=v\n", encoding="utf-8")
+    (repo / "secrets").mkdir(exist_ok=True)
+    (repo / "secrets" / "id_rsa").write_text("key\n", encoding="utf-8")
+
+    from typer.testing import CliRunner
+
+    from neti.cli import app
+
+    # `start` reads the directory it is *run in*, not one passed to it, so the fixture has to be
+    # the working directory or this compares one tree's output against another tree's rules.
+    monkeypatch.chdir(repo)
+    result = CliRunner().invoke(app, ["start"], catch_exceptions=False)
+    written = [c.match for c in build(repo, 1_000).off_limits]
+    assert written, "the preset found nothing to protect, so this proves nothing"
+
+    missing = [m for m in written if m not in result.stdout]
+    assert not missing, (
+        "`neti start` wrote these rules and did not name them, so nobody reading its output knows "
+        "they are on:\n  " + "\n  ".join(missing)
+    )
+
+
 # --------------------------------------------------------------------------- what start leaves
 
 
