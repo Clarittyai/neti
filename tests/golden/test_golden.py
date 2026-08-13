@@ -113,6 +113,35 @@ def check(
 # than no snapshot, because it reads as coverage.
 
 
+def test_the_workspace_hides_the_developers_own_clients(workspace: Path) -> None:
+    """The isolation `test_init_finds_nothing` silently depends on, asserted rather than assumed.
+
+    `find_clients` takes a `home` argument only so a caller can point it somewhere; the CLI passes
+    none, so it falls through to `Path.home()`. For as long as nobody noticed, "no servers found"
+    was a fact about the machine the transcript was written on — and the day an MCP server was
+    registered in Claude Code, two golden tests started failing for a reason no diff explained.
+
+    So this pins both halves at once: the sandbox home is what gets read, and reading it still
+    works. A fixture that isolated by breaking discovery would pass a test that only checked for
+    emptiness.
+    """
+    from neti.insight.discover import find_clients
+
+    assert find_clients() == [], (
+        "the workspace fixture is not hiding this machine's agent-client configs, so every "
+        "transcript that depends on what `neti init` finds is a statement about this laptop"
+    )
+
+    home = Path(os.environ["HOME"])
+    (home / ".claude.json").write_text(
+        '{"mcpServers": {"planted": {"command": "echo", "args": ["hi"]}}}', encoding="utf-8"
+    )
+    assert [s.name for s in find_clients()] == ["planted"], (
+        "discovery no longer reads the home directory at all, which would make the isolation above "
+        "vacuous — the transcripts would pass by finding nothing anywhere"
+    )
+
+
 def test_init_finds_nothing(workspace: Path) -> None:
     check("init_no_servers", ["init", "--out", "gen.yaml"], workspace=workspace)
 

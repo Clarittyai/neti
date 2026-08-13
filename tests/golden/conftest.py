@@ -18,7 +18,23 @@ def workspace(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     `NETI_HOME` is redirected so a developer who happens to be logged in to a control plane does not
     get different transcripts from CI — the golden files would then differ per machine and the whole
     mechanism would be abandoned within a week.
+
+    The home *directory* is redirected for the same reason, and it was the half this fixture
+    forgot. `neti init` reads the machine's agent-client configs, and `find_clients` takes a `home`
+    argument only so a test can point it somewhere — the CLI never passes one, so it falls through
+    to `Path.home()`. Two transcripts therefore pinned "No MCP servers found in any client config on
+    this machine", which was a statement about the author's laptop on the day they were written.
+    Both began failing the moment somebody registered an MCP server in Claude Code, and they would
+    fail for any contributor who has ever configured one — which is most of the people this project
+    wants patches from, and a failure they could do nothing about.
+
+    `Path.home()` reads `$HOME` on POSIX and `USERPROFILE` on Windows, so setting both is what makes
+    this hold on every machine CI runs on rather than the one it was written on.
     """
+    machine = tmp_path / "machine"
+    machine.mkdir()
+    monkeypatch.setenv("HOME", str(machine))
+    monkeypatch.setenv("USERPROFILE", str(machine))
     monkeypatch.setenv("NETI_HOME", str(tmp_path / "home"))
     monkeypatch.delenv("NETI_CLOUD_URL", raising=False)
     monkeypatch.delenv("NETI_CLOUD_KEY", raising=False)
