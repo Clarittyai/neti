@@ -137,6 +137,41 @@ def outputs() -> dict[Path, bytes]:
     return files
 
 
+def matches(path: Path, data: bytes) -> bool:
+    """Whether the committed file is already this mark — compared as an *image*, not as bytes.
+
+    The first version of this compared bytes, and it was red in CI for three commits. PNG and ICO
+    go out through Pillow's encoder and zlib, neither of which promises the same bytes across
+    versions or platforms: the files were generated on macOS, CI runs Linux, and the check demanded
+    they be identical. The `.svg` is fine that way because it is text this module formats itself.
+
+    Byte-equality was never the property worth holding. The mark is the pixels; a different zlib
+    window that draws the same image is not a stale mark, and treating it as one means either
+    committing churn on every machine that regenerates or a permanently failing check — which is
+    how a staleness check gets switched off.
+    """
+    if not path.exists():
+        return False
+    if path.suffix == ".svg":
+        return path.read_bytes() == data
+
+    from io import BytesIO
+
+    from PIL import Image
+
+    committed = Image.open(BytesIO(path.read_bytes()))
+    fresh = Image.open(BytesIO(data))
+    if path.suffix == ".ico":
+        if sorted(committed.ico.sizes()) != sorted(fresh.ico.sizes()):
+            return False
+        for size in sorted(fresh.ico.sizes()):
+            committed.size, fresh.size = size, size
+            if committed.convert("RGBA").tobytes() != fresh.convert("RGBA").tobytes():
+                return False
+        return True
+    return committed.convert("RGBA").tobytes() == fresh.convert("RGBA").tobytes()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--check", action="store_true", help="fail if any output is stale")
@@ -145,8 +180,7 @@ def main() -> int:
     OUT.mkdir(parents=True, exist_ok=True)
     stale = []
     for path, data in outputs().items():
-        current = path.read_bytes() if path.exists() else None
-        if current == data:
+        if matches(path, data):
             continue
         if args.check:
             stale.append(path.relative_to(REPO))

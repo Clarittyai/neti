@@ -289,14 +289,42 @@ make_logo = _load("make_logo")
 
 
 def test_the_mark_is_what_its_geometry_builds_to() -> None:
+    """Compared as images, which is the only form of this that holds on more than one machine.
+
+    Written first as a byte comparison, and it was red in CI for three commits: PNG and ICO are
+    encoder output, and neither Pillow nor zlib promises the same bytes across versions or
+    platforms. The files were generated on macOS and CI runs Linux. The mark is the pixels.
+    """
     stale = [
         str(path.relative_to(make_logo.REPO))
         for path, data in make_logo.outputs().items()
-        if not path.exists() or path.read_bytes() != data
+        if not make_logo.matches(path, data)
     ]
     assert not stale, (
         "these no longer match the geometry in tools/make_logo.py. Run `just logo`:\n  "
         + "\n  ".join(sorted(stale))
+    )
+
+
+def test_the_staleness_check_is_not_comparing_bytes() -> None:
+    """The bug that made the check above fail everywhere except the machine that wrote the files.
+
+    Re-encoding a PNG at a different compression level changes every byte and no pixel. If
+    `matches` ever goes back to comparing bytes, this is the difference between a check that
+    travels and one that only agrees with its author's laptop.
+    """
+    from io import BytesIO
+
+    from PIL import Image
+
+    path = make_logo.OUT / f"icon-{make_logo.TOUCH}.png"
+    reencoded = BytesIO()
+    Image.open(path).save(reencoded, format="PNG", compress_level=1)
+
+    assert reencoded.getvalue() != path.read_bytes(), "expected different bytes to compare against"
+    assert make_logo.matches(path, reencoded.getvalue()), (
+        "matches() rejected a re-encoding of the very same image, so it is comparing bytes rather "
+        "than pixels and will fail on any machine but the one that generated the files"
     )
 
 
