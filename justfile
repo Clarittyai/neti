@@ -155,6 +155,12 @@ readme-pypi:
 logo:
     uv run python tools/make_logo.py
 
+# The animated terminal cast: the six acts, revealed a line at a time, from the same transcript the
+# still exhibit uses. A GIF rather than the animated SVG this started as — SVG through `<img>` is
+# rendered statically, so in a README the elegant version was a still picture calling itself a cast.
+cast:
+    uv run --with "fonttools[woff]" python tools/make_cast.py
+
 # The share card: the picture a link to neti expands into. `fonttools` is here rather than in the
 # project because it is needed to *build* this and never to run neti — the same arrangement `dist`
 # uses for twine. It reads the committed woff2, which FreeType cannot open compressed.

@@ -51,9 +51,9 @@ PLACEHOLDER = re.compile(r"\{\{MEDIA:([a-z0-9_]+)\}\}")
 # only `font-src data:`, and the page keeps the property every other asset here has: it carries
 # what it needs and renders identically wherever it is opened.
 #
-# The licence travels with it. `docs/media/fonts/OFL.txt` is the SIL Open Font License the face is
-# published under, and shipping the font without shipping that is the one thing the licence asks
-# you not to do.
+# The licence travels with it. `docs/media/fonts/OFL-SpaceGrotesk.txt` is the SIL Open Font
+# License the face is published under, and shipping the font without shipping that is the one
+# thing the licence asks you not to do.
 FONT_PLACEHOLDER = re.compile(r"\{\{FONT:([a-z0-9-]+)\}\}")
 
 # The mark, from `tools/make_logo.py`. A placeholder rather than the SVG pasted into both pages:

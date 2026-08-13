@@ -383,3 +383,27 @@ def test_the_head_delivers_the_card_it_promises() -> None:
     assert served.exists(), (
         "public/card.png is missing, so og:image points at a 404. Run `just card`."
     )
+
+
+# ---------------------------------------------------------------------------- the cast
+
+
+def test_the_cast_covers_every_character_it_draws() -> None:
+    """A missing glyph is a silent defect, and this one shipped once.
+
+    The cast was first built in Space Mono, whose Google subset has no U+2500 — the box-drawing
+    horizontal that rules every act heading in this transcript, 258 times. PIL drew 258 empty boxes
+    and reported nothing; it took looking at the picture. The generator refuses that now, and this
+    holds the refusal to the transcript that is actually committed rather than to the one it was
+    written against.
+
+    Not a staleness check: the GIF is encoder output and comparing its bytes across platforms is the
+    mistake `make_logo` already made. What is checked is the property that broke.
+    """
+    make_cast = _load("make_cast")
+
+    lines = make_cast._lines()
+    assert lines, "the cast has no lines, so this checks nothing"
+    make_cast._assert_covered(lines)
+
+    assert make_cast.OUT.exists(), "docs/media/cast.gif is missing. Run `just cast`."

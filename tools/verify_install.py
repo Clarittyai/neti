@@ -296,11 +296,40 @@ def journey(r: Result, work: Path, source: str, local: bool) -> int:
     binaries = venv / ("Scripts" if os.name == "nt" else "bin")
     pip = binaries / "pip"
     neti = binaries / "neti"
+    # The base install first, and this order is the point rather than a detail.
+    #
+    # This file walked `neti[all]` and nothing else, so every command below ran with every extra
+    # present — while README §1 opens with `pip install neti`, no extras, and says in as many words
+    # "No extras, no quoting". The two things this tool exists to reconcile were never compared.
+    #
+    # What that hid: `neti demo --here`, the command the README tells a new reader to run first,
+    # died on a base install with `ModuleNotFoundError: No module named 'httpx'` — an import sitting
+    # one line above the branch that returns before using it. `neti demo --here runs` is checked
+    # forty lines below and passed the whole time, because httpx was always there.
+    #
+    # So: install what the README says to install, prove the commands the README claims work on it,
+    # then add the extras and carry on. A stranger's first command is the one worth checking twice.
+    out = run([str(pip), "install", "-q", str(source)])
+    if not r.check(
+        "pip install neti  (base, as README §1 says)",
+        out.returncode == 0,
+        f"{time.monotonic() - started:.0f}s",
+        why=out.stderr.strip()[-300:],
+    ):
+        return 1
+
+    base = run([str(neti), "demo", "--here"])
+    r.check(
+        "neti demo --here runs on a *base* install",
+        base.returncode == 0,
+        why=(base.stdout[-200:] + base.stderr[-500:]).strip(),
+    )
+
     # `neti[all]` from PyPI, or `/path/to/repo[all]` for a working tree. pip takes the same shape
     # for both, which is the whole reason this can test either without a second code path.
     out = run([str(pip), "install", "-q", f"{source}[all]"])
     if not r.check(
-        "pip install",
+        "pip install neti[all]",
         out.returncode == 0,
         f"{time.monotonic() - started:.0f}s",
         why=out.stderr.strip()[-300:],

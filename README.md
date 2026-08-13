@@ -351,7 +351,7 @@ Six acts against your own machine, no credentials: what an agent can reach here,
 did, the ceilings that follow, the same calls re-run with those ceilings on, and a chain that
 re-derives every verdict offline.
 
-<img src="docs/media/demo_here_full.svg" alt="the six acts of neti demo --here: discover, reach, observe, report and propose, enforce, audit">
+<img src="docs/media/cast.gif" alt="the six acts of neti demo --here, played out: discover, reach, observe, report and propose, enforce, audit" width="900">
 
 `[all]` is everything one machine needs, which is the entire free tier. A bare install leaves a
 `neti` command with no CLI behind it, and says so rather than failing obscurely.

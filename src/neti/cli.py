@@ -2114,11 +2114,21 @@ def demo(
     how much can an agent here reach in one call. The rest needs traffic; with none, the demo says
     so and prints how to get it.
     """
-    from neti.eval.demo import demo_json
-
+    # Imported after the `--here` branch, not before it, and the ordering is load-bearing.
+    # `neti.eval.demo` reaches `neti.eval.synthetic`, which imports httpx at module level because it
+    # serves a transport — and httpx is in the `graph` extra. So a base install running the command
+    # this docstring says needs nothing but the current directory got a Python traceback:
+    #
+    #     $ pip install neti && neti demo --here
+    #     ModuleNotFoundError: No module named 'httpx'
+    #
+    # `--here` never uses `demo_json`. It was one import on the wrong side of one branch, and it
+    # turned the first thing the README tells a new reader to run into a stack trace.
     if here:
         _demo_here(config=config, repo=repo, corpus=corpus)
         return
+
+    from neti.eval.demo import demo_json
 
     payload = demo_json(str(resolve_policy(config)))
     if out == "-":
