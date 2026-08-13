@@ -17,6 +17,9 @@ a declared policy decision.
 
 ## Setup
 
+You need [`uv`](https://docs.astral.sh/uv/) **0.5 or newer**, and optionally
+[`just`](https://github.com/casey/just).
+
 ```console
 $ just install     # uv venv + editable install with dev extras
 $ just test        # the full suite
@@ -24,6 +27,28 @@ $ just prop        # determinism, monotonicity, direction soundness, purity — 
 ```
 
 Before opening a PR: `just test`, `uv run mypy`, `uv run ruff check`, `uv run ruff format --check`.
+
+**Without `just`**, every recipe is a couple of ordinary commands — `just --list` names them, or read
+the `justfile`, which is short. The ones you will want:
+
+```console
+$ uv venv --python 3.12                                                  # just install, line 1
+$ uv pip install -e '.[dev,cli,graph,mcp,console,sdks,sdks-extended,storage,database]'
+$ uv run pytest -q                                                       # just test
+$ NETI_REQUIRE_SDKS=1 uv run pytest -q                                   # just test-all
+```
+
+`test` and `test-all` differ by that one variable, and it is the difference between eighteen SDK
+adapter tests running and quietly `importorskip`-ing themselves out of the summary. CI runs the
+second.
+
+**The uv floor is not a preference.** `pyproject.toml` declares `[tool.uv] conflicts`, which is how
+the `sdks` and `sdks-semantic-kernel` extras are allowed to want incompatible pydantic versions
+without making the project unresolvable. uv 0.4 does not know that key: it warns
+`unknown field 'conflicts'` and then fails to resolve with *"your project's requirements are
+unsatisfiable"*, naming pydantic rather than the version of uv reading the file. The committed
+`uv.lock` masks it until you change a dependency, so the error arrives long after the cause. If you
+see that, check `uv --version` before you believe the message.
 
 ## What the tests are for
 
