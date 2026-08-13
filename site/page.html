@@ -76,7 +76,11 @@
      96 / 112 / 128 / 160px and 112 is the one it uses most, so that is what this lands on at
      desktop width. Family resemblance between two sites is carried by air and type scale far more
      than by colour — the accent was the easy half. */
-  section { padding-block: clamp(4rem, 8vw, 7rem); border-top: 1px solid var(--border); }
+  /* Air is the whole of it. The page was a dense technical document with 14 sections at 64-112px
+     apart, and density reads as "generated" even when every sentence is true — a reader meets a
+     wall and skims. Apple's landing pages are not sparse because there is little to say; they give
+     one idea a screen and let it be the only thing there. 80-160px, so a section arrives alone. */
+  section { padding-block: clamp(5rem, 11vw, 10rem); border-top: 1px solid var(--border); }
 
   /* Headings are quieter than they were. The measurement is the loud thing on this page; a
      headline competing with it is two things shouting. */
@@ -87,10 +91,15 @@
   h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.03em; text-wrap: balance;
                line-height: 1.05; }
   h1 { font-size: clamp(2.25rem, 4vw, 3.25rem); }
-  h2 { font-size: clamp(1.75rem, 3.2vw, 2.75rem); line-height: 1.08; }
+  /* 32 -> 56px. A section heading that is only 1.5x the body text is a bold paragraph; at this
+     scale it is the thing you land on, and everything under it can stay quiet. Tracking tightens
+     as it grows, which is the one typographic habit worth stealing wholesale. */
+  h2 { font-size: clamp(2rem, 4.2vw, 3.5rem); line-height: 1.04; letter-spacing: -.035em; }
   h3 { font-size: 1.0625rem; letter-spacing: -.01em; line-height: 1.4; }
-  .lede { font-size: clamp(1rem, .6vw + .9rem, 1.125rem); color: var(--fg-muted);
-          line-height: 1.55; max-width: 40em; }
+  /* 17 -> 21px, and a shorter measure. Body set at 16px under a 56px heading reads as fine print;
+     the gap between them was doing the opposite of what the hierarchy intended. */
+  .lede { font-size: clamp(1.0625rem, .5vw + .95rem, 1.3125rem); color: var(--fg-muted);
+          line-height: 1.5; max-width: 34em; }
   .muted { color: var(--fg-muted); }
   .small { font-size: .9375rem; line-height: 1.6; color: var(--fg-muted); }
   .note { font-size: .9375rem; line-height: 1.6; color: var(--fg-muted);
@@ -124,6 +133,32 @@
   .duo-wide { display: grid; grid-template-columns: minmax(0, 1fr);
               gap: clamp(2rem, 4vw, 3.5rem); }
   @media (min-width: 60rem) { .duo-wide { grid-template-columns: minmax(0, 4fr) minmax(0, 8fr); } }
+
+  /* ── the exhibit, at the size it was drawn ────────────────────────────────────────────────────
+     Every terminal picture on this page was being shown too small to read, and the arithmetic is
+     not close. `tools/make_media.py` draws these at `font-size: 14` and they come out 885px wide
+     (1187 for the inventory table, 1568 for the console shots). The alternating layout gave them
+     the 7fr half of a 5/7 split — 630px at desktop — so each one was scaled to about 71% and its
+     14px type landed near 10px. The whole evidentiary half of the page was below reading size, and
+     "scratchy" is exactly what a page of downscaled hairlines and 10px monospace looks like.
+
+     A picture the reader cannot read is decoration claiming to be evidence, which is the one thing
+     this page must not do: the SVGs exist *because* the suite pins them byte for byte.
+
+     So the words and the picture stop competing for one row. The prose takes a column of its own at
+     a measure meant for reading, and the exhibit gets the full shell beneath it at its natural
+     size — `width: auto` against the width attribute make_media writes, `max-width: 100%` so a
+     narrow screen still shrinks it. It never renders above 1:1, so it is never soft, and never
+     below it on a desktop, so it is never illegible.
+
+     This also retires the alternating text/visual columns, which the header comment at the top of
+     this file already disowns as one of the tells of the default developer-tool look. They came
+     back anyway. Structure here stays what DESIGN.md says it is — hairline rules, spacing and
+     alignment — and none of this adds a box, a shadow or a fill to get there. */
+  .stack { display: grid; gap: clamp(2rem, 4vw, 3rem); }
+  .says { max-width: 46rem; }
+  .exhibit { margin: 0; display: grid; gap: .75rem; justify-items: start; }
+  .exhibit .frame { width: auto; max-width: 100%; }
 
   /* ══════════════════════════════════════════════════════════════════════ nav */
   .nav { position: sticky; top: 0; z-index: 20; background: var(--bg);
@@ -304,6 +339,17 @@
   .names span { display: block; font-size: .9375rem; color: var(--fg); }
   .names i { font-style: normal; color: var(--fg-faint); font-family: var(--mono);
              font-size: .75rem; display: block; margin-top: .2rem; }
+  /* The verdict scale, read as a list. `.lat-marks` had no rule at all, so each row inherited its
+     inline colour into the sentence beneath it — whole paragraphs set in green and red, which is
+     harder to read and spends a colour that is supposed to mean one thing. The colour marks the
+     label; the sentence stays body grey. Labels take the page's existing label voice, so this
+     matches every other eyebrow on the page rather than inventing a fifth treatment. */
+  .lat-marks > div { padding: .95rem 0; border-top: 1px solid var(--hair);
+                     font-family: var(--mono); font-size: .75rem; letter-spacing: .12em; }
+  .lat-marks > div:first-of-type { border-top: 0; padding-top: 0; }
+  .lat-marks p { margin: .5rem 0 0; color: var(--fg-muted); font-family: var(--sans);
+                 font-size: .9375rem; letter-spacing: normal; line-height: 1.6; }
+
   .why { font-size: .875rem; color: var(--fg-muted); }
   .steps { display: grid; gap: 1px; background: var(--border); }
   /* The verdict, in front of the sentence that explains it. `margin-inline-end` is load-bearing
@@ -338,8 +384,12 @@
   .lead h1 { font-size: clamp(2.5rem, 5.4vw, 4.25rem); line-height: 1.02; letter-spacing: -.035em;
              font-weight: 800; }
   .lead h1 em { font-style: normal; color: var(--accent); }
-  .lead .sub { font-size: clamp(1.0625rem, .6vw + .95rem, 1.1875rem); color: var(--fg-muted);
-               margin-top: 1.5rem; max-width: 40em; line-height: 1.55; }
+  /* The hero line was 19px on a 40em measure — smaller and wider than the `.lede` under every
+     section heading below it, which is the hierarchy upside down. Whatever the most generous body
+     text on a page is, it belongs directly under the headline. 22px on 28em, so it lands in two
+     lines beside the facts panel rather than filling five. */
+  .lead .sub { font-size: clamp(1.125rem, .7vw + 1rem, 1.375rem); color: var(--fg-muted);
+               margin-top: 1.5rem; max-width: 28em; line-height: 1.45; }
   /* Monospace tokens sitting inside prose. They carry the product's own vocabulary — a unit, a
      resolver, a verdict — without a code block interrupting the sentence. */
   .tok { font-family: var(--mono); font-size: .8125em; border: 1px solid var(--border);
@@ -390,11 +440,15 @@
     <div class="lead">
       <div>
         <h1>Count what a tool call will touch <em>before it runs.</em></h1>
-        <p class="sub">Your permission system sees <span class="tok">remove_group_members</span> on
-          an allowlist and the name is allowed. neti resolves it to <span class="tok">41,203
-          principals</span>, compares that to a ceiling you declared, and stops the call — handing
-          the agent the number rather than a refusal, which is what makes it narrow the target and
-          try again.</p>
+        <!-- Four ideas were in here: a name on an allowlist, the number it resolves to, the
+             comparison, and the number handed back. The page gives the last two a section each
+             ("A static integer comparison", "It gets a number back, not a no"), so the hero was
+             pre-explaining what it is about to explain properly, and a reader met sixty words
+             before the first screen was over. What nothing else on the page says in one beat is
+             the contrast: your allowlist sees a name, neti sees a number. That is what stays. -->
+        <p class="sub">Your permission system sees <span class="tok">remove_group_members</span> and
+          the name is allowed. neti sees <span class="tok">41,203 principals</span> — and stops the
+          call, because you declared a ceiling of 200.</p>
         <div class="actions">
           <a class="pill" href="https://github.com/Clarittyai/neti">Get started</a>
           <a class="quiet" href="/cloud/">Hosted version</a>
@@ -510,24 +564,31 @@
     </div>
   </section>
 
-  <!-- ═══════════════════════════════════════════ the call. visual right. -->
+  <!-- ═══════════════════════════════════════════ the call, then what came back. -->
   <section class="shell">
-    <div class="duo">
-      <div>
-        <h2>What the agent<br>is actually told.</h2>
+    <div class="stack">
+      <div class="says">
+        <h2>It gets a number<br>back, not a no.</h2>
         <p class="lede" style="margin-top:1.25rem">Not "denied". The number, the ceiling it
           crossed, and what to do about it — handed back as an ordinary tool result.</p>
-        <p class="small">The agent gets a number back, not a refusal. That is what makes it narrow
-          the target and try again instead of giving up or working around it. Nothing about the gate
-          reaches the prompt.</p>
-        <span class="cmd" style="margin-top:1.25rem">remove_group_members(group: "engineering-all")</span>
+        <!-- This paragraph used to open "The agent gets a number back, not a refusal", which is the
+             heading and the lede said a third time before saying anything new. Three restatements
+             in a row is what a page sounds like when nobody read it end to end. It keeps only the
+             part neither of the two above it carries: what the agent does next, and what the
+             prompt never learns. -->
+        <p class="small">That is what makes it narrow the target and try again instead of giving up
+          or working around it. Nothing about the gate reaches the prompt.</p>
       </div>
-      <div>
+      <!-- The call, then the answer, in the order it happens. These were in opposite columns —
+           call at the bottom left, answer at the top right — so the one pairing this section
+           exists to show was the thing the layout did not say. -->
+      <figure class="exhibit">
+        <span class="cmd">remove_group_members(group: "engineering-all")</span>
         <img class="frame" alt="A terminal showing neti's PreToolUse hook denying a call: /group resolves to 41,203 principals, above the declared ceiling of 200." src="{{MEDIA:hook_block}}">
-        <p class="cap">Every image on this page is generated from output the test suite pins byte
-          for byte. If the product stops printing this, the build fails until the picture is
-          regenerated.</p>
-      </div>
+        <figcaption class="cap">Every image on this page is generated from output the test suite
+          pins byte for byte. If the product stops printing this, the build fails until the picture
+          is regenerated.</figcaption>
+      </figure>
     </div>
   </section>
 
@@ -551,7 +612,13 @@
             <i style="background:var(--destructive)"></i>
           </div>
           <div class="lat-marks">
-            <div style="color:var(--accent)">ALLOW<p>It fits. Nothing is said, so your existing
+            <!-- ALLOW is green because DESIGN.md reserves that colour for "a call that
+                 proceeded", and this page was painting it in the brand accent — the one colour
+                 that is supposed to mean neti rather than a verdict. FLAG keeps the accent, which
+                 also fixes the thing you notice before you notice the rule: ALLOW and FLAG were
+                 the identical blue, two of four outcomes in a list whose only job is to tell four
+                 outcomes apart. -->
+            <div style="color:var(--success)">ALLOW<p>It fits. Nothing is said, so your existing
               permission rules keep working.</p></div>
             <div style="color:var(--accent)">FLAG<p>It runs, and the record marks it as
               notable.</p></div>
@@ -570,11 +637,11 @@
     </div>
   </section>
 
-  <!-- ═══════════════════════════════════════════ day one. visual right. -->
+  <!-- ═══════════════════════════════════════════ day one. -->
   <section class="shell">
-    <div class="duo">
-      <div>
-        <h2>What one credential can reach.</h2>
+    <div class="stack">
+      <div class="says">
+        <h2>One credential, every door it opens.</h2>
         <p class="lede" style="margin-top:1.25rem">Before any traffic, before any ceilings, and
           without waiting a week to find out.</p>
         <p class="small">This is not a measurement of one call. It is a bound on what the agent
@@ -582,16 +649,20 @@
           this agent holds a credential that can reach 52,400 people and 214 applications, and
           nothing today would stop it.</p>
       </div>
-      <div>
+      <!-- The widest picture on the page: `make_media` gives this one a 140-column cap because its
+           longest row is 136 and the column alignment *is* the content. Wrapping a table to a
+           prose measure turns it into a mess, and shrinking it to fit half a row was doing the
+           same thing by another route. -->
+      <figure class="exhibit">
         <img class="frame" alt="neti inventory listing four gated parameters, their resolvers, and the maximum each could reach in one call: 52,400 principals and 214 applications." src="{{MEDIA:inventory_rows}}">
-      </div>
+      </figure>
     </div>
   </section>
 
-  <!-- ═══════════════════════════════════════════ week one. visual left. -->
+  <!-- ═══════════════════════════════════════════ week one. -->
   <section class="shell">
-    <div class="duo flip">
-      <div>
+    <div class="stack">
+      <div class="says">
         <h2>Ceilings you can defend.</h2>
         <p class="lede" style="margin-top:1.25rem">It ships in observe mode with every band left
           blank on purpose.</p>
@@ -600,9 +671,13 @@
           working, including where the statistics disagree with themselves. You edit the numbers and
           commit them. Nothing it learns ever reaches the decision path.</p>
       </div>
-      <div>
+      <!-- Ninety lines, and all ninety of them stay. "It shows its working" is the claim this
+           section makes, so an exhibit trimmed to a more convenient height would be the page
+           disagreeing with the sentence above it. At natural size it is simply readable, which is
+           the only thing that was ever wrong with it. -->
+      <figure class="exhibit">
         <img class="frame" alt="neti propose deriving ceilings from observed traffic, with the rationale for each and what those ceilings would have done to traffic already recorded." src="{{MEDIA:propose_bimodal}}">
-      </div>
+      </figure>
     </div>
   </section>
 
@@ -610,7 +685,7 @@
   <section class="shell">
     <div class="duo-wide">
       <div>
-        <h2>What can be counted.</h2>
+        <h2>Eleven resolvers.</h2>
         <p class="small" style="margin-top:1.25rem">A seam without a resolver is a place to write
           "allow", so this list is the real measure of coverage. Adding one is about 80 lines, and
           it is the contribution that matters most.</p>
@@ -700,7 +775,7 @@
   <section class="shell" id="scope">
     <div class="duo-wide">
       <div>
-        <h2>What it does not do.</h2>
+        <h2>Sixteen things<br>it will not claim.</h2>
         <p class="small" style="margin-top:1.25rem">neti decides against rules you declared, not
           against whether this is a good idea. The gaps are numbered so tests and write-ups can cite
           them, and the numbers get published whether or not they flatter.</p>
@@ -767,17 +842,17 @@
         </ol>
       </div>
 
-      <div style="margin-top:clamp(2.5rem,5vw,3.5rem)">
+      <figure class="exhibit" style="margin-top:clamp(2.5rem,5vw,3.5rem)">
         <img class="frame" style="background:var(--bg)" alt="The neti console's Approvals screen: one call waiting, showing 500 recipients against a declared ceiling of 50, with Deny and Approve, an approval id and an expiry." src="{{CONSOLE:approvals}}">
-        <p class="cap">The console, on the synthetic tenant. The rows carry their own "synthetic"
-          tag and the demo badge because nothing here was edited.</p>
-      </div>
+        <figcaption class="cap">The console, on the synthetic tenant. The rows carry their own
+          "synthetic" tag and the demo badge because nothing here was edited.</figcaption>
+      </figure>
     </section>
 
     <section class="shell">
       <div class="duo-wide">
         <div>
-          <h2>What approving authorises.</h2>
+          <h2>A grant, and its edges.</h2>
           <p class="small" style="margin-top:1.25rem">The narrowest thing it can. A grant that means
             more than the person thought is the failure that matters here. Each of these is a test in
             the public repository.</p>
@@ -805,8 +880,8 @@
     </section>
 
     <section class="shell">
-      <div class="duo flip">
-        <div>
+      <div class="stack">
+        <div class="says">
           <h2>Every agent, one place.</h2>
           <p class="small" style="margin-top:1.25rem">One policy version across every machine, signed
             and pinned by digest, instead of a file per laptop that drifts. Session budgets that
@@ -816,9 +891,9 @@
             source of truth. A control plane anchors it and is not an authority over it, and
             <code>neti verify</code> works with the network unplugged.</p>
         </div>
-        <div>
+        <figure class="exhibit">
           <img class="frame" style="background:var(--bg)" alt="The neti console's Decisions screen: every call the gate has seen, each tagged Blocked, Needs approval or Allowed, with the magnitude it resolved to." src="{{CONSOLE:decisions}}">
-        </div>
+        </figure>
       </div>
     </section>
 
