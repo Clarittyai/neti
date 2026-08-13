@@ -36,6 +36,7 @@ PAGE = REPO / "docs" / "index.html"
 CLOUD_PAGE = REPO / "docs" / "cloud" / "index.html"
 FRAGMENT = REPO / "build" / "page.html"
 FONTS = MEDIA / "fonts"
+LOGO = MEDIA / "logo"
 
 PLACEHOLDER = re.compile(r"\{\{MEDIA:([a-z0-9_]+)\}\}")
 
@@ -50,6 +51,11 @@ PLACEHOLDER = re.compile(r"\{\{MEDIA:([a-z0-9_]+)\}\}")
 # published under, and shipping the font without shipping that is the one thing the licence asks
 # you not to do.
 FONT_PLACEHOLDER = re.compile(r"\{\{FONT:([a-z0-9-]+)\}\}")
+
+# The mark, from `tools/make_logo.py`. A placeholder rather than the SVG pasted into both pages:
+# the geometry has one home, and `test_the_mark_is_what_its_geometry_builds_to` holds the file it
+# comes from to that home. Pasting it would put the numbers in four places and a test in one.
+LOGO_PLACEHOLDER = re.compile(r"\{\{LOGO:([a-z0-9-]+)\}\}")
 
 # A second kind of image, kept syntactically distinct because it carries a weaker guarantee. The
 # `{{MEDIA:…}}` SVGs are generated from transcripts the suite pins byte for byte and cannot show
@@ -92,6 +98,10 @@ def fragment(source: Path = SOURCE) -> str:
             "image/png",
             "see docs/media/console/PROVENANCE.md for how to re-take it",
         ),
+        text,
+    )
+    text = LOGO_PLACEHOLDER.sub(
+        lambda m: _data_uri(LOGO / f"{m.group(1)}.svg", "image/svg+xml", "run `just logo`"),
         text,
     )
     text = FONT_PLACEHOLDER.sub(
@@ -178,6 +188,28 @@ def hoist_inline_styles(body: str) -> str:
     return hoisted.replace("</style>", block, 1)
 
 
+def _icons() -> str:
+    """The favicon, inlined the way every other asset on these pages is.
+
+    A link to `/favicon.ico` would work on the deployed site and nowhere else — these documents are
+    also opened from a `file://` path and from `build/page.html` with no server under them, which is
+    the whole reason the images are data URIs. It also keeps the CSP as it is: a favicon is fetched
+    under `img-src`, and `img-src 'self' data:` already covers it.
+
+    The SVG is what modern browsers take, and it is the one that scales to a bookmark tile. The
+    `.ico` is there for the ones that ask for `/favicon.ico` regardless of what the document says,
+    and the 180px PNG is what iOS wants when somebody adds the page to a home screen.
+    """
+    svg = _data_uri(LOGO / "mark.svg", "image/svg+xml", "run `just logo`")
+    ico = _data_uri(LOGO / "favicon.ico", "image/x-icon", "run `just logo`")
+    touch = _data_uri(LOGO / "icon-180.png", "image/png", "run `just logo`")
+    return (
+        f'<link rel="icon" type="image/svg+xml" href="{svg}">\n'
+        f'<link rel="alternate icon" type="image/x-icon" href="{ico}">\n'
+        f'<link rel="apple-touch-icon" href="{touch}">'
+    )
+
+
 def document(body: str, *, title: str = "", description: str = "") -> str:
     """The same body inside a complete document, for a static host to serve."""
     title = title or TITLE
@@ -193,6 +225,8 @@ def document(body: str, *, title: str = "", description: str = "") -> str:
 <meta property="og:description" content="{description}">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
+<meta name="theme-color" content="#0F0F10">
+{_icons()}
 <style>
   *, *::before, *::after {{ box-sizing: border-box; }}
   html {{ -webkit-text-size-adjust: 100%; }}

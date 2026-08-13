@@ -585,3 +585,43 @@ def test_the_rail_is_grouped_and_the_dead_ends_are_conditional() -> None:
     assert daily.count("href:") == 3, (
         "the daily group grew — every addition here costs attention on the three that matter"
     )
+
+
+# --------------------------------------------------------------------------- the mark
+
+
+def test_the_console_mark_matches_the_site() -> None:
+    """One mark, in two files, held to the geometry that generates the favicon.
+
+    `web/src/components/Mark.tsx` is copied from `tools/make_logo.py` rather than importing it —
+    the console is a TypeScript app and the generator is Python, so there is no importing to be
+    done, and DESIGN.md's copied-not-imported rule applies with its usual condition attached: the
+    tests are what stop the copies drifting.
+
+    This is not hypothetical here. `site/cloud.html` carried its own copy of the landing page's
+    stylesheet under a comment reading "same grammar as the landing page", and stayed on the old
+    typeface and the old surfaces through a redesign while the comment went on saying otherwise.
+    """
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location("make_logo", REPO / "tools" / "make_logo.py")
+    assert spec and spec.loader
+    make_logo = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(make_logo)
+
+    mark = (WEB_SRC / "components" / "Mark.tsx").read_text(encoding="utf-8")
+    cut = make_logo.INSET + make_logo.BOX * make_logo.CUT_AT
+
+    expected = {
+        "the block": f'width="{make_logo.BOX:g}" height="{make_logo.BOX:g}"',
+        "its radius": f'rx="{make_logo.RADIUS:g}"',
+        "the inset": f'x="{make_logo.INSET:g}" y="{make_logo.INSET:g}"',
+        "where the slot sits": f'height="{cut:g}"',
+        "what the slot leaves": f'y="{cut + make_logo.GAP:g}"',
+        "the tone above it": f'opacity="{make_logo.OVER_ALPHA / 255:.3f}"',
+    }
+    missing = [f"{why}: {frag}" for why, frag in expected.items() if frag not in mark]
+    assert not missing, (
+        "the console's mark has drifted from tools/make_logo.py, so the sidebar and the favicon "
+        "are now two different marks:\n  " + "\n  ".join(missing)
+    )

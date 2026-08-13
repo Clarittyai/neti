@@ -133,7 +133,26 @@ def test_the_landing_page_inlines_the_generated_images() -> None:
 
     built = make_site.expected()[make_site.PAGE]
     assert "{{MEDIA:" not in built, "a placeholder survived the build"
-    assert built.count("data:image/svg+xml;base64,") == len(referenced)
+
+    # Transcripts used to be the only SVGs on this page, so counting `svg+xml` data URIs and
+    # expecting the number of placeholders was the same statement as "every transcript is inlined".
+    # The mark broke that equivalence — it is an SVG too, and it appears in the favicon link and in
+    # the nav — and a count is the wrong shape of assertion once two kinds of thing are being
+    # counted. So: every transcript is present by its own bytes, and every other SVG on the page is
+    # the mark. That stays true however many times either is used.
+    import base64
+
+    for name in sorted(referenced):
+        raw = (make_media.MEDIA / f"{name}.svg").read_bytes()
+        uri = "data:image/svg+xml;base64," + base64.b64encode(raw).decode("ascii")
+        assert uri in built, f"{name}.svg is referenced by the page but not inlined into it"
+
+    mark = base64.b64encode((make_site.LOGO / "mark.svg").read_bytes()).decode("ascii")
+    others = built.count("data:image/svg+xml;base64,") - len(referenced)
+    assert others == built.count(mark), (
+        "the page inlines an SVG that is neither a generated transcript nor the mark, so something "
+        "is on the front door that nothing here can tell the truth of"
+    )
 
 
 def test_every_console_screenshot_exists_and_is_documented() -> None:
@@ -257,3 +276,51 @@ def test_every_version_in_the_table_is_the_version_installed_here() -> None:
         + "\n  ".join(drifted)
         + "\nRun `just conformance` then `just matrix`."
     )
+
+
+# ---------------------------------------------------------------------------- the mark
+#
+# The favicon and the logo are generated from one set of constants for the same reason the images
+# are generated from transcripts: a mark redrawn by hand wherever it is needed is several marks that
+# agree until the first time one of them is edited. Both pages inline it, so a stale file here ships
+# on the front door.
+
+make_logo = _load("make_logo")
+
+
+def test_the_mark_is_what_its_geometry_builds_to() -> None:
+    stale = [
+        str(path.relative_to(make_logo.REPO))
+        for path, data in make_logo.outputs().items()
+        if not path.exists() or path.read_bytes() != data
+    ]
+    assert not stale, (
+        "these no longer match the geometry in tools/make_logo.py. Run `just logo`:\n  "
+        + "\n  ".join(sorted(stale))
+    )
+
+
+def test_every_icon_size_is_drawn_rather_than_resampled() -> None:
+    """The slot is one pixel wide at 16px, which is the size that decides a favicon.
+
+    Handing Pillow a single image and a list of `sizes` makes it resample that one image down to
+    each entry, and the first version of this did exactly that — the 16px frame came back
+    byte-identical to a LANCZOS downscale of the 48. A one-pixel cut does not survive that; it
+    becomes a grey smear across a blue square, which is a different mark.
+    """
+    from io import BytesIO
+
+    from PIL import Image
+
+    icon = Image.open(BytesIO((make_logo.OUT / "favicon.ico").read_bytes()))
+    assert sorted(icon.ico.sizes()) == sorted((n, n) for n in make_logo.ICO_SIZES), (
+        f"the icon carries {sorted(icon.ico.sizes())}, not every size make_logo declares"
+    )
+
+    for size in make_logo.ICO_SIZES:
+        icon.size = (size, size)
+        drawn = make_logo.raster(size)
+        assert icon.convert("RGBA").tobytes() == drawn.tobytes(), (
+            f"the {size}px frame is not the mark drawn at {size}px — it has been resampled from "
+            "another size, and the cut is a single pixel at the smallest one"
+        )

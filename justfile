@@ -143,12 +143,18 @@ e2e *ARGS:
 readme-pypi:
     uv run python tools/make_readme_pypi.py
 
+# The mark, and every size anything asks for it: the SVG both pages inline, a three-entry .ico and
+# the 180px PNG iOS wants. Geometry lives in the tool, so the mark cannot drift between the files
+# that carry it — a logo redrawn by hand in three places is three logos.
+logo:
+    uv run python tools/make_logo.py
+
 # The landing page, built from site/page.html with those same images inlined.
 #
 # docs/index.html is what GitHub Pages serves; build/page.html is the body alone, for previewing
 # before anything is committed. Both come from one source, because two copies of a landing page kept
 # in sync by hand is how a landing page starts lying.
-site: media
+site: media logo
     uv run python tools/make_site.py
 
 # ---------------------------------------------------------------------------- the live tier

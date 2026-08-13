@@ -27,11 +27,11 @@ import {
   Gauge,
   Plug,
   ScrollText,
-  ShieldCheck,
   SlidersHorizontal,
   Target,
   UserCheck,
 } from "lucide-react";
+import { Mark } from "@/components/Mark";
 
 import { cn } from "@/lib/utils";
 import { useConsole } from "@/components/ConsoleProvider";
@@ -149,9 +149,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       >
         <div className="flex h-16 items-center border-b border-border/50 px-4">
           <Link href="/" className="flex items-center gap-3">
-            <span className="grid h-8 w-8 flex-shrink-0 place-items-center rounded-full bg-accent">
-              <ShieldCheck className="h-[18px] w-[18px] text-accent-foreground" strokeWidth={2.5} />
-            </span>
+            <Mark className="h-8 w-8 flex-shrink-0 text-accent" />
             <motion.span variants={item} className="whitespace-nowrap text-[15px] font-semibold tracking-tight">
               neti
             </motion.span>
