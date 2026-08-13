@@ -38,8 +38,22 @@ from tests.integration.test_inventory import EXAMPLE
 CRED = ClientCredential(tenant_id="t", client_id="c", client_secret="s")
 
 DECISION_BUDGET_MS = 1.0
-"""Generous by three orders of magnitude against the modelled ~5us. Set as a tripwire for
-algorithmic regressions, not as a performance target — a tight bound here would just be flaky."""
+"""A tripwire for algorithmic regressions, not a performance target — a tight bound here would just
+be flaky.
+
+It said "generous by three orders of magnitude against the modelled ~5us", and that was not true
+when it was checked: `decide` measures a **0.034ms** median on a 2024 laptop, so the headroom is
+about 29x. One and a half orders, not three. Either the model was optimistic or `decide` grew after
+it was written; the number in the comment was never re-derived either way.
+
+29x is still the right kind of margin — load would have to make everything twenty-nine times slower
+to fire this falsely, and anything genuinely superlinear moves the median far past it. So the budget
+stays and only the claim about it changes. Which is the point: this file exists because a stated
+figure nobody re-measures is exactly how the location check ended up calibrated against Windows
+rather than against the algorithm.
+
+The failure message prints the measured headroom, so the next person reading it after a red build
+gets the current number rather than this sentence."""
 
 OVERHEAD_BUDGET_MS = 8.0
 """Our own per-resolution overhead with the network mocked out, measured at the **median**.
@@ -110,8 +124,9 @@ def test_the_decision_itself_is_microseconds() -> None:
     # the part no test on shared hardware can own.
     typical = median(samples)
     assert typical < DECISION_BUDGET_MS, (
-        f"decision median {typical:.3f}ms exceeds {DECISION_BUDGET_MS}ms (p99 "
-        f"{percentile(samples, 0.99):.3f}ms) — something became superlinear"
+        f"decision median {typical:.4f}ms exceeds {DECISION_BUDGET_MS}ms (p99 "
+        f"{percentile(samples, 0.99):.3f}ms, headroom "
+        f"{DECISION_BUDGET_MS / max(typical, 1e-9):.0f}x) — something became superlinear"
     )
 
 
