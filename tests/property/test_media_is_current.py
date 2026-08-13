@@ -324,3 +324,34 @@ def test_every_icon_size_is_drawn_rather_than_resampled() -> None:
             f"the {size}px frame is not the mark drawn at {size}px — it has been resampled from "
             "another size, and the cut is a single pixel at the smallest one"
         )
+
+
+def test_the_head_delivers_the_card_it_promises() -> None:
+    """`twitter:card: summary_large_image` is a promise, and it went years without one.
+
+    The head declared a large-image card and named no image at all, so a shared link expanded to
+    bare text or to whatever the platform could scrape. Nobody sees their own link previews, which
+    is exactly why this is the kind of claim that needs a test rather than a reader.
+
+    The card cannot be a `data:` URI like every other image here — a scraper fetches `og:image` by
+    URL from its own machine and never loads the page — so this also checks it is reachable by the
+    address the head gives out.
+    """
+    from neti._website import WEBSITE
+
+    built = make_site.expected()
+    for page, path in ((make_site.PAGE, ""), (make_site.CLOUD_PAGE, "cloud")):
+        html = built[page]
+        assert 'name="twitter:card" content="summary_large_image"' in html
+        assert f'property="og:image" content="{WEBSITE}card.png"' in html, (
+            f"{page.name} promises a large-image card and names no image"
+        )
+        assert f'property="og:url" content="{WEBSITE}{path}"' in html, (
+            f"{page.name} names a canonical URL that is not its own, which tells a scraper this "
+            "page and another are the same document"
+        )
+
+    served = make_site.REPO / "public" / "card.png"
+    assert served.exists(), (
+        "public/card.png is missing, so og:image points at a 404. Run `just card`."
+    )

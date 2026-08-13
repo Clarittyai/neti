@@ -28,6 +28,10 @@ import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(REPO / "src"))
+
+from neti._website import WEBSITE  # noqa: E402
+
 SOURCE = REPO / "site" / "page.html"
 CLOUD_SOURCE = REPO / "site" / "cloud.html"
 MEDIA = REPO / "docs" / "media"
@@ -210,8 +214,14 @@ def _icons() -> str:
     )
 
 
-def document(body: str, *, title: str = "", description: str = "") -> str:
-    """The same body inside a complete document, for a static host to serve."""
+def document(body: str, *, title: str = "", description: str = "", path: str = "") -> str:
+    """The same body inside a complete document, for a static host to serve.
+
+    `path` is what this page is *at*, and it has to be passed rather than defaulted: the first
+    version of `og:url` sent `WEBSITE` from both pages, so a link to the cloud page previewed as a
+    link to the front page. A canonical URL that names the wrong document is worse than none — it
+    tells a scraper the two are the same thing.
+    """
     title = title or TITLE
     description = description or DESCRIPTION
     return f"""<!doctype html>
@@ -225,6 +235,10 @@ def document(body: str, *, title: str = "", description: str = "") -> str:
 <meta property="og:description" content="{description}">
 <meta property="og:type" content="website">
 <meta name="twitter:card" content="summary_large_image">
+<meta property="og:image" content="{WEBSITE}card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:url" content="{WEBSITE}{path}">
 <meta name="theme-color" content="#0F0F10">
 {_icons()}
 <style>
@@ -283,7 +297,10 @@ def expected() -> dict[Path, str]:
     pages = {PAGE: document(body), FRAGMENT: body}
     if CLOUD_SOURCE.exists():
         pages[CLOUD_PAGE] = document(
-            fragment(CLOUD_SOURCE), title=CLOUD_TITLE, description=CLOUD_DESCRIPTION
+            fragment(CLOUD_SOURCE),
+            title=CLOUD_TITLE,
+            description=CLOUD_DESCRIPTION,
+            path="cloud",
         )
     return pages
 

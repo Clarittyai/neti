@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/media/logo/mark.svg" alt="" width="72" height="72">
+</p>
+
 <h1 align="center">neti</h1>
 
 <p align="center">

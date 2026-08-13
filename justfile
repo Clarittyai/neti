@@ -45,7 +45,13 @@ check: lint types test
 # Both used to be answerable only by reading the code and believing it. `neti init` gated 0 of 160
 # real MCP tools for the life of the project and nothing said so, because every fixture in the suite
 # was a tool somebody here wrote to be gateable.
-conformance:
+#
+# Named `coverage` because it was named `conformance` too, and `just` treats a redefined recipe as a
+# parse error rather than an override — so from the commit that added the second one, *every* `just`
+# command in this repository failed, including `just --list`. CONTRIBUTING sends people here first.
+# The other one keeps the name: README says "`just conformance` answers it by building a real agent
+# in each installed framework", which is that recipe and not this one.
+coverage:
     NETI_REQUIRE_SDKS=1 uv run pytest -q tests/e2e/test_seam_equivalence.py tests/corpus tests/e2e/test_proof.py
     uv run neti prove -c examples/entra.yaml -r out/proof.ndjson
     uv run neti score -c examples/entra.yaml --field eval/results/mcp_coverage.json
@@ -148,6 +154,12 @@ readme-pypi:
 # that carry it — a logo redrawn by hand in three places is three logos.
 logo:
     uv run python tools/make_logo.py
+
+# The share card: the picture a link to neti expands into. `fonttools` is here rather than in the
+# project because it is needed to *build* this and never to run neti — the same arrangement `dist`
+# uses for twine. It reads the committed woff2, which FreeType cannot open compressed.
+card:
+    uv run --with "fonttools[woff]" python tools/make_card.py
 
 # The landing page, built from site/page.html with those same images inlined.
 #
