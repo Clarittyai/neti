@@ -184,6 +184,30 @@
   .exhibit { margin: 0; display: grid; gap: .75rem; justify-items: start; }
   .exhibit .frame { width: auto; max-width: 100%; }
 
+  /* ── the same exhibit, on a phone ─────────────────────────────────────────────────────────────
+     `max-width: 100%` stops the page scrolling sideways, and on a 390px screen it also shrinks an
+     885px picture to 329px — 0.37x, which puts that 14px type at about 5px. That is the exact
+     illegibility this section was written to fix, reproduced at the width most people arrive on.
+     It is not a regression, because the old two-column layout collapsed to roughly the same
+     width — but "no worse than before" is not the claim being made here.
+
+     Neither option is good on a phone: shrink it and nobody can read it, or keep it and they have
+     to pan. Panning is the one where the evidence is still evidence, and it is what this file
+     already does with `.cmd` and every wide table — a scroll container, so the *page* still never
+     moves sideways.
+
+     The caption and the call stay put while the picture moves: sticky to the left edge, and held to
+     the shell's own content width so they wrap where the text does rather than stretching to the
+     width of the picture behind them. */
+  @media (max-width: 59.99rem) {
+    .exhibit { overflow-x: auto; justify-items: stretch; }
+    .exhibit .frame { max-width: none; }
+    .exhibit > .cap, .exhibit > .cmd {
+      position: sticky; left: 0;
+      width: calc(100vw - 2 * clamp(1.25rem, 4vw, 2.5rem));
+    }
+  }
+
   /* ══════════════════════════════════════════════════════════════════════ nav */
   .nav { position: sticky; top: 0; z-index: 20; background: var(--bg);
          border-bottom: 1px solid var(--fg); }
