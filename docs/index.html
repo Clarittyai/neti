@@ -474,8 +474,11 @@
 
      Fill, not fill-and-border. This panel carried both, which is the four-boxes mistake in
      miniature — the fill already says "one object" and the hairline says it again, more faintly.
-     `--raised` rather than `--surface` because at 4% over the ground the panel was reading as a
-     smudge; 7% is the smallest step that resolves as a deliberate edge without a line drawing one.
+     `--raised` rather than `--surface`, which is the further of the two from the ground in dark and
+     the one that still resolves as an object there. The fill is a *lower*-contrast edge than the
+     hairline it replaced — 1.102:1 against 1.286:1 — and reads better anyway, because the eye
+     integrates a weak difference across an area and reads a surface, where the same difference
+     along one pixel is a scratch. DESIGN.md carries the measurement.
      The radius goes to 16px: at 12 a 640px-tall panel reads as a rectangle somebody rounded, at 16
      it reads as a shape. */
   .facts { border: 0; border-radius: 1rem; background: var(--raised); overflow: hidden;

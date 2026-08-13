@@ -89,15 +89,27 @@ four boxes to say three numbers. That is still the rule for anything that is *pa
 This narrows a rule that used to forbid both, and the narrowing is recorded because the old rule was
 right about the console and wrong about the landing page.
 
-What went wrong is measurable rather than a matter of taste. A hairline at `#27272A` on `#0F0F10`
-is about a 3% luminance step. One of them separates two things. Fourteen sections of them, plus
-table rules, plus row separators, plus a border on every exhibit, is texture without structure: too
-faint to read as an edge, too numerous to read as nothing. The word that came back for it was
-*scratchy*, and that is what a page of 3% steps looks like. The rule assumed hairlines would carry
-structure; at this contrast and this density they carried noise.
+**Measured, and the first version of this paragraph had it backwards.** It said a fill is a bigger
+step than a hairline. It is not:
 
-A fill at `--surface` or `--raised` is a 4–7% step over the same ground and it reads as one object
-instead of four edges. So:
+| | luminance step | contrast |
+|---|---|---|
+| dark: `--hair` `#27272A` on `--bg` `#0F0F10` | 1.57% | 1.286:1 |
+| dark: `--raised` `#1A1A1C` on `--bg` | 0.56% | **1.102:1** |
+| light: `--border` `#DFDFD8` on `--bg` `#FBFBF9` | 22.92% | 1.292:1 |
+| light: `--raised` `#F4F4F0` on `--bg` | 6.12% | **1.064:1** |
+
+A fill is the *weaker* edge in both themes. It wins anyway, and the reason is area rather than
+contrast: the eye integrates a low-contrast difference across a large region and reads a surface,
+while the same difference along a one-pixel line is a scratch it reads as noise. Fourteen sections
+of hairlines, plus table rules, plus row separators, plus a border on every exhibit, is a page of
+scratches — which is the word that came back for it, *scratchy*. The old rule assumed a hairline
+carries structure because it is the sharper edge. Sharpness was never the variable.
+
+This is also why "fill or border, never both" is not a stylistic preference: a fill already declares
+the object, and the ring around it is the scratch again, added back.
+
+So:
 
 - an **exhibit**, a **live control**, or a **panel of facts** is a distinct object and may be filled
 - anything that is a section of the page — a heading and its prose, a list, a table — is not, and

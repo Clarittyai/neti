@@ -139,6 +139,12 @@ def _relative_luminance(rgb: tuple[int, int, int]) -> float:
     return 0.2126 * r + 0.7152 * g + 0.0722 * b
 
 
+def _rgb(value: str) -> tuple[int, int, int]:
+    """A `#rrggbb` string as the triple `contrast` takes."""
+    text = value.lstrip("#")
+    return (int(text[0:2], 16), int(text[2:4], 16), int(text[4:6], 16))
+
+
 def contrast(a: tuple[int, int, int], b: tuple[int, int, int]) -> float:
     """WCAG 2.x contrast ratio. Two colours, one number, the same maths every checker uses."""
     lighter, darker = sorted((_relative_luminance(a), _relative_luminance(b)), reverse=True)
@@ -625,3 +631,58 @@ def test_the_console_mark_matches_the_site() -> None:
         "the console's mark has drifted from tools/make_logo.py, so the sidebar and the favicon "
         "are now two different marks:\n  " + "\n  ".join(missing)
     )
+
+
+# --------------------------------------------------------------------------- surfaces
+
+
+SURFACE_STEPS = {
+    # theme: (raised, ground, hairline) — DESIGN.md's table, as values rather than prose
+    "dark": ("#1A1A1C", "#0F0F10", "#27272A"),
+    "light": ("#F4F4F0", "#FBFBF9", "#DFDFD8"),
+}
+
+
+@pytest.mark.parametrize("theme", sorted(SURFACE_STEPS))
+def test_a_fill_is_the_weaker_edge_and_that_is_the_point(theme: str) -> None:
+    """DESIGN.md's structure rule rests on a measurement, so the measurement gets asserted.
+
+    The rule was first written the other way round — that a fill is a *bigger* step than a hairline
+    and therefore reads better. It is not, in either theme, and the paragraph saying so survived
+    review because a plausible number in prose is not something anybody re-derives.
+
+    What is actually true is that the fill wins on area: the eye integrates a weak difference across
+    a region and reads a surface, where the same difference along one pixel is a scratch. If a
+    future palette ever makes the fill the *sharper* edge, the sentence in DESIGN.md explaining why
+    hairlines were dropped stops being the reason they were dropped — and this fails, which is the
+    only way that gets noticed.
+    """
+    raised, ground, hair = (_rgb(c) for c in SURFACE_STEPS[theme])
+    fill_edge = contrast(raised, ground)
+    hair_edge = contrast(hair, ground)
+
+    assert fill_edge < hair_edge, (
+        f"{theme}: the fill is now the sharper edge ({fill_edge:.3f}:1 against the hairline's "
+        f"{hair_edge:.3f}:1). DESIGN.md argues from the opposite, so the argument needs rewriting "
+        "rather than this assertion relaxing."
+    )
+    assert fill_edge > 1.0, (
+        f"{theme}: --raised is indistinguishable from --bg ({fill_edge:.3f}:1), so a filled object "
+        "has no edge at all and the structure rule delivers nothing"
+    )
+
+
+def test_design_md_quotes_the_numbers_it_argues_from() -> None:
+    """The table in DESIGN.md, checked against what the tokens actually measure.
+
+    A document that carries figures is a document that can be wrong in a way no test notices, which
+    is exactly how the first version of this section shipped.
+    """
+    text = (REPO / "DESIGN.md").read_text(encoding="utf-8")
+    for theme, (raised, ground, hair) in SURFACE_STEPS.items():
+        for pair, label in ((_rgb(raised), "raised"), (_rgb(hair), "hair")):
+            quoted = f"{contrast(pair, _rgb(ground)):.3f}:1"
+            assert quoted in text, (
+                f"DESIGN.md does not quote {quoted} for {theme} {label} on the ground — its table "
+                "has drifted from the tokens it describes"
+            )
