@@ -184,12 +184,27 @@ def test_crewai_hooks_alone_cannot_tell_the_model_the_number(tmp_path: Path) -> 
         crewai_hooks.clear()
 
     shown = "\n".join(seen)
+
+    # The agent's own arguments are not a leak. They are in the conversation because this test put
+    # them there, and they carry a temporary path — which is where a two-character magnitude
+    # collides with something that has nothing to do with the gate.
+    #
+    # `pytest` numbers its tmp directories `pytest-0`, `pytest-1`, … and the pattern handed to Glob
+    # contains one. On the run where the counter reached `pytest-30`, `"30" in shown` was true, this
+    # failed, and it passed again on the next run at 31 — a failure that reads as a real leak, lasts
+    # exactly one run, and blames the adapter. It comes back at 130, 230, 300-309, 1030, and on any
+    # machine whose temp directory name happens to contain those two characters, where it fails
+    # every time instead. Reproduced with `--basetemp=/tmp/neti-pytest-30`.
+    #
+    # So the haystack is what the *hook* put in front of the model, which is the claim being made.
+    leaked = shown.replace(str(args["pattern"]), "<pattern>")
+
     assert not ran, "the hook did not stop the call at all"
     assert "Tool execution blocked by hook" in shown, (
         "CrewAI no longer substitutes its fixed string — re-read the adapter, the pairing may work "
         "now"
     )
-    assert str(MAGNITUDE) not in shown, (
+    assert str(MAGNITUDE) not in leaked, (
         "the agent was given the magnitude through the hook path, which would mean after-hooks now "
         "run on a blocked call. If so, `install` can carry the sentence and this test should go."
     )
