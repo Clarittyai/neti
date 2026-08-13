@@ -1,23 +1,43 @@
 <style>
-  /* Same grammar as the landing page — Claritty's accent, hairline structure, monospace carrying
-     labels and units. Repeated rather than imported because these pages have no build step and a
-     stylesheet link is one more thing that can fail to load on a static host. */
+  /* Same grammar as the landing page — Claritty's accent, monospace carrying labels and units, and
+     now the same face and the same surface rule. Repeated rather than imported because these pages
+     have no build step and a stylesheet link is one more thing that can fail to load on a static
+     host.
+
+     Repetition is the cost of that, and it came due: the landing page moved to Space Grotesk and to
+     filled surfaces, this file did not, and the comment above went on claiming they matched. The
+     nav links straight here, so the divergence was one click from the front door — a visitor
+     crossing from a page set in one face to a page set in another, which reads as two products.
+     Anything that says "same as the other page" has to be changed in both or it is a wish. */
   :root {
-    --bg: #0F0F10; --surface: #141517; --fg: #F8FAFC; --fg-muted: #94A3B8; --fg-faint: #6B7684;
+    --bg: #0F0F10; --surface: #141517; --raised: #1A1A1C; --fg: #F8FAFC; --fg-muted: #94A3B8;
+    --fg-faint: #6B7684;
     --border: #27272A; --hair: #1D1E21; --accent: #5B7FFF; --success: #34C759; --code: #0d1117;
     --warning: #FF9500; --destructive: #F87171;
-    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --sans: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto,
+            "Helvetica Neue", Arial, sans-serif;
     --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  /* The same file the landing page inlines, resolved by the same `{{FONT:…}}` step in
+     `make_site.py`. Two data URIs of the same 22KB across two pages a visitor rarely sees in one
+     sitting — cheaper than a request that can fail, which is the trade the comment above records. */
+  @font-face {
+    font-family: "Space Grotesk";
+    font-style: normal;
+    font-weight: 300 700;
+    font-display: swap;
+    src: url({{FONT:space-grotesk-latin}}) format("woff2");
   }
   @media (prefers-color-scheme: light) {
     :root:not([data-theme="dark"]) {
-      --bg: #FBFBF9; --surface: #FFFFFF; --fg: #14161A; --fg-muted: #565B66; --fg-faint: #9AA0AC;
+      --bg: #FBFBF9; --surface: #FFFFFF; --raised: #F4F4F0; --fg: #14161A; --fg-muted: #565B66; --fg-faint: #9AA0AC;
       --border: #DFDFD8; --hair: #EDEDE7; --success: #2E7D45; --warning: #B26A00;
       --destructive: #C62828;
     }
   }
   :root[data-theme="light"] {
-    --bg: #FBFBF9; --surface: #FFFFFF; --fg: #14161A; --fg-muted: #565B66; --fg-faint: #9AA0AC;
+    --bg: #FBFBF9; --surface: #FFFFFF; --raised: #F4F4F0; --fg: #14161A; --fg-muted: #565B66; --fg-faint: #9AA0AC;
     --border: #DFDFD8; --hair: #EDEDE7; --success: #2E7D45; --warning: #B26A00;
     --destructive: #C62828;
   }
@@ -31,10 +51,10 @@
   :focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; border-radius: 2px; }
   code { font-family: var(--mono); font-size: .875em; }
   .shell { max-width: 72rem; margin-inline: auto; padding-inline: clamp(1.25rem, 4vw, 2.5rem); }
-  section { padding-block: clamp(4rem, 8vw, 7rem); border-top: 1px solid var(--border); }
+  section { padding-block: clamp(5rem, 11vw, 10rem); border-top: 1px solid var(--border); }
   h1, h2, h3 { margin: 0; font-weight: 700; letter-spacing: -.03em; line-height: 1.05;
                text-wrap: balance; }
-  h2 { font-size: clamp(1.75rem, 3.2vw, 2.75rem); line-height: 1.08; }
+  h2 { font-size: clamp(2rem, 4.2vw, 3.5rem); line-height: 1.04; letter-spacing: -.035em; }
   h3 { font-size: 1.0625rem; letter-spacing: -.01em; line-height: 1.4; }
   p { margin: 0 0 1rem; }
   .lbl { font-family: var(--mono); font-size: .6875rem; letter-spacing: .13em;
@@ -44,8 +64,8 @@
 
   .nav { position: sticky; top: 0; z-index: 20; padding-top: .85rem; }
   .nav-in { max-width: 72rem; margin-inline: auto; padding: .6rem .75rem .6rem 1.35rem;
-            display: flex; align-items: center; gap: 1.5rem; background: var(--surface);
-            border: 1px solid var(--border); border-radius: 999px; }
+            display: flex; align-items: center; gap: 1.5rem; background: var(--raised);
+            border: 0; border-radius: 999px; }
   .nav-mark { font-family: var(--mono); font-weight: 700; font-size: 1.0625rem;
               letter-spacing: -.02em; margin-right: auto; }
   .nav a { font-family: var(--mono); font-size: .6875rem; letter-spacing: .12em;
@@ -55,11 +75,11 @@
   .nav .ghb:hover { color: #fff; background: #4A6BE8; }
 
   .lead { padding-block: clamp(3rem, 7vw, 5.5rem) clamp(2rem, 4vw, 3rem); max-width: 46rem; }
-  .lead h1 { font-size: clamp(2.5rem, 5.4vw, 4.25rem); line-height: 1.02; letter-spacing: -.035em;
-             font-weight: 800; }
+  .lead h1 { font-size: clamp(2.75rem, 7vw, 5.5rem); line-height: 1.0; letter-spacing: -.04em;
+             font-weight: 700; }
   .lead h1 em { font-style: normal; color: var(--accent); }
-  .lead .sub { font-size: clamp(1.0625rem, .6vw + .95rem, 1.1875rem); color: var(--fg-muted);
-               margin-top: 1.5rem; line-height: 1.55; }
+  .lead .sub { font-size: clamp(1.125rem, .7vw + 1rem, 1.375rem); color: var(--fg-muted);
+               margin-top: 1.75rem; max-width: 36em; line-height: 1.45; }
 
   .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 1.25rem; margin-top: 2rem; }
   /* `font: inherit` and the border reset are here because `.pill` is worn by a `<button>` as well
@@ -92,8 +112,8 @@
 
   /* The two routes. A table, because they are the same object decided two ways. */
   .routes { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1px;
-            background: var(--border);
-            border: 1px solid var(--border); border-radius: .75rem; overflow: hidden; }
+            background: var(--hair);
+            border: 0; border-radius: 1rem; overflow: hidden; }
   /* `minmax(0, 1fr)`, not `1fr`. A bare `1fr` is `minmax(auto, 1fr)`, so the column refuses to go
      below its content's min-content width — and the `<pre>` inside route one has a long unbroken
      command in it. The track won, the grid grew past its own border box, and `overflow: hidden`
@@ -101,7 +121,7 @@
      scrolling it. Zeroing the floor lets the track shrink and hands the overflow to the `<pre>`,
      which has `overflow-x: auto` and is the element that should own it. */
   @media (min-width: 48rem) { .routes { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
-  .route { background: var(--surface); padding: 1.75rem 1.5rem; }
+  .route { background: var(--raised); padding: 1.75rem 1.5rem; }
   .route .lbl { color: var(--accent); }
   .route h3 { margin: .9rem 0 .6rem; }
   .route p { font-size: .9375rem; color: var(--fg-muted); line-height: 1.6; margin: 0 0 .8rem; }
@@ -150,10 +170,9 @@
      itself out of the same fields the payload already carries; press Approve or Deny and the record
      line appears with your name on it. The demo cannot cheat, because the one action it will not
      perform is the one the page is claiming it will not perform. */
-  .appr { border: 1px solid var(--border); border-radius: .75rem; overflow: hidden;
-          background: var(--surface); }
+  .appr { border: 0; border-radius: 1rem; overflow: hidden; background: var(--raised); }
   .appr-top { display: flex; flex-wrap: wrap; align-items: baseline; gap: .6rem 1rem;
-              padding: 1rem 1.25rem; border-bottom: 1px solid var(--border); }
+              padding: 1.1rem 1.5rem; border-bottom: 1px solid var(--hair); }
   .appr-top .lbl { color: var(--warning); }
   .appr-top .when { margin-left: auto; color: var(--fg-faint); font-family: var(--mono);
                     font-size: .6875rem; }
@@ -172,8 +191,7 @@
               overflow-wrap: anywhere; }
   .facts dd.over { color: var(--warning); }
 
-  .brief { border: 1px solid var(--border); border-radius: .5rem; padding: 1rem 1.1rem;
-           background: var(--bg); }
+  .brief { border: 0; border-radius: .75rem; padding: 1rem 1.1rem; background: var(--bg); }
   .brief[hidden] { display: none; }
   .brief-who { display: flex; align-items: center; gap: .5rem; margin-bottom: .75rem; }
   .brief-who .dot { width: 6px; height: 6px; border-radius: 999px; background: var(--accent);
@@ -231,7 +249,7 @@
      no third party anywhere in this page. `api/contact.js` says what the endpoint will and will not
      do; the short version is that the recipient comes from the environment and never from the
      request. A failed send says so and names the address; there is no copy button. */
-  dialog { border: 1px solid var(--border); border-radius: .9rem; background: var(--surface);
+  dialog { border: 0; border-radius: 1rem; background: var(--raised);
            color: var(--fg); padding: 0; width: min(38rem, calc(100vw - 2rem)); max-height: 88vh;
            overflow: auto; }
   dialog::backdrop { background: rgba(8, 8, 10, .62); }

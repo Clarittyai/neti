@@ -490,9 +490,12 @@
      one filled action read as the only thing to press. */
   .nav { position: sticky; top: 0; z-index: 20; background: transparent; border-bottom: 0;
          padding-top: .85rem; }
+  /* Fill, no ring. The nav was the last object on the page still wearing both, and it is the one a
+     reader sees on every screen — so leaving it would have been the new rule holding everywhere
+     except the most visible place. */
   .nav-in { max-width: 72rem; margin-inline: auto; padding: .6rem .75rem .6rem 1.35rem;
             display: flex; align-items: center; gap: 1.5rem;
-            background: var(--surface); border: 1px solid var(--border); border-radius: 999px; }
+            background: var(--raised); border: 0; border-radius: 999px; }
   .nav .ghb { background: var(--accent); color: #fff; border-radius: 999px;
               padding: .5rem 1.1rem; letter-spacing: .06em; }
   .nav .ghb:hover { color: #fff; background: #4A6BE8; }
