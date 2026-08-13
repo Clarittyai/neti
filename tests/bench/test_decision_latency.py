@@ -17,7 +17,9 @@ caught in CI rather than blamed on the provider.
 
 from __future__ import annotations
 
+import os
 import time
+from pathlib import Path
 from statistics import median
 
 import pytest
@@ -180,26 +182,52 @@ def test_gate_makes_one_provider_request_per_gated_parameter(tenant: SyntheticTe
     assert len(tenant.calls) - before == 2
 
 
-def test_the_location_check_stays_a_syscall_not_a_walk() -> None:
+def test_the_location_check_stays_a_syscall_not_a_walk(monkeypatch: pytest.MonkeyPatch) -> None:
     """`outside_root` runs per gated argument on every call, so its cost is on the hot path.
 
     It is a `resolve()` — one syscall, symlinks followed — and it must stay that. The obvious
     "improvement" when somebody wants it to catch more is to walk the root, which turns a
     microsecond check into a cost that grows with the tree, on every call, for a fact that has not
     changed. This is the tripwire for that.
+
+    **Asserted directly rather than timed.** This measured a median against `DECISION_BUDGET_MS`
+    and went red on a Windows runner at 1.124ms — a 12% overshoot on a job that took 477s against a
+    normal 143s. It was already using the median, so `314ad46`'s fix had been applied here and was
+    not enough: that one moved p99 to median because the tail belongs to the scheduler, and this is
+    a *filesystem* call whose median on a loaded shared Windows runner is simply over a millisecond.
+    The budget was calibrated against the platform, not the algorithm.
+
+    A walk is not 12% slower than a resolve, it is orders of magnitude slower — and the thing that
+    makes it so is enumerating directories. So that is what gets asserted: ban every way of listing
+    one and the check has to still work. A tree walk cannot survive this and no amount of load can
+    fail it, which is the property a tripwire wants. The aggregate wall-clock claim still lives in
+    `test_the_decision_itself_is_microseconds`, which is where an absolute budget belongs.
+
+    This is not a new idea here, which is the part worth noticing. `OVERHEAD_BUDGET_MS` at the top
+    of this file already points at
+    `tests/property/test_regressions.py::test_the_head_is_read_from_the_sidecar_rather_than_by_walking`
+    — *"proves the chain head is O(1) by making the walk raise instead of by timing it"* — and says
+    in the same breath that a timing assertion "would be flaky and would prove less". That is
+    exactly what happened to this test. The technique was written down, one test used it, and this
+    one kept the stopwatch until a Windows runner made the point again.
     """
     from neti.resolvers.location import outside
 
-    for target in ("src/neti/cli.py", "/etc/hosts"):
-        samples = []
-        for _ in range(200):
-            start = time.perf_counter()
-            outside(target, ".")
-            samples.append((time.perf_counter() - start) * 1000)
-        assert median(samples) < DECISION_BUDGET_MS, (
-            f"the location check costs {median(samples):.3f}ms for {target} — "
-            "it should be one resolve()"
+    def refuse(*args: object, **kwargs: object) -> object:
+        raise AssertionError(
+            "outside() enumerated a directory. It is walking the tree rather than resolving a "
+            "path, which puts a cost that grows with the repository on every gated argument."
         )
+
+    for name in ("scandir", "listdir", "walk"):
+        monkeypatch.setattr(os, name, refuse)
+    for name in ("iterdir", "glob", "rglob"):
+        monkeypatch.setattr(Path, name, refuse)
+
+    # Both directions, because a walk could plausibly be introduced on either branch: one target
+    # inside the root and one outside it.
+    assert outside("/etc/hosts", ".") is True
+    assert outside("src/neti/cli.py", ".") is False
 
 
 def test_the_command_does_not_import_somebody_elses_observability_agent() -> None:
