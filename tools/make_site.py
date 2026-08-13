@@ -35,8 +35,21 @@ CONSOLE = MEDIA / "console"
 PAGE = REPO / "docs" / "index.html"
 CLOUD_PAGE = REPO / "docs" / "cloud" / "index.html"
 FRAGMENT = REPO / "build" / "page.html"
+FONTS = MEDIA / "fonts"
 
 PLACEHOLDER = re.compile(r"\{\{MEDIA:([a-z0-9_]+)\}\}")
+
+# A third kind of asset, and the one with the hardest constraint. The page ships under
+# `default-src 'none'`, so a font cannot be linked from anywhere — not a CDN, not a relative path,
+# not the site's own origin without a `font-src 'self'` that would then also have to survive the
+# page being opened from a file:// URL or an email attachment. Inlined as a `data:` URI it needs
+# only `font-src data:`, and the page keeps the property every other asset here has: it carries
+# what it needs and renders identically wherever it is opened.
+#
+# The licence travels with it. `docs/media/fonts/OFL.txt` is the SIL Open Font License the face is
+# published under, and shipping the font without shipping that is the one thing the licence asks
+# you not to do.
+FONT_PLACEHOLDER = re.compile(r"\{\{FONT:([a-z0-9-]+)\}\}")
 
 # A second kind of image, kept syntactically distinct because it carries a weaker guarantee. The
 # `{{MEDIA:…}}` SVGs are generated from transcripts the suite pins byte for byte and cannot show
@@ -78,6 +91,14 @@ def fragment(source: Path = SOURCE) -> str:
             CONSOLE / f"{m.group(1)}.png",
             "image/png",
             "see docs/media/console/PROVENANCE.md for how to re-take it",
+        ),
+        text,
+    )
+    text = FONT_PLACEHOLDER.sub(
+        lambda m: _data_uri(
+            FONTS / f"{m.group(1)}.woff2",
+            "font/woff2",
+            "the face is committed under docs/media/fonts/ with the licence it ships under",
         ),
         text,
     )

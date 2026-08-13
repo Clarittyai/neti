@@ -32,9 +32,33 @@
     --code:      #0d1117;
     --code-fg:   #c9d1d9;
     --radius:    .5rem;
-    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto, "Helvetica Neue",
-            Arial, sans-serif;
+    --sans: "Space Grotesk", -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Roboto,
+            "Helvetica Neue", Arial, sans-serif;
     --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  }
+
+  /* ── the face ─────────────────────────────────────────────────────────────────────────────────
+     The page was set in `-apple-system` — the system font. That is the loudest generic signal a
+     product page can send: it is what a page looks like before anybody chose anything, and no
+     amount of spacing work overcomes it. It is also why this page kept reading as scratchy after a
+     pass that fixed the spacing.
+
+     Space Grotesk, and the reason is not taste. It is the proportional sibling of Space Mono, and
+     monospace is this product's actual voice — every unit, every label, every eyebrow and every
+     generated exhibit on this page is set in it, because monospace is what neti itself prints in.
+     A headline face drawn from the same skeleton makes the loud half and the quiet half of the
+     page relatives rather than strangers. The wide apertures and flat terminals survive being set
+     at 56px, which is where this page now does most of its talking.
+
+     One variable file, 300–700, latin only: 22KB, and every weight the page uses comes out of it.
+     `font-display: swap` so the first paint is never blank — the fallback metrics are close enough
+     that the swap does not jump. SIL OFL 1.1; the licence ships beside the file. */
+  @font-face {
+    font-family: "Space Grotesk";
+    font-style: normal;
+    font-weight: 300 700;
+    font-display: swap;
+    src: url({{FONT:space-grotesk-latin}}) format("woff2");
   }
   /* Dark is the ground this page is designed on, so the light variant is a considered inversion
      rather than an afterthought: paper rather than white, and the same hairline grid. */
@@ -225,9 +249,16 @@
   .cmd .sig { color: var(--fg-faint); user-select: none; }
 
   /* ══════════════════════════════════════════════════════════════════════ visuals
-     Flat. A hairline, no shadow, no window chrome pretending to be an app. */
-  .frame { display: block; width: 100%; height: auto; border: 1px solid var(--border);
-           border-radius: var(--radius); background: var(--code); }
+     Flat. No shadow, no window chrome pretending to be an app — but a fill rather than a hairline,
+     per the amended structure rule in DESIGN.md.
+
+     The border here was doing nothing but harm. Every generated SVG already draws its own filled
+     rounded rectangle at `rx="12"` (see `make_media.py`), so `.frame` was ringing an object that
+     was already an object: a 1px `#27272A` line 1px outside a `#0d1117` fill, on a `#0F0F10`
+     ground. Two edges, 12px radius fighting an 8px one, and nothing gained. The exhibit is the
+     surface. Radius matches what the SVG draws so the two agree. */
+  .frame { display: block; width: 100%; height: auto; border: 0; border-radius: 12px;
+           background: var(--code); }
   .cap { line-height: 1.6; margin-top: .8rem; text-transform: none; letter-spacing: .01em;
          font-size: .75rem; }
 
@@ -275,9 +306,11 @@
   /* ══════════════════════════════════════════════════════════════════════ the live gate
      Everything here is real: the magnitudes are the synthetic tenant's, the comparison is the one
      the engine makes, and the sentence is the one `neti hook` prints. */
-  .sim { margin-top: clamp(2rem, 4vw, 3rem); border: 1px solid var(--border);
-         border-radius: var(--radius); background: var(--surface); overflow: hidden; }
-  .sim-head { padding: .75rem 1.25rem; border-bottom: 1px solid var(--border); }
+  /* The one genuinely detachable object on the page — you press it and it answers — so it is the
+     clearest case the amended rule was written for: a fill, no ring around the fill. */
+  .sim { margin-top: clamp(2rem, 4vw, 3rem); border: 0; border-radius: 1rem;
+         background: var(--raised); overflow: hidden; }
+  .sim-head { padding: .9rem 1.5rem; border-bottom: 1px solid var(--hair); }
   .sim-tag { display: inline-flex; align-items: center; gap: .5rem; }
   .sim-tag::before { content: ""; width: 6px; height: 6px; border-radius: 999px;
                      background: var(--success); flex: none; }
@@ -308,9 +341,8 @@
              color: var(--fg-muted); background: var(--code); }
 
   /* ══════════════════════════════════════════════════════════════════════ day zero */
-  .zero { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface);
-          overflow: hidden; }
-  .zero-head { padding: .75rem 1.25rem; border-bottom: 1px solid var(--border); }
+  .zero { border: 0; border-radius: 1rem; background: var(--raised); overflow: hidden; }
+  .zero-head { padding: .9rem 1.5rem; border-bottom: 1px solid var(--hair); }
   .zero-steps { list-style: none; margin: 0; padding: 0; counter-reset: zero; }
   .zero-steps li { position: relative; padding: 1rem 1.25rem 1rem 3.25rem;
                    border-top: 1px solid var(--hair); }
@@ -333,8 +365,7 @@
   }
 
   /* ══════════════════════════════════════════════════════════════════════ cloud block */
-  .cloud { border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden;
-           background: var(--surface); }
+  .cloud { border: 0; border-radius: 1rem; overflow: hidden; background: var(--raised); }
   .cloud .shell { padding-inline: clamp(1.25rem, 3vw, 2rem); }
   .names span { display: block; font-size: .9375rem; color: var(--fg); }
   .names i { font-style: normal; color: var(--fg-faint); font-family: var(--mono);
@@ -377,36 +408,63 @@
      actually works: a claim you can read in two seconds, and the numbers standing behind it. The
      accent break on the last phrase is doing the same job the eyebrow used to and doing it in the
      one place the eye is already looking. */
-  .lead { padding-block: clamp(3rem, 7vw, 5.5rem) clamp(2rem, 4vw, 3rem); display: grid;
-          grid-template-columns: minmax(0, 1fr);
-          gap: clamp(2.5rem, 5vw, 4rem); align-items: center; }
-  @media (min-width: 62rem) { .lead { grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); } }
-  .lead h1 { font-size: clamp(2.5rem, 5.4vw, 4.25rem); line-height: 1.02; letter-spacing: -.035em;
-             font-weight: 800; }
+  /* ── the opening screen ───────────────────────────────────────────────────────────────────────
+     A headline beside a four-row panel of numbers is two arguments arriving at once, and the panel
+     always won: it is the denser object, so the eye starts there and reads the headline second, if
+     at all. The hero of a page is supposed to be one thing.
+
+     So the statement gets the screen — full width, and larger for having it — and the four numbers
+     become a band beneath it: same facts, one line each, read across rather than down. A band is
+     evidence *under* a claim, which is the relationship those numbers actually have to that
+     sentence. The live gate then arrives directly below as the first thing you can touch.
+
+     An eyebrow above the headline, in the label voice already used for every unit and marker on the
+     page. It is the one line that says what this *is* before the headline says what it does. */
+  .lead { padding-block: clamp(3.5rem, 8vw, 6.5rem) clamp(2rem, 4vw, 3rem); display: grid;
+          grid-template-columns: minmax(0, 1fr); gap: clamp(2.5rem, 5vw, 4rem); }
+  .lead h1 { font-size: clamp(2.75rem, 7vw, 5.5rem); line-height: 1.0; letter-spacing: -.04em;
+             font-weight: 700; max-width: 16em; }
+  .lead .eyebrow { display: block; margin-bottom: 1.75rem; color: var(--accent); }
   .lead h1 em { font-style: normal; color: var(--accent); }
   /* The hero line was 19px on a 40em measure — smaller and wider than the `.lede` under every
      section heading below it, which is the hierarchy upside down. Whatever the most generous body
      text on a page is, it belongs directly under the headline. 22px on 28em, so it lands in two
      lines beside the facts panel rather than filling five. */
   .lead .sub { font-size: clamp(1.125rem, .7vw + 1rem, 1.375rem); color: var(--fg-muted);
-               margin-top: 1.5rem; max-width: 28em; line-height: 1.45; }
+               margin-top: 1.75rem; max-width: 36em; line-height: 1.45; }
   /* Monospace tokens sitting inside prose. They carry the product's own vocabulary — a unit, a
      resolver, a verdict — without a code block interrupting the sentence. */
   .tok { font-family: var(--mono); font-size: .8125em; border: 1px solid var(--border);
          border-radius: 4px; padding: .1em .4em; color: var(--fg); white-space: nowrap; }
 
-  /* The evidence panel. One hairline-separated row per fact: a figure, what it is, and the detail
-     that stops it being a boast. */
-  .facts { border: 1px solid var(--border); border-radius: .75rem; background: var(--surface);
-           overflow: hidden; }
-  .fact { display: grid; grid-template-columns: minmax(3rem, auto) minmax(0, 1fr);
-          gap: .25rem .9rem; align-items: baseline; padding: 1.15rem 1.35rem;
-          border-top: 1px solid var(--hair); }
+  /* The evidence panel: a figure, what it is, and the detail that stops it being a boast.
+
+     Fill, not fill-and-border. This panel carried both, which is the four-boxes mistake in
+     miniature — the fill already says "one object" and the hairline says it again, more faintly.
+     `--raised` rather than `--surface` because at 4% over the ground the panel was reading as a
+     smudge; 7% is the smallest step that resolves as a deliberate edge without a line drawing one.
+     The radius goes to 16px: at 12 a 640px-tall panel reads as a rectangle somebody rounded, at 16
+     it reads as a shape. */
+  .facts { border: 0; border-radius: 1rem; background: var(--raised); overflow: hidden;
+           display: grid; grid-template-columns: minmax(0, 1fr); }
+  /* Four across at desktop, one per column, so the band is a line of evidence rather than a stack
+     that competes with the headline for height. Below 62rem it falls back to the stack, where a
+     four-column row of prose would be four columns of two words. */
+  @media (min-width: 62rem) { .facts { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+  .fact { display: block; padding: 1.6rem 1.5rem; border-top: 1px solid var(--hair); }
   .fact:first-child { border-top: 0; }
-  .fact b { font-family: var(--mono); font-size: clamp(1.5rem, 2.6vw, 2rem); font-weight: 500;
-            letter-spacing: -.04em; color: var(--accent); line-height: 1; }
-  .fact .t { font-size: .9375rem; font-weight: 600; }
-  .fact .d { grid-column: 2; font-size: .8125rem; color: var(--fg-faint); line-height: 1.5; }
+  @media (min-width: 62rem) {
+    .fact { border-top: 0; border-left: 1px solid var(--hair); }
+    .fact:first-child { border-left: 0; }
+  }
+  /* The figure leads its own column and gets the size it deserves once it is not sharing a row with
+     three sentences. Tabular numerals are inherited from `.neti`, so 5 / 15 / 11 / 0 sit on the
+     same baseline grid across four columns. */
+  .fact b { display: block; font-family: var(--mono); font-size: clamp(2rem, 3.4vw, 2.75rem);
+            font-weight: 500; letter-spacing: -.04em; color: var(--accent); line-height: 1; }
+  .fact .t { display: block; margin-top: .85rem; font-size: .9375rem; font-weight: 600; }
+  .fact .d { display: block; margin-top: .4rem; font-size: .8125rem; color: var(--fg-faint);
+             line-height: 1.5; }
 
   /* A floating pill rather than a full-bleed bar: it lifts the page off the top edge and makes the
      one filled action read as the only thing to press. */
@@ -439,6 +497,7 @@
   <header class="shell">
     <div class="lead">
       <div>
+        <span class="lbl eyebrow">A preflight gate for agent tool calls</span>
         <h1>Count what a tool call will touch <em>before it runs.</em></h1>
         <!-- Four ideas were in here: a name on an allowlist, the number it resolves to, the
              comparison, and the number handed back. The page gives the last two a section each

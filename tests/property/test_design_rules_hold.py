@@ -281,6 +281,11 @@ def test_nothing_reaches_for_a_card() -> None:
     The console's overview was three bordered rounded rectangles stacked on a bordered table — four
     boxes to say three numbers. A border earns its place only when the thing inside is genuinely
     detachable from the page.
+
+    DESIGN.md now lets a *distinct object* — an exhibit, a live control, a panel of facts — carry a
+    fill instead of a border, which is what the landing page needed and what fourteen sections of 3%
+    hairlines could not give it. This assertion is unchanged by that: a shadcn `Card` is a border
+    and a fill and a shadow together, which is the thing both the old rule and the new one refuse.
     """
     offenders = [
         str(path.relative_to(REPO))

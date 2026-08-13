@@ -79,19 +79,37 @@ let the two surfaces drift apart.
 
 ---
 
-## Structure — do not default to cards
+## Structure — a fill, or nothing
 
 **A number does not need a box.** Structure comes from hairline rules, spacing and alignment. The
 console's overview was three bordered rounded rectangles stacked on top of a bordered table, which is
-four boxes to say three numbers.
+four boxes to say three numbers. That is still the rule for anything that is *part of* the page.
 
-A border earns its place only when the thing inside is genuinely detachable from the page — a
-popover, a dialog, a menu. Everything else is a section: a heading, some space, a `border-t` if two
-things need separating.
+**A distinct object may carry a fill, and the fill replaces the border rather than joining it.**
+This narrows a rule that used to forbid both, and the narrowing is recorded because the old rule was
+right about the console and wrong about the landing page.
+
+What went wrong is measurable rather than a matter of taste. A hairline at `#27272A` on `#0F0F10`
+is about a 3% luminance step. One of them separates two things. Fourteen sections of them, plus
+table rules, plus row separators, plus a border on every exhibit, is texture without structure: too
+faint to read as an edge, too numerous to read as nothing. The word that came back for it was
+*scratchy*, and that is what a page of 3% steps looks like. The rule assumed hairlines would carry
+structure; at this contrast and this density they carried noise.
+
+A fill at `--surface` or `--raised` is a 4–7% step over the same ground and it reads as one object
+instead of four edges. So:
+
+- an **exhibit**, a **live control**, or a **panel of facts** is a distinct object and may be filled
+- anything that is a section of the page — a heading and its prose, a list, a table — is not, and
+  still gets a rule or nothing at all
+- **fill or border, never both.** Two ways of saying "this is an object" is the four-boxes mistake
+  wearing a different coat
 
 Also out:
 
-- **No shadows.** Not on buttons, not on panels. Depth is not this product's idea.
+- **No shadows.** Not on buttons, not on panels. Depth is not this product's idea — and on a
+  `#0F0F10` ground a drop shadow is invisible anyway, so it would be cost without effect. A fill
+  separates an object from its ground; that is the whole job.
 - **No hover motion.** No `hover:scale`, no `hover:-translate`. A background or border transition is
   enough, and tap-scale is fine on touch.
 - **No fake window chrome.** No pretend traffic lights, no simulated title bars around a terminal.
