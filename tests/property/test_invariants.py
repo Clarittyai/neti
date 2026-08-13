@@ -258,3 +258,22 @@ def test_observe_mode_always_proceeds(ceiling: Ceiling, magnitude: int) -> None:
         mode=Mode.OBSERVE,
     )
     assert d.proceeds
+
+
+def test_no_property_test_is_racing_a_stopwatch() -> None:
+    """The Hypothesis profile in `tests/conftest.py` is actually in force.
+
+    `register_profile` without `load_profile` is a silent no-op — the settings exist and nothing
+    uses them — so the fix for a load-sensitive failure can itself be inert and look installed.
+
+    What this protects is narrow and worth stating: none of the `@given` tests in this suite is a
+    claim about elapsed time. Those live in `tests/bench`, which uses no Hypothesis. A per-example
+    deadline here only ever measures the machine, and it fails as `FlakyFailure` naming a generated
+    value, which sends the reader to look at the canonicaliser instead of at the load average.
+    """
+    from hypothesis import settings
+
+    assert settings.default.deadline is None, (
+        "Hypothesis has a per-example deadline again, so these correctness properties can fail "
+        "on a busy machine, and will blame a generated value when they do"
+    )
