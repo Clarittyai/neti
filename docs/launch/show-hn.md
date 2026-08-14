@@ -73,8 +73,8 @@ list is the real measure and adding one is about eighty lines.
 
 You can see the whole thing on your own machine with no credentials and no traffic:
 
-    pip install neti
-    neti demo --here
+    $ pip install neti
+    $ neti demo --here
 
 Six acts against your own files — what an agent here can reach, what it did, the ceilings that
 follow from that, the same calls re-run with the ceilings on, and a chain that re-derives every

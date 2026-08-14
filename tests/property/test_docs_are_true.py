@@ -26,7 +26,23 @@ from typer.main import get_command
 from neti.cli import app
 
 REPO = Path(__file__).resolve().parents[2]
-DOCS = ["README.md", "CHANGELOG.md", "CONTRIBUTING.md", "LICENSING.md", "SCOPE.md", "SECURITY.md"]
+DOCS = [
+    "README.md",
+    "CHANGELOG.md",
+    "CONTRIBUTING.md",
+    "LICENSING.md",
+    "SCOPE.md",
+    "SECURITY.md",
+    # A launch draft is a document that tells strangers to type things, which is the whole category
+    # this file protects. It earns its place the hard way: writing it is how `pip install neti &&
+    # neti demo --here` — the README's own opening pair — was found to be a stack trace on a base
+    # install, because an import sat one line above the branch that returns before using it.
+    #
+    # Nothing here posts it. But a draft that goes stale between writing and posting is worse than
+    # one that was never written, since by then somebody is reading it somewhere this repository
+    # cannot reach.
+    "docs/launch/show-hn.md",
+]
 
 # `$ neti …` in a console block, or `neti …` inside backticks. Both appear in these files and both
 # are things a reader will copy.
