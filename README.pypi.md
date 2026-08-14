@@ -35,6 +35,12 @@ applications** — and stops the call, because you declared a ceiling of 200.
 The agent gets back a number, not a refusal — which is what makes it narrow the target and try again
 instead of giving up or routing around. Nothing about the gate leaks into the prompt.
 
+And the whole thing, on your own machine, with no credentials and no traffic — `neti demo --here`
+measures what an agent here can reach, replays what one actually did, derives the ceilings that
+follow, re-runs the same calls with them on, and re-derives every verdict offline:
+
+<img src="https://raw.githubusercontent.com/Clarittyai/neti/main/docs/media/cast.gif" alt="the six acts of neti demo --here, played out: discover, reach, observe, report and propose, enforce, audit" width="900">
+
 Size is the line nobody else can draw, so it leads. It is not the only one:
 
 ```
@@ -352,7 +358,10 @@ Six acts against your own machine, no credentials: what an agent can reach here,
 did, the ceilings that follow, the same calls re-run with those ceilings on, and a chain that
 re-derives every verdict offline.
 
-<img src="https://raw.githubusercontent.com/Clarittyai/neti/main/docs/media/cast.gif" alt="the six acts of neti demo --here, played out: discover, reach, observe, report and propose, enforce, audit" width="900">
+<img src="https://raw.githubusercontent.com/Clarittyai/neti/main/docs/media/demo_here_full.svg" alt="the six acts of neti demo --here: discover, reach, observe, report and propose, enforce, audit">
+
+The still, because this is the section you read rather than watch — the animation of the same
+transcript is at the top, where somebody deciding whether to keep reading will see it.
 
 `[all]` is everything one machine needs, which is the entire free tier. A bare install leaves a
 `neti` command with no CLI behind it, and says so rather than failing obscurely.
