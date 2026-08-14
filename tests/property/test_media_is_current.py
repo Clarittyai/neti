@@ -388,35 +388,50 @@ def test_the_head_delivers_the_card_it_promises() -> None:
 # ---------------------------------------------------------------------------- the cast
 
 
-def test_the_cast_covers_every_character_it_draws() -> None:
-    """A missing glyph is a silent defect, and this one shipped once.
+COVERED_BY_THE_CAST_FACE = {"·", "—", "─"}
+"""Every non-ASCII character `jetbrains-mono-regular.woff2` is known to draw.
+
+Verified against the committed font's cmap when it was chosen — U+00B7, U+2014, U+2500 — and it is
+that verification this set records. The point is not the three characters; it is that adding a
+fourth to the transcript has to be a deliberate act with somebody checking the font, rather than
+258 empty boxes nobody notices.
+"""
+
+
+def test_the_cast_draws_no_character_its_face_lacks() -> None:
+    """The defect that shipped once, checked without an optional dependency.
 
     The cast was first built in Space Mono, whose Google subset has no U+2500 — the box-drawing
-    horizontal that rules every act heading in this transcript, 258 times. PIL drew 258 empty boxes
-    and reported nothing; it took looking at the picture. The generator refuses that now, and this
-    holds the refusal to the transcript that is actually committed rather than to the one it was
-    written against.
+    horizontal ruling every act heading, 258 times. PIL drew 258 empty boxes and reported nothing.
 
-    Not a staleness check: the GIF is encoder output and comparing its bytes across platforms is the
-    mistake `make_logo` already made. What is checked is the property that broke.
+    The first version of this test read the font's cmap directly, which needs fontTools to
+    decompress a woff2, which CI does not install. I guarded it with `importorskip` — and
+    `test_no_silent_skips.py` failed the build for it, correctly: this repository already decided
+    that a skip reads exactly like a pass, having lost eighteen adapter tests to one. Writing "a
+    skip reads exactly like a pass" in the docstring while adding a skip was not a good look.
 
-    **Skipped where fontTools is absent, which is CI.** Reading a cmap out of a woff2 needs it,
-    it is a build-time dependency supplied by `just cast` rather than a project one, and CI
-    installs from a frozen lockfile — so putting it in `dev` means regenerating `uv.lock`, which
-    needs a uv above the floor `CONTRIBUTING` names. It is a deliberate skip, and worth saying
-    what it costs: a skip reads exactly like a pass, which is the failure this repository already
-    wrote `NETI_REQUIRE_SDKS` to stop.
-
-    What makes that acceptable rather than a hole: the load-bearing assertion is in the generator,
-    not here. `frames()` calls `_assert_covered` before drawing anything, so `just cast` *cannot*
-    produce a cast with a missing glyph in it. This is the second line of defence, and it runs for
-    anyone who has already installed what building the cast requires.
+    So this compares the transcript against what was verified rather than re-deriving it. It needs
+    nothing but the transcript, runs everywhere, and fails the moment the cast would contain a
+    character nobody has checked the face can draw. The stronger check still exists where it can
+    afford its dependency: `frames()` calls `_assert_covered` before drawing, so `just cast` cannot
+    emit a cast with a missing glyph whatever this file does.
     """
-    pytest.importorskip("fontTools", reason="fontTools is supplied by `just cast`, not by dev")
     make_cast = _load("make_cast")
 
     lines = make_cast._lines()
     assert lines, "the cast has no lines, so this checks nothing"
-    make_cast._assert_covered(lines)
+
+    exotic = {ch for line, _ in lines for ch in line if ord(ch) > 126}
+    assert exotic, (
+        "the transcript is pure ASCII now, so this test proves nothing — it was written because "
+        "the act rules are U+2500. Check whether the cast still looks like the exhibit."
+    )
+    unverified = exotic - COVERED_BY_THE_CAST_FACE
+    assert not unverified, (
+        "the cast would draw "
+        + ", ".join(f"U+{ord(ch):04X} {ch!r}" for ch in sorted(unverified))
+        + ", which nobody has confirmed the face contains. Check it against "
+        f"{make_cast.FACE.name} and add it above, or the cast gets empty boxes and says nothing."
+    )
 
     assert make_cast.OUT.exists(), "docs/media/cast.gif is missing. Run `just cast`."
